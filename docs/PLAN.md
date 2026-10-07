@@ -77,7 +77,7 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F50 | A focus ring moved onto an element of a tree that the next redraw replaces with a **differently built** one is lost: it lands on the first focusable element (here the filter field), with no `ui.focus` raised. Every intermediate state a multi-write action passes through must draw like its final state. | M3a review fixes, live |
 | F51 | A **folder-marketplace** plugin runs from its marketplace folder (`readFromFolder`: the session reads `hooks/hooks.json` there), so an edit or version bump there applies at the next reload. `list --json` gives the folder's `folderVersion` beside the install copy's `version`; `claude plugin update` refreshes the copy (and `version`) without `marketplace update`, which changes nothing that runs. `update` takes `--accept-command` too: a command-source update can need acceptance. `uninstall --keep-data` keeps `plugins/data/<name>-<marketplace>/` and a reinstall finds it; without the flag the folder is deleted. | M3b, isolated config + `claude -p` marker |
 | F52 | `$.ui.status(text)` is drawn under the prompt as `⚠ <plugin>: <text>` (the engine names the plugin). | M3b, live |
-| F53 | An **unasked** `ui.open` of a pane that is already placed (a retitle from a timer) keeps it placed at 120 columns (`ui.open … (unasked, 120 columns): placed`). A pane's title is drawn only while more than one pane is open (d.ts `PaneOpenArgs.title`), so the badge is mostly seen in tabs. | M3b, live debug log |
+| F53 | An **unasked** `ui.open` of a pane that is already placed (a retitle from a timer) keeps it placed, at 120 columns and below both floors at 64 (`ui.open modmgr modmgr (unasked, 64 columns): placed`): the 144/110-column floor is for placing a pane, not for retitling one. A pane's title is drawn only while more than one pane is open (d.ts `PaneOpenArgs.title`), so the badge is mostly seen in tabs. | M3b, live debug log |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -724,3 +724,16 @@ Pushes and GitHub actions still need the person's go-ahead.
   (`bumpTurnBand`: turn-band's folder at 0.4.0 calling `$.process.run`) shows "turn-band can now run programs" in the
   row, the detail, the band, the status line and the title (`test/services/m3b.test.ts`). `plugin/tests/m3b.test.tsx`
   runs remove → reviewed undo and an update on terminal and desktop, and the fixture update's diff on both.
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-07-m3b-review-response.md`): a batch that needed no reload
+  (an update found current, a toggle already so) gets the same echo a reload gives, its `doneText`, so the band and the
+  pane's batch line say "already up to date"; `z` queues by a guarded write (`enqueue`'s `when`, `stillUndoes`), so two
+  presses queue one undo, and an undo review carries the batch it undoes (`undoes`) and queues nothing, saying why, once
+  another batch landed; dismissing the band also quiets that news in the status line and the title
+  (`Summary.newsDismissed`; what is under way or owed stays); the status line counts changes (jobs that need a reload),
+  shows a marketplace refresh or a test by name, and shares `isWork` with the batch line; the data choice moved from `d`
+  (the band's dismiss) to `w`, and `y` reads "remove and wipe its data" once chosen; whether a remove kept the data is
+  the CLI's `keptData` (parsed, recorded on the job as `keptData`), and the undo review says nothing when the CLI said
+  nothing; a confirmed remove moves the selection to the next row; actions' own writes to summary keys schedule the
+  chrome; a retitle reads its `UiOpenResult` and logs an unplaced answer (F53, checked at 64 columns); toasts are
+  held only while no job is active and the job log isn't on top (`holdsToasts`); a removed mod's name is sanitised in
+  the undo review; the update review says "if a newer version exists".
