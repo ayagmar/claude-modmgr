@@ -2,7 +2,7 @@
 // and the actions, never `$`. Theme keys and glyphs are fixed (PLAN §5.1,
 // §5.6, F13, R18); hotkeys come only from domain/keymap.ts.
 
-import type { Color, Elements, RenderElement, RenderSurface } from 'claude-code'
+import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
 import type { StatePort } from '../ports.ts'
 import type { Actions } from '../services/actions.ts'
@@ -50,7 +50,8 @@ export const KeyButton = (
     readonly action: string
     readonly on: KeySurface
     readonly label: string
-    readonly onPress: () => void
+    /** Gets the press: `press.surface` is where it came from (a copy targets that surface). */
+    readonly onPress: (press: UiPressArgument) => void
     readonly dim?: boolean
   },
 ): RenderElement => {

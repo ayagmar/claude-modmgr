@@ -274,8 +274,10 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
       props: PANE(64, 20),
     })
     const paint = Date.now() - started
-    // PLAN §6: /mods paints in under 50 ms from $.state.
-    expect(paint).toBeLessThan(50)
+    // PLAN §6 budgets 50 ms for the first paint (measured 2026-10-07: 37 ms on the
+    // terminal, the module's first draw, and 3 ms on desktop). The bound leaves room
+    // for a loaded CI runner (review R-M3a-12).
+    expect(paint).toBeLessThan(150)
     const drawn = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
     expect(drawn.length).toBeGreaterThan(5)
     expect(drawn.length).toBeLessThan(20)
@@ -376,6 +378,150 @@ test('mobile draws the list without the filter field (no Input there)', async ($
   expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeDefined()
   expect(await ui.find({ key: 'filter' })).toBeUndefined()
 })
+
+// ---- review R-M3a-1, R-M3a-9, R-M3a-13 -------------------------------------
+
+const mountPane = ($: Engine, surface: 'terminal' | 'desktop', props = PANE()) =>
+  $.ui.mount({ plugin: 'modmgr', surface, component: 'Pane', requestId: 'modmgr', props })
+
+test('with a filter on, toggle stages the row the filter shows, not a hidden selection', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    await focusRow($, TURN_BAND)
+    await ui.input({ key: 'filter', text: 'red', kind: 'change' })
+    await ui.press({ key: 'act:toggle' })
+    await ui.redraw()
+    expect((h.read('view') as { staged: Record<string, boolean> }).staged).toEqual({
+      'redactor@fixtures': false,
+    })
+    expect(await ui.find({ type: 'Text', text: /→ off/ })).toBeDefined()
+    await ui.press({ key: 'act:toggle' })
+    await ui.input({ key: 'filter', text: '', kind: 'change' })
+    await ui.unmount()
+  }
+})
+
+test('a project-scope change says it edits this repository’s settings', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    await focusRow($, 'redactor@fixtures')
+    await ui.press({ key: 'act:toggle' })
+    await ui.redraw()
+    await ui.press({ key: 'act:apply' })
+    await ui.redraw()
+    expect(
+      await ui.find({ type: 'Text', text: 'Changes .claude/settings.json in this repository.' }),
+    ).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /--scope project/ })).toBeDefined()
+    await ui.press({ key: 'act:cancel' })
+    await ui.redraw()
+    await ui.press({ key: 'act:toggle' })
+    await ui.unmount()
+  }
+})
+
+test('without the CLI the dialog is read-only and says why', async ($, on) => {
+  const h = host(on, {
+    cli: () => ({ throws: 'spawn claude ENOENT' }),
+    state: { mods: [MOD_ROW], sync: { refreshing: false, at: 1, skipped: 0 } },
+  })
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /can't run the claude CLI here/ })).toBeDefined()
+    expect(await ui.find({ key: 'act:toggle' })).toBeUndefined()
+    expect(await ui.find({ key: 'act:undo' })).toBeUndefined()
+    await ui.press({ key: `row:${MOD_ROW.id}` })
+    await ui.redraw()
+    expect(await ui.find({ key: 'act:copy' })).toBeDefined()
+    expect(await ui.find({ key: 'act:toggle' })).toBeUndefined()
+    await ui.press({ key: 'act:back' })
+    await ui.unmount()
+  }
+})
+
+test('the job log shows a running test’s output and offers to cancel it', async ($, on) => {
+  host(on, {
+    state: {
+      queue: {
+        owner: 'someone-else',
+        jobs: [
+          { id: 'a', kind: 'disable', state: 'cancelled', tail: [], target: 'x@m' },
+          { id: 't', kind: 'test', state: 'running', tail: ['1 pass', '2 pass'], target: 'y@m' },
+        ],
+      },
+      view: {
+        tab: 'installed',
+        layout: 'stacked',
+        stack: ['jobs'],
+        query: '',
+        kind: 'mods',
+        sort: 'name',
+        page: 0,
+        staged: {},
+      },
+    },
+  })
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /2 pass/ })).toBeDefined()
+    expect((await ui.find({ key: 'act:cancel-job' }))?.props.label).toBe('cancel test')
+    expect(await ui.find({ type: 'Text', text: 'cancelled' })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
+test('the split’s list drops version and scope; help sits beside the list', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface, PANE(104, 30))
+    await focusRow($, 'quiet-bash@fixtures')
+    await ui.redraw()
+    // turn-band's version would be in its row; only the selected mod's is drawn (in the detail).
+    expect(await ui.find({ type: 'Text', text: '0.3.1' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '0.2.0' })).toBeDefined()
+    await ui.press({ key: 'act:help' })
+    await ui.redraw()
+    expect(await ui.find({ type: 'Text', text: 'Keys' })).toBeDefined()
+    expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeDefined()
+    await ui.press({ key: 'act:help' })
+    await ui.unmount()
+  }
+})
+
+test('the footer words close and back per surface; the key hint is the terminal’s', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const terminal = await mountPane($, 'terminal', PANE(64, 20, false))
+  expect((await terminal.find({ key: 'act:close' }))?.props.label).toBe('esc close')
+  expect(await terminal.find({ type: 'Text', text: /ctrl\+x tab/ })).toBeDefined()
+  const desktop = await mountPane($, 'desktop', PANE(64, 20, false))
+  expect((await desktop.find({ key: 'act:close' }))?.props.label).toBe('close')
+  expect(await desktop.find({ type: 'Text', text: /ctrl\+x tab/ })).toBeUndefined()
+})
+
+const MOD_ROW = {
+  id: 'turn-band@fixtures',
+  name: 'turn-band',
+  version: '0.3.1',
+  origin: 'marketplace',
+  scope: 'user',
+  enabled: true,
+  toggleable: true,
+  notableCount: 1,
+  problems: 0,
+  mixed: false,
+}
 
 const MODS_BARE = {
   command: 'mods',

@@ -18,8 +18,10 @@ import {
   rowOfKey,
   rowsFor,
   selectedIndex,
+  selectedRow,
   specsOf,
   stagedChanges,
+  stagedIds,
   stageToggle,
   statusOf,
   toggleOverlay,
@@ -68,7 +70,7 @@ describe('layout and opening', () => {
     expect(layoutFor(100)).toBe('split')
   })
 
-  it('asks for rows that fit the list, between 8 and 24', () => {
+  it('asks for rows that fit the list, between 14 and 24', () => {
     expect(rowsFor(0)).toBe(14)
     expect(rowsFor(12)).toBe(18)
     expect(rowsFor(200)).toBe(24)
@@ -134,6 +136,15 @@ describe('rows and the window', () => {
     expect(pagerLabel({ start: 5, end: 15 }, 40)).toBe('6–15 of 40')
   })
 
+  it('resolves the selected row through the filter, for the drawing and the actions alike', () => {
+    const all = [row('alpha'), row('beta'), row('gamma')]
+    expect(selectedRow(view({ selected: 'gamma@m' }), all)?.name).toBe('gamma')
+    // A selection the filter hides is not acted on: the first row shown is (review R-M3a-1).
+    expect(selectedRow(view({ selected: 'gamma@m', query: 'be' }), all)?.name).toBe('beta')
+    expect(selectedRow(view({ selected: 'gone@m' }), all)?.name).toBe('alpha')
+    expect(selectedRow(view({ query: 'zzz' }), all)).toBeUndefined()
+  })
+
   it('finds the selection, or the first row', () => {
     expect(selectedIndex(rows, 'gamma@m')).toBe(2)
     expect(selectedIndex(rows, 'nope')).toBe(0)
@@ -156,6 +167,11 @@ describe('staging', () => {
   it('leaves a row it cannot toggle alone', () => {
     const v = view()
     expect(stageToggle(v, managed)).toBe(v)
+  })
+
+  it('marks only the entries that still change their row', () => {
+    const v = view({ staged: { 'on@m': false, 'off@m': false } })
+    expect([...stagedIds(v, [on, off])]).toEqual(['on@m'])
   })
 
   it('lists the changes still pending, in row order, and prunes the rest', () => {
@@ -276,7 +292,7 @@ describe('the status line', () => {
   const queue = (jobs: Job[]): JobQueue => ({ owner: 'o', jobs })
 
   it('says nothing without a batch', () => {
-    expect(statusOf(queue([job('x', { batch: undefined })]), 0)).toBeUndefined()
+    expect(statusOf(queue([job('x', { batch: undefined })]), false)).toBeUndefined()
     expect(latestBatch([])).toEqual([])
   })
 
@@ -287,53 +303,51 @@ describe('the status line', () => {
       job('3', { state: 'queued' }),
       job('r', { kind: 'reload', state: 'queued', target: undefined }),
     ])
-    expect(statusOf(running, 0)).toEqual({ tone: 'busy', text: 'disable b@m (2 of 3)…' })
+    expect(statusOf(running, false)).toEqual({ tone: 'busy', text: 'disable b@m (2 of 3)…' })
     const reloading = queue([
       job('1'),
       job('r', { kind: 'reload', state: 'running', target: undefined }),
     ])
-    expect(statusOf(reloading, 0)).toEqual({ tone: 'busy', text: 'reloading plugins…' })
+    expect(statusOf(reloading, false)).toEqual({ tone: 'busy', text: 'reloading plugins…' })
   })
 
   it('says a reload waits for the settings, or that changes are queued', () => {
     expect(
       statusOf(
         queue([job('1'), job('r', { kind: 'reload', state: 'queued', target: undefined })]),
-        0,
+        false,
       ),
     ).toEqual({ tone: 'busy', text: 'reload waits for the settings to settle…' })
     expect(
-      statusOf(queue([job('1', { state: 'queued' }), job('2', { state: 'queued' })]), 0),
+      statusOf(queue([job('1', { state: 'queued' }), job('2', { state: 'queued' })]), false),
     ).toEqual({
       tone: 'busy',
       text: '2 changes queued…',
     })
   })
 
-  it('reports failures until the next batch, and success for a while', () => {
+  it('reports failures until the next batch, and success while the reload is echoed', () => {
     const failed = queue([
       job('1', { state: 'failed', endedAt: 5, error: { kind: 'cli-failed', message: 'boom' } }),
       job('2', { state: 'interrupted', endedAt: 5 }),
     ])
-    expect(statusOf(failed, 1e9)).toEqual({
+    expect(statusOf(failed, false)).toEqual({
       tone: 'error',
       text: '2 of 2 failed (disable a@m: boom)',
     })
-    expect(statusOf(queue([job('1', { state: 'interrupted', endedAt: 5 })]), 1e9)?.text).toBe(
+    expect(statusOf(queue([job('1', { state: 'interrupted', endedAt: 5 })]), false)?.text).toBe(
       '1 of 1 failed (disable a@m)',
     )
     const done = queue([
       job('1', { endedAt: 100 }),
       job('r', { kind: 'reload', endedAt: 200, target: undefined }),
     ])
-    expect(statusOf(done, 300)).toEqual({ tone: 'ok', text: '1 change applied, plugins reloaded' })
-    expect(statusOf(done, 300 + 10_000)).toBeUndefined()
+    expect(statusOf(done, true)).toEqual({ tone: 'ok', text: '1 change applied, plugins reloaded' })
+    expect(statusOf(done, false)).toBeUndefined()
     const two = queue([job('1', { endedAt: 1 }), job('2', { endedAt: 1 })])
-    expect(statusOf(two, 2)?.text).toBe('2 changes applied')
-    const noEnd = queue([job('1')])
-    expect(statusOf(noEnd, 5)?.text).toBe('1 change applied')
+    expect(statusOf(two, true)?.text).toBe('2 changes applied')
     const reloadOnly = queue([job('r', { kind: 'reload', endedAt: 1, target: undefined })])
-    expect(statusOf(reloadOnly, 2)).toEqual({ tone: 'ok', text: 'plugins reloaded' })
+    expect(statusOf(reloadOnly, true)).toEqual({ tone: 'ok', text: 'plugins reloaded' })
   })
 })
 

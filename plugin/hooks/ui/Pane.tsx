@@ -1,7 +1,8 @@
 // The `/mods` dialog (PLAN §5.2): a header, the Installed list (with the
 // detail beside it from SPLIT_MIN_COLUMNS body columns), the overlay on top,
-// and a footer of the keys that apply now. Sized to `scroll.bodyRows` so the
-// header and footer never scroll away; everything drawn comes from `$.state`.
+// and a footer of the keys that apply now. Sized to `scroll.bodyRows`: the list
+// is windowed and a taller overlay is clipped (the detail draws compactly), so
+// the header and footer never scroll away. Everything drawn comes from `$.state`.
 
 import type { RenderElement } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
@@ -12,23 +13,20 @@ import {
   filterRows,
   layoutFor,
   pagerLabel,
-  selectedIndex,
-  stagedChanges,
+  selectedRow,
+  stagedIds,
   statusOf,
-  topOverlay,
   windowAround,
 } from '../domain/view.ts'
-import { Detail } from './Detail.tsx'
+import { Detail, detailRows } from './Detail.tsx'
 import { List } from './Installed.tsx'
 import { GLYPH, KeyButton, TONE, type ViewPorts } from './kit.tsx'
-import { Help, Jobs, Review } from './overlays.tsx'
+import { Help, helpRows, Jobs, Review, reviewRows } from './overlays.tsx'
 
 export type PaneFrame = {
   readonly bodyColumns: number
   readonly bodyRows: number
   readonly isFocused: boolean
-  /** The clock, for how long a finished batch's line stays. */
-  readonly now: number
 }
 
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
@@ -51,7 +49,7 @@ const OVERLAY_SURFACE: Readonly<Record<Overlay, KeySurface>> = {
 }
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
-  const [view, mods, detail, queue, review, sync, degraded] = await Promise.all([
+  const [view, mods, detail, queue, review, sync, degraded, attention] = await Promise.all([
     v.read('view'),
     v.read('mods'),
     v.read('detail'),
@@ -59,17 +57,25 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     v.read('review'),
     v.read('sync'),
     v.read('degraded'),
+    v.read('attention'),
   ])
   const { Box, Button, Text, Input } = v.el
   const layout = layoutFor(frame.bodyColumns)
-  const top = topOverlay(view)
+  // A review overlay whose review was just taken (confirm) is already gone: the
+  // tree drawn in between must be the final one, or the focus ring set on a row
+  // in it is lost when the real list replaces it.
+  const stack = review === null ? view.stack.filter(item => item !== 'review') : view.stack
+  const top = stack.at(-1)
   const readOnly = degraded.process
   // Only a missing CLI concerns Installed; network use matters to Discover and updates.
   const warning = degraded.process ? degraded.reason : undefined
   const rows = filterRows(mods, view.query)
-  const selected = rows[selectedIndex(rows, view.selected)]
-  const staged = stagedChanges(view, mods).length
-  const status = statusOf(queue, frame.now)
+  const selected = selectedRow(view, mods)
+  const changing = stagedIds(view, mods)
+  const staged = changing.size
+  const showStaged = staged > 0 && !readOnly && top !== 'review'
+  const status = statusOf(queue, attention.lastReload !== undefined)
+  const terminal = v.surface === 'terminal'
   const on = mods.filter(row => row.enabled).length
   const listColumns = layout === 'split' ? Math.floor(frame.bodyColumns * 0.45) : frame.bodyColumns
   const showList = layout === 'split' || top === undefined
@@ -82,16 +88,21 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     (warning === undefined ? 0 : 1) +
     (showFilter ? 1 : 0) +
     1 +
-    (staged > 0 ? 1 : 0) +
+    (showStaged ? 1 : 0) +
     (view.notice === undefined ? 0 : 1) +
     (status === undefined ? 0 : 1) +
     footerRows
   const listRows = Math.max(3, frame.bodyRows - chrome)
-  const window = windowAround(rows.length, selectedIndex(rows, view.selected), listRows)
+  const window = windowAround(
+    rows.length,
+    selected === undefined ? 0 : rows.indexOf(selected),
+    listRows,
+  )
   const pager = pagerLabel(window, rows.length)
 
   const list = List(v, rows, {
     view,
+    staged: changing,
     columns: listColumns,
     window,
     focusId: selected?.id,
@@ -99,18 +110,51 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     total: mods.length,
   })
 
+  const under = stack.at(-2)
+  const helpSurfaces: KeySurface[] = [
+    'pane',
+    under === undefined ? 'installed' : OVERLAY_SURFACE[under],
+  ]
   const overlay = (which: Overlay | undefined): RenderElement | null => {
     if (which === 'review' && review !== null) return Review(v, review, mods)
-    if (which === 'help') {
-      const under = view.stack.at(-2)
-      return Help(v, ['pane', under === undefined ? 'installed' : OVERLAY_SURFACE[under]], NOT_YET)
-    }
-    if (which === 'jobs') return Jobs(v, queue.jobs)
+    if (which === 'help') return Help(v, helpSurfaces, NOT_YET)
+    if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     return null
   }
+  /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
+  const overlayRows = (
+    which: Overlay | undefined,
+    how: Parameters<typeof detailRows>[0],
+  ): number =>
+    which === 'review' && review !== null
+      ? reviewRows(review)
+      : which === 'help'
+        ? helpRows(helpSurfaces, NOT_YET)
+        : which === 'detail'
+          ? detailRows(how)
+          : 0
 
-  const detailOf = (actions: boolean) =>
-    Detail(v, { row: selected, detail, view, actions, readOnly })
+  const detailHow = (actions: boolean) => ({
+    row: selected,
+    detail,
+    staged: changing,
+    view,
+    actions,
+    readOnly,
+    rows: listRows,
+  })
+  const detailOf = (actions: boolean) => Detail(v, detailHow(actions))
+  /** A tall overlay, held to the body's rows so the footer stays in view. */
+  const clipped = (element: RenderElement, height: number): RenderElement =>
+    height <= listRows ? (
+      element
+    ) : (
+      <Box flexDirection="column" height={listRows} overflow="hidden">
+        <Box flexDirection="column" flexShrink={0}>
+          {element}
+        </Box>
+      </Box>
+    )
 
   const body =
     layout === 'split' ? (
@@ -131,9 +175,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     ) : top === undefined ? (
       list
     ) : top === 'detail' ? (
-      detailOf(true)
+      clipped(detailOf(true), overlayRows(top, detailHow(true)))
     ) : (
-      (overlay(top) ?? list)
+      clipped(overlay(top) ?? list, overlayRows(top, detailHow(true)))
     )
 
   const keys: RenderElement[] = []
@@ -247,7 +291,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           })}
         </Box>
       ) : null}
-      {staged > 0 && !readOnly && top !== 'review' ? (
+      {showStaged ? (
         <Box flexDirection="row" gap={2}>
           <Text color={TONE.warn}>
             {staged} staged {staged === 1 ? 'change' : 'changes'}
@@ -277,11 +321,23 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       <Box flexDirection="row" columnGap={2} flexWrap="wrap">
         {keys}
         {top === undefined ? (
-          <Button key="act:close" plain dimColor label="esc close" onPress={() => v.act.close()} />
+          <Button
+            key="act:close"
+            plain
+            dimColor
+            label={terminal ? 'esc close' : 'close'}
+            onPress={() => v.act.close()}
+          />
         ) : (
-          <Button key="act:back" plain dimColor label="esc back" onPress={() => v.act.back()} />
+          <Button
+            key="act:back"
+            plain
+            dimColor
+            label={terminal ? 'esc back' : 'back'}
+            onPress={() => v.act.back()}
+          />
         )}
-        {frame.isFocused ? null : <Text dimColor>ctrl+x tab to use the keys</Text>}
+        {frame.isFocused || !terminal ? null : <Text dimColor>ctrl+x tab to use the keys</Text>}
       </Box>
     </Box>
   )

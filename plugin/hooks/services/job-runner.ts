@@ -118,26 +118,24 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
   const reload = async (): Promise<Outcome> => {
     try {
       const text = await ports.command.reloadPlugins()
-      const line = text === undefined ? undefined : sanitize(text, { max: 120 })
-      await ports.state.update('attention', attention => {
-        const { lastReload: _old, ...rest } = attention
-        return line === undefined
-          ? { ...rest, reloadPending: false }
-          : { ...rest, reloadPending: false, lastReload: line }
-      })
+      // Always something to echo: the status line's "applied" shows while it does.
+      const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'
+      await ports.state.update('attention', attention => ({
+        ...attention,
+        reloadPending: false,
+        lastReload: line,
+      }))
       // The band echoes the CLI's line for a while (C8), then lets it go.
-      if (line !== undefined) {
-        ports.clock.after(RELOAD_ECHO_MS, () => {
-          void ports.state
-            .update('attention', attention => {
-              if (attention.lastReload !== line) return attention
-              const { lastReload: _done, ...rest } = attention
-              return rest
-            })
-            .catch(() => undefined)
-        })
-      }
-      return succeeded(line === undefined ? [] : [line])
+      ports.clock.after(RELOAD_ECHO_MS, () => {
+        void ports.state
+          .update('attention', attention => {
+            if (attention.lastReload !== line) return attention
+            const { lastReload: _done, ...rest } = attention
+            return rest
+          })
+          .catch(() => undefined)
+      })
+      return succeeded([line])
     } catch (error) {
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
       return failed({ kind: 'rejected', message: String(error) }, [

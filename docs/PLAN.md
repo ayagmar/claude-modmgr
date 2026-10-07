@@ -73,6 +73,8 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F46 | A ring left on a Button that a redraw removes (an overlay's `confirm`) goes nowhere: Enter then does nothing until an arrow or Tab. `autoFocus` places it only when the site takes the keys; `$.ui.focus` places it otherwise. | M3a, live |
 | F47 | In `claude plugin test`: the test `$` has no `ui.close` (an op, not an event), so a person's close can't be raised; and with `state.*` answered beneath the plugin (F44) a write doesn't redraw a mount (the test calls `ui.redraw()`), and a `$.ui.focus` onto a row the redraw would draw is denied. | M3a, `plugin/tests/ui.test.tsx` |
 | F48 | The terminal lays out with Ink's flex defaults: children shrink (`flexShrink: 1`), vertically too inside a Box of fixed `height`, so lines overlap; `gap` also sets the row gap of a wrapping row. Fixed columns take `flexShrink={0}`; a clipped column wraps its content in a non-shrinking Box; a wrapping row uses `columnGap`. | M3a, live at 106 columns |
+| F49 | A pane **redraws when the keys leave it** without a key press of its own (ctrl+x tab away: `isFocused` false, drawn), so the last draw's `isFocused` is current when an Esc typed at the prompt closes it. The **close key ctrl+x x hands the keys back before `ui.close` too**, so it reaches the hook exactly as Esc does: the two can't be told apart, and with an overlay up ctrl+x x pops it. The mouse close mark was not tested (no click driver). | M3a review R-M3a-6, live debug log |
+| F50 | A focus ring moved onto an element of a tree that the next redraw replaces with a **differently built** one is lost: it lands on the first focusable element (here the filter field), with no `ui.focus` raised. Every intermediate state a multi-write action passes through must draw like its final state. | M3a review fixes, live |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -652,3 +654,13 @@ Pushes and GitHub actions still need the person's go-ahead.
 - **Tests.** Vitest covers `domain/view.ts` and `services/actions.ts` (fake ports); `plugin/tests/ui.test.tsx` mounts
   the dialog and band on terminal and desktop (mobile for its fallback), runs toggle → review → confirm → disable →
   reload, the split, the window over 200 rows (painted in < 50 ms), help, jobs and the band (F47 shapes how).
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-07-m3a-review-response.md`): one resolver (`selectedRow`)
+  for what is drawn selected and what `e` acts on; `confirm` takes the review by compare-and-set; rows and the
+  detail mark only staged entries that still change something, and a refresh prunes the rest; the status line's
+  "applied" shows while the band echoes the reload (the runner's clear of that echo is the redraw that removes it);
+  the ring goes to each overlay's safe default (review: `cancel`; detail: its toggle, else `copy id`; help/jobs:
+  their own key) and back to the row; a review overlay whose review was taken draws as gone (F50); a taller detail
+  draws compactly and every overlay is clipped to the body's rows, with the detail's keys under its title; rows cap
+  an update's version at 8 and cut their flags at the frame; the Esc cascade trusts only terminal draws and closes
+  when the pane still holds the keys at the hook (F49: the close key can't be told from Esc, so it pops an overlay
+  too, accepted); the footer says `close`/`back` off the terminal and gives the ctrl+x hint only there.

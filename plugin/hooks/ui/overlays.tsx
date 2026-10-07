@@ -8,6 +8,17 @@ import { sanitize } from '../domain/sanitize.ts'
 import { commandLine, partsLabel, specsOf } from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
+/** The rows the review draws (Pane clips a taller one to the body). */
+export const reviewRows = (review: ReviewRequest): number =>
+  1 +
+  review.targets.length +
+  (review.notable.length === 0 ? 0 : 1 + review.notable.length) +
+  (review.alsoDisables === undefined ? 0 : 1) +
+  (review.changesRepoFile ? 1 : 0) +
+  2 +
+  review.targets.length +
+  1
+
 export const Review = (
   v: ViewPorts,
   review: ReviewRequest,
@@ -80,6 +91,10 @@ export const Review = (
   )
 }
 
+/** The rows help draws: its heading, a row per key, the closing line. */
+export const helpRows = (surfaces: readonly KeySurface[], hidden: ReadonlySet<string>): number =>
+  2 + helpFor(surfaces, hidden).length
+
 export const Help = (
   v: ViewPorts,
   surfaces: readonly KeySurface[],
@@ -122,43 +137,65 @@ const JOB_TONE: Readonly<Record<Job['state'], string>> = {
   interrupted: TONE.bad,
 }
 
-/** The newest jobs first; the running one's output tail under it. */
-export const Jobs = (v: ViewPorts, jobs: readonly Job[], limit = 12): RenderElement => {
+/**
+ * The newest jobs first, each with its error, and the running or failed one's
+ * output tail under it, in as many lines as `rows` allows (review R-M3a-8).
+ */
+export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderElement => {
   const { Box, Text } = v.el
-  const shown = [...jobs].reverse().slice(0, limit)
   const cancellable =
     jobs.find(job => job.state === 'running' && job.kind === 'test') ??
     jobs.find(job => job.state === 'queued')
+  // The heading and the cancel key take a row each.
+  const budget = Math.max(1, rows - 1 - (cancellable === undefined ? 0 : 1))
+  const lines: RenderElement[] = []
+  let shown = 0
+  for (const job of [...jobs].reverse()) {
+    const own: RenderElement[] = [
+      <Box flexDirection="row" gap={1}>
+        <Text color={JOB_TONE[job.state]}>{JOB_GLYPH[job.state]}</Text>
+        <Text>{job.kind === 'reload' ? 'reload plugins' : job.kind}</Text>
+        {job.target === undefined ? null : (
+          <Text dimColor>{sanitize(job.target, { max: 60 })}</Text>
+        )}
+        <Text dimColor>{job.state}</Text>
+      </Box>,
+    ]
+    if (job.error !== undefined) {
+      own.push(
+        <Text color={TONE.bad} wrap="truncate-end">
+          {'  '}
+          {sanitize(job.error.message, { max: 200 })}
+        </Text>,
+      )
+    }
+    if (job.state === 'running' || job.state === 'failed') {
+      for (const line of job.tail.slice(-5)) {
+        own.push(
+          <Text dimColor wrap="truncate-end">
+            {'  '}
+            {sanitize(line, { max: 200 })}
+          </Text>,
+        )
+      }
+    }
+    if (lines.length + 1 > budget) break
+    lines.push(...own.slice(0, budget - lines.length))
+    shown += 1
+  }
+  const older = jobs.length - shown
   return (
     <Box flexDirection="column">
-      {Heading(v, 'Jobs')}
-      {shown.length === 0 ? <Text dimColor>Nothing has run yet.</Text> : null}
-      {shown.map(job => (
-        <Box flexDirection="column">
-          <Box flexDirection="row" gap={1}>
-            <Text color={JOB_TONE[job.state]}>{JOB_GLYPH[job.state]}</Text>
-            <Text>{job.kind === 'reload' ? 'reload plugins' : job.kind}</Text>
-            {job.target === undefined ? null : (
-              <Text dimColor>{sanitize(job.target, { max: 60 })}</Text>
-            )}
-            <Text dimColor>{job.state}</Text>
-          </Box>
-          {job.error === undefined ? null : (
-            <Text color={TONE.bad} wrap="truncate-end">
-              {'  '}
-              {sanitize(job.error.message, { max: 200 })}
-            </Text>
-          )}
-          {job.state === 'running' || job.state === 'failed'
-            ? job.tail.slice(-5).map(line => (
-                <Text dimColor wrap="truncate-end">
-                  {'  '}
-                  {sanitize(line, { max: 200 })}
-                </Text>
-              ))
-            : null}
-        </Box>
-      ))}
+      <Box flexDirection="row" gap={1}>
+        {Heading(v, 'Jobs')}
+        {older > 0 && shown > 0 ? (
+          <Text dimColor>
+            (newest {shown}; {older} older)
+          </Text>
+        ) : null}
+      </Box>
+      {jobs.length === 0 ? <Text dimColor>Nothing has run yet.</Text> : null}
+      {lines}
       {cancellable === undefined
         ? null
         : KeyButton(v, {

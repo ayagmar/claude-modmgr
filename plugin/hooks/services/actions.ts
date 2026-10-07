@@ -4,7 +4,7 @@
 // Every action catches its own failure: a press must never throw into the host.
 
 import type { RenderSurface } from 'claude-code'
-import type { Tab, View } from '../../types/index.d.ts'
+import type { ReviewRequest, Tab, View } from '../../types/index.d.ts'
 import { enqueueReload, prune, undoSpecs } from '../domain/jobs.ts'
 import {
   closedView,
@@ -17,6 +17,7 @@ import {
   pruneStaged,
   pushOverlay,
   rowKey,
+  selectedRow,
   specsOf,
   stagedChanges,
   stageToggle,
@@ -71,9 +72,11 @@ export type Actions = {
   cancelJob(id: string): Promise<void>
   /**
    * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
-   * open. `hadKeys` is whether the pane held the keys when it was last drawn:
-   * by the time the hook runs, Esc has already handed them back to the prompt,
-   * so the pane re-takes them when the cascade keeps it.
+   * open. `hadKeys` is whether the pane held the keys when it was last drawn
+   * on the terminal. Esc hands the keys back to the prompt before the hook runs
+   * (F45), so the cascade answers only when the pane had them then and has them
+   * no more; the close mark and ctrl+x x leave them with the pane (F49) and
+   * close. A kept pane re-takes the keys.
    */
   closing(origin: 'person' | 'plugin' | 'unload', hadKeys: boolean): Promise<boolean>
 }
@@ -113,7 +116,7 @@ export const createActions = (
       return false
     }
     await enqueue(ports, { id: rt.newJobId(), specs, reload: true }, () => rt.newJobId())
-    // A pane left open while jobs stream must not hold other plugins' toasts (C8).
+    // A pane left open while jobs run must not hold other plugins' toasts (C8).
     const mods = await state.read('mods')
     if ((await ui.panes()).some(pane => pane.id === PANE_ID)) {
       await ui.open(paneOpen({ focus: false, hold: false, mods: mods.length }))
@@ -129,11 +132,34 @@ export const createActions = (
     await ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
   }
 
-  /** Puts the ring back on the selected row once an overlay's Buttons are gone. */
+  /**
+   * Puts the ring on the first of `keys` the pane draws (F46: a ring whose
+   * Button a redraw removed goes nowhere). `$.ui.focus` awaits an element the
+   * redraw is about to draw; a denial or a refusal tries the next key.
+   */
+  const ringTo = async (...keys: readonly string[]): Promise<void> => {
+    for (const key of keys) {
+      const moved = await ui.focus(PANE_ID, key).catch(() => ({ deny: 'refused' }))
+      if (!('deny' in moved) || moved.deny === undefined) return
+    }
+  }
+
+  /** The ring back on the selected row once no overlay is on top. */
   const ringToSelection = async (): Promise<void> => {
+    const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
+    const row = selectedRow(view, mods)
+    if (view.stack.length > 0 || row === undefined) return
+    await ringTo(rowKey(row.id))
+  }
+
+  /** The ring onto what an overlay offers first: its safe default (review: cancel). */
+  const ringToOverlay = async (): Promise<void> => {
     const view = await state.read('view')
-    if (view.stack.length > 0 || view.selected === undefined) return
-    await ui.focus(PANE_ID, rowKey(view.selected)).catch(() => undefined)
+    const top = topOverlay(view)
+    if (top === undefined) return ringToSelection()
+    if (top === 'review') return ringTo('act:cancel')
+    if (top === 'detail') return ringTo('act:toggle', 'act:copy')
+    return ringTo(top === 'help' ? 'act:help' : 'act:jobs')
   }
 
   const dropReview = async (): Promise<void> => {
@@ -143,6 +169,7 @@ export const createActions = (
   return {
     tab: safely('tab', async tab => {
       await setView(view => ({ ...quiet(view), tab, stack: [] }))
+      await ringToSelection()
     }),
 
     focusRow: safely('focus', async id => {
@@ -155,19 +182,19 @@ export const createActions = (
     open: safely('open', async id => {
       await setView(view => pushOverlay({ ...quiet(view), selected: id }, 'detail'))
       await select(id)
+      await ringToOverlay()
     }),
 
     back: safely('back', async () => {
       const view = await state.read('view')
       if (topOverlay(view) === 'review') await dropReview()
       await setView(current => popOverlay(quiet(current)))
-      await ringToSelection()
+      await ringToOverlay()
     }),
 
     toggle: safely('toggle', async id => {
       const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
-      const target = id ?? view.selected
-      const row = mods.find(item => item.id === target)
+      const row = id === undefined ? selectedRow(view, mods) : mods.find(item => item.id === id)
       if (row === undefined) return
       const locked = whyLocked(row)
       if (locked !== undefined) {
@@ -187,14 +214,23 @@ export const createActions = (
       const review = toggleReview(changes, id => rt?.registry.facts(id))
       await state.update('review', () => review)
       await setView(current => pushOverlay(quiet(current), 'review'))
+      await ringToOverlay()
     }),
 
     confirm: safely('confirm', async () => {
-      const review = await state.read('review')
+      // Taken by compare-and-set: of two presses before the redraw (a hotkey and
+      // an Enter), one gets the review and the other finds none (review R-M3a-2).
+      let taken: ReviewRequest | null = null
+      await state.update('review', review => {
+        taken = review
+        return null
+      })
+      const review = taken as ReviewRequest | null
       if (review === null) return
-      const done = await queueBatch(specsOf(review))
-      if (!done) return
-      await dropReview()
+      if (!(await queueBatch(specsOf(review)))) {
+        await state.update('review', current => current ?? review)
+        return
+      }
       const ids = new Set(review.targets.map(target => target.id))
       await setView(view => {
         const staged = Object.fromEntries(
@@ -203,7 +239,7 @@ export const createActions = (
         const stack = view.stack.filter(overlay => overlay !== 'review')
         return { ...quiet(view), staged, stack }
       })
-      await ringToSelection()
+      await ringToOverlay()
     }),
 
     cancel: safely('cancel', async () => {
@@ -212,7 +248,7 @@ export const createActions = (
         ...quiet(view),
         stack: view.stack.filter(overlay => overlay !== 'review'),
       }))
-      await ringToSelection()
+      await ringToOverlay()
     }),
 
     undo: safely('undo', async () => {
@@ -228,7 +264,11 @@ export const createActions = (
     }),
 
     refresh: safely('refresh', async () => {
-      await rt?.registry.refresh()
+      if (rt === undefined) return
+      await rt.registry.refresh()
+      // A row the refresh flipped under a staged entry no longer changes (review R-M3a-3).
+      const mods = await state.read('mods')
+      await setView(view => pruneStaged(view, mods))
     }),
 
     reload: safely('reload', async () => {
@@ -244,10 +284,13 @@ export const createActions = (
 
     overlay: safely('overlay', async which => {
       await setView(view => toggleOverlay(quiet(view), which))
+      await ringToOverlay()
     }),
 
     filter: safely('filter', async text => {
-      await setView(view => ({ ...quiet(view), query: text.slice(0, 100) }))
+      const view = await setView(current => ({ ...quiet(current), query: text.slice(0, 100) }))
+      // The split's detail follows the row the filter leaves selected.
+      await select(selectedRow(view, await state.read('mods'))?.id)
     }),
 
     focusFilter: safely('focus filter', async () => {
@@ -290,16 +333,20 @@ export const createActions = (
 
     async closing(origin, hadKeys) {
       try {
-        if (origin === 'person') {
+        const stillHasKeys =
+          (await ui.panes()).find(pane => pane.id === PANE_ID)?.isFocused === true
+        debug(`modmgr: close from ${origin}, keys at last draw ${hadKeys}, now ${stillHasKeys}`)
+        if (origin === 'person' && hadKeys && !stillHasKeys) {
           const view = await state.read('view')
-          const step = escapeStep(view, hadKeys)
+          const step = escapeStep(view, true)
           if (step.kind !== 'close') {
             if (step.kind === 'pop' && topOverlay(view) === 'review') await dropReview()
             await setView(current => {
-              const now = escapeStep(current, hadKeys)
+              const now = escapeStep(current, true)
               return now.kind === 'close' ? current : quiet(now.view)
             })
             await retake()
+            await ringToOverlay()
             return true
           }
         }

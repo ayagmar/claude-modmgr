@@ -29,7 +29,7 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   if (whyLocked(row) !== undefined) flags.push({ text: GLYPH.locked })
   if (row.updateTo !== undefined)
     flags.push({
-      text: `${GLYPH.update}${sanitize(row.updateTo, { max: 12 })}`,
+      text: `${GLYPH.update}${sanitize(row.updateTo, { max: 8 })}`,
       color: TONE.accent,
     })
   if (row.problems > 0) flags.push({ text: `${GLYPH.problem}${row.problems}`, color: TONE.bad })
@@ -41,10 +41,16 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
 export const Row = (
   v: ViewPorts,
   row: ModRow,
-  how: { readonly view: View; readonly columns: number; readonly focus: boolean },
+  how: {
+    readonly view: View
+    readonly staged: ReadonlySet<string>
+    readonly columns: number
+    readonly focus: boolean
+  },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
-  const staged = how.view.staged[row.id]
+  // Only an entry that still changes the row is drawn (review R-M3a-3).
+  const staged = how.staged.has(row.id) ? how.view.staged[row.id] : undefined
   const cols = rowColumns(how.columns)
   const name = sanitize(row.name, { max: cols.name })
   return (
@@ -73,7 +79,8 @@ export const Row = (
           </Text>
         </Box>
       ) : null}
-      <Box flexDirection="row" gap={1} flexShrink={0}>
+      {/* One line, cut at the frame in the worst case (review R-M3a-7). */}
+      <Box flexDirection="row" gap={1} flexShrink={1} height={1} overflow="hidden">
         {staged === undefined ? null : <Text color={TONE.warn}>→ {staged ? 'on' : 'off'}</Text>}
         {flagsOf(row).map(flag =>
           flag.color === undefined ? (
@@ -93,6 +100,7 @@ export const List = (
   rows: readonly ModRow[],
   how: {
     readonly view: View
+    readonly staged: ReadonlySet<string>
     readonly columns: number
     readonly window: Window
     /** The row the ring starts on when the pane takes the keys. */
@@ -116,11 +124,14 @@ export const List = (
   }
   return (
     <Box flexDirection="column">
-      {rows
-        .slice(how.window.start, how.window.end)
-        .map(row =>
-          Row(v, row, { view: how.view, columns: how.columns, focus: row.id === how.focusId }),
-        )}
+      {rows.slice(how.window.start, how.window.end).map(row =>
+        Row(v, row, {
+          view: how.view,
+          staged: how.staged,
+          columns: how.columns,
+          focus: row.id === how.focusId,
+        }),
+      )}
     </Box>
   )
 }

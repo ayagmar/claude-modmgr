@@ -246,13 +246,17 @@ describe('Esc (ui.close from the person)', () => {
     await act.toggle(TURN_BAND)
     await act.apply()
     await act.filter('turn')
+    w.ui.keysToPrompt()
     expect(await act.closing('person', true)).toBe(true)
     expect(w.state.values.review).toBeNull()
     expect(w.state.values.view.stack).toEqual([])
-    // Esc handed the keys to the prompt: the pane takes them back.
+    // Esc handed the keys to the prompt: the pane takes them back, the ring onto the row.
     expect(w.ui.opens.at(-1)).toMatchObject({ focus: true, holdToasts: true })
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)
+    w.ui.keysToPrompt()
     expect(await act.closing('person', true)).toBe(true)
     expect(w.state.values.view.query).toBe('')
+    w.ui.keysToPrompt()
     expect(await act.closing('person', true)).toBe(false)
     expect(w.state.values.view.staged).toEqual({ [TURN_BAND]: false })
   })
@@ -260,7 +264,15 @@ describe('Esc (ui.close from the person)', () => {
   it('closes at once when the pane did not hold the keys (review M10)', async () => {
     const { w, act } = await setup()
     await act.open(TURN_BAND)
+    w.ui.keysToPrompt()
     expect(await act.closing('person', false)).toBe(false)
+    expect(w.state.values.view.stack).toEqual([])
+  })
+
+  it('a close that leaves the keys with the pane closes, overlays or not', async () => {
+    const { w, act } = await setup()
+    await act.open(TURN_BAND)
+    expect(await act.closing('person', true)).toBe(false)
     expect(w.state.values.view.stack).toEqual([])
   })
 
@@ -270,25 +282,92 @@ describe('Esc (ui.close from the person)', () => {
     expect(await act.closing('plugin', true)).toBe(false)
     expect(w.state.values.view.stack).toEqual([])
     w.state.failWrites = true
+    w.ui.keysToPrompt()
     expect(await act.closing('person', true)).toBe(false)
     expect(w.ui.lines.at(-1)).toMatch(/^modmgr: close failed/)
   })
+})
 
-  it('back, cancel and confirm put the ring back on the selected row', async () => {
+describe('the focus ring (F46, review R-M3a-5)', () => {
+  it('goes to what each overlay offers first, and back to the row when it closes', async () => {
     const { w, act } = await setup()
+    const last = () => w.ui.focuses.at(-1)
     await act.open(TURN_BAND)
+    expect(last()).toBe('modmgr:act:toggle')
     await act.back()
-    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)
-    w.ui.focuses.length = 0
+    expect(last()).toBe(`modmgr:row:${TURN_BAND}`)
     await act.toggle(TURN_BAND)
     await act.apply()
+    expect(last()).toBe('modmgr:act:cancel')
     await act.cancel()
-    expect(w.ui.focuses).toEqual([`modmgr:row:${TURN_BAND}`])
+    expect(last()).toBe(`modmgr:row:${TURN_BAND}`)
     await act.overlay('help')
+    expect(last()).toBe('modmgr:act:help')
+    await act.overlay('help')
+    await act.overlay('jobs')
+    expect(last()).toBe('modmgr:act:jobs')
+    await act.tab('installed')
+    expect(last()).toBe(`modmgr:row:${TURN_BAND}`)
+  })
+
+  it('falls back to the next key when one is not drawn (a locked mod has no toggle)', async () => {
+    const { w, act } = await setup()
+    w.ui.undrawn.add('act:toggle')
+    await act.open(TURN_BAND)
+    expect(w.ui.focuses.slice(-2)).toEqual(['modmgr:act:toggle', 'modmgr:act:copy'])
+    w.ui.focus = async () => {
+      throw new Error('refused')
+    }
+    await act.back()
+    expect(w.state.values.view.stack).toEqual([])
+  })
+
+  it('confirm puts it back on the row; a help overlay left under the review keeps it there', async () => {
+    const { w, act } = await setup()
+    await act.overlay('help')
+    await act.toggle(TURN_BAND)
     await act.apply()
     await act.confirm()
-    // Help is still on the stack: the ring stays where the person left it.
-    expect(w.ui.focuses).toEqual([`modmgr:row:${TURN_BAND}`])
+    expect(w.ui.focuses.at(-1)).toBe('modmgr:act:help')
+  })
+})
+
+describe('review findings R-M3a-1 to R-M3a-3', () => {
+  it('toggle acts on the row the filter shows, never a hidden selection', async () => {
+    const { w, act } = await setup()
+    await act.focusRow(TURN_BAND)
+    await act.filter('red')
+    expect(w.state.values.detail?.id).toBe('redactor@fixtures')
+    await act.toggle()
+    expect(w.state.values.view.staged).toEqual({ 'redactor@fixtures': false })
+  })
+
+  it('two confirms before the redraw queue one batch', async () => {
+    const { w, act } = await setup()
+    await act.toggle(TURN_BAND)
+    await act.apply()
+    await Promise.all([act.confirm(), act.confirm()])
+    expect(w.state.values.queue.jobs.map(job => job.kind)).toEqual(['disable', 'reload'])
+  })
+
+  it('a confirm that cannot queue keeps the review', async () => {
+    const w = world()
+    const review = {
+      action: 'toggle' as const,
+      targets: [{ id: TURN_BAND, enable: false }],
+      notable: [],
+      changesRepoFile: false,
+    }
+    w.state.values.review = review
+    await createActions(w.ports, undefined).confirm()
+    expect(w.state.values.review).toEqual(review)
+  })
+
+  it('a refresh drops staged entries that no longer change their row', async () => {
+    const { w, act } = await setup()
+    w.state.values.view = { ...w.state.values.view, staged: { [TURN_BAND]: true } }
+    await act.refresh()
+    expect(w.state.values.view.staged).toEqual({})
   })
 })
 

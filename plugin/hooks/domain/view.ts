@@ -109,6 +109,16 @@ export const selectedIndex = (rows: readonly ModRow[], selected: string | undefi
   return index < 0 ? 0 : index
 }
 
+/**
+ * The row the pane shows as selected and every action acts on (review
+ * R-M3a-1): the selection when the filter shows it, else the first row shown.
+ * One resolver, so the drawing and a press never disagree.
+ */
+export const selectedRow = (view: View, mods: readonly ModRow[]): ModRow | undefined => {
+  const rows = filterRows(mods, view.query)
+  return rows.find(row => row.id === view.selected) ?? rows[0]
+}
+
 // ---- staging ----------------------------------------------------------------
 
 /**
@@ -133,6 +143,10 @@ export const stagedChanges = (view: View, rows: readonly ModRow[]): Change[] =>
       ? []
       : [{ row, enable }]
   })
+
+/** The ids whose staged entry still changes something: what rows and the detail mark as staged. */
+export const stagedIds = (view: View, rows: readonly ModRow[]): ReadonlySet<string> =>
+  new Set(stagedChanges(view, rows).map(change => change.row.id))
 
 /** Drops staged entries that no longer change anything (a refresh moved under them). */
 export const pruneStaged = (view: View, rows: readonly ModRow[]): View => {
@@ -287,10 +301,12 @@ export type Status = {
 }
 
 /**
- * One line about the newest batch: what runs now, or how it ended. Undefined
- * once there is nothing to say (no batch, or it ended long ago).
+ * One line about the newest batch: what runs now, or how it ended. A failure
+ * stays until the next batch; a success shows only while `showDone` (the
+ * band's echo of the reload, which the runner clears after a while: that write
+ * is what redraws the pane, review R-M3a-4).
  */
-export const statusOf = (queue: JobQueue, now: number, fadeMs = 10_000): Status | undefined => {
+export const statusOf = (queue: JobQueue, showDone: boolean): Status | undefined => {
   const jobs = latestBatch(queue.jobs)
   if (jobs.length === 0) return undefined
   const running = jobs.find(job => job.state === 'running')
@@ -306,7 +322,6 @@ export const statusOf = (queue: JobQueue, now: number, fadeMs = 10_000): Status 
       ? { tone: 'busy', text: 'reload waits for the settings to settle…' }
       : { tone: 'busy', text: `${work.length} changes queued…` }
   }
-  const ended = Math.max(...jobs.map(job => job.endedAt ?? 0))
   const failed = jobs.filter(job => job.state === 'failed' || job.state === 'interrupted')
   if (failed.length > 0) {
     const first = failed[0]
@@ -316,7 +331,7 @@ export const statusOf = (queue: JobQueue, now: number, fadeMs = 10_000): Status 
       text: `${failed.length} of ${jobs.length} failed (${describeJob(first as Job)}${why})`,
     }
   }
-  if (now - ended > fadeMs) return undefined
+  if (!showDone) return undefined
   const reload = jobs.find(job => job.kind === 'reload')
   if (work.length === 0) return { tone: 'ok', text: 'plugins reloaded' }
   const applied = `${work.length} ${work.length === 1 ? 'change' : 'changes'} applied`

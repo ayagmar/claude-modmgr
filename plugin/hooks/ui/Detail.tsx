@@ -1,7 +1,9 @@
 // A mod's detail (PLAN §5.3, §2.2): what it is, where it comes from, whether
 // it can be toggled here, its notable capabilities, everything it hooks and
 // calls grouped by reach, and its other parts. Pushed by Enter (stacked), or
-// beside the list (split). Validate's words are the plugin's own: Text only.
+// beside the list (split). The action keys sit under the title, so a body
+// clipped to its rows never hides them. Validate's words are the plugin's own:
+// Text only.
 
 import type { RenderElement } from 'claude-code'
 import type { ModDetail, ModRow, View } from '../../types/index.d.ts'
@@ -20,29 +22,78 @@ const bytes = (n: number): string =>
 /** The reach groups that are only drawing: named on one line, not explained. */
 const QUIET = new Set(['display'])
 
-export const Detail = (
-  v: ViewPorts,
-  how: {
-    readonly row: ModRow | undefined
-    readonly detail: ModDetail | null
-    readonly view: View
-    /** Draw the action keys (the overlay is on top), not just the facts (a split's preview). */
-    readonly actions: boolean
-    readonly readOnly: boolean
-  },
-): RenderElement => {
+export type DetailHow = {
+  readonly row: ModRow | undefined
+  readonly detail: ModDetail | null
+  /** The ids whose staged entry still changes something (`stagedIds`). */
+  readonly staged: ReadonlySet<string>
+  readonly view: View
+  /** Draw the action keys (the overlay is on top), not just the facts (a split's preview). */
+  readonly actions: boolean
+  readonly readOnly: boolean
+  /** Rows the body has: past them the reach groups draw one line each (review R-M3a-8). */
+  readonly rows: number
+}
+
+const groupsOf = (detail: ModDetail | null) =>
+  detail?.caps === undefined ? [] : groupByReach(detail.caps)
+const notableFor = (detail: ModDetail | null) =>
+  detail?.caps === undefined ? [] : notableOf(detail.caps)
+const detailFor = (how: DetailHow): ModDetail | null =>
+  how.row !== undefined && how.detail?.id === how.row.id ? how.detail : null
+
+/** The rows the full detail takes (the facts under each notable item, every call on its own line). */
+const fullRows = (how: DetailHow): number => {
+  const { row } = how
+  if (row === undefined) return 1
+  const detail = detailFor(how)
+  const staged = how.staged.has(row.id)
+  const head = 2 + (how.actions ? 1 : 0) + (whyLocked(row) === undefined ? 0 : 1) + (staged ? 1 : 0)
+  if (detail === null) return head + 1
+  const notable = notableFor(detail)
+  const groups = groupsOf(detail)
+  const extras =
+    (detail.mixedCounts !== undefined && partsLabel(detail.mixedCounts) !== '') ||
+    (detail.tokens ?? 0) > 0 ||
+    detail.dataBytes !== undefined
+  return (
+    head +
+    (notable.length === 0 ? 0 : 1 + 2 * notable.length) +
+    1 +
+    Math.max(
+      1,
+      groups.reduce((sum, g) => sum + (QUIET.has(g.reach) ? 1 : 1 + g.items.length), 0),
+    ) +
+    (extras ? 1 : 0) +
+    (detail.validate === undefined ? 0 : 1)
+  )
+}
+
+/** The rows the detail draws: the full form, or the compact one past `how.rows`. */
+export const detailRows = (how: DetailHow): number => {
+  const full = fullRows(how)
+  if (full <= how.rows) return full
+  // Compact: each notable item loses its facts line, each group is one line.
+  const detail = detailFor(how)
+  const explained = groupsOf(detail).reduce(
+    (sum, g) => sum + (QUIET.has(g.reach) ? 0 : g.items.length),
+    0,
+  )
+  return full - notableFor(detail).length - explained
+}
+
+export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
   const { Box, Text } = v.el
   const { row, view } = how
   if (row === undefined) {
     return <Text dimColor>Select a mod to see what it can do.</Text>
   }
-  const detail = how.detail?.id === row.id ? how.detail : null
+  const detail = detailFor(how)
   const marketplace = row.id.slice(row.id.indexOf('@') + 1)
   const locked = whyLocked(row)
-  const staged = view.staged[row.id]
-  const caps = detail?.caps
-  const notable = caps === undefined ? [] : notableOf(caps)
-  const groups = caps === undefined ? [] : groupByReach(caps)
+  const staged = how.staged.has(row.id) ? view.staged[row.id] : undefined
+  const notable = notableFor(detail)
+  const groups = groupsOf(detail)
   const extras: string[] = []
   if (detail?.mixedCounts !== undefined) {
     const parts = partsLabel(detail.mixedCounts)
@@ -51,6 +102,10 @@ export const Detail = (
   if (detail?.tokens !== undefined && detail.tokens > 0)
     extras.push(`~${detail.tokens} tokens per session`)
   if (detail?.dataBytes !== undefined) extras.push(`data ${bytes(detail.dataBytes)}`)
+
+  const compact = fullRows(how) > how.rows
+
+  const toggleLabel = staged !== undefined ? 'unstage' : row.enabled ? 'disable' : 'enable'
 
   return (
     <Box flexDirection="column">
@@ -66,6 +121,24 @@ export const Detail = (
           · {row.scope ?? row.origin} · {sanitize(marketplace, { max: 64 })}
         </Text>
       </Box>
+      {how.actions ? (
+        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+          {how.readOnly || locked !== undefined
+            ? null
+            : KeyButton(v, {
+                action: 'toggle',
+                on: 'detail',
+                label: toggleLabel,
+                onPress: () => v.act.toggle(row.id),
+              })}
+          {KeyButton(v, {
+            action: 'copy',
+            on: 'detail',
+            label: 'copy id',
+            onPress: press => v.act.copy(row.id, press.surface),
+          })}
+        </Box>
+      ) : null}
       {locked === undefined ? null : (
         <Text color={TONE.warn}>
           {GLYPH.locked} {locked}
@@ -89,11 +162,13 @@ export const Detail = (
                     <Text color={TONE.accent}>{GLYPH.notable}</Text>
                     <Text>{item.text}</Text>
                   </Box>
-                  <Box paddingLeft={2}>
-                    <Text dimColor wrap="truncate-end">
-                      {item.because.join(' ')}
-                    </Text>
-                  </Box>
+                  {compact ? null : (
+                    <Box paddingLeft={2}>
+                      <Text dimColor wrap="truncate-end">
+                        {item.because.join(' ')}
+                      </Text>
+                    </Box>
+                  )}
                 </Box>
               ))}
             </Box>
@@ -101,10 +176,10 @@ export const Detail = (
           {Heading(v, 'What it can do')}
           {groups.length === 0 ? <Text dimColor>Nothing beyond loading.</Text> : null}
           {groups.map(group =>
-            QUIET.has(group.reach) ? (
+            compact || QUIET.has(group.reach) ? (
               <Box flexDirection="row" gap={1}>
                 <Box flexShrink={0}>
-                  <Text dimColor>{group.label}</Text>
+                  <Text dimColor={QUIET.has(group.reach)}>{group.label}</Text>
                 </Box>
                 <Text dimColor wrap="truncate-end">
                   {group.items.map(item => item.name).join(' ')}
@@ -140,24 +215,6 @@ export const Detail = (
           )}
         </Box>
       )}
-      {how.actions ? (
-        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {how.readOnly || locked !== undefined
-            ? null
-            : KeyButton(v, {
-                action: 'toggle',
-                on: 'detail',
-                label: staged !== undefined ? 'unstage' : row.enabled ? 'disable' : 'enable',
-                onPress: () => v.act.toggle(row.id),
-              })}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'detail',
-            label: 'copy id',
-            onPress: () => v.act.copy(row.id, v.surface),
-          })}
-        </Box>
-      ) : null}
     </Box>
   )
 }

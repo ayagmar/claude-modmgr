@@ -335,9 +335,17 @@ export class FakeUi implements UiPort {
     this.shown = this.shown.filter(pane => pane.id !== id)
   }
 
+  /** Element keys `focus` denies (not drawn); the rest move. */
+  undrawn = new Set<string>()
+
   focus = async (requestId: string, key: string): Promise<UiFocusResult> => {
     this.focuses.push(`${requestId}:${key}`)
-    return {}
+    return this.undrawn.has(key) ? { deny: 'not drawn' } : {}
+  }
+
+  /** Esc hands the keys back to the prompt before `ui.close` reaches the plugin (F45). */
+  keysToPrompt(): void {
+    this.shown = this.shown.map(pane => ({ ...pane, isFocused: false }))
   }
 
   copy = async (text: string): Promise<UiCopyResult> => {
