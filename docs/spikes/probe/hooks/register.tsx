@@ -3,7 +3,6 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 const starts = atom({ plugin: 'probe', key: 'starts' } as const, 0)
-const registers = atom({ plugin: 'probe', key: 'registers' } as const, 0)
 const GEN = Math.random().toString(36).slice(2, 8)
 
 const log = async ($: any, line: string) => {
@@ -26,9 +25,8 @@ export const register: Register = on => {
   let registeredLogged = false
 
   on('session.start', async ($, e, next) => {
-    await update($, registers, n => (n ?? 0) + 1)
     await update($, starts, n => (n ?? 0) + 1)
-    await log($, `session.start fired; e=${JSON.stringify(e)} starts=${await read($, starts)} registers=${await read($, registers)}`)
+    await log($, `session.start fired; e=${JSON.stringify(e)} starts=${await read($, starts)}`)
     await $.command.register({ name: 'probe', description: 'spike probe' })
     const panes = await $.ui.panes()
     await log($, `S9 panes at session.start: ${JSON.stringify(panes)}`)
@@ -53,6 +51,26 @@ export const register: Register = on => {
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'probe' }, async ($, e) => {
+    const answer = await answerProbe($, e)
+    await log($, `answer /probe ${e.args.trim()} → ${answer.text}`)
+    return answer
+  }).catch(() => ({ text: 'probe: command hook failed' }))
+
+  on('ui.render', { component: 'Pane', requestId: 'probe' }, async ($, e) => {
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const n = await read($, starts)
+    return (
+      <Box flexDirection="column">
+        <Text>probe pane drawn by gen={GEN} starts={n} cols={e.props.bodyColumns} rows={e.props.scroll?.bodyRows ?? '?'}</Text>
+        <Button key="reload" hotkey="r" label="reload from button" onPress={() => reload($, 'Button press handler')} />
+        <Button key="reload-void" hotkey="v" label="reload from button (void)" onPress={() => { void reload($, 'Button press (void)') }} />
+      </Box>
+    )
+  }).catch((_$, e, next) => next(e))
+}
+
+async function answerProbe($: any, e: any): Promise<{ text: string }> {
+  {
     const arg = e.args.trim()
     await log($, `command /probe ${arg} origin=${JSON.stringify(e.origin)} presentation=${JSON.stringify(e.presentation)}`)
     if (arg === 'reload-cmd') {
@@ -82,17 +100,5 @@ export const register: Register = on => {
       throw new Error('probe deliberate failure')
     }
     return { text: `probe gen=${GEN} starts=${await read($, starts)}` }
-  }).catch(() => ({ text: 'probe: command hook failed' }))
-
-  on('ui.render', { component: 'Pane', requestId: 'probe' }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
-    const n = await read($, starts)
-    return (
-      <Box flexDirection="column">
-        <Text>probe pane drawn by gen={GEN} starts={n} cols={e.props.bodyColumns} rows={e.props.scroll?.bodyRows ?? '?'}</Text>
-        <Button key="reload" hotkey="r" label="reload from button" onPress={() => reload($, 'Button press handler')} />
-        <Button key="reload-void" hotkey="v" label="reload from button (void)" onPress={() => { void reload($, 'Button press (void)') }} />
-      </Box>
-    )
-  }).catch((_$, e, next) => next(e))
+  }
 }

@@ -1,0 +1,8 @@
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+     probe@probemkt re-read from its folder: /tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+     probe@probemkt re-read from its folder: /tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+     probe@probemkt re-read from its folder: /tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f
+│ probe pane drawn by gen=f3vge6 starts=3 cols=104 rows=8                                                  │
