@@ -1,5 +1,7 @@
 // modmgr's state contract (PLAN §4). Session-scoped values in `$.state`
-// that drive rendering and survive `/reload-plugins`.
+// that drive rendering and survive `/reload-plugins`. Every key is `Shaped`:
+// its atom names a tag (`'queue/1'`), so a modmgr update that changes a
+// value's type reads the old value as absent instead of misreading it (C3).
 
 export type PluginId = string
 export type Scope = 'user' | 'project' | 'local' | 'managed'
@@ -76,7 +78,7 @@ export type Job = {
   batch?: string
   kind: JobKind
   target?: PluginId
-  args?: { scope?: Scope; acceptSha?: string; path?: string; source?: string }
+  args?: { scope?: Scope; acceptSha?: string; path?: string; source?: string; keepData?: boolean }
   state: JobState
   startedAt?: number
   endedAt?: number
@@ -126,21 +128,38 @@ export type Degraded = {
   reason?: string
 }
 
+/**
+ * The job queue and the module that drives it. A module takes the queue over
+ * at `session.start` (setting `owner`); a runner whose owner was replaced stops
+ * claiming jobs, so an old module's in-flight work never races the new one (F39).
+ */
+export type JobQueue = { owner: string; jobs: Job[] }
+
+/** The installed list's refresh, for the title's stale marker (C8). */
+export type Sync = {
+  refreshing: boolean
+  at?: number
+  error?: { kind: string; message: string }
+  /** `list --json` entries modmgr could not read. */
+  skipped: number
+}
+
 export type CatalogPage = { rows: CatalogRow[]; total: number; matched: number; loading: boolean }
 export type DetectProgress = { checked: number; total: number; found: number; running: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
     modmgr: {
-      mods: ModRow[]
-      detail: ModDetail | null
-      catalogPage: CatalogPage
-      detect: DetectProgress
-      jobs: Job[]
-      view: View
-      review: ReviewRequest | null
-      attention: Attention
-      degraded: Degraded
+      mods: Shaped<ModRow[]>
+      detail: Shaped<ModDetail | null>
+      catalogPage: Shaped<CatalogPage>
+      detect: Shaped<DetectProgress>
+      queue: Shaped<JobQueue>
+      sync: Shaped<Sync>
+      view: Shaped<View>
+      review: Shaped<ReviewRequest | null>
+      attention: Shaped<Attention>
+      degraded: Shaped<Degraded>
     }
   }
 }

@@ -1,0 +1,79 @@
+// `claude plugin validate --strict --json plugin`, plus the verdicts modmgr
+// relies on (PLAN §7, C1): no errors or warnings, `/mods` answers its own
+// command (it is not a gate), no plugin.register hook, no telemetry, no
+// environment writes. Runs with a throwaway CLAUDE_CONFIG_DIR.
+//
+//   node scripts/validate-plugin.ts
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+type Section = {
+  errors: unknown[]
+  warnings: unknown[]
+  notes: string[]
+}
+
+const root = join(import.meta.dirname, '..')
+const config = mkdtempSync(join(tmpdir(), 'modmgr-validate-'))
+let stdout: string
+try {
+  stdout = execFileSync(
+    'claude',
+    ['plugin', 'validate', '--strict', '--json', join(root, 'plugin')],
+    {
+      env: { ...process.env, CLAUDE_CONFIG_DIR: config },
+      encoding: 'utf8',
+    },
+  )
+} catch (error) {
+  stdout = (error as { stdout?: string }).stdout ?? ''
+} finally {
+  rmSync(config, { recursive: true, force: true })
+}
+
+const report = JSON.parse(stdout) as { success: boolean; manifest: Section; contents: Section[] }
+const sections = [report.manifest, ...report.contents]
+const notes = sections.flatMap(section => section.notes)
+const problems: string[] = []
+const check = (ok: boolean, what: string) => {
+  if (!ok) problems.push(what)
+}
+
+check(report.success, 'validate --strict did not succeed')
+check(
+  sections.every(s => s.errors.length === 0),
+  `errors: ${JSON.stringify(sections.flatMap(s => s.errors))}`,
+)
+check(
+  sections.every(s => s.warnings.length === 0),
+  `warnings: ${JSON.stringify(sections.flatMap(s => s.warnings))}`,
+)
+check(
+  notes.some(note => note.endsWith('answers its own command: command.run{command=mods}')),
+  '/mods is no longer "answering its own command" (C1): is the registration literal still in register.tsx?',
+)
+check(
+  !notes.some(note => / gating hook/.test(note)),
+  `a gating hook appeared: ${notes.filter(n => / gating hook/.test(n)).join('; ')}`,
+)
+check(
+  !notes.some(note => / hooks: .*plugin\.register/.test(note)),
+  'modmgr hooks plugin.register (PLAN §7: none in v1)',
+)
+check(
+  !notes.some(note => / calls: .*\$\.telemetry\./.test(note)),
+  'modmgr calls $.telemetry (PLAN §7: no telemetry)',
+)
+check(
+  notes.some(note => / env writes: nothing$/.test(note)),
+  'modmgr writes environment variables',
+)
+
+for (const note of notes) console.log(`  ${note}`)
+if (problems.length > 0) {
+  for (const problem of problems) console.error(`✗ ${problem}`)
+  process.exit(1)
+}
+console.log('✓ plugin validates strictly with the expected verdicts')

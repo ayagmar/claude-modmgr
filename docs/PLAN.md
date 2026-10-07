@@ -65,6 +65,10 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F38 | A `/reload-plugins` issued **< ~1 s after a CLI settings write** (`enable`, `disable`, `install`) reads stale settings and applies nothing; ≥ 1 s applies it every time. | `rerun-2026-10-07/settle.log` |
 | F39 | After a reload of modmgr's module, the **old module's in-flight handlers finish** (a press handler resolved after the new `session.start`) and their `$` calls still work. | `rerun-2026-10-07/installed.log` |
 | F40 | The validator refuses a `$`-taking builder declared inside `register()`: builders are top-level functions (Fable review M1). A `.catch` handler can be asked on re-entry, when its own `$` calls reject (d.ts 1155–1160). | `docs/reviews/2026-10-07-fable-5.1-m0-review.md` §A |
+| F41 | The `types` contract must be **self-contained**: `validate --strict` refuses an `import` in it ("the contract must be self-contained"). `Shaped<T>` resolves inside the contract's `declare module 'claude-code'` block without one. | M2, validate |
+| F42 | `read($, x)` / `update($, x, fn)` need `x` to be a literal reference or an atom bound to a `const` in the same file; `read($, ATOMS[key])` is refused. A builder may hold one closure per atom. | M2, validate |
+| F43 | A `command.run{command:'mods'}` hook is reported as "answers its own command" (not a gate) only while `$.command.register` is spelled with the literal `name: 'mods'` in the same file; registering from a spec built in another file made it a "gating hook with .catch". | M2, validate |
+| F44 | In `claude plugin test`, **every** `$` call needs an answer beneath the plugin (`session.start` included); a test hook that throws is skipped (the bottom then says "no implementation"), so a test makes a call reject with `{ deny }`, which the plugin sees as `<plugin>: $.<noun>.<method>: <reason>`. The test's `$` has no `store` noun. F37 holds for the test module too: `mock.store`/`mock.clock` hook their events without a matcher, so a test's own observer of those events needs one. | M2, `plugin/tests/` |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -181,9 +185,13 @@ modmgr/                                   repo root = marketplace
 │  │   detector.ts          source → probe plan (local | raw URLs | unknown); hooks.json/plugin.json → kind
 │  │   chain.ts             chain-order notes
 │  │   cli-results.ts       parse every CLI `--json` shape → Result<T, CliError>
-│  │   jobs.ts              pure job-queue reducer (enqueue, start, finish, interrupt, batch→reload rule)
+│  │   jobs.ts              pure job-queue reducer (enqueue, start, finish, interrupt, batch→reload rule, owner claim)
 │  │   keymap.ts            per-view hotkey table + collision check
 │  │   result.ts            Result/Err types, error kinds → human sentences
+│  │   argv.ts              every `claude …` argv from checked values; a queued job re-checked into a command
+│  │   mods.ts              list entry + cached analysis → ModRow/ModDetail; origins, toggleability
+│  │   store-schema.ts      store keys, envelopes, shape checks, migrations, caps, size budget
+│  │   state.ts             `$.state` defaults and shape tags; config.ts (userConfig); version.ts
 │  ├─ hooks/services/      `$`-free; functions over the narrowest ports they need (C2)
 │  │   cli.ts               argv builder from domain/ids only; `$.process.run/spawn`; timeouts; signal; JSON parse via domain
 │  │   store.ts             typed, versioned `$.store` with migrations, size guard (< 3 MiB, evict LRU), batched writes
@@ -194,6 +202,10 @@ modmgr/                                   repo root = marketplace
 │  │   updates.ts           scheduler ($.clock.every), re-armed on every register
 │  │   capability-probe.ts  feature-detect `$` nouns (S11) → degraded modes
 │  │   dev-watch.ts         session.append notice observer (dev folders only)
+│  │   runtime.ts           the module's long-lived services, built at its first session.start (C2)
+│  │   lifecycle.ts         ordered fan-out for session.start (and later shared events)
+│  │   commands.ts          /mods as text (non-UI subcommands, §2.7)
+│  │   pool.ts              bounded concurrency
 │  ├─ hooks/ui/
 │  │   Pane.tsx            shell: title/tabs, stacked|split, footer hints, overlays, ui.close interception
 │  │   views/Installed.tsx Discover.tsx Dev.tsx Health.tsx
@@ -201,7 +213,6 @@ modmgr/                                   repo root = marketplace
 │  │   Band.tsx
 │  │   kit/                Row (plain Button), Chip, Section, Empty, Pager, KeyHint
 │  │   theme.ts            ThemeKey map: accent→'claude', muted→'subtle', ok→'success', warn→'warning', bad→'error'
-│  ├─ hooks/commands.ts    /mods subcommands; shares services with the UI
 │  ├─ types/index.d.ts     PluginState contract
 │  └─ tests/               *.test.ts(x) for `claude plugin test` (services + ui)
 ├─ test/domain/            *.test.ts for vitest (domain only) + fixtures/*.ts (captured CLI JSON as TS modules)
@@ -271,7 +282,8 @@ declare module 'claude-code' {
       detail: ModDetail | null                        // the selected one only
       catalogPage: { rows: CatalogRow[]; total: number; matched: number; loading: boolean }
       detect: { checked: number; total: number; found: number; running: boolean }
-      jobs: Job[]                                     // last 50; tails ≤ 20 lines
+      queue: { owner: string; jobs: Job[] }           // last 50; tails ≤ 20 lines; owner = the module running it (C10)
+      sync: { refreshing: boolean; at?: number; error?: …; skipped: number }   // the installed list's refresh (↻)
       view: View
       review: ReviewRequest | null                    // one confirm at a time (plain value, R19)
       attention: { updates: number; problems: number; reloadPending: boolean; capsChanged: number; dismissedAt?: number }
@@ -287,7 +299,7 @@ declare module 'claude-code' {
 |---|---|---|
 | `prefs` | `{ tab, sort, kind, firstRunDone }` | tiny |
 | `detect` | `{ [pluginId]: [sha, kind] }` | 6,000 entries LRU (≈ 300 KB) |
-| `validate` | `{ [root@version]: { events, calls, envReads, errors, warnings } }` | 300 entries LRU |
+| `validate` | `{ [root@version]: { mod, events, calls, envReads, errors, warnings, parts?, tokens?, at } }` (`parts`/`tokens` from `details`, mods only) | 300 entries LRU |
 | `capsHistory` | `{ [pluginId]: { version, notable[] } }` (for diffs) | per installed mod |
 | `history` | last 50 finished jobs, without tails | 50 |
 
@@ -566,3 +578,42 @@ idle probing, spread over sessions by the 600-probe budget.
 **C9. Process (M0).** The person delegated design decisions to the builder on 2026-10-07 ("decide what's best"), with
 external reviews by Fable 5.1 at milestone boundaries; C2 was applied on that basis and the review (M17) agreed with it.
 Pushes and GitHub actions still need the person's go-ahead.
+
+**C10. Services as built (M2, applied 2026-10-07).**
+- **State.** Every `$.state` key is declared `Shaped<T>` and read through an atom with a shape tag (`'queue/1'`;
+  `domain/state.ts`). The contract stays import-free (F41). `jobs` became **`queue: { owner, jobs }`**: a module takes
+  the queue over at `session.start` (interrupting what another module left running, `domain/jobs.ts` `takeOver`) and
+  claims each job by compare-and-set only while it owns the queue, so an old module's in-flight runner stops after its
+  current job instead of racing the new one (F39). A new `sync` key carries the installed list's refresh for the `↻`.
+- **Ports.** `register.tsx` holds one atom `const` per key and one closure per atom in `statePorts` (F42). `EnvPort` has a
+  method per variable (`$.env.get` takes literals). `RunInit` has no `env` (C4). `CommandPort` offers `registerMods`
+  (the literal registration keeps `/mods` "answering its own command", F43), `reloadPlugins` and `list`, not an arbitrary
+  `run`. `scripts/validate-plugin.ts` fails the build if `/mods` becomes a gate, a warning appears, or modmgr hooks
+  `plugin.register`, calls `$.telemetry` or writes the environment.
+- **Runtime.** Built once per module instance (`runtime ??= …`), not disposed and rebuilt on each `session.start`: a
+  second `session.start` in the same module must not interrupt its own running job. Job ids are `<owner>-<n>`.
+- **CLI.** Every run uses the session's project root as `cwd` (not only project/local scope), so `projectEnabled`
+  means this repository. A rejection counts as `timeout` when it came at ≥ 95 % of the run's timeout or says so;
+  the engine's `<plugin>: $.process.run:` prefix is stripped before display. `marketplace update --json` exists only
+  with a name. `uninstall` supports `--keep-data`; whether `x` keeps data (for a faithful undo) is decided in M3b.
+- **Runner.** Toggles run only for ids `list --json` shows (C4). A declared command found at install time fails the job
+  as `conflict` with the command in its tail (the review flow, M4, runs the pre-check before enqueueing). A rejected
+  acceptance sets `degraded.acceptCommand`. One registry refresh follows a drain that wrote (a reload doesn't change
+  `list --json`). Streamed `test` output reaches `$.state` at most every 100 ms; a running test is cancellable,
+  other running jobs aren't.
+- **Registry.** A plugin is a mod when `validate --json` finds a hooks module; mods also get `details` (skills, agents,
+  MCP counts, token cost) for "mixed". Analyses are cached per `root@version` in the store's `validate` key, three
+  validations at a time; one refresh at a time, and calls during one queue exactly one more.
+- **Store.** Per-key envelopes `{ v, data }`, migrated forward per key; a key from a newer modmgr reads empty and is
+  left alone until modmgr writes it. Writes gather for 2 s; past 1 MiB the detector cache, then the validate cache,
+  give up their oldest half until it fits; past 3 MiB (or on the engine's refusal) the write is refused as
+  `store-full` and retried on the next flush.
+- **`projectEnabled` is not "off in this project".** Loaded live (2026-10-07): it is true only for a plugin this
+  project's settings enable (the project-scope install) and false for every user-scope one, while `enabled` is already
+  the effective state. §2.1's "off in this project" needs another source (a user-scope plugin disabled by the
+  project's settings); M3a decides whether reading `$.settings.read({ source: 'project' })` is worth the capability.
+- **`/mods`** answers as text until M3a gives it the pane (`/mods list` stays for M6).
+- **Tests.** Services run under vitest with fake ports (`test/services/fakes.ts`, a fixture-backed fake CLI).
+  `plugin/tests/harness.ts` plays the host beneath the plugin (F44) for the wiring tests: resume after another
+  module, the 1.5 s reload rule, a refused reload, CLI timeouts / malformed JSON / non-zero exits, no CLI, the traffic
+  switch, a store over budget, `.catch` pass-through, and a `userConfig` reload.

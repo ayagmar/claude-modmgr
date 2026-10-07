@@ -14,10 +14,11 @@
     "typecheck": "tsc -p plugin --noEmit && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "validate": "CLAUDE_CONFIG_DIR=$(mktemp -d) sh -c 'claude plugin validate --strict --json plugin && claude plugin validate .'",
+    "validate": "node scripts/validate-plugin.ts && CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin validate .",
     "test:plugin": "CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin test plugin",
     "explanations": "node scripts/gen-explanations.ts",
-    "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin"
+    "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin",
+    "fixtures:plugin-tests": "node scripts/fixtures-to-plugin-tests.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

@@ -1,0 +1,169 @@
+// The installed mods (PLAN §2.1, §4): `list --json`, then `validate --json`
+// (and `details` for mods) for every `root@version` the store hasn't seen,
+// three at a time. Writes the rows to `$.state` `mods`, the selected mod's
+// detail to `detail`, and the refresh's outcome to `sync` (the `↻` marker, C8).
+
+import type { ModRow } from '../../types/index.d.ts'
+import type { InstalledEntry } from '../domain/cli-results.ts'
+import { lruSet, lruTouch } from '../domain/lru.ts'
+import {
+  type Analysis,
+  analysisKey,
+  analysisOf,
+  modDetail,
+  modRow,
+  rootOf,
+  sortRows,
+} from '../domain/mods.ts'
+import { fail, ok, type Result } from '../domain/result.ts'
+import { CAPS } from '../domain/store-schema.ts'
+import type { Ports } from '../ports.ts'
+import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
+import { mapLimit } from './pool.ts'
+import type { StoreService } from './store.ts'
+
+export const VALIDATE_CONCURRENCY = 3
+
+export type RegistryPorts = CliPorts & Pick<Ports, 'state'>
+
+export type RefreshSummary = {
+  readonly mods: number
+  /** Plugins whose analysis was new this refresh. */
+  readonly analysed: number
+  /** Entries modmgr couldn't read or inspect. */
+  readonly skipped: number
+}
+
+export type Registry = {
+  /** One refresh at a time; a call during one queues exactly one more. */
+  refresh(): Promise<Result<RefreshSummary>>
+  /** Shows a mod's detail (`undefined` clears it). */
+  select(id: string | undefined): Promise<void>
+  /** The `list --json` entry from the last refresh. */
+  entry(id: string): InstalledEntry | undefined
+  /** Whether a refresh has listed the plugins yet. */
+  isLoaded(): boolean
+}
+
+export const createRegistry = (
+  ports: RegistryPorts,
+  store: StoreService,
+  debug: (text: string) => void = () => {},
+): Registry => {
+  let entries = new Map<string, InstalledEntry>()
+  let loaded = false
+  let running: Promise<Result<RefreshSummary>> | undefined
+  let again = false
+
+  const analyse = async (entry: InstalledEntry, now: number): Promise<Analysis | undefined> => {
+    const root = rootOf(entry)
+    if (root === undefined) return undefined
+    const report = await validateRoot(ports, root)
+    if (!report.ok) {
+      debug(`modmgr: validate ${entry.id} failed: ${report.error.message}`)
+      return undefined
+    }
+    if (!report.value.hasModule) return analysisOf(report.value, undefined, now)
+    const details = await detailsOf(ports, entry.id)
+    return analysisOf(report.value, details.ok ? details.value : undefined, now)
+  }
+
+  const detailOf = (id: string | undefined) => {
+    const entry = id === undefined ? undefined : entries.get(id)
+    const key = entry === undefined ? undefined : analysisKey(entry)
+    const analysis = key === undefined ? undefined : store.get('validate')[key]
+    return entry === undefined || analysis === undefined ? null : modDetail(entry, analysis)
+  }
+
+  const once = async (): Promise<Result<RefreshSummary>> => {
+    await ports.state.update('sync', sync => ({ ...sync, refreshing: true }))
+    const listed = await listInstalled(ports)
+    const now = await ports.clock.now()
+    if (!listed.ok) {
+      const { kind, message } = listed.error
+      await ports.state.update('sync', sync => ({
+        ...sync,
+        refreshing: false,
+        error: { kind, message },
+      }))
+      return listed
+    }
+
+    const cache = store.get('validate')
+    const misses = listed.value.items.filter(entry => {
+      const key = analysisKey(entry)
+      return key !== undefined && cache[key] === undefined
+    })
+    const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(entry, now))
+
+    let validate = store.get('validate')
+    for (const [index, entry] of misses.entries()) {
+      const analysis = fresh[index]
+      const key = analysisKey(entry)
+      if (analysis !== undefined && key !== undefined) {
+        validate = lruSet(validate, key, analysis, CAPS.validate)
+      }
+    }
+    const rows: ModRow[] = []
+    let unread = 0
+    for (const entry of listed.value.items) {
+      const key = analysisKey(entry)
+      const analysis = key === undefined ? undefined : validate[key]
+      if (key === undefined || analysis === undefined) {
+        unread += 1
+        continue
+      }
+      validate = lruTouch(validate, key)
+      if (analysis.mod) rows.push(modRow(entry, analysis))
+    }
+    // Written only when something was analysed: each `$.store.set` rewrites the file (F16).
+    // Installed entries are touched in that write, so a cache hit can't be evicted before them.
+    if (fresh.some(Boolean)) store.set('validate', validate)
+    entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
+    loaded = true
+
+    const mods = sortRows(rows)
+    const skipped = listed.value.skipped + unread
+    await ports.state.update('mods', () => mods)
+    await ports.state.update('detail', detail => detailOf(detail?.id))
+    await ports.state.update('attention', attention => ({
+      ...attention,
+      problems: mods.reduce((sum, row) => sum + row.problems, 0),
+    }))
+    await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
+    return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
+  }
+
+  const loop = async (): Promise<Result<RefreshSummary>> => {
+    let result: Result<RefreshSummary>
+    do {
+      again = false
+      try {
+        result = await once()
+      } catch (error) {
+        // A state write refused (or another host error): report it, never throw.
+        debug(`modmgr: refresh failed: ${String(error)}`)
+        result = fail('unavailable', 'the installed list could not be refreshed')
+      }
+    } while (again)
+    return result
+  }
+
+  return {
+    refresh() {
+      if (running !== undefined) {
+        again = true
+        return running
+      }
+      running = loop().finally(() => {
+        running = undefined
+      })
+      return running
+    },
+    async select(id) {
+      await ports.state.update('detail', () => detailOf(id))
+    },
+    entry: id => entries.get(id),
+    isLoaded: () => loaded,
+  }
+}

@@ -3,13 +3,18 @@
 // these functions. Jobs run one at a time; a batch ends with one reload, which
 // runs only when nothing else is queued or running.
 
-import type { Job, JobKind, JobState, Scope } from '../../types/index.d.ts'
+import type { Job, JobKind, JobQueue, JobState, Scope } from '../../types/index.d.ts'
 import { tailLines } from './sanitize.ts'
 
-export type { Job, JobKind, JobState }
+export type { Job, JobKind, JobQueue, JobState }
 
 export const JOBS_CAP = 50
 export const TAIL_LINES = 20
+/**
+ * How long after a batch's last CLI settings write its reload may start: a
+ * `/reload-plugins` under ~1 s after one reads stale settings (F38).
+ */
+export const RELOAD_SETTLE_MS = 1500
 
 export type JobSpec = {
   readonly kind: Exclude<JobKind, 'reload'>
@@ -190,3 +195,40 @@ export const summarize = (jobs: readonly Job[]): QueueSummary => {
   }
   return running === undefined ? summary : { ...summary, running }
 }
+
+/** The latest a CLI write finished (any outcome: a failed run may still have written), or undefined. */
+export const lastWriteAt = (jobs: readonly Job[]): number | undefined => {
+  let latest: number | undefined
+  for (const job of jobs) {
+    if (job.kind === 'reload' || !NEEDS_RELOAD.has(job.kind) || job.endedAt === undefined) continue
+    latest = latest === undefined ? job.endedAt : Math.max(latest, job.endedAt)
+  }
+  return latest
+}
+
+/** When a queued reload may start (F38): at once when nothing was written. */
+export const reloadReadyAt = (jobs: readonly Job[]): number => {
+  const last = lastWriteAt(jobs)
+  return last === undefined ? 0 : last + RELOAD_SETTLE_MS
+}
+
+/**
+ * A module takes the queue over at `session.start`: a job another module left
+ * running can't be finished by this one (F31), so it becomes `interrupted`.
+ * The same owner taking over again changes nothing.
+ */
+export const takeOver = (queue: JobQueue, owner: string, now: number): JobQueue =>
+  queue.owner === owner ? queue : { owner, jobs: interruptRunning(queue.jobs, now) }
+
+/**
+ * Starts job `id` for `owner` if it still owns the queue and the job is still
+ * the next runnable one; otherwise the queue is unchanged (the runner reads
+ * the result to learn whether it won).
+ */
+export const claim = (queue: JobQueue, owner: string, id: string, now: number): JobQueue => {
+  if (queue.owner !== owner || nextRunnable(queue.jobs)?.id !== id) return queue
+  return { ...queue, jobs: start(queue.jobs, id, now) }
+}
+
+export const isClaimedBy = (queue: JobQueue, owner: string, id: string): boolean =>
+  queue.owner === owner && queue.jobs.some(job => job.id === id && job.state === 'running')

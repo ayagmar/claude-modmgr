@@ -4,7 +4,6 @@
 
 import type { Capabilities, Reach } from '../../types/index.d.ts'
 import { CALLS, EVENTS } from './explanations.ts'
-import type { ValidateReport } from './validate-report.ts'
 
 export type { Capabilities, Reach }
 
@@ -147,7 +146,14 @@ const hits = (have: readonly string[], want: readonly string[]): string[] =>
   want.filter(item => have.includes(item))
 
 /** The notable combinations, most serious first, each with the facts behind it. */
-export const notableOf = (caps: Pick<Capabilities, 'events' | 'calls' | 'envReads'>): Notable[] => {
+/** What a mod hooks, calls and reads: a validate report, a cached analysis, or Capabilities. */
+export type CapabilityFacts = {
+  readonly events: readonly string[]
+  readonly calls: readonly string[]
+  readonly envReads: readonly string[]
+}
+
+export const notableOf = (caps: CapabilityFacts): Notable[] => {
   const found: Notable[] = []
   const add = (id: NotableId, because: string[]) => {
     if (because.length > 0) found.push({ id, text: NOTABLE_TEXT[id], because })
@@ -172,9 +178,7 @@ export const notableOf = (caps: Pick<Capabilities, 'events' | 'calls' | 'envRead
 
 const sortedUnique = (values: Iterable<string>): string[] => [...new Set(values)].sort()
 
-export const capabilitiesOf = (
-  report: Pick<ValidateReport, 'events' | 'calls' | 'envReads'>,
-): Capabilities => {
+export const capabilitiesOf = (report: CapabilityFacts): Capabilities => {
   const events = sortedUnique(report.events)
   const calls = sortedUnique(report.calls)
   const envReads = sortedUnique(report.envReads)
