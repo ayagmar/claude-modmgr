@@ -25,7 +25,14 @@ export const fixtureCli = (process: FakeProcess): FakeProcess =>
     )
     .when(['enable'], argv => out(opResult('enable', argv[3] ?? '')))
     .when(['disable'], argv => out(opResult('disable', argv[3] ?? '')))
-    .when(['uninstall'], out(runs['uninstall-ok'].stdout))
+    // The CLI says whether it kept the data folder (`keptData`), as it was asked.
+    .when(['uninstall'], argv =>
+      out(
+        argv.includes('--keep-data')
+          ? runs['uninstall-ok'].stdout.replace('"keptData":false', '"keptData":true')
+          : runs['uninstall-ok'].stdout,
+      ),
+    )
     .when(['update'], out(runs['update-bumped'].stdout))
     .when(['install'], out(runs['install-ok-user'].stdout))
 

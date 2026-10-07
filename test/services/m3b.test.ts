@@ -3,7 +3,7 @@
 // or not) and undo through the review; the status line and title service.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
-import { bandOf, summaryOf } from '../../plugin/hooks/domain/view.ts'
+import { bandOf, batchLineOf, summaryOf } from '../../plugin/hooks/domain/view.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createChrome } from '../../plugin/hooks/services/chrome.ts'
 import { createRuntime, observedState } from '../../plugin/hooks/services/runtime.ts'
@@ -421,5 +421,108 @@ describe('what a review knows about a mod', () => {
     await act.confirm()
     await drain()
     expect(w.state.values.queue.jobs.find(job => job.kind === 'update')?.unchanged).toBe(true)
+  })
+})
+
+describe('after the M3b review', () => {
+  it('an update the CLI finds current still says so (R-M3b-1)', async () => {
+    const { w, act, drain } = await setup(process => {
+      fromGit(process, QUIET)
+      process.when(['update'], out(runs['update-current'].stdout))
+    })
+    await act.update(QUIET)
+    await act.confirm()
+    await drain()
+    expect(w.state.values.attention.lastReload).toBe('already up to date')
+    expect(batchLineOf(w.state.values.queue, true)?.text).toBe('already up to date')
+    await w.clock.advance(8000)
+    expect(w.state.values.attention.lastReload).toBeUndefined()
+  })
+
+  it('two z before the redraw queue one undo (R-M3b-2)', async () => {
+    const { w, act, drain } = await setup()
+    await act.toggle(TURN_BAND)
+    await act.apply()
+    await act.confirm()
+    await drain()
+    await Promise.all([act.undo(), act.undo()])
+    expect(w.state.values.queue.jobs.map(job => job.kind)).toEqual([
+      'disable',
+      'reload',
+      'enable',
+      'reload',
+    ])
+  })
+
+  it('an undo review whose batch moved on queues nothing and says why (R-M3b-8)', async () => {
+    const { w, act, drain } = await setup()
+    await act.remove(QUIET)
+    await act.confirm()
+    await drain()
+    await act.undo()
+    expect(w.state.values.review?.action).toBe('undo')
+    // Elsewhere (another surface, the band), a newer batch lands.
+    w.state.values.queue = {
+      ...w.state.values.queue,
+      jobs: [
+        ...w.state.values.queue.jobs,
+        { id: 'x', kind: 'disable', state: 'ok', tail: [], batch: 'later', target: TURN_BAND },
+      ],
+    }
+    const before = w.state.values.queue.jobs.length
+    await act.confirm()
+    expect(w.state.values.queue.jobs).toHaveLength(before)
+    expect(w.state.values.view.notice).toMatch(/changed since this undo was shown/)
+    expect(w.state.values.review).toBeNull()
+  })
+
+  it('a confirmed remove moves the selection to the next row (R-M3b-8)', async () => {
+    const { w, act } = await setup()
+    await act.focusRow(QUIET)
+    await act.remove()
+    await act.confirm()
+    expect(w.state.values.view.selected).toBe('redactor@fixtures')
+    expect(w.state.values.detail?.id).toBe('redactor@fixtures')
+  })
+
+  it('dismissing the band quiets the status line and the title, not what is owed (R-M3b-3)', async () => {
+    const { w, act } = await setup()
+    bumpTurnBand(w.process)
+    await act.refresh()
+    await w.clock.advance(0)
+    expect(w.ui.statusLine).toBe('turn-band can now run programs')
+    await act.dismiss('mods · turn-band can now run programs')
+    await w.clock.advance(0)
+    expect(w.ui.statusLine).toBeUndefined()
+    expect(w.ui.opens.at(-1)?.title).toBe('mods')
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    await act.dismiss('mods · turn-band can now run programs')
+    await w.clock.advance(0)
+    expect(w.ui.statusLine).toBe('reload to apply')
+  })
+
+  it('a retitle the engine leaves unplaced is logged; the job log on top holds no toasts (R-M3b-7)', async () => {
+    const w = world()
+    const lines: string[] = []
+    const chrome = createChrome(w.ports, line => lines.push(line))
+    w.state.values.mods = [
+      {
+        id: 'a@m',
+        name: 'a',
+        origin: 'marketplace',
+        enabled: true,
+        toggleable: true,
+        notableCount: 0,
+        problems: 0,
+        mixed: false,
+        capsNew: { since: '1', added: ['runs-programs'] },
+      },
+    ]
+    w.state.values.view = { ...w.state.values.view, stack: ['jobs'] }
+    w.ui.shown = [{ id: 'modmgr', title: 'mods', isShown: true, isFocused: true, isPlaced: true }]
+    w.ui.placed = false
+    await chrome.sync()
+    expect(w.ui.opens.at(-1)?.holdToasts).toBeUndefined()
+    expect(lines.at(-1)).toMatch(/retitle left the pane unplaced/)
   })
 })

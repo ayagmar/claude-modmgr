@@ -90,6 +90,8 @@ export type Job = {
   error?: { kind: string; message: string }
   /** It succeeded without changing anything (already so, already up to date): no reload owed. */
   unchanged?: boolean
+  /** A remove: whether the CLI said it kept the mod's data folder (`keptData`), when it said. */
+  keptData?: boolean
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
@@ -141,6 +143,8 @@ export type ReviewRequest = {
   keepData?: boolean
   /** A remove: the size of the mod's data folder, when it has one. */
   dataBytes?: number
+  /** An undo: the batch it undoes; confirm queues it only while that is still the batch to undo. */
+  undoes?: string
 }
 
 export type Attention = {

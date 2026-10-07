@@ -245,3 +245,39 @@ test('the detail draws what is new apart, and says why a folder mod has no updat
   expect(await stacked.find({ key: 'act:remove' })).toBeDefined()
   expect(h.read('view')).toMatchObject({ stack: ['detail'] })
 })
+
+test('w wipes the data too, said on the confirm key; a appears with two updatable mods', async ($, on) => {
+  const h = host(on, {
+    cli: args =>
+      args[1] === 'list'
+        ? listed(entry => {
+            if (entry.id !== QUIET && entry.id !== TURN_BAND) {
+              return entry.id === 'spawner@fixtures'
+                ? { ...entry, dataDirSize: { bytes: 2048, human: '2 KB' } }
+                : entry
+            }
+            const { readFromFolder: _f, folderVersion: _v, ...rest } = entry
+            const name = String(entry.id).split('@')[0]
+            return { ...rest, installPath: `/tmp/modmgr-fixtures/git/${name}` }
+          })
+        : undefined,
+  })
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ key: 'act:update-all' })).toBeDefined()
+    await focusRow($, 'spawner@fixtures')
+    await ui.redraw()
+    await ui.press({ key: 'act:remove' })
+    await ui.redraw()
+    expect((await ui.find({ key: 'act:confirm' }))?.props.label).toBe('confirm')
+    expect((await ui.find({ key: 'act:keep-data' }))?.props.label).toBe('wipe its data too')
+    await ui.press({ key: 'act:keep-data' })
+    await ui.redraw()
+    expect((await ui.find({ key: 'act:confirm' }))?.props.label).toBe('remove and wipe its data')
+    expect(await ui.find({ type: 'Text', text: 'Deletes its data (2 KB) for good.' })).toBeDefined()
+    await ui.press({ key: 'act:cancel' })
+    await ui.unmount()
+  }
+})

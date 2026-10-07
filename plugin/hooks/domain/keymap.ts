@@ -67,12 +67,8 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'reload', hotkey: 'l', label: 'reload plugins', on: ['dev', 'health', 'band'] },
   { action: 'confirm', hotkey: 'y', label: 'confirm', on: ['review'] },
   { action: 'cancel', hotkey: 'n', label: 'cancel', on: ['review'] },
-  {
-    action: 'keep-data',
-    hotkey: 'd',
-    label: "keep or delete a removed mod's data",
-    on: ['review'],
-  },
+  // Not `d`: that dismisses the band, a reflex there (review R-M3b-5).
+  { action: 'keep-data', hotkey: 'w', label: "keep or wipe a removed mod's data", on: ['review'] },
   { action: 'cancel-job', hotkey: 'q', label: 'cancel running job', on: ['jobs'] },
   { action: 'open-modmgr', hotkey: 'm', label: 'open mods', on: ['band'] },
   { action: 'dismiss', hotkey: 'd', label: 'dismiss', on: ['band'] },

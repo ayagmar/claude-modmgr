@@ -18,7 +18,7 @@ import type {
 import { argvOf, commandOfJob } from './argv.ts'
 import { notableText } from './capabilities.ts'
 import { capsLine } from './caps-history.ts'
-import { isActive, type JobSpec, type UndoStep } from './jobs.ts'
+import { isActive, type JobSpec, NEEDS_RELOAD, type UndoStep } from './jobs.ts'
 import { sanitize } from './sanitize.ts'
 
 /** The name part of a plugin id (`turn-band` of `turn-band@fixtures`). */
@@ -79,6 +79,14 @@ export const paneOpen = (how: {
   ...(how.hold ? { holdToasts: true as const } : {}),
 })
 
+/**
+ * Whether an open of the dialog holds other plugins' toasts (C8): only while
+ * nothing runs or waits and the job log isn't on top, since a pane that stays
+ * open must not silence them for long.
+ */
+export const holdsToasts = (queue: JobQueue, view: View): boolean =>
+  !queue.jobs.some(isActive) && view.stack.at(-1) !== 'jobs'
+
 // ---- rows -------------------------------------------------------------------
 
 /** Installed rows matching the filter: by name or id, case-insensitive. */
@@ -111,6 +119,18 @@ export const pagerLabel = (window: Window, count: number): string | undefined =>
   window.start === 0 && window.end >= count
     ? undefined
     : `${window.start + 1}–${window.end} of ${count}`
+
+/** The row the selection moves to when `id` goes: the next one shown, else the one before. */
+export const neighbourOf = (
+  view: View,
+  mods: readonly ModRow[],
+  id: string,
+): ModRow | undefined => {
+  const rows = filterRows(mods, view.query)
+  const at = rows.findIndex(row => row.id === id)
+  if (at < 0) return undefined
+  return rows[at + 1] ?? rows[at - 1]
+}
 
 /** The selected row's index among `rows`, 0 when it isn't there. */
 export const selectedIndex = (rows: readonly ModRow[], selected: string | undefined): number => {
@@ -304,16 +324,20 @@ const UNDO_OP: Readonly<Partial<Record<JobSpec['kind'], ReviewOp>>> = {
  * back, what it can do, and that a declared install command stops it (C10).
  */
 export const undoReview = (
-  steps: readonly UndoStep[],
+  plan: { readonly batch: string; readonly steps: readonly UndoStep[] },
   rows: readonly ModRow[],
   facts: (id: string) => ReviewFacts | undefined,
 ): ReviewRequest => {
+  const { steps } = plan
   const notable: string[] = []
   const parts = { skills: 0, agents: 0, mcp: 0 }
   const targets = steps.flatMap(({ spec, undoes }): ReviewTarget[] => {
     const op = UNDO_OP[spec.kind]
     if (op === undefined || spec.target === undefined) return []
-    const name = rows.find(row => row.id === spec.target)?.name ?? nameOf(spec.target)
+    // A queue job's target is checked only when it runs: drawn, it is sanitised (R-M3b-10).
+    const name = sanitize(rows.find(row => row.id === spec.target)?.name ?? nameOf(spec.target), {
+      max: 40,
+    })
     const known = facts(spec.target)
     if (op === 'install' || op === 'enable') {
       for (const id of known?.notable ?? []) notable.push(`${name}: ${notableText(id)}`)
@@ -326,7 +350,8 @@ export const undoReview = (
         id: spec.target,
         op,
         ...(scope === undefined ? {} : { scope }),
-        ...(op === 'install' ? { keptData: undoes.args?.keepData === true } : {}),
+        // What the CLI said it did with the data, not what modmgr asked (R-M3b-6).
+        ...(op === 'install' && undoes.keptData !== undefined ? { keptData: undoes.keptData } : {}),
       },
     ]
   })
@@ -336,6 +361,7 @@ export const undoReview = (
       targets,
       notable,
       changesRepoFile: targets.some(target => touchesRepo(target.scope)),
+      undoes: plan.batch,
     },
     parts,
   )
@@ -480,7 +506,7 @@ export type Status = {
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
 
 /** How a finished batch's work reads: what changed, and what was already so. */
-const doneText = (work: readonly Job[]): string => {
+export const doneText = (work: readonly Job[]): string => {
   const changed = work.filter(job => job.state === 'ok' && job.unchanged !== true)
   const same = work.length - changed.length
   const updates = work.every(job => job.kind === 'update')
@@ -502,17 +528,25 @@ const doneText = (work: readonly Job[]): string => {
 }
 
 /**
+ * The jobs a batch counts as its work: not the reload, and not a marketplace
+ * refresh (a step of an update). The pane's batch line and the summary share
+ * it, so they count a batch alike (review R-M3b-4).
+ */
+export const isWork = (job: Job): boolean =>
+  job.kind !== 'reload' && job.kind !== 'marketplace-update'
+
+/**
  * One line about the newest batch, in the pane: what runs now, or how it
  * ended. A failure stays until the next batch; a success shows only while
- * `showDone` (the band's echo of the reload, which the runner clears after a
- * while: that write is what redraws the pane, review R-M3a-4). A
- * marketplace refresh is a step of an update, not a change of its own.
+ * `showDone` (the band's echo, which the runner clears after a while: that
+ * write is what redraws the pane, review R-M3a-4). A batch that changed
+ * nothing gets the same echo, though its reload never ran (R-M3b-1).
  */
 export const batchLineOf = (queue: JobQueue, showDone: boolean): Status | undefined => {
   const jobs = latestBatch(queue.jobs)
   if (jobs.length === 0) return undefined
   const running = jobs.find(job => job.state === 'running')
-  const work = jobs.filter(job => job.kind !== 'reload' && job.kind !== 'marketplace-update')
+  const work = jobs.filter(isWork)
   const done = work.filter(job => job.state !== 'queued' && job.state !== 'running').length
   if (running !== undefined) {
     if (running.kind === 'reload') return { tone: 'busy', text: 'reloading plugins…' }
@@ -547,9 +581,9 @@ export const batchLineOf = (queue: JobQueue, showDone: boolean): Status | undefi
  * disagree.
  */
 export type Summary = {
-  /** The CLI job running now (not the reload). */
+  /** The job running now, not the reload (a refresh, a change, a test). */
   readonly running?: Job
-  /** CLI jobs queued or running. */
+  /** Changes (jobs that need a reload) queued or running: what "applying" counts. */
   readonly pending: number
   /** The batch's reload is running (or waiting for the turn to end). */
   readonly reloading: boolean
@@ -560,9 +594,18 @@ export type Summary = {
   readonly capsCount: number
   /** "turn-band can now run programs", when something is new. */
   readonly caps?: string
-  /** The CLI's answer to the last reload, echoed for a while (C8). */
+  /**
+   * The person dismissed the band line that said this news (updates, what an
+   * update added): the status line and the title leave it out too, until it
+   * changes (R-M3b-3). What is under way or owed is never quieted.
+   */
+  readonly newsDismissed: boolean
+  /** The CLI's answer to the last reload, or how a batch that needed none ended (C8). */
   readonly echo?: string
 }
+
+const updatesText = (n: number): string | undefined =>
+  n > 0 ? plural(n, 'update', 'updates') : undefined
 
 export const summaryOf = (input: {
   readonly attention: Attention
@@ -573,14 +616,19 @@ export const summaryOf = (input: {
   const reloadJob = queue.jobs.find(job => job.kind === 'reload' && isActive(job))
   const running = queue.jobs.find(job => job.kind !== 'reload' && job.state === 'running')
   const caps = capsLine(mods)
+  const news = [updatesText(attention.updates), caps].filter(
+    (part): part is string => part !== undefined,
+  )
+  const said = new Set(attention.dismissed?.split(' · ') ?? [])
   return {
     ...(running === undefined ? {} : { running }),
-    pending: queue.jobs.filter(job => job.kind !== 'reload' && isActive(job)).length,
+    pending: queue.jobs.filter(job => NEEDS_RELOAD.has(job.kind) && isActive(job)).length,
     reloading: reloadJob?.state === 'running',
     reloadOwed: attention.reloadPending && reloadJob === undefined,
     updates: attention.updates,
     capsCount: mods.filter(row => row.capsNew !== undefined).length,
     ...(caps === undefined ? {} : { caps }),
+    newsDismissed: news.length > 0 && news.every(part => said.has(part)),
     ...(attention.lastReload === undefined ? {} : { echo: attention.lastReload }),
   }
 }
@@ -607,7 +655,8 @@ export const bandOf = (
   if (summary.reloading) {
     parts.push(how.isWorking ? 'reload queued, runs when the turn ends' : 'reloading plugins…')
   }
-  if (summary.updates > 0) parts.push(plural(summary.updates, 'update', 'updates'))
+  const updates = updatesText(summary.updates)
+  if (updates !== undefined) parts.push(updates)
   if (summary.caps !== undefined) parts.push(summary.caps)
   if (summary.reloadOwed) parts.push('reload to apply')
   if (parts.length === 0) {
@@ -621,24 +670,33 @@ export const bandOf = (
 
 /**
  * The status line under the prompt (`$.ui.status`, one per plugin, drawn
- * `modmgr: <text>`): what still needs the person or is under way; nothing
- * when idle (undefined clears it). The reload's echo stays in the band.
+ * `modmgr: <text>`): what is under way or owed, and news the person hasn't
+ * dismissed; nothing when idle (undefined clears it). Echoes stay in the band.
  */
 export const statusLineOf = (summary: Summary): string | undefined => {
   const parts: string[] = []
-  if (summary.pending > 0) parts.push(`applying ${summary.pending}…`)
+  const { running } = summary
+  if (running?.kind === 'marketplace-update') parts.push(`${describeJob(running)}…`)
+  else if (summary.pending > 0) parts.push(`applying ${summary.pending}…`)
+  else if (running !== undefined) parts.push(`${describeJob(running)}…`)
   else if (summary.reloading) parts.push('reloading plugins…')
-  if (summary.updates > 0) parts.push(plural(summary.updates, 'update', 'updates'))
-  if (summary.caps !== undefined) parts.push(summary.caps)
+  if (!summary.newsDismissed) {
+    const updates = updatesText(summary.updates)
+    if (updates !== undefined) parts.push(updates)
+    if (summary.caps !== undefined) parts.push(summary.caps)
+  }
   if (summary.reloadOwed) parts.push('reload to apply')
   // The engine names the plugin before it (`modmgr: …`, F52).
   return parts.length === 0 ? undefined : parts.join(' · ')
 }
 
-/** The pane's title: `mods`, with what waits for the person (F22: a retitle is an open). */
+/** The pane's title: `mods`, with news not dismissed (F22: a retitle is an open). */
 export const titleOf = (summary: Summary): string => {
   const parts = [PANE_TITLE]
-  if (summary.updates > 0) parts.push(plural(summary.updates, 'update', 'updates'))
-  if (summary.capsCount > 0) parts.push(`${summary.capsCount} can do more`)
+  if (!summary.newsDismissed) {
+    const updates = updatesText(summary.updates)
+    if (updates !== undefined) parts.push(updates)
+    if (summary.capsCount > 0) parts.push(`${summary.capsCount} can do more`)
+  }
   return parts.join(' · ')
 }

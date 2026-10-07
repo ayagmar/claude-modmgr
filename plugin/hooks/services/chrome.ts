@@ -4,8 +4,7 @@
 // disagree. The runtime's state writes to `attention`, `queue` and `mods`
 // schedule a sync; one runs at a time and says only what changed.
 
-import { isActive } from '../domain/jobs.ts'
-import { PANE_ID, paneOpen, statusLineOf, summaryOf, titleOf } from '../domain/view.ts'
+import { holdsToasts, PANE_ID, paneOpen, statusLineOf, summaryOf, titleOf } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 
 export type ChromePorts = Pick<Ports, 'state' | 'ui' | 'clock'>
@@ -29,10 +28,11 @@ export const createChrome = (
   let again = false
 
   const once = async (): Promise<void> => {
-    const [attention, queue, mods] = await Promise.all([
+    const [attention, queue, mods, view] = await Promise.all([
       ports.state.read('attention'),
       ports.state.read('queue'),
       ports.state.read('mods'),
+      ports.state.read('view'),
     ])
     const summary = summaryOf({ attention, queue, mods })
     const status = statusLineOf(summary)
@@ -46,8 +46,10 @@ export const createChrome = (
     const title = titleOf(summary)
     const pane = (await ports.ui.panes()).find(item => item.id === PANE_ID)
     if (pane?.isPlaced === true && pane.title !== title) {
-      const busy = queue.jobs.some(isActive)
-      await ports.ui.open(paneOpen({ focus: false, hold: !busy, mods: mods.length, title }))
+      const hold = holdsToasts(queue, view)
+      const opened = await ports.ui.open(paneOpen({ focus: false, hold, mods: mods.length, title }))
+      // F53 says a placed pane stays placed; if the engine ever disagrees, say so (R-M3b-7).
+      if (!opened.isPlaced) debug(`modmgr: retitle left the pane unplaced: ${opened.reason}`)
     }
   }
 

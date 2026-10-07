@@ -88,6 +88,8 @@ export type OpDone = {
   /** The CLI found it already so (`already_in_goal_state`): nothing changed. */
   readonly unchanged: boolean
   readonly update?: { readonly outcome: string; readonly from?: string; readonly to?: string }
+  /** `uninstall`: whether the data folder was kept, as the CLI says. */
+  readonly keptData?: boolean
 }
 
 /** A declared command must be accepted first (F25); `changed` when a given sha no longer matched. */
@@ -351,6 +353,7 @@ export const parseOpResult = (run: CliRun): Result<OpOutcome> => {
       scope: str(line, 'scope'),
       message,
       unchanged,
+      keptData: bool(line, 'keptData'),
       update:
         updateOutcome === undefined
           ? undefined

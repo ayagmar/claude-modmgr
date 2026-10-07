@@ -48,13 +48,11 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
   const removing = review.action === 'remove'
   const keepData = review.keepData !== false
   const heading = headingOf(review, name)
-  const keyLabels = [
-    'y: confirm',
-    'n: cancel',
-    ...(removing && review.dataBytes !== undefined
-      ? [keepData ? 'd: delete its data too' : 'd: keep its data']
-      : []),
-  ]
+  // What `y` does is said on `y` itself once the data goes too (review R-M3b-5).
+  const confirmLabel = removing && !keepData ? 'remove and wipe its data' : 'confirm'
+  const dataLabel = keepData ? 'wipe its data too' : 'keep its data'
+  const offersData = removing && review.dataBytes !== undefined
+  const keyLabels = [`y: ${confirmLabel}`, 'n: cancel', ...(offersData ? [`w: ${dataLabel}`] : [])]
   const lines: Line[] = [
     { el: Heading(v, heading), text: heading },
     {
@@ -64,7 +62,7 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
           {KeyButton(v, {
             action: 'confirm',
             on: 'review',
-            label: 'confirm',
+            label: confirmLabel,
             onPress: () => v.act.confirm(),
           })}
           {KeyButton(v, {
@@ -73,11 +71,11 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
             label: 'cancel',
             onPress: () => v.act.cancel(),
           })}
-          {removing && review.dataBytes !== undefined
+          {offersData
             ? KeyButton(v, {
                 action: 'keep-data',
                 on: 'review',
-                label: keepData ? 'delete its data too' : 'keep its data',
+                label: dataLabel,
                 onPress: () => v.act.keepData(),
               })
             : null}
@@ -131,8 +129,9 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
     if (marketplaces.length > 0) {
       say(`Refreshes ${marketplaces.map(m => sanitize(m, { max: 40 })).join(', ')} first.`)
     }
-    say('Its new code runs after the reload;')
-    say('modmgr then shows what it can newly do.')
+    // modmgr hasn't checked that a newer version exists (detection is M5b's).
+    say('If a newer version exists, its code runs')
+    say('after the reload; modmgr shows what is new.')
     say("An update can't be undone.", TONE.warn)
   }
   if (removing) {
@@ -144,12 +143,10 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
   const reinstalls = review.targets.filter(target => target.op === 'install')
   if (reinstalls.length > 0) {
     say("Reinstalls the marketplace's current version.")
+    // Only what the CLI said about the data (R-M3b-6); nothing when it said nothing.
     for (const target of reinstalls) {
-      say(
-        target.keptData === true
-          ? `${name(target.id)}: its data was kept.`
-          : `${name(target.id)}: its data went with it.`,
-      )
+      if (target.keptData === true) say(`${name(target.id)}: its data was kept.`)
+      if (target.keptData === false) say(`${name(target.id)}: its data went with it.`)
     }
     say('A declared install command stops it,', TONE.warn)
     say('shown first; nothing runs unaccepted.', TONE.warn)
@@ -273,7 +270,8 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
         </Text>,
       )
     }
-    if (job.state === 'running' || job.state === 'failed') {
+    // A job that found nothing to do says so in its tail (R-M3b-1).
+    if (job.state === 'running' || job.state === 'failed' || job.unchanged === true) {
       for (const line of job.tail.slice(-5)) {
         own.push(
           <Text dimColor wrap="truncate-end">

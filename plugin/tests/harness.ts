@@ -46,7 +46,13 @@ const fromFixtures = (args: readonly string[]): CliAnswer => {
   }
   if (second === 'disable') return RUNS['disable-ok']
   if (second === 'enable') return RUNS['enable-ok']
-  if (second === 'uninstall') return RUNS['uninstall-ok']
+  if (second === 'uninstall') {
+    // The CLI says whether it kept the data folder, as it was asked.
+    const run = RUNS['uninstall-ok']
+    return args.includes('--keep-data')
+      ? { ...run, stdout: run.stdout.replace('"keptData":false', '"keptData":true') }
+      : run
+  }
   if (second === 'install') return RUNS['install-quiet-bash']
   if (second === 'update') return RUNS['update-bumped']
   if (second === 'marketplace') return RUNS['marketplace-update-ok']

@@ -105,7 +105,7 @@ export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
   )
 
 export type Finish =
-  | { readonly ok: true; readonly unchanged?: boolean }
+  | { readonly ok: true; readonly unchanged?: boolean; readonly keptData?: boolean }
   | { readonly ok: false; readonly error: { readonly kind: string; readonly message: string } }
   | { readonly cancelled: true }
 
@@ -114,9 +114,13 @@ export const finish = (jobs: readonly Job[], id: string, now: number, how: Finis
     if (!isActive(job)) return job
     if ('cancelled' in how) return { ...job, state: 'cancelled', endedAt: now }
     if (how.ok) {
-      return how.unchanged === true
-        ? { ...job, state: 'ok', endedAt: now, unchanged: true }
-        : { ...job, state: 'ok', endedAt: now }
+      return {
+        ...job,
+        state: 'ok',
+        endedAt: now,
+        ...(how.unchanged === true ? { unchanged: true } : {}),
+        ...(how.keptData === undefined ? {} : { keptData: how.keptData }),
+      }
     }
     return { ...job, state: 'failed', endedAt: now, error: how.error }
   })
@@ -209,7 +213,7 @@ export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
       return spec === undefined ? [] : [{ spec, undoes: job }]
     })
     if (steps.length > 0) return { kind: 'ready', batch, steps: steps.reverse() }
-    return members.some(job => job.kind === 'update' && job.state === 'ok')
+    return members.some(job => job.kind === 'update' && job.state === 'ok' && !job.unchanged)
       ? {
           kind: 'none',
           reason: "An update can't be undone: the CLI can't install an older version",
@@ -217,6 +221,12 @@ export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
       : { kind: 'none', reason: 'The last batch changed nothing to undo' }
   }
   return { kind: 'none', reason: 'Nothing to undo' }
+}
+
+/** Whether `batch` is still the one `z` would undo: what an undo queues is checked against it. */
+export const stillUndoes = (jobs: readonly Job[], batch: string): boolean => {
+  const plan = undoPlan(jobs)
+  return plan.kind === 'ready' && plan.batch === batch
 }
 
 /** An undo that reinstalls runs a mod's code again: it goes through the review (R-M3a §3). */

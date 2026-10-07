@@ -5,12 +5,14 @@
 
 import type { RenderSurface } from 'claude-code'
 import type { ReviewRequest, Tab, View } from '../../types/index.d.ts'
-import { enqueueReload, isActive, prune, undoNeedsReview, undoPlan } from '../domain/jobs.ts'
+import { enqueueReload, prune, stillUndoes, undoNeedsReview, undoPlan } from '../domain/jobs.ts'
 import {
   closedView,
   escapeStep,
   FILTER_KEY,
   filterRows,
+  holdsToasts,
+  neighbourOf,
   PANE_ID,
   paneOpen,
   popOverlay,
@@ -40,7 +42,7 @@ import type { Runtime } from './runtime.ts'
 export type ActionPorts = Pick<Ports, 'state' | 'ui'>
 
 /** The parts of the module's runtime an action reaches; absent before the first `session.start`. */
-export type ActionRuntime = Pick<Runtime, 'registry' | 'runner' | 'newJobId'>
+export type ActionRuntime = Pick<Runtime, 'registry' | 'runner' | 'newJobId' | 'chrome'>
 
 export type Actions = {
   tab(tab: Tab): Promise<void>
@@ -131,28 +133,41 @@ export const createActions = (
    * only while nothing runs (C8).
    */
   const openDialog = async (how: { focus: boolean; idle?: boolean }): Promise<void> => {
-    const [attention, queue, mods] = await Promise.all([
+    const [attention, queue, mods, view] = await Promise.all([
       state.read('attention'),
       state.read('queue'),
       state.read('mods'),
+      state.read('view'),
     ])
-    const idle = how.idle ?? !queue.jobs.some(isActive)
+    const idle = how.idle ?? holdsToasts(queue, view)
     const title = titleOf(summaryOf({ attention, queue, mods }))
     await ui.open(paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title }))
   }
 
-  const queueBatch = async (specs: Parameters<typeof enqueue>[1]['specs']): Promise<boolean> => {
+  /** Queues a batch and its reload; `when` guards it against a queue that moved since it was read. */
+  const queueBatch = async (
+    specs: Parameters<typeof enqueue>[1]['specs'],
+    when?: Parameters<typeof enqueue>[3],
+  ): Promise<'queued' | 'stale' | 'starting'> => {
     if (rt === undefined) {
       await notice('modmgr is still starting; try again in a moment')
-      return false
+      return 'starting'
     }
-    await enqueue(ports, { id: rt.newJobId(), specs, reload: true }, () => rt.newJobId())
+    const queued = await enqueue(
+      ports,
+      { id: rt.newJobId(), specs, reload: true },
+      () => rt.newJobId(),
+      when,
+    )
+    if (!queued) return 'stale'
+    // These are the dispatch's writes, not the runtime's: say so to the status line (R-M3b-12).
+    rt.chrome.schedule()
     // A pane left open while jobs run must not hold other plugins' toasts (C8).
     if ((await ui.panes()).some(pane => pane.id === PANE_ID)) {
       await openDialog({ focus: false, idle: false })
     }
     rt.runner.kick()
-    return true
+    return 'queued'
   }
 
   /** Re-takes the keys after an Esc the cascade answered (the selected row's autoFocus takes the ring). */
@@ -302,22 +317,37 @@ export const createActions = (
       })
       const review = taken as ReviewRequest | null
       if (review === null) return
-      if (!(await queueBatch(specsOf(review)))) {
+      // An undo reviewed is queued only while its batch is still the one to undo (R-M3b-8).
+      const { undoes } = review
+      const queued = await queueBatch(
+        specsOf(review),
+        undoes === undefined ? undefined : queue => stillUndoes(queue.jobs, undoes),
+      )
+      if (queued === 'starting') {
         await state.update('review', current => current ?? review)
         return
       }
       const ids = new Set(review.targets.map(target => target.id))
-      // A removed mod's detail goes with it, or the next row's would show in its place.
-      const gone = review.targets.some(target => target.op === 'remove')
+      // A removed mod's detail goes with it, and the selection moves on, or the
+      // ring would land on a row the refresh is about to take away (R-M3b-8).
+      const gone = review.targets.find(target => target.op === 'remove')?.id
+      const mods = await state.read('mods')
       await setView(view => {
         const staged = Object.fromEntries(
           Object.entries(view.staged).filter(([id]) => !ids.has(id)),
         )
         const stack = view.stack.filter(
-          overlay => overlay !== 'review' && !(gone && overlay === 'detail'),
+          overlay => overlay !== 'review' && !(gone !== undefined && overlay === 'detail'),
         )
-        return { ...quiet(view), staged, stack }
+        const next = gone === undefined ? undefined : neighbourOf(view, mods, gone)
+        const moved = next === undefined ? {} : { selected: next.id }
+        const said =
+          queued === 'stale'
+            ? { notice: 'The last batch changed since this undo was shown; nothing was queued' }
+            : {}
+        return { ...quiet(view), staged, stack, ...moved, ...said }
       })
+      if (gone !== undefined) await select((await state.read('view')).selected)
       await ringToOverlay()
     }),
 
@@ -339,12 +369,15 @@ export const createActions = (
       }
       // A reinstall runs the mod's code again: reviewed, as an install is.
       if (undoNeedsReview(plan)) {
-        await openReview(undoReview(plan.steps, mods, id => rt?.registry.facts(id)))
+        await openReview(undoReview(plan, mods, id => rt?.registry.facts(id)))
         return
       }
-      if (await queueBatch(plan.steps.map(step => step.spec))) {
-        await notice(`Undoing the last batch (${plan.steps.length})`)
-      }
+      // Two presses read one queue: only the first still finds this batch to undo (R-M3b-2).
+      const queued = await queueBatch(
+        plan.steps.map(step => step.spec),
+        current => stillUndoes(current.jobs, plan.batch),
+      )
+      if (queued === 'queued') await notice(`Undoing the last batch (${plan.steps.length})`)
     }),
 
     refresh: safely('refresh', async () => {
@@ -363,6 +396,7 @@ export const createActions = (
         ...queue,
         jobs: prune(enqueueReload(queue.jobs, id, batch)),
       }))
+      rt.chrome.schedule()
       rt.runner.kick()
     }),
 
@@ -407,6 +441,8 @@ export const createActions = (
 
     dismiss: safely('dismiss', async line => {
       await state.update('attention', attention => ({ ...attention, dismissed: line }))
+      // A dismissal quiets the status line and the title too (R-M3b-3).
+      rt?.chrome.schedule()
     }),
 
     cancelJob: safely('cancel job', async id => {

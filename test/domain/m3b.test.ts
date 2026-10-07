@@ -11,7 +11,8 @@ import {
   nextRecord,
   recordCaps,
 } from '../../plugin/hooks/domain/caps-history.ts'
-import type { Job } from '../../plugin/hooks/domain/jobs.ts'
+import { type Job, stillUndoes, undoPlan } from '../../plugin/hooks/domain/jobs.ts'
+import { INITIAL_VIEW } from '../../plugin/hooks/domain/state.ts'
 import {
   type CapsRecord,
   envelope,
@@ -24,7 +25,9 @@ import {
   batchLineOf,
   bytesLabel,
   footerRowsFor,
+  holdsToasts,
   marketplaceOf,
+  neighbourOf,
   removeReview,
   specsOf,
   statusLineOf,
@@ -257,15 +260,19 @@ describe('update and remove', () => {
       tail: [],
       target: 'gone@m',
       args: { scope: 'user', keepData: true },
+      keptData: true,
     }
     const disabled: Job = { id: 'k', kind: 'disable', state: 'ok', tail: [], target: 'b@m' }
     const review = undoReview(
-      [
-        { spec: { kind: 'install', target: 'gone@m', args: { scope: 'user' } }, undoes: removed },
-        { spec: { kind: 'enable', target: 'b@m' }, undoes: disabled },
-        { spec: { kind: 'remove', target: 'c@m' }, undoes: disabled },
-        { spec: { kind: 'update', target: 'c@m' }, undoes: disabled },
-      ],
+      {
+        batch: 'b',
+        steps: [
+          { spec: { kind: 'install', target: 'gone@m', args: { scope: 'user' } }, undoes: removed },
+          { spec: { kind: 'enable', target: 'b@m' }, undoes: disabled },
+          { spec: { kind: 'remove', target: 'c@m' }, undoes: disabled },
+          { spec: { kind: 'update', target: 'c@m' }, undoes: disabled },
+        ],
+      },
       [row('b')],
       id =>
         id === 'gone@m'
@@ -284,7 +291,17 @@ describe('update and remove', () => {
       notable: ['gone: Can run programs or change files on your machine'],
       changesRepoFile: false,
       parts: { skills: 1, agents: 0, mcp: 0 },
+      undoes: 'b',
     })
+    // Whether the data was kept is the CLI's word: unsaid, the review says nothing.
+    const { keptData: _said, ...unsaid } = removed
+    expect(
+      undoReview(
+        { batch: 'b', steps: [{ spec: { kind: 'install', target: 'gone@m' }, undoes: unsaid }] },
+        [],
+        () => undefined,
+      ).targets,
+    ).toEqual([{ id: 'gone@m', op: 'install' }])
     expect(specsOf(review)).toEqual([
       { kind: 'install', target: 'gone@m', args: { scope: 'user' } },
       { kind: 'enable', target: 'b@m' },
@@ -429,5 +446,79 @@ describe('layout helpers', () => {
     expect(bytesLabel(12)).toBe('12 B')
     expect(bytesLabel(12_400)).toBe('12 KB')
     expect(bytesLabel(3_500_000)).toBe('3.3 MB')
+  })
+})
+
+describe('after the M3b review', () => {
+  const job = (id: string, more: Loose<Job>): Job =>
+    ({ id, kind: 'update', state: 'queued', tail: [], batch: 'b', target: 'a@m', ...more }) as Job
+
+  it('the status line counts changes, not marketplace refreshes or tests (R-M3b-4)', () => {
+    const queue = {
+      owner: 'o',
+      jobs: [
+        job('m1', { kind: 'marketplace-update', target: 'one', state: 'running' }),
+        job('m2', { kind: 'marketplace-update', target: 'two' }),
+        job('1', {}),
+        job('2', {}),
+        job('3', {}),
+      ],
+    }
+    expect(statusLineOf(summaryOf({ attention: ATTENTION, queue, mods: [] }))).toBe(
+      'refresh marketplace one…',
+    )
+    expect(batchLineOf(queue, false)?.text).toBe('refresh marketplace one…')
+    const [, , ...rest] = queue.jobs
+    const updating = { owner: 'o', jobs: rest }
+    expect(statusLineOf(summaryOf({ attention: ATTENTION, queue: updating, mods: [] }))).toBe(
+      'applying 3…',
+    )
+    expect(batchLineOf(updating, false)?.text).toBe('3 changes queued…')
+    const testing = {
+      owner: 'o',
+      jobs: [job('t', { kind: 'test', state: 'running', target: undefined })],
+    }
+    expect(statusLineOf(summaryOf({ attention: ATTENTION, queue: testing, mods: [] }))).toBe(
+      'test…',
+    )
+  })
+
+  it('a dismissed line quiets only its news (R-M3b-3)', () => {
+    const mods = [row('tb', { capsNew: { since: '1', added: ['runs-programs'] } })]
+    const dismissed = 'mods · 1 update · tb can now run programs'
+    const attention = { ...ATTENTION, updates: 1, reloadPending: true, dismissed }
+    const summary = summaryOf({ attention, queue: IDLE, mods })
+    expect(summary.newsDismissed).toBe(true)
+    expect(statusLineOf(summary)).toBe('reload to apply')
+    expect(titleOf(summary)).toBe('mods')
+    const more = summaryOf({ attention: { ...attention, updates: 2 }, queue: IDLE, mods })
+    expect(more.newsDismissed).toBe(false)
+    expect(titleOf(more)).toBe('mods · 2 updates · 1 can do more')
+  })
+
+  it('holds toasts only when idle and the job log is not on top; finds a neighbour', () => {
+    const view = { ...INITIAL_VIEW }
+    expect(holdsToasts(IDLE, view)).toBe(true)
+    expect(holdsToasts(IDLE, { ...view, stack: ['jobs'] })).toBe(false)
+    expect(holdsToasts({ owner: 'o', jobs: [job('1', {})] }, view)).toBe(false)
+    const rows = [row('a'), row('b'), row('c')]
+    expect(neighbourOf(view, rows, 'b@m')?.id).toBe('c@m')
+    expect(neighbourOf(view, rows, 'c@m')?.id).toBe('b@m')
+    expect(neighbourOf(view, [row('a')], 'a@m')).toBeUndefined()
+    expect(neighbourOf(view, rows, 'nope@m')).toBeUndefined()
+  })
+
+  it('an undo stays the one to undo until another batch lands', () => {
+    const disabled = job('1', { kind: 'disable', state: 'ok' })
+    expect(stillUndoes([disabled], 'b')).toBe(true)
+    expect(stillUndoes([disabled, { ...disabled, id: '2', batch: 'c' }], 'b')).toBe(false)
+    expect(stillUndoes([], 'b')).toBe(false)
+  })
+
+  it('an update that changed nothing has nothing to undo, not "no undo for updates"', () => {
+    expect(undoPlan([job('1', { state: 'ok', unchanged: true })])).toEqual({
+      kind: 'none',
+      reason: 'The last batch changed nothing to undo',
+    })
   })
 })
