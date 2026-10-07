@@ -1,0 +1,1 @@
+{ "name": "probe", "version": "0.0.1", "description": "M0 spike probe: S8, S9, S11, S12", "author": {"name": "ayagmar"}, "types": "./types/index.d.ts" }

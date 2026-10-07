@@ -1,0 +1,28 @@
+{
+  "name": "modmgr-repo",
+  "private": true,
+  "description": "Development tooling for modmgr, a Claude Code mod manager. The shipped plugin lives in ./plugin and has no package.json.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "biome ci .",
+    "format": "biome format --write .",
+    "typecheck": "tsc -p plugin --noEmit && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "validate": "claude plugin validate --strict --json plugin && claude plugin validate .",
+    "test:plugin": "claude plugin test plugin",
+    "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^24.19.1",
+    "@vitest/coverage-v8": "5.0.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
