@@ -1,5 +1,7 @@
 // Domain modules added in M2: argv, mods, store schema, config, version,
 // queue ownership, marketplace sources and the state defaults.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { argvOf, commandOfJob, TIMEOUTS } from '../../plugin/hooks/domain/argv.ts'
 import { parseInstalledList } from '../../plugin/hooks/domain/cli-results.ts'
@@ -415,6 +417,21 @@ describe('store schema', () => {
 describe('state defaults', () => {
   it('has a shape tag for every key', () => {
     expect(Object.keys(SHAPES).sort()).toEqual(Object.keys(INITIAL).sort())
-    for (const [key, shape] of Object.entries(SHAPES)) expect(shape).toBe(`${key}/1`)
+    for (const [key, shape] of Object.entries(SHAPES))
+      expect(shape).toMatch(new RegExp(`^${key}/\\d+$`))
+  })
+
+  it('register.tsx keeps each atom under the tag domain/state.ts names', () => {
+    const source = readFileSync(
+      join(import.meta.dirname, '../../plugin/hooks/register.tsx'),
+      'utf8',
+    )
+    const tags = Object.fromEntries(
+      [...source.matchAll(/key: '(\w+)' \} as const,[\s\S]*?shape: '([\w/]+)'/g)].map(m => [
+        m[1],
+        m[2],
+      ]),
+    )
+    expect(tags).toEqual(SHAPES)
   })
 })

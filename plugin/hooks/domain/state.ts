@@ -38,9 +38,9 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   detect: 'detect/1',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/1',
+  view: 'view/2',
   review: 'review/1',
-  attention: 'attention/1',
+  attention: 'attention/2',
   degraded: 'degraded/1',
 }
 

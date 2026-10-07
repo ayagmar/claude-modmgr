@@ -134,12 +134,19 @@ export const invalidHotkeys = (bindings: readonly Binding[] = BINDINGS): Binding
 export const hotkeyFor = (action: string, surface: KeySurface): string | undefined =>
   BINDINGS.find(binding => binding.action === action && binding.on.includes(surface))?.hotkey
 
-/** Help rows for what is mounted: engine keys first, then hotkeys, once per action. */
-export const helpFor = (surfaces: readonly KeySurface[]): { key: string; label: string }[] => {
+/** Help rows for what is mounted (less `hidden` actions): engine keys first, then hotkeys, once per action. */
+export const helpFor = (
+  surfaces: readonly KeySurface[],
+  hidden: ReadonlySet<string> = new Set(),
+): { key: string; label: string }[] => {
   const seen = new Set<string>()
   const rows: { key: string; label: string; engine: boolean }[] = []
   for (const binding of BINDINGS) {
-    if (seen.has(binding.action) || !binding.on.some(surface => surfaces.includes(surface)))
+    if (
+      seen.has(binding.action) ||
+      hidden.has(binding.action) ||
+      !binding.on.some(surface => surfaces.includes(surface))
+    )
       continue
     seen.add(binding.action)
     rows.push({

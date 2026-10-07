@@ -69,6 +69,15 @@ export const enqueueBatch = (
 }
 
 /**
+ * Queues a reload on its own (the band's `[l reload]`, after a refused one).
+ * A reload already queued or running is enough: nothing is added.
+ */
+export const enqueueReload = (jobs: readonly Job[], id: string, batch: string): Job[] =>
+  jobs.some(job => job.kind === 'reload' && isActive(job))
+    ? [...jobs]
+    : [...jobs, build(id, { kind: 'reload' }, batch)]
+
+/**
  * The job the runner should start now: nothing while one runs; otherwise the
  * oldest queued non-reload job; a queued reload only once it is alone.
  */

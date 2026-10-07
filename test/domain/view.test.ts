@@ -1,0 +1,394 @@
+import { describe, expect, it } from 'vitest'
+import { INITIAL_VIEW } from '../../plugin/hooks/domain/state.ts'
+import {
+  bandOf,
+  closedView,
+  commandLine,
+  escapeStep,
+  filterRows,
+  latestBatch,
+  layoutFor,
+  pagerLabel,
+  paneOpen,
+  partsLabel,
+  popOverlay,
+  pruneStaged,
+  pushOverlay,
+  rowKey,
+  rowOfKey,
+  rowsFor,
+  selectedIndex,
+  specsOf,
+  stagedChanges,
+  stageToggle,
+  statusOf,
+  toggleOverlay,
+  toggleReview,
+  topOverlay,
+  whyLocked,
+  windowAround,
+} from '../../plugin/hooks/domain/view.ts'
+import type { Attention, Job, JobQueue, ModRow, View } from '../../plugin/types/index.d.ts'
+
+const row = (name: string, more: Partial<ModRow> = {}): ModRow => ({
+  id: `${name}@m`,
+  name,
+  origin: 'marketplace',
+  scope: 'user',
+  enabled: true,
+  toggleable: true,
+  notableCount: 0,
+  problems: 0,
+  mixed: false,
+  ...more,
+})
+
+const view = (more: Partial<View> = {}): View => ({ ...INITIAL_VIEW, ...more })
+
+/** A job; an override of `undefined` leaves that field out. */
+const job = (id: string, more: { [K in keyof Job]?: Job[K] | undefined } = {}): Job => {
+  const base: Record<string, unknown> = {
+    id,
+    kind: 'disable',
+    state: 'ok',
+    tail: [],
+    batch: 'b1',
+    target: 'a@m',
+    ...more,
+  }
+  for (const key of Object.keys(base)) if (base[key] === undefined) delete base[key]
+  return base as Job
+}
+
+const ATTENTION: Attention = { updates: 0, problems: 0, reloadPending: false, capsChanged: 0 }
+
+describe('layout and opening', () => {
+  it('splits from 100 body columns', () => {
+    expect(layoutFor(99)).toBe('stacked')
+    expect(layoutFor(100)).toBe('split')
+  })
+
+  it('asks for rows that fit the list, between 8 and 24', () => {
+    expect(rowsFor(0)).toBe(8)
+    expect(rowsFor(5)).toBe(11)
+    expect(rowsFor(200)).toBe(24)
+  })
+
+  it('opens as a dialog, holding toasts only when asked', () => {
+    expect(paneOpen({ focus: true, hold: true, mods: 2 })).toEqual({
+      id: 'modmgr',
+      title: 'mods',
+      closeOnEscape: true,
+      rows: 8,
+      focus: true,
+      holdToasts: true,
+    })
+    expect(paneOpen({ focus: false, hold: false, mods: 2, title: 'mods · 2' })).toEqual({
+      id: 'modmgr',
+      title: 'mods · 2',
+      closeOnEscape: true,
+      rows: 8,
+    })
+  })
+
+  it('names rows by key and reads them back', () => {
+    expect(rowKey('a@m')).toBe('row:a@m')
+    expect(rowOfKey('row:a@m')).toBe('a@m')
+    expect(rowOfKey('act:toggle')).toBeUndefined()
+    expect(rowOfKey(undefined)).toBeUndefined()
+  })
+})
+
+describe('rows and the window', () => {
+  const rows = [row('alpha'), row('beta', { id: 'beta@other' }), row('gamma')]
+
+  it('filters by name or id, ignoring case and blanks', () => {
+    expect(filterRows(rows, '').map(r => r.name)).toEqual(['alpha', 'beta', 'gamma'])
+    expect(filterRows(rows, '  ').length).toBe(3)
+    expect(filterRows(rows, 'AL').map(r => r.name)).toEqual(['alpha'])
+    expect(filterRows(rows, 'other').map(r => r.name)).toEqual(['beta'])
+  })
+
+  it('shows everything that fits', () => {
+    expect(windowAround(3, 2, 10)).toEqual({ start: 0, end: 3 })
+    expect(windowAround(0, 0, 10)).toEqual({ start: 0, end: 0 })
+  })
+
+  it('centres the focus in a longer list, clamped at both ends', () => {
+    expect(windowAround(100, 0, 10)).toEqual({ start: 0, end: 10 })
+    expect(windowAround(100, 50, 10)).toEqual({ start: 46, end: 56 })
+    expect(windowAround(100, 99, 10)).toEqual({ start: 90, end: 100 })
+    expect(windowAround(100, 500, 10)).toEqual({ start: 90, end: 100 })
+    expect(windowAround(100, -3, 10)).toEqual({ start: 0, end: 10 })
+    // Rows on either side of the focus are always drawn (the arrows move onto them).
+    for (let at = 1; at < 99; at += 1) {
+      const w = windowAround(100, at, 5)
+      expect(w.start).toBeLessThan(at)
+      expect(w.end).toBeGreaterThan(at + 1)
+    }
+    expect(windowAround(100, 3, 0.5)).toEqual({ start: 3, end: 4 })
+  })
+
+  it('labels the window only when rows are hidden', () => {
+    expect(pagerLabel({ start: 0, end: 3 }, 3)).toBeUndefined()
+    expect(pagerLabel({ start: 5, end: 15 }, 40)).toBe('6–15 of 40')
+  })
+
+  it('finds the selection, or the first row', () => {
+    expect(selectedIndex(rows, 'gamma@m')).toBe(2)
+    expect(selectedIndex(rows, 'nope')).toBe(0)
+    expect(selectedIndex(rows, undefined)).toBe(0)
+  })
+})
+
+describe('staging', () => {
+  const on = row('on')
+  const off = row('off', { enabled: false })
+  const managed = row('managed', { scope: 'managed', toggleable: false })
+
+  it('flips a row, and flipping it back un-stages it', () => {
+    const once = stageToggle(view(), on)
+    expect(once.staged).toEqual({ 'on@m': false })
+    expect(stageToggle(once, on).staged).toEqual({})
+    expect(stageToggle(view(), off).staged).toEqual({ 'off@m': true })
+  })
+
+  it('leaves a row it cannot toggle alone', () => {
+    const v = view()
+    expect(stageToggle(v, managed)).toBe(v)
+  })
+
+  it('lists the changes still pending, in row order, and prunes the rest', () => {
+    const v = view({ staged: { 'off@m': true, 'on@m': true, 'gone@m': false, 'managed@m': false } })
+    const rows = [off, on, managed]
+    expect(stagedChanges(v, rows)).toEqual([{ row: off, enable: true }])
+    expect(pruneStaged(v, rows).staged).toEqual({ 'off@m': true })
+    const clean = view({ staged: { 'off@m': true } })
+    expect(pruneStaged(clean, rows)).toBe(clean)
+  })
+
+  it('says why a row is locked, in the person’s terms', () => {
+    expect(whyLocked(on)).toBeUndefined()
+    expect(whyLocked(managed)).toMatch(/organisation/)
+    expect(whyLocked(row('e', { origin: 'env-dir', toggleable: false }))).toMatch(
+      /CLAUDE_CODE_PLUGIN_DIRS/,
+    )
+    expect(whyLocked(row('p', { origin: 'plugin-dir', toggleable: false }))).toMatch(/--plugin-dir/)
+    expect(whyLocked(row('d', { origin: 'dev-session', toggleable: false }))).toMatch(
+      /launch command/,
+    )
+  })
+})
+
+describe('the toggle review', () => {
+  it('lists each change with its scope, notable facts of what turns on, and what turning off takes', () => {
+    const changes = [
+      { row: row('quiet', { enabled: false }), enable: true },
+      { row: row('band', { scope: 'project' }), enable: false },
+      { row: row('plain'), enable: false },
+      { row: row('nofacts', { enabled: false, scope: 'managed' }), enable: true },
+    ]
+    const review = toggleReview(changes, id =>
+      id === 'quiet@m'
+        ? { notable: ['runs-programs'] }
+        : id === 'band@m'
+          ? { notable: ['changes-model-input'], parts: { skills: 2, agents: 0, mcp: 1 } }
+          : id === 'plain@m'
+            ? { notable: [] }
+            : undefined,
+    )
+    expect(review).toEqual({
+      action: 'toggle',
+      targets: [
+        { id: 'quiet@m', scope: 'user', enable: true },
+        { id: 'band@m', scope: 'project', enable: false },
+        { id: 'plain@m', scope: 'user', enable: false },
+        { id: 'nofacts@m', enable: true },
+      ],
+      notable: ['quiet: Can run programs or change files on your machine'],
+      changesRepoFile: true,
+      alsoDisables: { skills: 2, agents: 0, mcp: 1 },
+    })
+    expect(specsOf(review)).toEqual([
+      { kind: 'enable', target: 'quiet@m', args: { scope: 'user' } },
+      { kind: 'disable', target: 'band@m', args: { scope: 'project' } },
+      { kind: 'disable', target: 'plain@m', args: { scope: 'user' } },
+      { kind: 'enable', target: 'nofacts@m' },
+    ])
+  })
+
+  it('leaves out what does not apply', () => {
+    const review = toggleReview([{ row: row('a'), enable: false }], () => undefined)
+    expect(review.alsoDisables).toBeUndefined()
+    expect(review.changesRepoFile).toBe(false)
+  })
+
+  it('spells the command each job runs, or nothing for a bad one', () => {
+    expect(commandLine({ kind: 'disable', target: 'a@m', args: { scope: 'local' } })).toBe(
+      'claude plugin disable a@m --scope local --json',
+    )
+    expect(commandLine({ kind: 'enable', target: 'a@m' })).toBe('claude plugin enable a@m --json')
+    expect(commandLine({ kind: 'enable', target: '--evil' })).toBeUndefined()
+    expect(commandLine({ kind: 'enable' })).toBeUndefined()
+  })
+
+  it('counts parts in words', () => {
+    expect(partsLabel({ skills: 1, agents: 2, mcp: 1 })).toBe('1 skill, 2 agents, 1 MCP server')
+    expect(partsLabel({ skills: 2, agents: 1, mcp: 3 })).toBe('2 skills, 1 agent, 3 MCP servers')
+    expect(partsLabel({ skills: 0, agents: 0, mcp: 0 })).toBe('')
+  })
+})
+
+describe('overlays and Esc', () => {
+  it('pushes without repeating, pops, toggles', () => {
+    const one = pushOverlay(view(), 'detail')
+    const two = pushOverlay(one, 'help')
+    expect(two.stack).toEqual(['detail', 'help'])
+    expect(pushOverlay(two, 'detail').stack).toEqual(['help', 'detail'])
+    expect(topOverlay(two)).toBe('help')
+    expect(popOverlay(two).stack).toEqual(['detail'])
+    const empty = view()
+    expect(popOverlay(empty)).toBe(empty)
+    expect(toggleOverlay(two, 'help').stack).toEqual(['detail'])
+    expect(toggleOverlay(one, 'jobs').stack).toEqual(['detail', 'jobs'])
+  })
+
+  it('pops, then clears the filter, then closes, while the pane holds the keys', () => {
+    const stacked = view({ stack: ['detail'], query: 'x' })
+    const popped = escapeStep(stacked, true)
+    expect(popped).toEqual({ kind: 'pop', view: view({ query: 'x' }) })
+    expect(escapeStep(view({ query: 'x' }), true)).toEqual({ kind: 'clear-query', view: view() })
+    expect(escapeStep(view(), true)).toEqual({ kind: 'close' })
+  })
+
+  it('closes at once from the prompt (review M10)', () => {
+    expect(escapeStep(view({ stack: ['review'], query: 'x' }), false)).toEqual({ kind: 'close' })
+  })
+
+  it('a closed pane forgets its overlays and notice, not what is staged', () => {
+    expect(
+      closedView(view({ stack: ['detail'], notice: 'hi', staged: { 'a@m': false }, query: 'q' })),
+    ).toEqual(view({ staged: { 'a@m': false }, query: 'q' }))
+  })
+})
+
+describe('the status line', () => {
+  const queue = (jobs: Job[]): JobQueue => ({ owner: 'o', jobs })
+
+  it('says nothing without a batch', () => {
+    expect(statusOf(queue([job('x', { batch: undefined })]), 0)).toBeUndefined()
+    expect(latestBatch([])).toEqual([])
+  })
+
+  it('names the running job and its place, then the reload', () => {
+    const running = queue([
+      job('1'),
+      job('2', { state: 'running', target: 'b@m' }),
+      job('3', { state: 'queued' }),
+      job('r', { kind: 'reload', state: 'queued', target: undefined }),
+    ])
+    expect(statusOf(running, 0)).toEqual({ tone: 'busy', text: 'disable b@m (2 of 3)…' })
+    const reloading = queue([
+      job('1'),
+      job('r', { kind: 'reload', state: 'running', target: undefined }),
+    ])
+    expect(statusOf(reloading, 0)).toEqual({ tone: 'busy', text: 'reloading plugins…' })
+  })
+
+  it('says a reload waits for the settings, or that changes are queued', () => {
+    expect(
+      statusOf(
+        queue([job('1'), job('r', { kind: 'reload', state: 'queued', target: undefined })]),
+        0,
+      ),
+    ).toEqual({ tone: 'busy', text: 'reload waits for the settings to settle…' })
+    expect(
+      statusOf(queue([job('1', { state: 'queued' }), job('2', { state: 'queued' })]), 0),
+    ).toEqual({
+      tone: 'busy',
+      text: '2 changes queued…',
+    })
+  })
+
+  it('reports failures until the next batch, and success for a while', () => {
+    const failed = queue([
+      job('1', { state: 'failed', endedAt: 5, error: { kind: 'cli-failed', message: 'boom' } }),
+      job('2', { state: 'interrupted', endedAt: 5 }),
+    ])
+    expect(statusOf(failed, 1e9)).toEqual({
+      tone: 'error',
+      text: '2 of 2 failed (disable a@m: boom)',
+    })
+    expect(statusOf(queue([job('1', { state: 'interrupted', endedAt: 5 })]), 1e9)?.text).toBe(
+      '1 of 1 failed (disable a@m)',
+    )
+    const done = queue([
+      job('1', { endedAt: 100 }),
+      job('r', { kind: 'reload', endedAt: 200, target: undefined }),
+    ])
+    expect(statusOf(done, 300)).toEqual({ tone: 'ok', text: '1 change applied, plugins reloaded' })
+    expect(statusOf(done, 300 + 10_000)).toBeUndefined()
+    const two = queue([job('1', { endedAt: 1 }), job('2', { endedAt: 1 })])
+    expect(statusOf(two, 2)?.text).toBe('2 changes applied')
+    const noEnd = queue([job('1')])
+    expect(statusOf(noEnd, 5)?.text).toBe('1 change applied')
+    const reloadOnly = queue([job('r', { kind: 'reload', endedAt: 1, target: undefined })])
+    expect(statusOf(reloadOnly, 2)).toEqual({ tone: 'ok', text: 'plugins reloaded' })
+  })
+})
+
+describe('the band', () => {
+  const quiet = { attention: ATTENTION, queue: { owner: 'o', jobs: [] }, isWorking: false }
+
+  it('stays away with nothing to say', () => {
+    expect(bandOf(quiet)).toBeUndefined()
+  })
+
+  it('says what runs, and that a reload waits for the turn', () => {
+    const queue = {
+      owner: 'o',
+      jobs: [
+        job('1', { state: 'running', target: undefined, kind: 'validate' }),
+        job('r', { kind: 'reload', state: 'running', target: undefined }),
+      ],
+    }
+    expect(bandOf({ ...quiet, queue, isWorking: true })?.text).toBe(
+      'mods · validate… · reload queued, runs when the turn ends',
+    )
+    expect(bandOf({ ...quiet, queue })?.text).toBe('mods · validate… · reloading plugins…')
+  })
+
+  it('offers a reload only when one is owed and none is queued', () => {
+    const owed = { ...ATTENTION, reloadPending: true }
+    expect(bandOf({ ...quiet, attention: owed })).toEqual({
+      key: 'mods · reload to apply',
+      text: 'mods · reload to apply',
+      reload: true,
+    })
+    const queued = { owner: 'o', jobs: [job('r', { kind: 'reload', state: 'queued' })] }
+    expect(bandOf({ ...quiet, attention: owed, queue: queued })).toBeUndefined()
+  })
+
+  it('counts updates and capability changes', () => {
+    expect(
+      bandOf({ ...quiet, attention: { ...ATTENTION, updates: 1, capsChanged: 2 } })?.text,
+    ).toBe('mods · 1 update · 2 with new capabilities')
+    expect(bandOf({ ...quiet, attention: { ...ATTENTION, updates: 3 } })?.text).toBe(
+      'mods · 3 updates',
+    )
+  })
+
+  it('echoes the last reload, and stays dismissed until its line changes', () => {
+    const echoed = { ...ATTENTION, lastReload: 'Reloaded: 1 plugin' }
+    expect(bandOf({ ...quiet, attention: echoed })?.text).toBe('mods · Reloaded: 1 plugin')
+    expect(
+      bandOf({ ...quiet, attention: { ...echoed, dismissed: 'mods · Reloaded: 1 plugin' } }),
+    ).toBeUndefined()
+    expect(
+      bandOf({
+        ...quiet,
+        attention: { ...echoed, updates: 1, dismissed: 'mods · Reloaded: 1 plugin' },
+      })?.text,
+    ).toBe('mods · 1 update')
+  })
+})
