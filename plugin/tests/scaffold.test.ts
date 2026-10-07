@@ -9,7 +9,7 @@ test('/mods is registered at session start and lists the mods found in the backg
   expect(h.argvs).toEqual([])
   await h.clock.advance(1)
   expect(h.argvs[0]).toBe('--version')
-  expect(h.argvs[1]).toBe('plugin list --json')
+  expect(h.argvs[1]).toBe('plugin list --json --data-size')
 
   const ran = await $.command.run(MODS)
   const lines = (ran.text ?? '').split('\n')

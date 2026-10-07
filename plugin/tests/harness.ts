@@ -46,6 +46,10 @@ const fromFixtures = (args: readonly string[]): CliAnswer => {
   }
   if (second === 'disable') return RUNS['disable-ok']
   if (second === 'enable') return RUNS['enable-ok']
+  if (second === 'uninstall') return RUNS['uninstall-ok']
+  if (second === 'install') return RUNS['install-quiet-bash']
+  if (second === 'update') return RUNS['update-bumped']
+  if (second === 'marketplace') return RUNS['marketplace-update-ok']
   return { throws: `unexpected command ${args.join(' ')}` }
 }
 
@@ -74,6 +78,7 @@ export const host = (on: On, options: HostOptions = {}) => {
   const closes: string[] = []
   const focuses: string[] = []
   const copies: string[] = []
+  const statuses: (string | undefined)[] = []
   let panes: UiPane[] = []
 
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
@@ -131,6 +136,10 @@ export const host = (on: On, options: HostOptions = {}) => {
     focuses.push(e.element ?? '')
     return {}
   })
+  on('ui.status', (_$, e) => {
+    statuses.push(e.text)
+    return { value: undefined }
+  })
   on('ui.copy', (_$, e) => {
     copies.push(e.text)
     return { value: { isCopied: true as const } }
@@ -173,6 +182,8 @@ export const host = (on: On, options: HostOptions = {}) => {
     closes,
     focuses,
     copies,
+    /** Each status line modmgr set (undefined clears it). */
+    statuses,
     /** Opens the pane as the engine records it (what `$.ui.panes()` lists). */
     showPane: (focused = true) => {
       panes = [{ id: 'modmgr', title: 'mods', isShown: true, isFocused: focused, isPlaced: true }]
