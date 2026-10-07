@@ -3,8 +3,9 @@
 
 import type { RenderElement } from 'claude-code'
 import type { Job, ModRow, ReviewOp, ReviewRequest } from '../../types/index.d.ts'
+import { INSTALL_SCOPES, MARKETPLACE_KEY, SCOPE_LABEL } from '../domain/discover.ts'
 import { helpFor, type KeySurface } from '../domain/keymap.ts'
-import { sanitize } from '../domain/sanitize.ts'
+import { hasHiddenCharacters, sanitize } from '../domain/sanitize.ts'
 import { bytesLabel, commandLine, nameOf, partsLabel, specsOf } from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
@@ -28,6 +29,10 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
       return only === undefined ? 'Remove' : `Remove ${name(only.id)}`
     case 'undo':
       return 'Undo the last batch'
+    case 'install':
+      return only === undefined ? 'Install' : `Install ${name(only.id)}`
+    case 'marketplace':
+      return 'Add a marketplace'
     default:
       return `Apply ${count} ${count === 1 ? 'change' : 'changes'}`
   }
@@ -40,8 +45,29 @@ type Line = { readonly el: RenderElement; readonly text: string }
  * The review's lines (Pane clips a taller review to the body). The keys come
  * right under the heading, so a clipped review keeps them.
  */
-const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[]): Line[] => {
-  const { Box, Text } = v.el
+/** What the review knows beyond the request: Claude Code refused an acceptance from here (C4). */
+export type ReviewHow = { readonly refused: boolean }
+
+/** The terminal command a person runs to accept a declared command themselves (C4). */
+const terminalCommand = (review: ReviewRequest): string | undefined => {
+  const target = review.targets[0]
+  if (target === undefined) return undefined
+  const scope =
+    target.scope === undefined || target.scope === 'user' ? '' : ` --scope ${target.scope}`
+  return `claude plugin ${target.op === 'update' ? 'update' : 'install'} ${target.id}${scope}`
+}
+
+const reviewLines = (
+  v: ViewPorts,
+  review: ReviewRequest,
+  rows: readonly ModRow[],
+  how: ReviewHow,
+): Line[] => {
+  const { Box, Text, Select } = v.el
+  const declared = review.declaredCommand ?? review.headersHelper
+  // Claude Code refuses an acceptance from this session: confirm would be refused again.
+  const blocked = declared !== undefined && how.refused
+  const terminal = blocked ? terminalCommand(review) : undefined
   // A mod being reinstalled is no longer a row: its id names it.
   const name = (id: string) =>
     sanitize(rows.find(row => row.id === id)?.name ?? nameOf(id), { max: 40 })
@@ -49,22 +75,38 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
   const keepData = review.keepData !== false
   const heading = headingOf(review, name)
   // What `y` does is said on `y` itself once the data goes too (review R-M3b-5).
-  const confirmLabel = removing && !keepData ? 'remove and wipe its data' : 'confirm'
+  const confirmLabel =
+    removing && !keepData
+      ? 'remove and wipe its data'
+      : declared !== undefined
+        ? 'run it and install'
+        : 'confirm'
   const dataLabel = keepData ? 'wipe its data too' : 'keep its data'
   const offersData = removing && review.dataBytes !== undefined
-  const keyLabels = [`y: ${confirmLabel}`, 'n: cancel', ...(offersData ? [`w: ${dataLabel}`] : [])]
+  const keyLabels = [
+    ...(blocked ? ['c: copy the terminal command'] : [`y: ${confirmLabel}`]),
+    'n: cancel',
+    ...(offersData ? [`w: ${dataLabel}`] : []),
+  ]
   const lines: Line[] = [
     { el: Heading(v, heading), text: heading },
     {
       text: keyLabels.join('  '),
       el: (
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {KeyButton(v, {
-            action: 'confirm',
-            on: 'review',
-            label: confirmLabel,
-            onPress: () => v.act.confirm(),
-          })}
+          {terminal !== undefined
+            ? KeyButton(v, {
+                action: 'copy',
+                on: 'review',
+                label: 'copy the terminal command',
+                onPress: press => v.act.copy(terminal, press.surface),
+              })
+            : KeyButton(v, {
+                action: 'confirm',
+                on: 'review',
+                label: confirmLabel,
+                onPress: () => v.act.confirm(),
+              })}
           {KeyButton(v, {
             action: 'cancel',
             on: 'review',
@@ -84,8 +126,24 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
     },
   ]
   const push = (el: RenderElement, text: string) => lines.push({ el, text })
+  const scoped = review.targets[0]?.scope
+  // The scope is chosen here (PLAN §2.3); a declared command's sha is bound to the
+  // install it was shown for, so that review keeps its scope.
+  if (review.action === 'install' && declared === undefined && Select !== undefined) {
+    push(
+      <Select
+        key="scope"
+        label="scope "
+        options={INSTALL_SCOPES.map(scope => ({ value: scope, label: SCOPE_LABEL[scope] }))}
+        value={scoped ?? 'user'}
+        onSelect={value => v.act.scope(value)}
+      />,
+      `scope ${SCOPE_LABEL.project}`,
+    )
+  }
   for (const target of review.targets) {
     const op = OP[target.op]
+    const verb = review.action === 'install' && target.op === 'install' ? 'install' : op.verb
     const meta = [
       target.version === undefined ? '' : sanitize(target.version, { max: 20 }),
       target.scope ?? '',
@@ -96,12 +154,12 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
       <Box flexDirection="row" gap={1}>
         <Text color={op.tone}>{op.glyph}</Text>
         <Box width={9} flexShrink={0}>
-          <Text>{op.verb}</Text>
+          <Text>{verb}</Text>
         </Box>
         <Text bold>{name(target.id)}</Text>
         <Text dimColor>{meta}</Text>
       </Box>,
-      `x ${op.verb.padEnd(9)} ${name(target.id)} ${meta}`,
+      `x ${verb.padEnd(9)} ${name(target.id)} ${meta}`,
     )
   }
   const say = (text: string, tone?: string) =>
@@ -140,7 +198,43 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
     else say(`Deletes its data (${bytesLabel(review.dataBytes)}) for good.`, TONE.bad)
     say('Undo (z) reinstalls it from its marketplace.')
   }
-  const reinstalls = review.targets.filter(target => target.op === 'install')
+  if (review.action === 'install' && review.uninspected === true && declared === undefined) {
+    say('modmgr reads what it can do once it is installed,')
+    say('and shows it in its detail then.')
+  }
+  if (declared !== undefined) {
+    say(
+      review.headersHelper === undefined
+        ? 'Its marketplace runs this command on your machine:'
+        : 'Its marketplace fetches the archive with this command:',
+      TONE.warn,
+    )
+    // Line for line, wrapped, never cut (PLAN §7); what sanitising removed is said.
+    for (const line of sanitize(declared.text, { max: 2000, multiline: true }).split('\n')) {
+      push(<Text bold>{`  ${line}`}</Text>, `  ${line}`)
+    }
+    if (hasHiddenCharacters(declared.text)) {
+      say('It holds hidden or control characters, removed', TONE.bad)
+      say('above: read it in a terminal before accepting.', TONE.bad)
+    }
+    say(`sha256 ${declared.sha256.slice(0, 16)}…`)
+    if (blocked) {
+      say('Claude Code refuses to accept it from this session:', TONE.bad)
+      say('accept it in /plugin, its details, or run this', TONE.bad)
+      say(`in a terminal: ${terminal ?? ''}`, TONE.bad)
+    } else {
+      say('It runs once, and only while it is still this', TONE.warn)
+      say('very command; a changed one is shown again.', TONE.warn)
+    }
+  }
+  if (review.action === 'marketplace' && review.source !== undefined) {
+    push(<Text bold>{`  ${sanitize(review.source, { max: 300 })}`}</Text>, `  ${review.source}`)
+    say('Fetches its catalogue (a clone, for a repository)')
+    say('and adds it to your settings; it runs no plugin code.')
+  }
+  const reinstalls = review.targets.filter(
+    target => target.op === 'install' && review.action === 'undo',
+  )
   if (reinstalls.length > 0) {
     say("Reinstalls the marketplace's current version.")
     // Only what the CLI said about the data (R-M3b-6); nothing when it said nothing.
@@ -154,7 +248,7 @@ const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[
   if (review.changesRepoFile) {
     say('Changes .claude/settings.json in this repository.', TONE.warn)
   }
-  say('Takes effect after the reload modmgr runs.')
+  if (review.action !== 'marketplace') say('Takes effect after the reload modmgr runs.')
   push(<Text dimColor>Runs</Text>, 'Runs')
   for (const spec of specsOf(review)) {
     const line = commandLine(spec)
@@ -177,8 +271,9 @@ export const reviewRows = (
   review: ReviewRequest,
   rows: readonly ModRow[],
   columns: number,
+  how: ReviewHow = { refused: false },
 ): number =>
-  reviewLines(v, review, rows).reduce(
+  reviewLines(v, review, rows, how).reduce(
     (sum, line) => sum + Math.max(1, Math.ceil(line.text.length / Math.max(1, columns))),
     0,
   )
@@ -187,9 +282,34 @@ export const Review = (
   v: ViewPorts,
   review: ReviewRequest,
   rows: readonly ModRow[],
+  how: ReviewHow = { refused: false },
 ): RenderElement => {
   const { Box } = v.el
-  return <Box flexDirection="column">{reviewLines(v, review, rows).map(line => line.el)}</Box>
+  return <Box flexDirection="column">{reviewLines(v, review, rows, how).map(line => line.el)}</Box>
+}
+
+/** The rows the marketplace form draws. */
+export const marketplaceRows = 5
+
+/** `m`: a source to add as a marketplace; Enter reviews it. */
+export const MarketplaceForm = (v: ViewPorts): RenderElement => {
+  const { Box, Text, Input } = v.el
+  return (
+    <Box flexDirection="column">
+      {Heading(v, 'Add a marketplace')}
+      <Text dimColor>A GitHub owner/repo, an https URL, or a folder's</Text>
+      <Text dimColor>absolute path. Enter reviews it before anything runs.</Text>
+      {Input === undefined ? (
+        <Text dimColor>This surface can't take typing.</Text>
+      ) : (
+        <Input
+          key={MARKETPLACE_KEY}
+          placeholder="owner/repo"
+          onSubmit={value => v.act.submitMarketplace(value)}
+        />
+      )}
+    </Box>
+  )
 }
 
 /** The rows help draws: its heading, a row per key, the closing line. */

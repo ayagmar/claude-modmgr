@@ -10,6 +10,8 @@ import type { Actions } from '../services/actions.ts'
 /** The elements every surface has, plus `Input` where the surface takes typing (not mobile). */
 export type El = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'> & {
   readonly Input?: Elements['terminal']['Input']
+  /** A one-of-several picker, where the surface takes typing (not mobile). */
+  readonly Select?: Elements['terminal']['Select']
 }
 
 export type ViewPorts = {
