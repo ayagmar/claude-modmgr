@@ -45,7 +45,7 @@ jobs:
       - name: Type-check tests and scripts
         run: pnpm tsc -p tsconfig.json --noEmit
 
-      - name: Domain tests with coverage
+      - name: Domain and service tests with coverage
         run: pnpm vitest run --coverage
 
       - name: Install the pinned Claude Code
@@ -60,13 +60,13 @@ jobs:
       - name: Isolate the Claude Code config
         run: echo "CLAUDE_CONFIG_DIR=$(mktemp -d)" >> "$GITHUB_ENV"
 
-      - name: Validate the plugin (strict)
-        run: claude plugin validate --strict --json plugin
+      - name: Validate the plugin (strict, with modmgr's expected verdicts)
+        run: node scripts/validate-plugin.ts
 
       - name: Validate the marketplace
         run: claude plugin validate .
 
-      - name: Plugin tests (services and UI)
+      - name: Plugin tests (wiring, dispatch rules and UI)
         run: claude plugin test plugin
 
       - name: Build the site
