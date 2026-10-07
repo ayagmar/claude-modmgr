@@ -182,8 +182,7 @@ const cliScope = (scope: Scope | undefined): 'user' | 'project' | 'local' | unde
 /** Why the CLI can't update a row, in the person's terms; undefined when it can. */
 export const whyNoUpdate = (row: ModRow): string | undefined => {
   if (row.scope === 'managed') return 'managed by your organisation; it updates with their settings'
-  if (row.origin === 'folder-marketplace')
-    return 'runs from its marketplace folder: no updates'
+  if (row.origin === 'folder-marketplace') return 'runs from its marketplace folder: no updates'
   if (row.origin === 'skills-dir')
     return 'lives in your skills folder; it changes when its files do'
   return whyLocked(row)
