@@ -69,8 +69,13 @@ export type Actions = {
   /** Hides the band's current line. */
   dismiss(line: string): Promise<void>
   cancelJob(id: string): Promise<void>
-  /** Esc and the close mark (`ui.close`, origin `person`): true keeps the pane open. */
-  closing(origin: 'person' | 'plugin' | 'unload'): Promise<boolean>
+  /**
+   * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
+   * open. `hadKeys` is whether the pane held the keys when it was last drawn:
+   * by the time the hook runs, Esc has already handed them back to the prompt,
+   * so the pane re-takes them when the cascade keeps it.
+   */
+  closing(origin: 'person' | 'plugin' | 'unload', hadKeys: boolean): Promise<boolean>
 }
 
 export const createActions = (
@@ -117,6 +122,20 @@ export const createActions = (
     return true
   }
 
+  /** Re-takes the keys after an Esc the cascade answered (the selected row's autoFocus takes the ring). */
+  const retake = async (): Promise<void> => {
+    const [mods, queue] = await Promise.all([state.read('mods'), state.read('queue')])
+    const busy = queue.jobs.some(job => job.state === 'running' || job.state === 'queued')
+    await ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
+  }
+
+  /** Puts the ring back on the selected row once an overlay's Buttons are gone. */
+  const ringToSelection = async (): Promise<void> => {
+    const view = await state.read('view')
+    if (view.stack.length > 0 || view.selected === undefined) return
+    await ui.focus(PANE_ID, rowKey(view.selected)).catch(() => undefined)
+  }
+
   const dropReview = async (): Promise<void> => {
     await state.update('review', () => null)
   }
@@ -142,6 +161,7 @@ export const createActions = (
       const view = await state.read('view')
       if (topOverlay(view) === 'review') await dropReview()
       await setView(current => popOverlay(quiet(current)))
+      await ringToSelection()
     }),
 
     toggle: safely('toggle', async id => {
@@ -183,6 +203,7 @@ export const createActions = (
         const stack = view.stack.filter(overlay => overlay !== 'review')
         return { ...quiet(view), staged, stack }
       })
+      await ringToSelection()
     }),
 
     cancel: safely('cancel', async () => {
@@ -191,6 +212,7 @@ export const createActions = (
         ...quiet(view),
         stack: view.stack.filter(overlay => overlay !== 'review'),
       }))
+      await ringToSelection()
     }),
 
     undo: safely('undo', async () => {
@@ -266,18 +288,18 @@ export const createActions = (
       await rt?.runner.cancel(id)
     }),
 
-    async closing(origin) {
+    async closing(origin, hadKeys) {
       try {
         if (origin === 'person') {
-          const focused = (await ui.panes()).find(pane => pane.id === PANE_ID)?.isFocused === true
           const view = await state.read('view')
-          const step = escapeStep(view, focused)
+          const step = escapeStep(view, hadKeys)
           if (step.kind !== 'close') {
             if (step.kind === 'pop' && topOverlay(view) === 'review') await dropReview()
             await setView(current => {
-              const now = escapeStep(current, focused)
+              const now = escapeStep(current, hadKeys)
               return now.kind === 'close' ? current : quiet(now.view)
             })
+            await retake()
             return true
           }
         }

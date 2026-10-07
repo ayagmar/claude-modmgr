@@ -69,6 +69,10 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F42 | `read($, x)` / `update($, x, fn)` need `x` to be a literal reference or an atom bound to a `const` in the same file; `read($, ATOMS[key])` is refused. A builder may hold one closure per atom. | M2, validate |
 | F43 | A `command.run{command:'mods'}` hook is reported as "answers its own command" (not a gate) only while `$.command.register` is spelled with the literal `name: 'mods'` in the same file; registering from a spec built in another file made it a "gating hook with .catch". | M2, validate |
 | F44 | In `claude plugin test`, **every** `$` call needs an answer beneath the plugin (`session.start` included); a test hook that throws is skipped (the bottom then says "no implementation"), so a test makes a call reject with `{ deny }`, which the plugin sees as `<plugin>: $.<noun>.<method>: <reason>`. The test's `$` has no `store` noun. F37 holds for the test module too: `mock.store`/`mock.clock` hook their events without a matcher, so a test's own observer of those events needs one. | M2, `plugin/tests/` |
+| F45 | **Esc hands the keys back before `ui.close` is raised:** a person's Esc in a focused `closeOnEscape` pane reaches the `ui.close` hook with `$.ui.panes()` already saying `isFocused: false`, so the M10 test ("cascade only while focused") can't ask the engine. The pane's last draw (`e.props.isFocused`) knows; a hook that keeps the pane open must re-take the keys (`$.ui.open({ focus: true })`, granted since the prompt is idle and empty). | M3a, live debug log |
+| F46 | A ring left on a Button that a redraw removes (an overlay's `confirm`) goes nowhere: Enter then does nothing until an arrow or Tab. `autoFocus` places it only when the site takes the keys; `$.ui.focus` places it otherwise. | M3a, live |
+| F47 | In `claude plugin test`: the test `$` has no `ui.close` (an op, not an event), so a person's close can't be raised; and with `state.*` answered beneath the plugin (F44) a write doesn't redraw a mount (the test calls `ui.redraw()`), and a `$.ui.focus` onto a row the redraw would draw is denied. | M3a, `plugin/tests/ui.test.tsx` |
+| F48 | The terminal lays out with Ink's flex defaults: children shrink (`flexShrink: 1`), vertically too inside a Box of fixed `height`, so lines overlap; `gap` also sets the row gap of a wrapping row. Fixed columns take `flexShrink={0}`; a clipped column wraps its content in a non-shrinking Box; a wrapping row uses `columnGap`. | M3a, live at 106 columns |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -617,3 +621,34 @@ Pushes and GitHub actions still need the person's go-ahead.
   `plugin/tests/harness.ts` plays the host beneath the plugin (F44) for the wiring tests: resume after another
   module, the 1.5 s reload rule, a refused reload, CLI timeouts / malformed JSON / non-zero exits, no CLI, the traffic
   switch, a store over budget, `.catch` pass-through, and a `userConfig` reload.
+
+**C11. The dialog as built (M3a, applied 2026-10-07).**
+- **Shape.** `domain/view.ts` holds the pane's logic (staging, the toggle review, the Esc cascade, the window, the
+  band and status lines), `services/actions.ts` applies it to `$.state` through the dispatch's ports and kicks the
+  runtime, `ui/*.tsx` draw from `ViewPorts` (`el`, `surface`, `read`, `act`). `view` and `attention` went to shape
+  `/2`: `view.notice` (one line until the next action), `attention.dismissed` (the band line dismissed: it returns
+  when the line changes, which replaces `dismissedAt`) and `attention.lastReload` (the CLI's "Reloaded: …" echoed for
+  8 s, C8). `view.layout` and `view.page` are unused by Installed: the layout follows `bodyColumns` at draw time
+  (split from 100) and the window follows the selection.
+- **Selection and window.** A `ui.focus` hook (matcher on the pane) makes the row the ring lands on the selection;
+  the window is centred on it (the ring moves only between drawn elements, so the rows on either side are always
+  drawn) and the split's detail follows it. `g`/`b` move the selection and the ring. The selected row is `autoFocus`,
+  and back/cancel/confirm put the ring back on it (F46).
+- **Esc (F45).** The cascade decides from whether the pane held the keys at its last draw (module memory in
+  register.tsx; a reloaded module starts at "no", so its first Esc closes), and re-takes the keys when it keeps the
+  pane. The footer's `esc back` / `esc close` are Buttons too (mouse, desktop). Two own-pane gates
+  (`ui.focus`, `ui.close` on `modmgr`) are the only ones `scripts/validate-plugin.ts` allows.
+- **Opening.** Bare `/mods` opens the dialog and answers no text; `/mods list` and a session that places no panes
+  answer as text. Inline the dialog asks for 14–24 rows (a detail or review is taller than a short list). Confirming
+  a batch re-opens it without `holdToasts` (C8). Re-attach after a reload needs no call (F31): the new module's hook
+  draws the open pane, and a re-open would reset its manners; the title is constant until M3b's badges.
+- **What shows.** Help lists only actions this version draws. Installed warns only for `degraded.process` (network
+  use is Discover's and the updater's business). Rows drop version and scope below 60 columns (the split's list).
+  Detail draws the notable items with their facts, every call and event by reach with its one-line explanation
+  (display-only on one line), parts, tokens when known, data size and validate's verdict.
+- **`projectEnabled`** (C10's open point): not used in M3a. "Off in this project" needs `$.settings.read({ source:
+  'project' })`, a session-content capability modmgr would then declare; deferred to M5b (Health), where a
+  project-level disable is a load-state fact.
+- **Tests.** Vitest covers `domain/view.ts` and `services/actions.ts` (fake ports); `plugin/tests/ui.test.tsx` mounts
+  the dialog and band on terminal and desktop (mobile for its fallback), runs toggle → review → confirm → disable →
+  reload, the split, the window over 200 rows (painted in < 50 ms), help, jobs and the band (F47 shapes how).

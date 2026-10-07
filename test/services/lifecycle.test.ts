@@ -229,7 +229,7 @@ describe('/mods (text)', () => {
     const w = world()
     expect(await modsCommand(w.ports, '')).toEqual({})
     expect(w.ui.opens).toEqual([
-      { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 8, focus: true, holdToasts: true },
+      { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, focus: true, holdToasts: true },
     ])
   })
 

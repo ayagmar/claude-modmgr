@@ -48,7 +48,8 @@ export const Detail = (
     const parts = partsLabel(detail.mixedCounts)
     if (parts !== '') extras.push(`also contains ${parts}`)
   }
-  if (detail?.tokens !== undefined) extras.push(`~${detail.tokens} tokens per session`)
+  if (detail?.tokens !== undefined && detail.tokens > 0)
+    extras.push(`~${detail.tokens} tokens per session`)
   if (detail?.dataBytes !== undefined) extras.push(`data ${bytes(detail.dataBytes)}`)
 
   return (
@@ -83,12 +84,16 @@ export const Detail = (
             <Box flexDirection="column">
               {Heading(v, 'Notable')}
               {notable.map(item => (
-                <Box flexDirection="row" gap={1}>
-                  <Text color={TONE.accent}>{GLYPH.notable}</Text>
-                  <Text>{item.text}</Text>
-                  <Text dimColor wrap="truncate-end">
-                    {item.because.join(' ')}
-                  </Text>
+                <Box flexDirection="column">
+                  <Box flexDirection="row" gap={1}>
+                    <Text color={TONE.accent}>{GLYPH.notable}</Text>
+                    <Text>{item.text}</Text>
+                  </Box>
+                  <Box paddingLeft={2}>
+                    <Text dimColor wrap="truncate-end">
+                      {item.because.join(' ')}
+                    </Text>
+                  </Box>
                 </Box>
               ))}
             </Box>
@@ -98,7 +103,9 @@ export const Detail = (
           {groups.map(group =>
             QUIET.has(group.reach) ? (
               <Box flexDirection="row" gap={1}>
-                <Text dimColor>{group.label}</Text>
+                <Box flexShrink={0}>
+                  <Text dimColor>{group.label}</Text>
+                </Box>
                 <Text dimColor wrap="truncate-end">
                   {group.items.map(item => item.name).join(' ')}
                 </Text>
@@ -108,7 +115,9 @@ export const Detail = (
                 <Text>{group.label}</Text>
                 {group.items.map(item => (
                   <Box flexDirection="row" gap={1} paddingLeft={1}>
-                    <Text color={TONE.accent}>{item.name}</Text>
+                    <Box flexShrink={0}>
+                      <Text color={TONE.accent}>{item.name}</Text>
+                    </Box>
                     <Text dimColor wrap="truncate-end">
                       {item.line}
                     </Text>
@@ -132,7 +141,7 @@ export const Detail = (
         </Box>
       )}
       {how.actions ? (
-        <Box flexDirection="row" gap={2} flexWrap="wrap">
+        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {how.readOnly || locked !== undefined
             ? null
             : KeyButton(v, {

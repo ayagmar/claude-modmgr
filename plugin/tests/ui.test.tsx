@@ -46,7 +46,7 @@ test('bare /mods opens the dialog with focus, Esc and held toasts, and answers n
   const ran = await $.command.run({ ...MODS_BARE })
   expect(ran.text).toBeUndefined()
   expect(h.opens).toEqual([
-    { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 11, focus: true, holdToasts: true },
+    { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, focus: true, holdToasts: true },
   ])
   expect(h.argvs.filter(argv => argv.includes('disable'))).toEqual([])
 })

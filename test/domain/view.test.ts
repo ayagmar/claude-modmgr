@@ -69,8 +69,8 @@ describe('layout and opening', () => {
   })
 
   it('asks for rows that fit the list, between 8 and 24', () => {
-    expect(rowsFor(0)).toBe(8)
-    expect(rowsFor(5)).toBe(11)
+    expect(rowsFor(0)).toBe(14)
+    expect(rowsFor(12)).toBe(18)
     expect(rowsFor(200)).toBe(24)
   })
 
@@ -79,7 +79,7 @@ describe('layout and opening', () => {
       id: 'modmgr',
       title: 'mods',
       closeOnEscape: true,
-      rows: 8,
+      rows: 14,
       focus: true,
       holdToasts: true,
     })
@@ -87,7 +87,7 @@ describe('layout and opening', () => {
       id: 'modmgr',
       title: 'mods · 2',
       closeOnEscape: true,
-      rows: 8,
+      rows: 14,
     })
   })
 

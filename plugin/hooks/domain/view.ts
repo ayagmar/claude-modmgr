@@ -50,8 +50,11 @@ export type PaneOpen = {
   readonly rows?: number
 }
 
-/** Rows a dialog asks for inline: the list plus its chrome, never more than 24. */
-export const rowsFor = (mods: number): number => Math.min(24, Math.max(8, mods + 6))
+/**
+ * Rows a dialog asks for inline: the list plus its chrome, at least 14 (a
+ * detail or a review is taller than a short list), never more than 24.
+ */
+export const rowsFor = (mods: number): number => Math.min(24, Math.max(14, mods + 6))
 
 export const paneOpen = (how: {
   readonly focus: boolean

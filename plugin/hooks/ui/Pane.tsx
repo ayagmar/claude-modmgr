@@ -64,6 +64,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const layout = layoutFor(frame.bodyColumns)
   const top = topOverlay(view)
   const readOnly = degraded.process
+  // Only a missing CLI concerns Installed; network use matters to Discover and updates.
+  const warning = degraded.process ? degraded.reason : undefined
   const rows = filterRows(mods, view.query)
   const selected = rows[selectedIndex(rows, view.selected)]
   const staged = stagedChanges(view, mods).length
@@ -77,24 +79,22 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const footerRows = frame.bodyColumns < 80 ? 2 : 1
   const chrome =
     1 +
-    (degraded.reason === undefined ? 0 : 1) +
+    (warning === undefined ? 0 : 1) +
     (showFilter ? 1 : 0) +
     1 +
     (staged > 0 ? 1 : 0) +
     (view.notice === undefined ? 0 : 1) +
     (status === undefined ? 0 : 1) +
     footerRows
-  const window = windowAround(
-    rows.length,
-    selectedIndex(rows, view.selected),
-    Math.max(3, frame.bodyRows - chrome),
-  )
+  const listRows = Math.max(3, frame.bodyRows - chrome)
+  const window = windowAround(rows.length, selectedIndex(rows, view.selected), listRows)
   const pager = pagerLabel(window, rows.length)
 
   const list = List(v, rows, {
     view,
     columns: listColumns,
     window,
+    focusId: selected?.id,
     loading: sync.at === undefined && sync.error === undefined,
     total: mods.length,
   })
@@ -114,12 +114,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
 
   const body =
     layout === 'split' ? (
-      <Box flexDirection="row" gap={2}>
-        <Box flexDirection="column" width={listColumns}>
-          {list}
+      // Clipped to the list's rows, so the header and footer stay in view; the
+      // whole detail is one Enter away.
+      <Box flexDirection="row" gap={2} height={listRows} overflow="hidden">
+        <Box flexDirection="column" width={listColumns} flexShrink={0} overflow="hidden">
+          <Box flexDirection="column" flexShrink={0}>
+            {list}
+          </Box>
         </Box>
-        <Box flexDirection="column" flexGrow={1}>
-          {overlay(top) ?? detailOf(top === 'detail')}
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden">
+          <Box flexDirection="column" flexShrink={0}>
+            {overlay(top) ?? detailOf(top === 'detail')}
+          </Box>
         </Box>
       </Box>
     ) : top === undefined ? (
@@ -207,9 +213,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh (r)</Text>
         ) : null}
       </Box>
-      {degraded.reason === undefined ? null : (
+      {warning === undefined ? null : (
         <Text color={TONE.warn} wrap="truncate-end">
-          {sanitize(degraded.reason, { max: 300 })}
+          {sanitize(warning, { max: 300 })}
         </Text>
       )}
       {showFilter && Input !== undefined ? (
@@ -268,7 +274,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {status.text}
         </Text>
       )}
-      <Box flexDirection="row" gap={2} flexWrap="wrap">
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
         {keys}
         {top === undefined ? (
           <Button key="act:close" plain dimColor label="esc close" onPress={() => v.act.close()} />

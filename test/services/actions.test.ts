@@ -94,7 +94,7 @@ describe('toggle → review → confirm → reload', () => {
     expect(w.state.values.view.stack).toEqual([])
     expect(w.state.values.view.staged).toEqual({})
     // Re-opened without holding toasts while the batch runs (C8).
-    expect(w.ui.opens).toEqual([{ id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 11 }])
+    expect(w.ui.opens).toEqual([{ id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14 }])
     expect(w.state.values.queue.jobs.map(job => `${job.kind}:${job.state}`)).toEqual([
       'disable:queued',
       'reload:queued',
@@ -246,31 +246,49 @@ describe('Esc (ui.close from the person)', () => {
     await act.toggle(TURN_BAND)
     await act.apply()
     await act.filter('turn')
-    expect(await act.closing('person')).toBe(true)
+    expect(await act.closing('person', true)).toBe(true)
     expect(w.state.values.review).toBeNull()
     expect(w.state.values.view.stack).toEqual([])
-    expect(await act.closing('person')).toBe(true)
+    // Esc handed the keys to the prompt: the pane takes them back.
+    expect(w.ui.opens.at(-1)).toMatchObject({ focus: true, holdToasts: true })
+    expect(await act.closing('person', true)).toBe(true)
     expect(w.state.values.view.query).toBe('')
-    expect(await act.closing('person')).toBe(false)
+    expect(await act.closing('person', true)).toBe(false)
     expect(w.state.values.view.staged).toEqual({ [TURN_BAND]: false })
   })
 
-  it('closes at once when the pane does not hold the keys', async () => {
+  it('closes at once when the pane did not hold the keys (review M10)', async () => {
     const { w, act } = await setup()
-    w.ui.shown = w.ui.shown.map(pane => ({ ...pane, isFocused: false }))
     await act.open(TURN_BAND)
-    expect(await act.closing('person')).toBe(false)
+    expect(await act.closing('person', false)).toBe(false)
     expect(w.state.values.view.stack).toEqual([])
   })
 
   it('a plugin close resets the overlays; a failure still lets it close', async () => {
     const { w, act } = await setup()
     await act.open(TURN_BAND)
-    expect(await act.closing('plugin')).toBe(false)
+    expect(await act.closing('plugin', true)).toBe(false)
     expect(w.state.values.view.stack).toEqual([])
     w.state.failWrites = true
-    expect(await act.closing('person')).toBe(false)
+    expect(await act.closing('person', true)).toBe(false)
     expect(w.ui.lines.at(-1)).toMatch(/^modmgr: close failed/)
+  })
+
+  it('back, cancel and confirm put the ring back on the selected row', async () => {
+    const { w, act } = await setup()
+    await act.open(TURN_BAND)
+    await act.back()
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)
+    w.ui.focuses.length = 0
+    await act.toggle(TURN_BAND)
+    await act.apply()
+    await act.cancel()
+    expect(w.ui.focuses).toEqual([`modmgr:row:${TURN_BAND}`])
+    await act.overlay('help')
+    await act.apply()
+    await act.confirm()
+    // Help is still on the stack: the ring stays where the person left it.
+    expect(w.ui.focuses).toEqual([`modmgr:row:${TURN_BAND}`])
   })
 })
 

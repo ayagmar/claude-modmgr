@@ -184,6 +184,12 @@ function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
 // gone with the module (a reload of modmgr builds the next one, F31).
 let runtime: Runtime | undefined
 
+// Whether modmgr's pane held the keys when last drawn. Esc hands the keys back
+// to the prompt before it raises `ui.close`, so the close hook can't ask
+// `$.ui.panes()`; the draw just before it knows (module memory: a reload of
+// modmgr starts it false, and the first Esc then closes).
+let paneHadKeys = false
+
 export const register: Register = (on, options) => {
   const config = parseConfig(options)
 
@@ -197,14 +203,15 @@ export const register: Register = (on, options) => {
     modsCommand({ state: statePorts($), ui: uiPorts($) }, e.args),
   ).catch(() => ({ text: 'modmgr failed to answer; run with --debug for the reason.' }))
 
-  on('ui.render', { component: 'Pane', requestId: 'modmgr' }, async ($, e) =>
-    drawPane(viewPortsOf($, e), {
+  on('ui.render', { component: 'Pane', requestId: 'modmgr' }, async ($, e) => {
+    paneHadKeys = e.props.isFocused
+    return drawPane(viewPortsOf($, e), {
       bodyColumns: e.props.bodyColumns,
       bodyRows: e.props.scroll.bodyRows,
       isFocused: e.props.isFocused,
       now: await $.clock.now(),
-    }),
-  ).catch((_$, e, next) => next(e))
+    })
+  }).catch((_$, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const band = await drawBand(viewPortsOf($, e), e.props)
@@ -225,7 +232,7 @@ export const register: Register = (on, options) => {
 
   // Esc pops an overlay, then clears the filter, then closes (PLAN §5.2).
   on('ui.close', { id: 'modmgr' }, async ($, e, next) =>
-    e.origin.kind !== 'unload' && (await actionsOf($).closing(e.origin.kind))
+    e.origin.kind !== 'unload' && (await actionsOf($).closing(e.origin.kind, paneHadKeys))
       ? { value: undefined }
       : next(e),
   ).catch((_$, e, next) => next(e))

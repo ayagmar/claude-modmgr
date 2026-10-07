@@ -8,10 +8,20 @@ import { sanitize } from '../domain/sanitize.ts'
 import { rowKey, type Window, whyLocked } from '../domain/view.ts'
 import { GLYPH, TONE, type ViewPorts } from './kit.tsx'
 
-/** Cells a row spends outside its name: glyph, version, scope, flags and the gaps. */
-const FIXED = 2 + 11 + 9 + 12
+/** Cells kept for the flags at a row's end (`→ off ▲2 ◆3`). */
+const FLAGS = 16
 
-export const nameWidth = (columns: number): number => Math.max(12, Math.min(40, columns - FIXED))
+export type RowColumns = { readonly name: number; readonly meta: boolean }
+
+/**
+ * How a row spends its width: name, version and scope from 60 columns; below
+ * (a split's list, a narrow dock) the name and its flags alone. Fixed widths,
+ * so nothing reflows as rows change (PLAN §5.6).
+ */
+export const rowColumns = (columns: number): RowColumns =>
+  columns >= 60
+    ? { name: Math.max(12, Math.min(40, columns - 2 - 11 - 9 - FLAGS)), meta: true }
+    : { name: Math.max(8, columns - 2 - FLAGS), meta: false }
 
 const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   const flags: { text: string; color?: string }[] = []
@@ -31,36 +41,48 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
 export const Row = (
   v: ViewPorts,
   row: ModRow,
-  how: { readonly view: View; readonly columns: number },
+  how: { readonly view: View; readonly columns: number; readonly focus: boolean },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const staged = how.view.staged[row.id]
-  const width = nameWidth(how.columns)
-  const name = sanitize(row.name, { max: width })
+  const cols = rowColumns(how.columns)
+  const name = sanitize(row.name, { max: cols.name })
   return (
     <Box key={`line:${row.id}`} flexDirection="row" gap={1}>
       <Text color={row.enabled ? TONE.ok : TONE.muted}>{row.enabled ? GLYPH.on : GLYPH.off}</Text>
-      <Box width={width}>
-        <Button key={rowKey(row.id)} plain label={name} onPress={() => v.act.open(row.id)} />
+      <Box width={cols.name} flexShrink={0}>
+        <Button
+          key={rowKey(row.id)}
+          plain
+          label={name}
+          {...(how.focus ? { autoFocus: true as const } : {})}
+          onPress={() => v.act.open(row.id)}
+        />
       </Box>
-      <Box width={10}>
-        <Text dimColor wrap="truncate-end">
-          {row.version === undefined ? '' : sanitize(row.version, { max: 10 })}
-        </Text>
+      {cols.meta ? (
+        <Box width={10} flexShrink={0}>
+          <Text dimColor wrap="truncate-end">
+            {row.version === undefined ? '' : sanitize(row.version, { max: 10 })}
+          </Text>
+        </Box>
+      ) : null}
+      {cols.meta ? (
+        <Box width={8} flexShrink={0}>
+          <Text dimColor wrap="truncate-end">
+            {row.scope ?? row.origin}
+          </Text>
+        </Box>
+      ) : null}
+      <Box flexDirection="row" gap={1} flexShrink={0}>
+        {staged === undefined ? null : <Text color={TONE.warn}>→ {staged ? 'on' : 'off'}</Text>}
+        {flagsOf(row).map(flag =>
+          flag.color === undefined ? (
+            <Text dimColor>{flag.text}</Text>
+          ) : (
+            <Text color={flag.color}>{flag.text}</Text>
+          ),
+        )}
       </Box>
-      <Box width={8}>
-        <Text dimColor wrap="truncate-end">
-          {row.scope ?? row.origin}
-        </Text>
-      </Box>
-      {staged === undefined ? null : <Text color={TONE.warn}>→ {staged ? 'on' : 'off'}</Text>}
-      {flagsOf(row).map(flag =>
-        flag.color === undefined ? (
-          <Text dimColor>{flag.text}</Text>
-        ) : (
-          <Text color={flag.color}>{flag.text}</Text>
-        ),
-      )}
     </Box>
   )
 }
@@ -73,6 +95,8 @@ export const List = (
     readonly view: View
     readonly columns: number
     readonly window: Window
+    /** The row the ring starts on when the pane takes the keys. */
+    readonly focusId: string | undefined
     readonly loading: boolean
     readonly total: number
   },
@@ -94,7 +118,9 @@ export const List = (
     <Box flexDirection="column">
       {rows
         .slice(how.window.start, how.window.end)
-        .map(row => Row(v, row, { view: how.view, columns: how.columns }))}
+        .map(row =>
+          Row(v, row, { view: how.view, columns: how.columns, focus: row.id === how.focusId }),
+        )}
     </Box>
   )
 }

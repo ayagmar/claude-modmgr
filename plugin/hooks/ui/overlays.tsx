@@ -138,9 +138,9 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], limit = 12): RenderElem
           <Box flexDirection="row" gap={1}>
             <Text color={JOB_TONE[job.state]}>{JOB_GLYPH[job.state]}</Text>
             <Text>{job.kind === 'reload' ? 'reload plugins' : job.kind}</Text>
-            <Text dimColor>
-              {job.target === undefined ? '' : sanitize(job.target, { max: 60 })}
-            </Text>
+            {job.target === undefined ? null : (
+              <Text dimColor>{sanitize(job.target, { max: 60 })}</Text>
+            )}
             <Text dimColor>{job.state}</Text>
           </Box>
           {job.error === undefined ? null : (
