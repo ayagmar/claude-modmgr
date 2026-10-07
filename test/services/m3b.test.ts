@@ -86,7 +86,7 @@ describe('a fixture update shows its capability diff (M3b done criterion)', () =
     })
     expect(w.state.values.attention.capsChanged).toBe(1)
     expect(band()).toBe('mods · turn-band can now run programs')
-    expect(w.ui.statusLine).toBe('mods: turn-band can now run programs')
+    expect(w.ui.statusLine).toBe('turn-band can now run programs')
     // Retitled with its manners, never asking for the keys (F22).
     expect(w.ui.opens).toEqual([
       {
@@ -104,6 +104,9 @@ describe('a fixture update shows its capability diff (M3b done criterion)', () =
     await act.open(TURN_BAND)
     await w.clock.advance(0)
     expect(w.state.values.mods.find(item => item.id === TURN_BAND)?.capsNew).toBeUndefined()
+    // The detail on screen still says it; the next one won't.
+    expect(w.state.values.detail?.capsNew).toEqual({ since: '0.3.1', added: ['runs-programs'] })
+    await rt.registry.select(TURN_BAND)
     expect(w.state.values.detail?.capsNew).toBeUndefined()
     expect(w.state.values.attention.capsChanged).toBe(0)
     expect(band()).toBeUndefined()
@@ -266,7 +269,7 @@ describe('the status line and the title', () => {
     expect(w.ui.statuses).toEqual([undefined])
     w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
     await chrome.sync()
-    expect(w.ui.statusLine).toBe('mods: reload to apply')
+    expect(w.ui.statusLine).toBe('reload to apply')
   })
 
   it('retitles only a placed pane whose title changed, holding toasts only when idle', async () => {

@@ -22,7 +22,7 @@ import { isActive, type JobSpec, type UndoStep } from './jobs.ts'
 import { sanitize } from './sanitize.ts'
 
 /** The name part of a plugin id (`turn-band` of `turn-band@fixtures`). */
-const nameOf = (id: string): string => {
+export const nameOf = (id: string): string => {
   const at = id.indexOf('@')
   return at < 0 ? id : id.slice(0, at)
 }
@@ -183,7 +183,7 @@ const cliScope = (scope: Scope | undefined): 'user' | 'project' | 'local' | unde
 export const whyNoUpdate = (row: ModRow): string | undefined => {
   if (row.scope === 'managed') return 'managed by your organisation; it updates with their settings'
   if (row.origin === 'folder-marketplace')
-    return 'runs from its marketplace folder: a change there applies at the next reload, no update needed'
+    return 'runs from its marketplace folder: no updates'
   if (row.origin === 'skills-dir')
     return 'lives in your skills folder; it changes when its files do'
   return whyLocked(row)
@@ -492,6 +492,12 @@ const doneText = (work: readonly Job[]): string => {
       : `${changed.length} updated, ${same} already up to date`
   }
   if (changed.length === 0) return 'nothing needed changing'
+  const [only] = changed
+  if (changed.length === 1 && same === 0 && only?.target !== undefined) {
+    const name = sanitize(nameOf(only.target), { max: 40 })
+    if (only.kind === 'remove') return `${name} removed`
+    if (only.kind === 'install') return `${name} installed`
+  }
   const applied = plural(changed.length, 'change', 'changes')
   return same === 0 ? `${applied} applied` : `${applied} applied, ${same} already so`
 }
@@ -615,9 +621,9 @@ export const bandOf = (
 }
 
 /**
- * The status line under the prompt (`$.ui.status`, one per plugin): what
- * still needs the person or is under way; nothing when idle (undefined clears
- * it). The reload's echo stays in the band.
+ * The status line under the prompt (`$.ui.status`, one per plugin, drawn
+ * `modmgr: <text>`): what still needs the person or is under way; nothing
+ * when idle (undefined clears it). The reload's echo stays in the band.
  */
 export const statusLineOf = (summary: Summary): string | undefined => {
   const parts: string[] = []
@@ -626,7 +632,8 @@ export const statusLineOf = (summary: Summary): string | undefined => {
   if (summary.updates > 0) parts.push(plural(summary.updates, 'update', 'updates'))
   if (summary.caps !== undefined) parts.push(summary.caps)
   if (summary.reloadOwed) parts.push('reload to apply')
-  return parts.length === 0 ? undefined : `mods: ${parts.join(' · ')}`
+  // The engine names the plugin before it (`modmgr: …`, F52).
+  return parts.length === 0 ? undefined : parts.join(' · ')
 }
 
 /** The pane's title: `mods`, with what waits for the person (F22: a retitle is an open). */

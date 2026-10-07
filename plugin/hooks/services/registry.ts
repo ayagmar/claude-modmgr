@@ -53,7 +53,10 @@ export type Registry = {
    * last seen (an undo's reinstall).
    */
   facts(id: string): ReviewFacts | undefined
-  /** The person opened the mod's detail: what its update added is now seen. */
+  /**
+   * The person opened the mod's detail: what its update added is now seen.
+   * The row, the band and the status line drop it; the detail on screen keeps it.
+   */
   acknowledge(id: string): Promise<void>
   /** Whether a refresh has listed the plugins yet. */
   isLoaded(): boolean
@@ -222,8 +225,8 @@ export const createRegistry = (
       const after = acknowledge(before, id)
       if (after === before) return
       store.set('capsHistory', after)
+      // The detail open now keeps saying what was new; the next one won't.
       const mods = await ports.state.update('mods', rows => rows.map(withNews))
-      await ports.state.update('detail', detail => (detail === null ? null : withNews(detail)))
       await writeNews(mods)
     },
     isLoaded: () => loaded,

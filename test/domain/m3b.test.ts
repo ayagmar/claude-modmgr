@@ -321,29 +321,27 @@ describe('the summary: band, status line and title agree', () => {
         job({ id: 'r', kind: 'reload', target: undefined }),
       ],
     }
-    expect(statusLineOf(summaryOf({ attention: ATTENTION, queue, mods: [] }))).toBe(
-      'mods: applying 2…',
-    )
+    expect(statusLineOf(summaryOf({ attention: ATTENTION, queue, mods: [] }))).toBe('applying 2…')
     const reloading = {
       owner: 'o',
       jobs: [job({ id: 'r', kind: 'reload', state: 'running', target: undefined })],
     }
     expect(statusLineOf(summaryOf({ attention: ATTENTION, queue: reloading, mods: [] }))).toBe(
-      'mods: reloading plugins…',
+      'reloading plugins…',
     )
     const owed = summaryOf({
       attention: { ...ATTENTION, reloadPending: true },
       queue: IDLE,
       mods: [],
     })
-    expect(statusLineOf(owed)).toBe('mods: reload to apply')
+    expect(statusLineOf(owed)).toBe('reload to apply')
     expect(bandOf(owed, { isWorking: false })?.text).toBe('mods · reload to apply')
   })
 
   it('what updates added, in all three', () => {
     const mods = [row('turn-band', { capsNew: { since: '0.3.1', added: ['runs-programs'] } })]
     const summary = summaryOf({ attention: { ...ATTENTION, updates: 2 }, queue: IDLE, mods })
-    expect(statusLineOf(summary)).toBe('mods: 2 updates · turn-band can now run programs')
+    expect(statusLineOf(summary)).toBe('2 updates · turn-band can now run programs')
     expect(bandOf(summary, { isWorking: false })?.text).toBe(
       'mods · 2 updates · turn-band can now run programs',
     )
@@ -409,7 +407,9 @@ describe('the batch line for updates and removes', () => {
     expect(line([job('1', {}), job('2', { unchanged: true })])).toBe(
       '1 updated, 1 already up to date',
     )
-    expect(line([job('1', { kind: 'remove' })])).toBe('1 change applied')
+    expect(line([job('1', { kind: 'remove' })])).toBe('a removed')
+    expect(line([job('1', { kind: 'install' })])).toBe('a installed')
+    expect(line([job('1', { kind: 'enable' })])).toBe('1 change applied')
     expect(line([job('1', { kind: 'disable', unchanged: true })])).toBe('nothing needed changing')
     expect(
       line([job('1', { kind: 'disable' }), job('2', { kind: 'enable', unchanged: true })]),

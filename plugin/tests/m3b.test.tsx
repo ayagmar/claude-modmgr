@@ -74,10 +74,8 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'act:undo' })
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: 'Undo the last batch' })).toBeDefined()
-    expect(
-      await ui.find({ type: 'Text', text: "quiet-bash's data was kept: it comes back as it was." }),
-    ).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /declares an install command/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'quiet-bash: its data was kept.' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /declared install command/ })).toBeDefined()
     await ui.press({ key: 'act:confirm' })
     await h.clock.advance(1)
     await h.clock.advance(1500)
@@ -164,7 +162,7 @@ test('a fixture update shows what it can newly do: row, detail, band, status lin
     await band.unmount()
     await ui.unmount()
   }
-  expect(h.statuses.at(-1)).toBe('mods: turn-band can now run programs')
+  expect(h.statuses.at(-1)).toBe('turn-band can now run programs')
   expect(h.opens.at(-1)).toEqual({
     id: 'modmgr',
     title: 'mods · 1 can do more',
@@ -178,8 +176,8 @@ test('a fixture update shows what it can newly do: row, detail, band, status lin
   await ui.press({ key: `row:${TURN_BAND}` })
   await h.clock.advance(1)
   await ui.redraw()
-  expect(await ui.find({ type: 'Text', text: 'New since 0.3.1' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'new' })).toBeUndefined()
+  // The detail open says what is new; the row, status line and title let go.
+  expect(await ui.find({ type: 'Text', text: 'New since 0.3.1' })).toBeDefined()
   expect(h.statuses.at(-1)).toBeUndefined()
   expect(h.opens.at(-1)?.title).toBe('mods')
 })

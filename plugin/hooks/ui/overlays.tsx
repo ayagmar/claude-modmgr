@@ -5,7 +5,7 @@ import type { RenderElement } from 'claude-code'
 import type { Job, ModRow, ReviewOp, ReviewRequest } from '../../types/index.d.ts'
 import { helpFor, type KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { bytesLabel, commandLine, partsLabel, specsOf } from '../domain/view.ts'
+import { bytesLabel, commandLine, nameOf, partsLabel, specsOf } from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
 const OP: Readonly<
@@ -33,96 +33,106 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
   }
 }
 
+/** A line of the review and its text, from which the rows it wraps to are counted. */
+type Line = { readonly el: RenderElement; readonly text: string }
+
 /**
- * The review's lines, one row each (Pane clips a taller review to the body).
- * The keys come right under the heading, so a clipped review keeps them.
+ * The review's lines (Pane clips a taller review to the body). The keys come
+ * right under the heading, so a clipped review keeps them.
  */
-const reviewLines = (
-  v: ViewPorts,
-  review: ReviewRequest,
-  rows: readonly ModRow[],
-): RenderElement[] => {
+const reviewLines = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[]): Line[] => {
   const { Box, Text } = v.el
-  const name = (id: string) => sanitize(rows.find(row => row.id === id)?.name ?? id, { max: 40 })
+  // A mod being reinstalled is no longer a row: its id names it.
+  const name = (id: string) =>
+    sanitize(rows.find(row => row.id === id)?.name ?? nameOf(id), { max: 40 })
   const removing = review.action === 'remove'
   const keepData = review.keepData !== false
-  const lines: RenderElement[] = [
-    Heading(v, headingOf(review, name)),
-    <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-      {KeyButton(v, {
-        action: 'confirm',
-        on: 'review',
-        label: 'confirm',
-        onPress: () => v.act.confirm(),
-      })}
-      {KeyButton(v, {
-        action: 'cancel',
-        on: 'review',
-        label: 'cancel',
-        onPress: () => v.act.cancel(),
-      })}
-      {removing && review.dataBytes !== undefined
-        ? KeyButton(v, {
-            action: 'keep-data',
-            on: 'review',
-            label: keepData ? 'delete its data too' : 'keep its data',
-            onPress: () => v.act.keepData(),
-          })
-        : null}
-    </Box>,
+  const heading = headingOf(review, name)
+  const keyLabels = [
+    'y: confirm',
+    'n: cancel',
+    ...(removing && review.dataBytes !== undefined
+      ? [keepData ? 'd: delete its data too' : 'd: keep its data']
+      : []),
   ]
+  const lines: Line[] = [
+    { el: Heading(v, heading), text: heading },
+    {
+      text: keyLabels.join('  '),
+      el: (
+        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+          {KeyButton(v, {
+            action: 'confirm',
+            on: 'review',
+            label: 'confirm',
+            onPress: () => v.act.confirm(),
+          })}
+          {KeyButton(v, {
+            action: 'cancel',
+            on: 'review',
+            label: 'cancel',
+            onPress: () => v.act.cancel(),
+          })}
+          {removing && review.dataBytes !== undefined
+            ? KeyButton(v, {
+                action: 'keep-data',
+                on: 'review',
+                label: keepData ? 'delete its data too' : 'keep its data',
+                onPress: () => v.act.keepData(),
+              })
+            : null}
+        </Box>
+      ),
+    },
+  ]
+  const push = (el: RenderElement, text: string) => lines.push({ el, text })
   for (const target of review.targets) {
     const op = OP[target.op]
-    lines.push(
+    const meta = [
+      target.version === undefined ? '' : sanitize(target.version, { max: 20 }),
+      target.scope ?? '',
+    ]
+      .filter(part => part !== '')
+      .join(' · ')
+    push(
       <Box flexDirection="row" gap={1}>
         <Text color={op.tone}>{op.glyph}</Text>
         <Box width={9} flexShrink={0}>
           <Text>{op.verb}</Text>
         </Box>
         <Text bold>{name(target.id)}</Text>
-        <Text dimColor>
-          {[
-            target.version === undefined ? '' : sanitize(target.version, { max: 20 }),
-            target.scope ?? '',
-          ]
-            .filter(part => part !== '')
-            .join(' · ')}
-        </Text>
+        <Text dimColor>{meta}</Text>
       </Box>,
+      `x ${op.verb.padEnd(9)} ${name(target.id)} ${meta}`,
     )
   }
+  const say = (text: string, tone?: string) =>
+    push(tone === undefined ? <Text>{text}</Text> : <Text color={tone}>{text}</Text>, text)
   if (review.notable.length > 0) {
-    lines.push(
-      <Text>
-        {review.action === 'undo' ? 'What comes back can:' : 'Turning these on lets them:'}
-      </Text>,
-    )
+    say(review.action === 'undo' ? 'What comes back can:' : 'Turning these on lets them:')
     for (const line of review.notable) {
-      lines.push(
+      push(
         <Box flexDirection="row" gap={1} paddingLeft={1}>
           <Text color={TONE.accent}>{GLYPH.notable}</Text>
           <Text>{line}</Text>
         </Box>,
+        `  x ${line}`,
       )
     }
   }
   if (review.parts !== undefined) {
-    lines.push(
-      <Text color={TONE.warn}>
-        {removing ? 'Also removes what it carries' : 'Also turns off what they carry'}:{' '}
-        {partsLabel(review.parts)}.
-      </Text>,
+    say(
+      `${removing ? 'Also removes what it carries' : 'Also turns off what they carry'}: ${partsLabel(review.parts)}.`,
+      TONE.warn,
     )
   }
-  const say = (text: string, tone?: string) =>
-    lines.push(tone === undefined ? <Text>{text}</Text> : <Text color={tone}>{text}</Text>)
   if (review.action === 'update') {
     const marketplaces = review.marketplaces ?? []
     if (marketplaces.length > 0) {
       say(`Refreshes ${marketplaces.map(m => sanitize(m, { max: 40 })).join(', ')} first.`)
     }
-    say('Its new code runs after the reload; modmgr then')
-    say('shows anything new it can do.')
+    say('Its new code runs after the reload;')
+    say('modmgr then shows what it can newly do.')
     say("An update can't be undone.", TONE.warn)
   }
   if (removing) {
@@ -133,38 +143,48 @@ const reviewLines = (
   }
   const reinstalls = review.targets.filter(target => target.op === 'install')
   if (reinstalls.length > 0) {
-    say("Reinstalls at the marketplace's current version.")
+    say("Reinstalls the marketplace's current version.")
     for (const target of reinstalls) {
       say(
         target.keptData === true
-          ? `${name(target.id)}'s data was kept: it comes back as it was.`
-          : `${name(target.id)}'s data went with it.`,
+          ? `${name(target.id)}: its data was kept.`
+          : `${name(target.id)}: its data went with it.`,
       )
     }
-    say('If the marketplace declares an install command,', TONE.warn)
-    say('modmgr stops and shows it; nothing runs unaccepted.', TONE.warn)
+    say('A declared install command stops it,', TONE.warn)
+    say('shown first; nothing runs unaccepted.', TONE.warn)
   }
   if (review.changesRepoFile) {
     say('Changes .claude/settings.json in this repository.', TONE.warn)
   }
-  say('Takes effect after a plugin reload, which modmgr runs.')
-  lines.push(<Text dimColor>Runs</Text>)
+  say('Takes effect after the reload modmgr runs.')
+  push(<Text dimColor>Runs</Text>, 'Runs')
   for (const spec of specsOf(review)) {
     const line = commandLine(spec)
     if (line === undefined) continue
-    lines.push(
+    // One row each: cut at the frame, not wrapped.
+    push(
       <Text dimColor wrap="truncate-end">
         {'  '}
         {line}
       </Text>,
+      '',
     )
   }
   return lines
 }
 
-/** The rows the review draws. */
-export const reviewRows = (v: ViewPorts, review: ReviewRequest, rows: readonly ModRow[]): number =>
-  reviewLines(v, review, rows).length
+/** The rows the review draws at `columns`: each line's text, wrapped. */
+export const reviewRows = (
+  v: ViewPorts,
+  review: ReviewRequest,
+  rows: readonly ModRow[],
+  columns: number,
+): number =>
+  reviewLines(v, review, rows).reduce(
+    (sum, line) => sum + Math.max(1, Math.ceil(line.text.length / Math.max(1, columns))),
+    0,
+  )
 
 export const Review = (
   v: ViewPorts,
@@ -172,7 +192,7 @@ export const Review = (
   rows: readonly ModRow[],
 ): RenderElement => {
   const { Box } = v.el
-  return <Box flexDirection="column">{reviewLines(v, review, rows)}</Box>
+  return <Box flexDirection="column">{reviewLines(v, review, rows).map(line => line.el)}</Box>
 }
 
 /** The rows help draws: its heading, a row per key, the closing line. */

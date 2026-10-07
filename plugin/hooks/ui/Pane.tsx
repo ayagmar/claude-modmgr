@@ -204,7 +204,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     how: Parameters<typeof detailRows>[0],
   ): number =>
     which === 'review' && review !== null
-      ? reviewRows(v, review, mods)
+      ? reviewRows(v, review, mods, frame.bodyColumns)
       : which === 'help'
         ? helpRows(helpSurfaces, NOT_YET)
         : which === 'detail'
