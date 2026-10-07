@@ -5,7 +5,7 @@ A Claude Code **mod** manager: discover, install, inspect, toggle, update and de
 - Plugin `modmgr`, command `/mods`, repo `ayagmar/modmgr`, marketplace `modmgr`, so the id is `modmgr@modmgr`.
 - Install line (README, landing page): `/plugin install modmgr --marketplace ayagmar/modmgr`
 - Scope: **mods only**. Generic plugin management stays with `/plugin`. modmgr shows every plugin that ships a hooks module, including mixed plugins, and says when a plugin carries more than a mod.
-- Built against Claude Code **2.1.291**. The function-hooks API is early access, so all `$` access is isolated (§3).
+- Built against Claude Code **2.1.292** (planned on 2.1.291; see "Changes during build" C1). The function-hooks API is early access, so all `$` access is isolated (§3).
 - Revision 2 folds in the Fable 5.1 review (`docs/reviews/2026-10-06-fable-5.1-plan-review.md`, findings referenced as R1–R25) and spike S7.
 
 ### What changed since revision 1
@@ -49,16 +49,26 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F22 | Pane: `PaneOpenArgs {id, title, focus, closeOnEscape, holdToasts, rows, columns}`. `holdToasts` is for a dialog the person answers and leaves. `closeOnEscape` also closes on Esc at an idle empty prompt. `focus` is refused while the composer has text. `columns` is a request. A docked pane gets its share (~40–70 cells); inline gets a third of the rows. Window rows with `e.props.scroll.bodyRows`, not `viewport.rows`. Re-opening an open id retitles it. Esc raises `ui.close` (`origin.kind: 'person'`), and a hook can keep the pane open. | d.ts 7111–7218, 9992–10016, 2414 |
 | F23 | `$.process` is documented "CLI only". | d.ts 3425 |
 | F24 | `claude plugin test` runs in the hooks environment: no Node, fs, network, process or coverage. Only `.ts/.tsx/.js/…` files load (no `.json` imports). The test `on` sits beneath the plugin, so a test can answer `process.run`. `mock` has clock, store and env. `ui.mount … press({key})` acts by element key and never paints. | d.ts header, 6917, 14478, 14983, 15118 |
+| F25 | **S2:** a declared command makes `install --json` fail with `failureCode: command_source_refused` and `shownCommand: { kind: 'command_source', pluginId, command, mode, catalogRevision, sha256 }` (`kind: 'entry_helper'` with `archiveUrl` for a `headersHelper`); with `--accept-command` it adds `acceptCommandMatched`. Nothing runs before acceptance. The sha changes on **any** catalogue revision (a description edit plus `marketplace update` was enough). `-y` and `--accept-command` conflict. | `docs/spikes/s2/` |
+| F26 | `install --json` prints **human lines on stdout before the JSON line** (and the message on stderr). The result is the last stdout line that parses as JSON. | `s2/install-no-accept.stdout.txt` |
+| F27 | `--accept-command` **works from a mod's `$.process.run`** child of an interactive session (installed, command ran once). From the agent's Bash tool the CLI answers "`--accept-command is ignored inside a Claude Code session`". | `s2/install-accept-from-mod-process-run.log` |
+| F28 | **S6:** detector p50 ≈ 490 ms, p95 ≈ 575 ms per entry (usually two requests), ≈ 12 entries/s at concurrency 6: the 600-probe budget is ≈ 50 s idle. Catalogue: 3,545 entries, 2.10 MB, 3,071 with `version`, 3,492 with a sha. **Mods already exist in the official catalogue** (2 of 100 sampled). | `docs/spikes/s6/` |
+| F29 | **S8:** `$.command.run({command:'reload-plugins'})` resolves from a Button `onPress` and a `$.clock.after` callback; it **rejects at once** from any `command.run` hook (awaited or not, interactive or `-p`): "called from a command.run hook, it would wait on the turn this hook is holding". | `s8-s9-s11-s12/` |
+| F30 | **S9:** `/reload-plugins` re-reads what changed (a CLI install becomes active, a CLI disable goes away) and **does not re-register an unchanged module**, installed or `--plugin-dir`. | `interactive-installed.log` |
+| F31 | When modmgr's module **is** reloaded (its files changed): `register` and **`session.start` run again**, `$.state` is intact, and an **open pane stays open and is redrawn by the new module** (`$.ui.panes()` lists it). | `interactive-plugin-dir.log` |
+| F32 | **S11:** `$.process.run` works interactive, under `-p` and in an SDK host (`--input-format stream-json`, how the desktop app runs the engine). Feature detection can't use `'process' in $` or `typeof $.process` (the validator refuses both); detect by calling and catching. GUI hosts not tested. | `sdk-stream-json.log` |
+| F33 | **S12:** `list --data-size --json` adds `dataDirSize: { bytes, human }` only where `plugins/data/<name>-<marketplace>` exists. `@skills-dir` entries lack `installedAt`, `lastUpdated`, `projectEnabled`. | run |
+| F34 | `CLAUDE_CODE_PLUGIN_DIRS` folders show in a child `list --json` as `<name>@inline`, `scope: "session"`. **`--plugin-dir` folders don't** (not inherited), and no `$` noun lists loaded plugins; `$.command.list()` names only plugins that registered commands. | `headless-p.log` |
+| F35 | The debug log exists **only with `--debug`**: `$CLAUDE_CONFIG_DIR/debug/<sessionId>.txt` + `latest` symlink, lines `<ISO> [LEVEL] <text>`. A failed hook logs `hook failed closed: <plugin>: errorKind=… errorChars=n (<event>; …)`: the error's length, not its text. | debug log |
+| F36 | **Validator call-site rule:** `$` is spelled `$.noun.method(…)` at the call site. It may be passed to a function **declared in the same file**, never across an import; it can't be stored, spread, `in`-tested or read as a value. Closures over `$` created in a hook (a ports object, a stored wake-up callback) may be passed anywhere. `on` may be passed to imported registrars. | `spikes/README.md` §Validator |
+| F37 | One module may hook an event only **once without a matcher** (across all its files). | same |
 
-### Open spikes (M0, written up in `docs/spikes/README.md` before any service code)
+### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
-- **S2** The `--accept-command` flow: the exact `install --json` output when a command or `headersHelper` is declared (`shownCommand.sha256`?), and proof that nothing runs before acceptance.
-- **S6** Detector latency, p50/p95, for 50 random `raw.githubusercontent.com` probes. Coverage is known (F15).
-- **S8** `$.command.run({command:'reload-plugins'})` from (a) a Button press handler, (b) a `command.run` hook, (c) a `$.clock.after` callback, (d) `claude -p "/mods …"`. Which resolve, which reject?
-- **S9** What survives `/reload-plugins` for modmgr itself: is the open pane kept and redrawn by the new module, are `$.state` values intact, does a `session.start` fire again?
-- **S10** Does a `types` contract that only declares `PluginState` pass `claude plugin validate --strict`?
-- **S11** What `$` offers in a desktop-app- or VS Code-hosted session (`'process' in $`, `$.process.run` behaviour).
-- **S12** Baselines: `claude plugin list --data-size --json` output shape; the debug-log path and line format for "`<plugin>: …`" entries (for the best-effort "last logged reason" pointer).
+- **S2** `--accept-command`: F25–F27. **S6** detector latency: F28. **S8** reload from a mod: F29. **S9** reload survival: F30, F31.
+- **S10** a `PluginState`-only `types` contract passes `validate --strict` (with a note "declares on $: nothing"). **S11** hosted `$`: F32.
+- **S12** baselines: F33–F35. Found on the way: the validator's call-site rules, F36, F37.
+- F15's "No mods in the official marketplace yet" and F19's "A reload of modmgr re-runs `register`" are superseded by F28 and F30/F31.
 
 ---
 
@@ -464,3 +474,54 @@ Detail (pushed on Enter):
 
 ## 12. Later (v1.1+)
 Pre-update capability diff (temp-copy validate); a `plugin.register` quarantine policy; `Client`-based raw key handling for vim-style navigation; favourites and saved views; history view; i18n.
+
+---
+
+## Changes during build
+
+Recorded as the build finds them. Each says what contradicted the plan, the change, and its status.
+
+**C1. Claude Code 2.1.292 (M0, applied).** The machine runs 2.1.292. Its types are vendored beside 2.1.291's; the diff
+is additive for every API this plan uses (`docs/spikes/README.md` §Version check). CI pins 2.1.292, and the README's
+minimum version is 2.1.292. One relevant detail: `command.run` is now a gating site unless the hook answers a command
+the module registers by literal name and never reads `next`; `/mods` is written that way.
+
+**C2. `$` lives in one file; services and UI take ports (M0, proposed: needs approval).** F36/F37 make §3's layering
+("every `$` call lives in `services/`") impossible: `$` can't be passed into an imported function, and each event can be
+hooked once per module. Proposed shape:
+- `hooks/register.tsx` is the **only file that spells `$`**. It registers every hook (one line each, delegating) and
+  builds typed **ports** per dispatch: `portsOf($)` → `{ process: { run, spawn }, store, state, clock, http, fs, ui, … }`,
+  closures over that dispatch's `$`. The validator traces them (`calls: $.process.run (via portsOf)`).
+- `services/*` are `$`-free: they export functions that take `Ports` (an interface in `services/ports.ts`). `ui/*` export
+  render functions that take `{ el, read, act }` (the surface's element table, state reads through the ports, and
+  handlers that dispatch through ports).
+- Wins: services become **vitest-testable with fake ports** (real coverage), and the fake-CLI tests no longer need the
+  engine. `claude plugin test` still covers the wiring, the UI on `terminal`/`desktop`, and the reload/resume flows.
+- The layering test changes to: only `hooks/register.tsx` may contain `$.`; `domain/` imports only `domain/`;
+  `services/` imports `domain/` and `services/ports.ts`; `ui/` imports `domain/`, `ui/`, and port *types*.
+
+**C3. Reload and the job runner (M0, applied to the design).** F29: jobs and the batch's reload never run inside a
+`command.run` hook. `/mods` opens the pane and returns; the runner is kicked from press handlers and
+`$.clock.after(0, …)`. F30: a batch's closing `/reload-plugins` does **not** reload modmgr (unless modmgr itself was
+updated), so the runner normally survives it; the `$.state` queue and resume-on-`register` stay for modmgr's own updates
+and dev hot reloads. F31: `session.start` runs again on a module reload, so it must be idempotent (re-register `/mods`,
+re-arm timers, re-attach to an open pane without reopening it).
+
+**C4. CLI result parsing (M0, applied to the design).** F26: `cli-results.ts` takes the last stdout line that parses as
+a JSON object, never the whole stdout. F25/F27: `shownCommand` is typed per `kind`; "`--accept-command is ignored inside
+a Claude Code session`" (or `acceptCommandMatched: true` with a failed outcome) maps to error kind `rejected` with the
+sentence "Claude Code refused to accept the command from here; accept it in `/plugin` → the plugin's details, or run
+the install in a terminal."
+
+**C5. Capability probe (M0, applied to the design).** F32: `capability-probe` runs `claude --version` through
+`$.process.run` once per load and catches; failure → degraded read-only mode with the reason.
+
+**C6. Dev sources and the debug pointer (M0, applied to the design).** F34: Dev lists `CLAUDE_CODE_PLUGIN_DIRS` mods
+(child `list --json`, `@inline`, scope `session`), `~/.claude/dev-mods/*/*`, `@skills-dir` and folder-marketplace
+installs. `--plugin-dir` mods are shown only when inferred from `$.command.list()` (a command whose `plugin` isn't in
+`list --json`), labelled "loaded with --plugin-dir (inferred)". F35: Health's "last logged reason" becomes "run with
+`--debug`" plus, when `$CLAUDE_CONFIG_DIR/debug/latest` exists, the last `hook failed closed: <plugin>` line (event and
+error kind only; the engine logs no message text).
+
+**C7. Numbers (M0, applied).** F15 → F28 (3,545 entries, mods exist). The detector's first full coverage is ≈ 5 min of
+idle probing, spread over sessions by the 600-probe budget.
