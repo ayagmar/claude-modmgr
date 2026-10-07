@@ -2,6 +2,7 @@
 // branded once validated, so services can only build argv from checked input.
 
 import { fail, ok, type Result } from './result.ts'
+import { hasHiddenCharacters } from './sanitize.ts'
 
 declare const brand: unique symbol
 type Brand<T, B extends string> = T & { readonly [brand]: B }
@@ -10,6 +11,8 @@ export type PluginId = Brand<string, 'PluginId'>
 export type MarketplaceName = Brand<string, 'MarketplaceName'>
 export type AbsolutePath = Brand<string, 'AbsolutePath'>
 export type Sha256 = Brand<string, 'Sha256'>
+/** What `claude plugin marketplace add` takes: `owner/repo`, an https URL, or an absolute path. */
+export type MarketplaceSource = Brand<string, 'MarketplaceSource'>
 
 export const TOGGLE_SCOPES = ['user', 'project', 'local'] as const
 export type ToggleScope = (typeof TOGGLE_SCOPES)[number]
@@ -61,6 +64,23 @@ export const parseSha256 = (value: unknown): Result<Sha256> =>
   typeof value === 'string' && SHA256.test(value)
     ? ok(value as Sha256)
     : fail('invalid', `not a sha256: ${describe(value)}`)
+
+const GITHUB_REPO = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/
+const HTTPS_URL = /^https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?(?:\/[^\s]*)?$/
+
+export const parseMarketplaceSource = (value: unknown): Result<MarketplaceSource> => {
+  if (typeof value !== 'string')
+    return fail('invalid', `not a marketplace source: ${describe(value)}`)
+  if (GITHUB_REPO.test(value) && !value.split('/').includes('..')) {
+    return ok(value as MarketplaceSource)
+  }
+  if (HTTPS_URL.test(value) && value.length <= 2048 && !hasHiddenCharacters(value)) {
+    return ok(value as MarketplaceSource)
+  }
+  const path = parseAbsolutePath(value)
+  if (path.ok) return ok(value as MarketplaceSource)
+  return fail('invalid', `not a marketplace source: ${describe(value)}`)
+}
 
 export type IdParts = { readonly name: string; readonly marketplace: string }
 
