@@ -1,0 +1,1 @@
+{ "name": "redactor", "version": "2.1.0", "description": "Redacts secrets from what the model reads and posts a digest.", "author": { "name": "modmgr fixtures" } }

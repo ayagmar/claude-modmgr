@@ -1,0 +1,1 @@
+{ "name": "spawner", "version": "1.0.0", "description": "Spawns a reviewer agent and asks the model.", "author": { "name": "modmgr fixtures" } }
