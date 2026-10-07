@@ -106,7 +106,12 @@ export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
 
 export type Finish =
   | { readonly ok: true; readonly unchanged?: boolean; readonly keptData?: boolean }
-  | { readonly ok: false; readonly error: { readonly kind: string; readonly message: string } }
+  | {
+      readonly ok: false
+      readonly error: { readonly kind: string; readonly message: string }
+      /** What a declared command the job stopped on showed (F25), for the review that accepts it. */
+      readonly shown?: Job['shown']
+    }
   | { readonly cancelled: true }
 
 export const finish = (jobs: readonly Job[], id: string, now: number, how: Finish): Job[] =>
@@ -122,7 +127,8 @@ export const finish = (jobs: readonly Job[], id: string, now: number, how: Finis
         ...(how.keptData === undefined ? {} : { keptData: how.keptData }),
       }
     }
-    return { ...job, state: 'failed', endedAt: now, error: how.error }
+    const failed: Job = { ...job, state: 'failed', endedAt: now, error: how.error }
+    return how.shown === undefined ? failed : { ...failed, shown: how.shown }
   })
 
 /** Appends streamed output, sanitised, keeping the last TAIL_LINES lines. */

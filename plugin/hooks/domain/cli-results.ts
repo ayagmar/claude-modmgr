@@ -106,6 +106,8 @@ export type Marketplace = {
   readonly name: string
   readonly source: string
   readonly location?: string
+  /** Where its catalogue and relative plugin folders sit on disk (a clone or the folder itself). */
+  readonly installLocation?: AbsolutePath
 }
 
 export type Details = {
@@ -279,6 +281,7 @@ export const parseMarketplaces = (run: CliRun): Result<Parsed<Marketplace>> => {
         name,
         source,
         location: str(value, 'repo') ?? str(value, 'url') ?? str(value, 'path'),
+        installLocation: optionalPath(value, 'installLocation'),
       })
     }),
   )
@@ -318,15 +321,17 @@ export const parseShownCommand = (value: unknown): ShownCommand | undefined => {
  */
 export const parseOpResult = (run: CliRun): Result<OpOutcome> => {
   const line = lastJsonObject(run.stdout)
+  // Said with or without a result line: the acceptance was refused here (C4, F27).
+  if (IGNORED_IN_SESSION.test(run.stdout) || IGNORED_IN_SESSION.test(run.stderr)) {
+    const code = line === undefined ? undefined : str(line, 'failureCode')
+    return fail('rejected', 'Claude Code ignored the acceptance from here', code)
+  }
   if (line === undefined) return noJson(run)
   const message = sanitize(str(line, 'message') ?? '', { max: MESSAGE_MAX })
   const command = str(line, 'command') ?? 'unknown'
   const code = str(line, 'failureCode')
   const shown = parseShownCommand(line.shownCommand)
 
-  if (IGNORED_IN_SESSION.test(run.stdout) || IGNORED_IN_SESSION.test(run.stderr)) {
-    return fail('rejected', 'Claude Code ignored the acceptance from here', code)
-  }
   if (shown !== undefined && str(line, 'outcome') !== 'ok') {
     if (shown.acceptCommandMatched === true) {
       return fail('rejected', message || 'the declared command was not accepted', code)

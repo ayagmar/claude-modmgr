@@ -169,3 +169,21 @@ export const afterFollowed = (file: FetchedFile): ProbeStep => {
 /** Exponential backoff with a cap: 2 s, 4 s, 8 s … 5 min. */
 export const backoffMs = (attempt: number): number =>
   Math.min(300_000, 2000 * 2 ** Math.max(0, Math.min(attempt, 20)))
+
+/**
+ * What a cached kind is good for: the pinned commit of a remote source, or the
+ * version of a local one (its marketplace folder or clone moves with it). A
+ * cached `[key, kind]` whose key no longer matches is probed again.
+ */
+export const probeKey = (plan: ProbePlan, version: string | undefined): string | undefined =>
+  plan.kind === 'remote' ? plan.sha : plan.kind === 'local' ? `local:${version ?? '?'}` : undefined
+
+/**
+ * A local plan's folder: its marketplace's folder joined with the checked
+ * relative path, ending in `/` like a remote base. Undefined without a root.
+ */
+export const localBase = (root: string | undefined, path: string): string | undefined => {
+  if (root === undefined || !root.startsWith('/')) return undefined
+  const head = root.replace(/\/+$/, '')
+  return path === '' ? `${head}/` : `${head}/${path}/`
+}
