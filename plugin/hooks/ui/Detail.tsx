@@ -9,15 +9,8 @@ import type { RenderElement } from 'claude-code'
 import type { ModDetail, ModRow, View } from '../../types/index.d.ts'
 import { groupByReach, notableOf } from '../domain/capabilities.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { partsLabel, whyLocked } from '../domain/view.ts'
+import { bytesLabel, partsLabel, whyLocked, whyNoRemove, whyNoUpdate } from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
-
-const bytes = (n: number): string =>
-  n < 1024
-    ? `${n} B`
-    : n < 1024 * 1024
-      ? `${Math.round(n / 1024)} KB`
-      : `${(n / 1048576).toFixed(1)} MB`
 
 /** The reach groups that are only drawing: named on one line, not explained. */
 const QUIET = new Set(['display'])
@@ -39,6 +32,18 @@ const groupsOf = (detail: ModDetail | null) =>
   detail?.caps === undefined ? [] : groupByReach(detail.caps)
 const notableFor = (detail: ModDetail | null) =>
   detail?.caps === undefined ? [] : notableOf(detail.caps)
+/** The notable items its last update added (PLAN §2.2), drawn apart from the rest. */
+const newFor = (detail: ModDetail | null) => {
+  const added = detail?.capsNew?.added ?? []
+  return notableFor(detail).filter(item => added.includes(item.id))
+}
+const oldFor = (detail: ModDetail | null) => {
+  const added = detail?.capsNew?.added ?? []
+  return notableFor(detail).filter(item => !added.includes(item.id))
+}
+/** Why `u` isn't offered, when it isn't for another reason than the lock line's. */
+const updateNote = (row: ModRow): string | undefined =>
+  whyLocked(row) === undefined ? whyNoUpdate(row) : undefined
 const detailFor = (how: DetailHow): ModDetail | null =>
   how.row !== undefined && how.detail?.id === how.row.id ? how.detail : null
 
@@ -48,9 +53,15 @@ const fullRows = (how: DetailHow): number => {
   if (row === undefined) return 1
   const detail = detailFor(how)
   const staged = how.staged.has(row.id)
-  const head = 2 + (how.actions ? 1 : 0) + (whyLocked(row) === undefined ? 0 : 1) + (staged ? 1 : 0)
+  const head =
+    2 +
+    (how.actions ? 1 : 0) +
+    (whyLocked(row) === undefined ? 0 : 1) +
+    (how.actions && updateNote(row) !== undefined ? 1 : 0) +
+    (staged ? 1 : 0)
   if (detail === null) return head + 1
-  const notable = notableFor(detail)
+  const fresh = newFor(detail)
+  const notable = oldFor(detail)
   const groups = groupsOf(detail)
   const extras =
     (detail.mixedCounts !== undefined && partsLabel(detail.mixedCounts) !== '') ||
@@ -58,6 +69,7 @@ const fullRows = (how: DetailHow): number => {
     detail.dataBytes !== undefined
   return (
     head +
+    (fresh.length === 0 ? 0 : 1 + 2 * fresh.length) +
     (notable.length === 0 ? 0 : 1 + 2 * notable.length) +
     1 +
     Math.max(
@@ -92,7 +104,8 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
   const marketplace = row.id.slice(row.id.indexOf('@') + 1)
   const locked = whyLocked(row)
   const staged = how.staged.has(row.id) ? view.staged[row.id] : undefined
-  const notable = notableFor(detail)
+  const fresh = newFor(detail)
+  const notable = oldFor(detail)
   const groups = groupsOf(detail)
   const extras: string[] = []
   if (detail?.mixedCounts !== undefined) {
@@ -101,7 +114,7 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
   }
   if (detail?.tokens !== undefined && detail.tokens > 0)
     extras.push(`~${detail.tokens} tokens per session`)
-  if (detail?.dataBytes !== undefined) extras.push(`data ${bytes(detail.dataBytes)}`)
+  if (detail?.dataBytes !== undefined) extras.push(`data ${bytesLabel(detail.dataBytes)}`)
 
   const compact = fullRows(how) > how.rows
 
@@ -131,6 +144,22 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
                 label: toggleLabel,
                 onPress: () => v.act.toggle(row.id),
               })}
+          {how.readOnly || whyNoUpdate(row) !== undefined
+            ? null
+            : KeyButton(v, {
+                action: 'update',
+                on: 'detail',
+                label: 'update',
+                onPress: () => v.act.update(row.id),
+              })}
+          {how.readOnly || whyNoRemove(row) !== undefined
+            ? null
+            : KeyButton(v, {
+                action: 'remove',
+                on: 'detail',
+                label: 'remove',
+                onPress: () => v.act.remove(row.id),
+              })}
           {KeyButton(v, {
             action: 'copy',
             on: 'detail',
@@ -144,6 +173,11 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
           {GLYPH.locked} {locked}
         </Text>
       )}
+      {how.actions && updateNote(row) !== undefined ? (
+        <Text dimColor wrap="truncate-end">
+          {GLYPH.update} {updateNote(row)}
+        </Text>
+      ) : null}
       {staged === undefined ? null : (
         <Text color={TONE.warn}>
           staged: {staged ? 'on' : 'off'} after apply (s), after a reload
@@ -153,6 +187,28 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
         <Text dimColor>Reading what it can do…</Text>
       ) : (
         <Box flexDirection="column">
+          {fresh.length === 0 || detail.capsNew === undefined ? null : (
+            <Box flexDirection="column">
+              <Text bold color={TONE.warn}>
+                New since {sanitize(detail.capsNew.since, { max: 20 })}
+              </Text>
+              {fresh.map(item => (
+                <Box flexDirection="column">
+                  <Box flexDirection="row" gap={1}>
+                    <Text color={TONE.warn}>{GLYPH.notable}</Text>
+                    <Text>{item.text}</Text>
+                  </Box>
+                  {compact ? null : (
+                    <Box paddingLeft={2}>
+                      <Text dimColor wrap="truncate-end">
+                        {item.because.join(' ')}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          )}
           {notable.length === 0 ? null : (
             <Box flexDirection="column">
               {Heading(v, 'Notable')}

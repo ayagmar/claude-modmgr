@@ -3,7 +3,7 @@
 // composer presses a band Button, F12). Undefined: the band passes.
 
 import type { RenderElement } from 'claude-code'
-import { bandOf } from '../domain/view.ts'
+import { bandOf, summaryOf } from '../domain/view.ts'
 import { KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
 export const drawBand = async (
@@ -11,8 +11,16 @@ export const drawBand = async (
   props: { readonly hasSurvey: boolean; readonly isWorking: boolean },
 ): Promise<RenderElement | undefined> => {
   if (props.hasSurvey) return undefined
-  const [attention, queue] = await Promise.all([v.read('attention'), v.read('queue')])
-  const band = bandOf({ attention, queue, isWorking: props.isWorking })
+  const [attention, queue, mods] = await Promise.all([
+    v.read('attention'),
+    v.read('queue'),
+    v.read('mods'),
+  ])
+  // The same summary the status line and the pane title are drawn from.
+  const band = bandOf(summaryOf({ attention, queue, mods }), {
+    dismissed: attention.dismissed,
+    isWorking: props.isWorking,
+  })
   if (band === undefined) return undefined
   const { Box, Text } = v.el
   return (

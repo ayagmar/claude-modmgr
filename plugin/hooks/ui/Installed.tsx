@@ -35,6 +35,8 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   if (row.problems > 0) flags.push({ text: `${GLYPH.problem}${row.problems}`, color: TONE.bad })
   if (row.notableCount > 0)
     flags.push({ text: `${GLYPH.notable}${row.notableCount}`, color: TONE.accent })
+  // An update added notable capabilities the person hasn't seen (PLAN §2.2).
+  if (row.capsNew !== undefined) flags.push({ text: 'new', color: TONE.warn })
   return flags
 }
 
