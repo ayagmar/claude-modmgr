@@ -3,6 +3,11 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["test", "scripts", "vitest.config.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "vendor/claude-code-types/2.1.292/claude-code.d.ts",
+    "test",
+    "scripts",
+    "vitest.config.ts"
+  ],
+  "exclude": ["node_modules", "test/fixture-mods"]
 }
