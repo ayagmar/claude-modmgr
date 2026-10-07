@@ -27,17 +27,28 @@ Run before every push; CI runs the same steps.
 
 ```sh
 pnpm biome ci .
-pnpm tsc -p plugin --noEmit
-pnpm vitest run --coverage
-claude plugin validate --strict --json plugin
-claude plugin validate .
-claude plugin test plugin
+pnpm tsc -p plugin --noEmit && pnpm tsc -p tsconfig.json --noEmit
+pnpm vitest run --coverage   # domain + services, ≥ 95 % lines and branches
+pnpm validate                # validate --strict with modmgr's expected verdicts, then the marketplace
+pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on surfaces
 ```
+
+`pnpm gate` runs all of it. `pnpm validate` and `pnpm test:plugin` use a throwaway `CLAUDE_CONFIG_DIR`.
+
+## Tests
+
+- **Domain** (`test/domain/`): pure functions, table-driven, fixtures from the real CLI.
+- **Services** (`test/services/`): vitest over fake ports (`fakes.ts`: a clock that moves only when told, a store with
+  the engine's 4 MiB limit, in-memory state, and a scripted CLI; `cli-world.ts` answers from the captured fixtures).
+- **Plugin** (`plugin/tests/`): `claude plugin test` against the real engine. Every `$` call needs an answer beneath the
+  plugin; `harness.ts` plays that host (state with versions, a fake CLI, `mock.clock`/`store`/`env`). A test makes a
+  call reject with `{ deny }` (a throwing test hook is skipped), and observes store writes through `h.stored(key)`.
 
 ## Generated files
 
 - `plugin/hooks/domain/explanations.ts`: `pnpm explanations` (from the vendored d.ts; a test fails when stale).
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
+- `plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes
