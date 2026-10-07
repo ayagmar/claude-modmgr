@@ -9,6 +9,7 @@
 import { RELOADED_WITH_MODMGR, takeOver, tookOverReload } from '../domain/jobs.ts'
 import { readPrefs } from '../domain/store-schema.ts'
 import { probeAndRecord } from './capability-probe.ts'
+import { echoLine } from './job-runner.ts'
 import type { Runtime } from './runtime.ts'
 
 export const MODS_DESCRIPTION = 'Discover, inspect, toggle and update mods'
@@ -27,11 +28,9 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
   })
   // The reload that restarted this module applied what the batch changed (F54).
   if (reloaded) {
-    await ports.state.update('attention', attention => ({
-      ...attention,
-      reloadPending: false,
-      lastReload: RELOADED_WITH_MODMGR,
-    }))
+    await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
+    // Said for a while, as the runner's own echo is (review R-M4-4).
+    await echoLine(ports, RELOADED_WITH_MODMGR)
   }
   ports.clock.after(0, () => {
     void background(rt, { fresh })
@@ -75,9 +74,23 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
 }
 
 /**
- * A turn started or ended (`turn.start`, `turn.complete`): the detector probes
- * only while none runs (PLAN §2.3, idle-only), and resumes when it ends.
+ * The turns running now, by id (review R-M4-2): a subagent's run raises no
+ * `turn.start` and its `turn.complete` carries `agentId` (d.ts TurnCompleteFields),
+ * so only the main loop's own start and end count. The detector probes, and
+ * M5b's scheduler fetches, only while none runs (PLAN §2.3, idle-only).
  */
-export const onTurn = (rt: Runtime | undefined, busy: boolean): void => {
-  rt?.detector.setBusy(busy)
+export const onTurnStart = (rt: Runtime | undefined, turnId: string): void => {
+  if (rt === undefined) return
+  rt.turns.add(turnId)
+  rt.detector.setBusy(true)
+}
+
+export const onTurnEnd = (
+  rt: Runtime | undefined,
+  turnId: string,
+  agentId: string | undefined,
+): void => {
+  if (rt === undefined || agentId !== undefined) return
+  rt.turns.delete(turnId)
+  rt.detector.setBusy(rt.turns.size > 0)
 }

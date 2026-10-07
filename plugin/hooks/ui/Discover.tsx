@@ -160,7 +160,11 @@ export const FoundDetail = (
       <Text dimColor wrap="truncate-end">
         from {row.source}
       </Text>
-      {notable === undefined ? (
+      {row.unread !== undefined ? (
+        <Text color={TONE.warn} wrap="truncate-end">
+          Couldn't read what it can do: {sanitize(row.unread, { max: 160 })} (r retries)
+        </Text>
+      ) : notable === undefined ? (
         <Text dimColor>
           {row.local === true
             ? 'Reading what it can do…'

@@ -277,6 +277,8 @@ export const createActions = (
 
   return {
     tab: safely('tab', async tab => {
+      // A review on the stack and in state go together (review R-M4-9).
+      await dropReview()
       await setView(view => ({ ...quiet(view), tab, stack: [] }))
       if (tab === 'discover' && rt !== undefined) {
         // Read at the first visit, then at most every few hours (PLAN §2.3).
@@ -393,7 +395,7 @@ export const createActions = (
       // ring would land on a row the refresh is about to take away (R-M3b-8).
       const gone = review.targets.find(target => target.op === 'remove')?.id
       // An entry installed leaves the catalogue: its Discover detail goes too.
-      const installed = review.action === 'install'
+      const installed = review.action === 'install' && (await state.read('view')).tab === 'discover'
       const mods = await state.read('mods')
       await setView(view => {
         const staged = Object.fromEntries(
@@ -523,16 +525,17 @@ export const createActions = (
       if (view.found === id) return
       await setView(current => ({ ...quiet(current), found: id }))
       await showCatalog()
-      // A local entry beside the list (the split) says what it can do too; read once.
-      if (rt?.catalog.folderOf(id) !== undefined) await rt.catalog.inspect(id)
+      // A local entry beside the list (the split) says what it can do too: read in
+      // the background, never on the ring's path (review R-M4-1); the redraw follows.
+      void rt?.catalog.inspect(id)
     }),
 
     openFound: safely('open found', async id => {
       await setView(view => pushOverlay({ ...quiet(view), found: id }, 'detail'))
       await showCatalog()
       await ringToOverlay()
-      // A local entry is read now: the detail and the review say what it can do.
-      await rt?.catalog.inspect(id)
+      // A local entry is read now: the detail redraws when it lands.
+      void rt?.catalog.inspect(id)
     }),
 
     install: safely('install', async id => {

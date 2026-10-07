@@ -119,6 +119,8 @@ describe('the catalogue', () => {
     await act.cycleKind()
     await act.openFound(SDK)
     expect(w.state.values.view.stack).toEqual(['detail'])
+    // Read in the background (R-M4-1): the detail redraws when it lands.
+    await rt.catalog.inspect(SDK)
     expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)?.notable).toContain(
       'starts-model-calls',
     )
@@ -165,7 +167,8 @@ describe('the detector', () => {
     expect(catalog.kindOf(AWS)).toBe('mod')
     expect(catalog.kindOf(SDK)).toBe('mod')
     expect(store.get('detect')[AWS]?.[0]).toBe('097fe8ad56d8a1d5e2c81d7880adf145553cf244')
-    expect(w.state.values.detect).toMatchObject({ found: 2, running: false, total: 201 })
+    // A command source can never be checked: it isn't counted (R-M4-6).
+    expect(w.state.values.detect).toMatchObject({ found: 2, running: false, total: 200 })
     // A 404 hooks.json falls back to the manifest.
     expect(w.http.gets).toContain(
       'https://raw.githubusercontent.com/42Crunch-AI/claude-plugins/faf5305385de8afed9468904e8639be737aff39e/plugins/api-security-testing/.claude-plugin/plugin.json',

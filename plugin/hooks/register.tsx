@@ -30,7 +30,7 @@ import type {
 } from './ports.ts'
 import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
-import { MODS_DESCRIPTION, onSessionStart, onTurn } from './services/lifecycle.ts'
+import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
@@ -229,7 +229,7 @@ export const register: Register = (on, options) => {
 
   // Observed only: the detector probes while no turn runs (PLAN §2.3).
   on('turn.start', async (_$, e, next) => {
-    onTurn(runtime, true)
+    onTurnStart(runtime, e.turnId)
     return next(e)
   }).catch((_$, e, next) => next(e))
 
@@ -237,7 +237,7 @@ export const register: Register = (on, options) => {
     try {
       return await next(e)
     } finally {
-      onTurn(runtime, false)
+      onTurnEnd(runtime, e.turnId, e.agentId)
     }
   }).catch((_$, e, next) => next(e))
 

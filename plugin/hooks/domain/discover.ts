@@ -41,6 +41,12 @@ export type Inspection = {
   readonly hasModule: boolean
 }
 
+/** A local entry modmgr tried to read and couldn't, and why (review R-M4-5). */
+export type Unread = { readonly failed: string }
+
+export const isUnread = (value: Inspection | Unread | undefined): value is Unread =>
+  value !== undefined && 'failed' in value
+
 /**
  * The review of installing `entry` (`i`): the scope (user by default), what it
  * can do when modmgr could read it, else that it couldn't (a remote source is
@@ -49,8 +55,9 @@ export type Inspection = {
 export const installReview = (
   entry: { readonly id: string; readonly name: string; readonly version?: string | undefined },
   scope: InstallScope,
-  inspection: Inspection | undefined,
+  read: Inspection | Unread | undefined,
 ): ReviewRequest => {
+  const inspection = isUnread(read) ? undefined : read
   const review: ReviewRequest = {
     action: 'install',
     targets: [
@@ -64,7 +71,10 @@ export const installReview = (
     notable: (inspection?.notable ?? []).map(id => `${entry.name}: ${notableText(id)}`),
     changesRepoFile: scope !== 'user',
   }
-  return inspection === undefined ? { ...review, uninspected: true } : review
+  if (inspection !== undefined) return review
+  return isUnread(read)
+    ? { ...review, uninspected: true, unreadable: read.failed }
+    : { ...review, uninspected: true }
 }
 
 /** The same review at another scope (the review's Select). */
@@ -90,7 +100,11 @@ export const acceptReview = (job: Job): ReviewRequest | undefined => {
   if (shown === undefined || target === undefined) return undefined
   if (job.kind !== 'install' && job.kind !== 'update') return undefined
   const scope = job.args?.scope
-  const declared = { text: shown.command, sha256: shown.sha256 }
+  const declared = {
+    text: shown.command,
+    sha256: shown.sha256,
+    ...(shown.truncated === true ? { truncated: true } : {}),
+  }
   return {
     action: job.kind,
     targets: [{ id: target, op: job.kind, ...(scope === undefined ? {} : { scope }) }],

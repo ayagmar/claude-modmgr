@@ -28,6 +28,8 @@ export type Runtime = {
   readonly catalog: Catalog
   /** Finds which catalogue entries are mods, while no turn runs. */
   readonly detector: Detector
+  /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
+  readonly turns: Set<string>
   /** Job ids unique across modules: the owner, then a counter. */
   newJobId(): string
   dispose(): void
@@ -101,6 +103,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     chrome,
     catalog,
     detector,
+    turns: new Set(),
     newJobId() {
       counter += 1
       return `${owner}-${counter}`

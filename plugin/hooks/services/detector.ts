@@ -28,11 +28,14 @@ import type { Catalog } from './catalog.ts'
 import type { StoreService } from './store.ts'
 
 export const DETECT_CONCURRENCY = 6
-/** Network requests per session (PLAN §2.3: ≈ 50 s of idle probing, F28). */
+/**
+ * Network requests per session, about (PLAN §2.3: ≈ 50 s of idle probing, F28):
+ * six workers check it before each entry, so the last few may overshoot by five.
+ */
 export const DETECT_BUDGET = 600
 /** Results gathered before one cache write (each store write rewrites the file, F16). */
 export const DETECT_FLUSH = 50
-/** Retries of one entry after 429/5xx before it waits for the next session. */
+/** Tries of one entry after its first 429/403/5xx before it waits for the next session. */
 export const DETECT_RETRIES = 3
 
 export type DetectorPorts = Pick<Ports, 'http' | 'fs' | 'state' | 'clock'>
@@ -68,6 +71,8 @@ export const createDetector = (
   let busy = false
   let disposed = false
   let running: Promise<void> | undefined
+  // Asked to start while running: go again over what the catalogue lists then (R-M4-6).
+  let restart = false
   let pausedUntil = 0
   let waiters: Array<() => void> = []
   let pending = new Map<string, DetectEntry>()
@@ -87,14 +92,19 @@ export const createDetector = (
     const cache = deps.store.get('detect')
     let checked = 0
     let found = 0
+    // Only entries that can be checked count: a command source or an unpinned
+    // repository never can, so "checked n/total" can reach its total (R-M4-6).
+    let total = 0
     for (const entry of entries) {
       const key = probeKey(planProbe(entry), entry.version)
+      if (key === undefined) continue
+      total += 1
       const cached = cache[entry.id]
-      if (key === undefined || cached === undefined || cached[0] !== key) continue
+      if (cached === undefined || cached[0] !== key) continue
       checked += 1
       if (cached[1] === 'mod') found += 1
     }
-    await ports.state.update('detect', () => ({ checked, total: entries.length, found, running }))
+    await ports.state.update('detect', () => ({ checked, total, found, running }))
   }
 
   const flush = async (): Promise<void> => {
@@ -148,7 +158,11 @@ export const createDetector = (
     })
     for (let hops = 0; hops < 2 && 'fetch' in step; hops += 1) {
       if (remote && requests >= budget) return undefined
-      const file = await fetchFile(step.fetch, remote)
+      // The followed path's segments are URL-encoded; a local read wants them as named (R-M4-12).
+      const location = remote
+        ? step.fetch
+        : base + decodeURIComponent(step.fetch.slice(base.length))
+      const file = await fetchFile(location, remote)
       step = step.stage === 'manifest' ? afterManifest(file, { base }) : afterFollowed(file)
     }
     if ('retry' in step) return 'retry'
@@ -156,6 +170,13 @@ export const createDetector = (
   }
 
   const run = async (): Promise<void> => {
+    do {
+      restart = false
+      await runOnce()
+    } while (restart && !disposed)
+  }
+
+  const runOnce = async (): Promise<void> => {
     const remoteOk = await deps.remoteAllowed()
     const cache = deps.store.get('detect')
     const queue: Work[] = []
@@ -197,7 +218,11 @@ export const createDetector = (
 
   return {
     start() {
-      if (disposed || running !== undefined) return
+      if (disposed) return
+      if (running !== undefined) {
+        restart = true
+        return
+      }
       running = run()
         .catch(error => {
           debug(`modmgr: detector stopped: ${String(error)}`)

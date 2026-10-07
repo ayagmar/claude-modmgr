@@ -9,6 +9,8 @@ import { tailLines } from './sanitize.ts'
 export type { Job, JobKind, JobQueue, JobState }
 
 export const JOBS_CAP = 50
+/** The longest declared command modmgr keeps to show; a longer one is accepted in a terminal. */
+export const SHOWN_MAX = 4000
 export const TAIL_LINES = 20
 /**
  * How long after a batch's last CLI settings write its reload may start: a

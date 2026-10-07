@@ -57,7 +57,7 @@ export const BINDINGS: readonly Binding[] = [
   {
     action: 'accept',
     hotkey: 'v',
-    label: 'review a declared install command',
+    label: 'review a declared command',
     on: ['installed', 'discover'],
   },
   {

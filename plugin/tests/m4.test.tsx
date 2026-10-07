@@ -51,7 +51,9 @@ for (const surface of SURFACES) {
     ).toBeDefined()
     await ui.press({ key: 'act:install' })
     await ui.redraw()
-    expect(await ui.find({ type: 'Text', text: 'Install aws-serverless' })).toBeDefined()
+    expect(
+      await ui.find({ type: 'Text', text: 'Install aws-serverless from claude-plugins-official' }),
+    ).toBeDefined()
     expect(await ui.find({ key: 'scope' })).toBeDefined()
     await ui.select({ key: 'scope', value: 'local' })
     await ui.redraw()
@@ -134,4 +136,96 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
     expect(h.argvs).toContain('plugin marketplace add anthropics/claude-plugins-official --json')
     await ui.unmount()
   }
+})
+
+const reviewState = (declared: { text: string; sha256: string; truncated?: boolean }) => ({
+  view: {
+    tab: 'discover',
+    stack: ['review'],
+    query: '',
+    search: '',
+    kind: 'mods',
+    sort: 'name',
+    staged: {},
+  },
+  review: {
+    action: 'install',
+    targets: [{ id: CMD, op: 'install', scope: 'user' }],
+    notable: [],
+    changesRepoFile: false,
+    declaredCommand: declared,
+  },
+})
+
+test('a declared command with hidden characters says so; one too long, or refused here, goes to a terminal', async ($, on) => {
+  const hidden = `rm -rf /tmp/x${String.fromCharCode(0x202e)}harmless`
+  const h = host(on, { state: reviewState({ text: hidden, sha256: SHA }) })
+  await $.session.start(START)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface, PANE(64, 40))
+    expect(await ui.find({ type: 'Text', text: /hidden or control characters/ })).toBeDefined()
+    expect((await ui.find({ key: 'act:confirm' }))?.props.label).toBe('run it and install')
+    await ui.unmount()
+  }
+  expect(h.read('review')).toMatchObject({ action: 'install' })
+})
+
+test('a declared command too long to show is accepted in a terminal, not here', async ($, on) => {
+  const h = host(on, { state: reviewState({ text: 'x', sha256: SHA, truncated: true }) })
+  await $.session.start(START)
+  const ui = await mountPane($, 'terminal', PANE(64, 40))
+  expect(await ui.find({ key: 'act:confirm' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /longer than modmgr shows/ })).toBeDefined()
+  await ui.press({ key: 'act:copy' })
+  expect(h.copies).toEqual([`claude plugin install ${CMD}`])
+})
+
+test('when Claude Code refuses acceptances here, the review offers the terminal command', async ($, on) => {
+  const h = host(on, {
+    state: {
+      ...reviewState({ text: '/tmp/emit.sh', sha256: SHA }),
+      degraded: { process: false, network: false, acceptCommand: true },
+    },
+  })
+  await $.session.start(START)
+  const ui = await mountPane($, 'desktop', PANE(64, 40))
+  expect(await ui.find({ key: 'act:confirm' })).toBeUndefined()
+  expect(
+    await ui.find({ type: 'Text', text: /refuses to accept it from this session/ }),
+  ).toBeDefined()
+  await ui.press({ key: 'act:copy' })
+  expect(h.copies).toEqual([`claude plugin install ${CMD}`])
+})
+
+test('on mobile the install review says its scope (no picker there)', async ($, on) => {
+  host(on, {
+    state: {
+      view: {
+        tab: 'discover',
+        stack: ['review'],
+        query: '',
+        search: '',
+        kind: 'mods',
+        sort: 'name',
+        staged: {},
+      },
+      review: {
+        action: 'install',
+        targets: [{ id: AWS, op: 'install', scope: 'user' }],
+        notable: [],
+        changesRepoFile: false,
+        uninspected: true,
+      },
+    },
+  })
+  await $.session.start(START)
+  const ui = await $.ui.mount({
+    plugin: 'modmgr',
+    surface: 'mobile',
+    component: 'Pane',
+    requestId: 'modmgr',
+    props: PANE(64, 40),
+  })
+  expect(await ui.find({ key: 'scope' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Install aws-serverless/ })).toBeDefined()
 })

@@ -3,10 +3,18 @@
 
 import type { RenderElement } from 'claude-code'
 import type { Job, ModRow, ReviewOp, ReviewRequest } from '../../types/index.d.ts'
-import { INSTALL_SCOPES, MARKETPLACE_KEY, SCOPE_LABEL } from '../domain/discover.ts'
+import { INSTALL_SCOPES, isInstallScope, MARKETPLACE_KEY, SCOPE_LABEL } from '../domain/discover.ts'
+import { SHOWN_MAX } from '../domain/jobs.ts'
 import { helpFor, type KeySurface } from '../domain/keymap.ts'
 import { hasHiddenCharacters, sanitize } from '../domain/sanitize.ts'
-import { bytesLabel, commandLine, nameOf, partsLabel, specsOf } from '../domain/view.ts'
+import {
+  bytesLabel,
+  commandLine,
+  marketplaceOf,
+  nameOf,
+  partsLabel,
+  specsOf,
+} from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
 const OP: Readonly<
@@ -30,7 +38,10 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
     case 'undo':
       return 'Undo the last batch'
     case 'install':
-      return only === undefined ? 'Install' : `Install ${name(only.id)}`
+      // From an untrusted catalogue: the marketplace beside the name (PLAN §7, R-M4-7).
+      return only === undefined
+        ? 'Install'
+        : `Install ${name(only.id)} from ${sanitize(marketplaceOf(only.id), { max: 40 })}`
     case 'marketplace':
       return 'Add a marketplace'
     default:
@@ -66,7 +77,9 @@ const reviewLines = (
   const { Box, Text, Select } = v.el
   const declared = review.declaredCommand ?? review.headersHelper
   // Claude Code refuses an acceptance from this session: confirm would be refused again.
-  const blocked = declared !== undefined && how.refused
+  // Refused from this session (C4), or too long to show whole (R-M4-8): accepted
+  // in a terminal, never here.
+  const blocked = declared !== undefined && (how.refused || declared.truncated === true)
   const terminal = blocked ? terminalCommand(review) : undefined
   // A mod being reinstalled is no longer a row: its id names it.
   const name = (id: string) =>
@@ -129,6 +142,7 @@ const reviewLines = (
   const scoped = review.targets[0]?.scope
   // The scope is chosen here (PLAN §2.3); a declared command's sha is bound to the
   // install it was shown for, so that review keeps its scope.
+  const scopeLabel = SCOPE_LABEL[isInstallScope(scoped) ? scoped : 'user']
   if (review.action === 'install' && declared === undefined && Select !== undefined) {
     push(
       <Select
@@ -138,14 +152,18 @@ const reviewLines = (
         value={scoped ?? 'user'}
         onSelect={value => v.act.scope(value)}
       />,
-      `scope ${SCOPE_LABEL.project}`,
+      `scope: ${scopeLabel} ▾`,
     )
+  } else if (review.action === 'install' && declared === undefined) {
+    // No picker on this surface: the scope is said, and it is the safe one.
+    push(<Text dimColor>{`scope: ${scopeLabel}`}</Text>, `scope: ${scopeLabel}`)
   }
   for (const target of review.targets) {
     const op = OP[target.op]
     const verb = review.action === 'install' && target.op === 'install' ? 'install' : op.verb
     const meta = [
       target.version === undefined ? '' : sanitize(target.version, { max: 20 }),
+      review.action === 'install' ? sanitize(marketplaceOf(target.id), { max: 40 }) : '',
       target.scope ?? '',
     ]
       .filter(part => part !== '')
@@ -205,8 +223,15 @@ const reviewLines = (
     say('Undo (z) reinstalls it from its marketplace.')
   }
   if (review.action === 'install' && review.uninspected === true && declared === undefined) {
-    say('modmgr reads what it can do once it is installed,')
-    say('and shows it in its detail then.')
+    if (review.unreadable !== undefined) {
+      // A local entry it tried to read and couldn't: not the same as a remote one (R-M4-5).
+      say("modmgr couldn't read what it can do before", TONE.warn)
+      say(`installing: ${sanitize(review.unreadable, { max: 160 })}`, TONE.warn)
+      say('Its detail says what it can do once installed.')
+    } else {
+      say('modmgr reads what it can do once it is installed,')
+      say('and shows it in its detail then.')
+    }
   }
   if (declared !== undefined) {
     say(
@@ -216,7 +241,7 @@ const reviewLines = (
       TONE.warn,
     )
     // Line for line, wrapped, never cut (PLAN §7); what sanitising removed is said.
-    for (const line of sanitize(declared.text, { max: 2000, multiline: true }).split('\n')) {
+    for (const line of sanitize(declared.text, { max: SHOWN_MAX, multiline: true }).split('\n')) {
       push(<Text bold>{`  ${line}`}</Text>, `  ${line}`)
     }
     if (hasHiddenCharacters(declared.text)) {
@@ -224,7 +249,11 @@ const reviewLines = (
       say('above: read it in a terminal before accepting.', TONE.bad)
     }
     say(`sha256 ${declared.sha256.slice(0, 16)}…`)
-    if (blocked) {
+    if (declared.truncated === true) {
+      say('It is longer than modmgr shows, so it is not', TONE.bad)
+      say('accepted here. Read and accept it in a terminal:', TONE.bad)
+      say(terminal ?? '', TONE.bad)
+    } else if (blocked) {
       say('Claude Code refuses to accept it from this session:', TONE.bad)
       say('accept it in /plugin, its details, or run this', TONE.bad)
       say(`in a terminal: ${terminal ?? ''}`, TONE.bad)

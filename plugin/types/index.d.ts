@@ -68,6 +68,8 @@ export type CatalogRow = {
   notable?: string[]
   /** Its files are on disk (a folder in its marketplace): modmgr can read it before installing. */
   local?: boolean
+  /** A local entry modmgr couldn't read: why (`r` tries again). */
+  unread?: string
 }
 
 export type JobKind =
@@ -103,7 +105,13 @@ export type Job = {
    * An install or update stopped on a marketplace-declared command (F25): what
    * the CLI showed, for the review that accepts it. Untrusted text.
    */
-  shown?: { kind: 'command_source' | 'entry_helper'; command: string; sha256: string }
+  shown?: {
+    kind: 'command_source' | 'entry_helper'
+    command: string
+    sha256: string
+    /** The command was longer than modmgr keeps: it can't be shown whole, so not accepted here. */
+    truncated?: boolean
+  }
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
@@ -149,8 +157,8 @@ export type ReviewRequest = {
   targets: ReviewTarget[]
   /** Notable capabilities of what turns on or comes back, as lines. */
   notable: string[]
-  declaredCommand?: { text: string; sha256: string }
-  headersHelper?: { text: string; sha256: string }
+  declaredCommand?: { text: string; sha256: string; truncated?: boolean }
+  headersHelper?: { text: string; sha256: string; truncated?: boolean }
   changesRepoFile: boolean
   /** The other parts of what turns off or is removed: skills, agents, MCP servers. */
   parts?: { skills: number; agents: number; mcp: number }
@@ -164,6 +172,8 @@ export type ReviewRequest = {
   undoes?: string
   /** An install: modmgr couldn't see what it can do before it's installed (a remote source). */
   uninspected?: boolean
+  /** An install of a local entry modmgr tried to read and couldn't: why. */
+  unreadable?: string
   /** A marketplace to add (`claude plugin marketplace add <source>`). */
   source?: string
 }
