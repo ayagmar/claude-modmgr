@@ -4,7 +4,10 @@
 // - ui/ imports domain/, ui/ and services' types only;
 // - only hooks/register.tsx spells `$.` (F36: `$` can't cross a file);
 // - hooks/ports.ts is types only, and services/ and ui/ import it as types;
-// - no `.catch` handler touches `$` (on re-entry its `$` calls reject, review M2).
+// - no `.catch` handler touches `$` (on re-entry its `$` calls reject, review M2);
+// - only register.tsx imports values from 'claude-code' (atom, read, update);
+// - every function in register.tsx that takes `$` is declared at the top level (F40);
+// - ui/ never names the process, store, env or command ports.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -14,9 +17,13 @@ const root = join(import.meta.dirname, '..')
 const hooks = join(root, 'plugin', 'hooks')
 const contract = join(root, 'plugin', 'types', 'index.d.ts')
 
+// plugin/.claude-plugin/types/ is the engine's own, laid by a live session (git-ignored).
+const ENGINE_TYPES = join(root, 'plugin', '.claude-plugin', 'types')
+
 const walk = (dir: string): string[] =>
   readdirSync(dir).flatMap(name => {
     const path = join(dir, name)
+    if (path === ENGINE_TYPES) return []
     return statSync(path).isDirectory() ? walk(path) : /\.(ts|tsx)$/.test(name) ? [path] : []
   })
 
@@ -105,6 +112,39 @@ describe('layering', () => {
       return /(^|[^\w$])\$\s*[.,)]/.test(code)
     })
     expect(spelling.map(file => relative(root, file))).toEqual([])
+  })
+
+  it('services never import ui', () => {
+    expect(violations('services', to => to !== 'ui')).toEqual([])
+  })
+
+  it("only register.tsx imports values from 'claude-code'", () => {
+    const valued = imports.filter(
+      imp =>
+        imp.specifier === 'claude-code' &&
+        !imp.typeOnly &&
+        relative(hooks, imp.from) !== 'register.tsx' &&
+        // `import { type A, type B }` is type-only too.
+        !/import\s*\{(\s*type\s+\w+\s*,?)+\s*\}/.test(readFileSync(imp.from, 'utf8')),
+    )
+    expect(valued.map(imp => relative(root, imp.from))).toEqual([])
+  })
+
+  it('register.tsx declares every $-taking function at the top level (F40)', () => {
+    const source = readFileSync(join(hooks, 'register.tsx'), 'utf8')
+    const builders = [...source.matchAll(/^([ \t]*)function\s+(\w+)\s*\(\s*\$/gm)]
+    expect(builders.length).toBeGreaterThan(0)
+    expect(builders.filter(match => (match[1] ?? '') !== '').map(match => match[2])).toEqual([])
+    // An arrow taking `$` as its only parameter, bound at any depth, is a nested builder.
+    expect(source).not.toMatch(/=\s*\(\s*\$\s*(?::[^)]*)?\)\s*(?::[^=]*)?=>/)
+  })
+
+  it('ui names no process, store, env or command port', () => {
+    const ui = files.filter(file => relative(hooks, file).startsWith('ui/'))
+    const reaching = ui.filter(file =>
+      /\b(ProcessPort|StorePort|EnvPort|CommandPort|Ports)\b/.test(readFileSync(file, 'utf8')),
+    )
+    expect(reaching.map(file => relative(root, file))).toEqual([])
   })
 
   it('ports.ts holds types only', () => {
