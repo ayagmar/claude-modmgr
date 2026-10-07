@@ -55,6 +55,8 @@ export type RunnerOptions = {
   readonly isInstalled?: (id: string) => Promise<boolean>
   /** After a drain in which a CLI write finished: refresh the installed list. */
   readonly onSettled?: () => Promise<unknown>
+  /** After each job finishes, with its final state (a marketplace job reloads the catalogue). */
+  readonly onFinished?: (job: Job) => void
   readonly debug?: (text: string) => void
 }
 
@@ -260,15 +262,20 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
     if (result.value.status === 'needs-acceptance') {
       const { shown, changed } = result.value
-      return failed(
+      const stopped = failed(
         {
           kind: 'conflict',
           message: changed
             ? 'the declared command changed since it was reviewed'
-            : 'this install runs a declared command that needs review first',
+            : `this ${job.kind} runs a declared command that needs review first`,
         },
         [sanitize(shown.command, { max: 300 })],
       )
+      // Kept as the CLI showed it (capped); the review draws it sanitised and verbatim.
+      const kept = { kind: shown.kind, command: shown.command.slice(0, 4000), sha256: shown.sha256 }
+      return 'error' in stopped.finish
+        ? { ...stopped, finish: { ...stopped.finish, shown: kept } }
+        : stopped
     }
     const done = result.value
     // An update the CLI found current changed nothing, like an enable of an enabled mod.
@@ -323,6 +330,8 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
         prune(finish(appendTail(jobs, next.id, outcome.tail), next.id, endedAt, outcome.finish)),
       )
       record(next, endedAt, outcome)
+      const finished = (await ports.state.read('queue')).jobs.find(job => job.id === next.id)
+      if (finished !== undefined) options.onFinished?.(finished)
       if (NEEDS_RELOAD.has(next.kind)) {
         wrote = true
         if ('ok' in outcome.finish && outcome.finish.ok && outcome.finish.unchanged !== true) {

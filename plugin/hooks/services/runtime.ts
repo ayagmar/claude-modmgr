@@ -4,10 +4,12 @@
 // one's in-flight work finishes on its own and then stops (it no longer owns
 // the queue).
 
-import type { Config } from '../domain/config.ts'
+import { type Config, trafficOff } from '../domain/config.ts'
 import type { StateKey } from '../domain/state.ts'
 import type { Ports, StatePort } from '../ports.ts'
+import { type Catalog, createCatalog } from './catalog.ts'
 import { type Chrome, createChrome } from './chrome.ts'
+import { createDetector, type Detector } from './detector.ts'
 import { createRunner, type Runner } from './job-runner.ts'
 import { createRegistry, type Registry } from './registry.ts'
 import { createStore, type StoreService } from './store.ts'
@@ -22,6 +24,10 @@ export type Runtime = {
   readonly runner: Runner
   /** The status line and the pane title. */
   readonly chrome: Chrome
+  /** Discover's catalogue (module memory). */
+  readonly catalog: Catalog
+  /** Finds which catalogue entries are mods, while no turn runs. */
+  readonly detector: Detector
   /** Job ids unique across modules: the owner, then a counter. */
   newJobId(): string
   dispose(): void
@@ -54,6 +60,22 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
   }
   const store = createStore(ports, { debug })
   const registry = createRegistry(ports, store, debug)
+  const catalog = createCatalog(ports, store, debug)
+  const detector = createDetector(ports, {
+    store,
+    catalog,
+    debug,
+    remoteAllowed: async () => {
+      if (!config.detectRemote) return false
+      const traffic = await ports.env.nonessentialTraffic().catch(() => undefined)
+      return !trafficOff(traffic)
+    },
+  })
+  /** A marketplace or an install changes what the catalogue lists. */
+  const recatalog = (): void => {
+    if (!catalog.isLoaded()) return
+    void catalog.load({ force: true }).then(() => detector.start())
+  }
   const runner = createRunner(ports, {
     owner,
     store,
@@ -62,6 +84,10 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
       return registry.entry(id) !== undefined
     },
     onSettled: () => registry.refresh(),
+    onFinished: job => {
+      const lists = ['install', 'remove', 'marketplace-add', 'marketplace-update']
+      if (job.state === 'ok' && lists.includes(job.kind)) recatalog()
+    },
     debug,
   })
   let counter = 0
@@ -73,12 +99,15 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     registry,
     runner,
     chrome,
+    catalog,
+    detector,
     newJobId() {
       counter += 1
       return `${owner}-${counter}`
     },
     dispose() {
       runner.dispose()
+      detector.dispose()
       void store.flush()
     },
   }

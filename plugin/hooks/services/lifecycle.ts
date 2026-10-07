@@ -56,3 +56,11 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)
   }
 }
+
+/**
+ * A turn started or ended (`turn.start`, `turn.complete`): the detector probes
+ * only while none runs (PLAN §2.3, idle-only), and resumes when it ends.
+ */
+export const onTurn = (rt: Runtime | undefined, busy: boolean): void => {
+  rt?.detector.setBusy(busy)
+}

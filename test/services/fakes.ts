@@ -370,6 +370,32 @@ export class FakeUi implements UiPort {
   }
 }
 
+/** A network that answers by URL; unanswered URLs are 404. */
+export class FakeHttp {
+  gets: string[] = []
+  answers = new Map<string, { status: number; text: string } | { throws: string }>()
+
+  get = async (url: string): Promise<{ status: number; text: string }> => {
+    this.gets.push(url)
+    const answer = this.answers.get(url) ?? { status: 404, text: '' }
+    if ('throws' in answer) throw new Error(answer.throws)
+    return answer
+  }
+}
+
+/** Files by absolute path; a missing one rejects as the engine's read does. */
+export class FakeFs {
+  reads: string[] = []
+  files = new Map<string, string>()
+
+  read = async (path: string): Promise<string> => {
+    this.reads.push(path)
+    const text = this.files.get(path)
+    if (text === undefined) throw new Error(`ENOENT: ${path}`)
+    return text
+  }
+}
+
 export type World = {
   ports: Ports
   clock: FakeClock
@@ -378,6 +404,8 @@ export type World = {
   process: FakeProcess
   command: FakeCommand
   ui: FakeUi
+  http: FakeHttp
+  fs: FakeFs
 }
 
 export const world = (
@@ -389,7 +417,11 @@ export const world = (
   const process = new FakeProcess(clock)
   const command = new FakeCommand()
   const ui = new FakeUi()
+  const http = new FakeHttp()
+  const fs = new FakeFs()
   return {
+    http,
+    fs,
     clock,
     state,
     store,
@@ -405,6 +437,8 @@ export const world = (
       session: fakeSession(options.root),
       command,
       ui,
+      http,
+      fs,
     },
   }
 }

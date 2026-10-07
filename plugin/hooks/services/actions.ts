@@ -5,6 +5,19 @@
 
 import type { RenderSurface } from 'claude-code'
 import type { ReviewRequest, Tab, View } from '../../types/index.d.ts'
+import {
+  acceptReview,
+  awaitingAcceptance,
+  foundKey,
+  foundRow,
+  installReview,
+  isInstallScope,
+  MARKETPLACE_KEY,
+  marketplaceReview,
+  nextKind,
+  nextSort,
+  withScope,
+} from '../domain/discover.ts'
 import { enqueueReload, prune, stillUndoes, undoNeedsReview, undoPlan } from '../domain/jobs.ts'
 import {
   closedView,
@@ -42,7 +55,10 @@ import type { Runtime } from './runtime.ts'
 export type ActionPorts = Pick<Ports, 'state' | 'ui'>
 
 /** The parts of the module's runtime an action reaches; absent before the first `session.start`. */
-export type ActionRuntime = Pick<Runtime, 'registry' | 'runner' | 'newJobId' | 'chrome'>
+export type ActionRuntime = Pick<
+  Runtime,
+  'registry' | 'runner' | 'newJobId' | 'chrome' | 'catalog' | 'detector'
+>
 
 export type Actions = {
   tab(tab: Tab): Promise<void>
@@ -82,6 +98,24 @@ export type Actions = {
   copy(text: string, surface?: RenderSurface): Promise<void>
   /** Opens the dialog from the band. */
   openPane(): Promise<void>
+  /** The ring landed on a Discover row: it becomes the selection (the window follows). */
+  focusFound(id: string): Promise<void>
+  /** Enter on a Discover row: its detail (a local entry is read with `validate` first). */
+  openFound(id: string): Promise<void>
+  /** `i`: reviews installing the selected catalogue entry, or `id`. */
+  install(id?: string): Promise<void>
+  /** The install review's scope Select. */
+  scope(value: string): Promise<void>
+  /** `k`: the next kind filter. */
+  cycleKind(): Promise<void>
+  /** `o`: the next sort. */
+  cycleSort(): Promise<void>
+  /** `v`: reviews the declared command a stopped install or update showed. */
+  acceptShown(): Promise<void>
+  /** `m`: asks for a marketplace to add. */
+  addMarketplace(): Promise<void>
+  /** The marketplace field's Enter: reviews adding it, or says why it can't be one. */
+  submitMarketplace(text: string): Promise<void>
   /** The footer's close: the same `ui.close` as Esc, origin `plugin`. */
   close(): Promise<void>
   /** Hides the band's current line. */
@@ -187,10 +221,24 @@ export const createActions = (
 
   /** The ring back on the selected row once no overlay is on top. */
   const ringToSelection = async (): Promise<void> => {
-    const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
+    const [view, mods, page] = await Promise.all([
+      state.read('view'),
+      state.read('mods'),
+      state.read('catalogPage'),
+    ])
+    if (view.stack.length > 0) return
+    if (view.tab === 'discover') {
+      const found = foundRow(view, page)
+      if (found !== undefined) await ringTo(foundKey(found.id))
+      return
+    }
     const row = selectedRow(view, mods)
-    if (view.stack.length > 0 || row === undefined) return
-    await ringTo(rowKey(row.id))
+    if (row !== undefined) await ringTo(rowKey(row.id))
+  }
+
+  /** Discover's window follows its search and selection. */
+  const showCatalog = async (): Promise<void> => {
+    await rt?.catalog.show()
   }
 
   /** The ring onto what an overlay offers first: its safe default (review: cancel). */
@@ -199,6 +247,8 @@ export const createActions = (
     const top = topOverlay(view)
     if (top === undefined) return ringToSelection()
     if (top === 'review') return ringTo('act:cancel')
+    if (top === 'marketplace') return ringTo(MARKETPLACE_KEY)
+    if (top === 'detail' && view.tab === 'discover') return ringTo('act:install', 'act:copy')
     if (top === 'detail') return ringTo('act:toggle', 'act:copy')
     return ringTo(top === 'help' ? 'act:help' : 'act:jobs')
   }
@@ -223,6 +273,12 @@ export const createActions = (
   return {
     tab: safely('tab', async tab => {
       await setView(view => ({ ...quiet(view), tab, stack: [] }))
+      if (tab === 'discover' && rt !== undefined) {
+        // Read at the first visit, then at most every few hours (PLAN §2.3).
+        await rt.catalog.load()
+        await rt.catalog.show()
+        rt.detector.start()
+      }
       await ringToSelection()
     }),
 
@@ -382,6 +438,11 @@ export const createActions = (
 
     refresh: safely('refresh', async () => {
       if (rt === undefined) return
+      if ((await state.read('view')).tab === 'discover') {
+        await rt.catalog.load({ force: true })
+        rt.detector.start()
+        return
+      }
       await rt.registry.refresh()
       // A row the refresh flipped under a staged entry no longer changes (review R-M3a-3).
       const mods = await state.read('mods')
@@ -406,6 +467,11 @@ export const createActions = (
     }),
 
     filter: safely('filter', async text => {
+      if ((await state.read('view')).tab === 'discover') {
+        await setView(current => ({ ...quiet(current), search: text.slice(0, 100) }))
+        await showCatalog()
+        return
+      }
       const view = await setView(current => ({ ...quiet(current), query: text.slice(0, 100) }))
       // The split's detail follows the row the filter leaves selected.
       await select(selectedRow(view, await state.read('mods'))?.id)
@@ -416,6 +482,14 @@ export const createActions = (
     }),
 
     edge: safely('edge', async which => {
+      if ((await state.read('view')).tab === 'discover') {
+        const id = rt?.catalog.edge(which)
+        if (id === undefined) return
+        await setView(current => ({ ...quiet(current), found: id }))
+        await showCatalog()
+        await ui.focus(PANE_ID, foundKey(id)).catch(() => undefined)
+        return
+      }
       const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
       const rows = filterRows(mods, view.query)
       const row = which === 'first' ? rows[0] : rows.at(-1)
@@ -433,6 +507,75 @@ export const createActions = (
 
     openPane: safely('open pane', async () => {
       await openDialog({ focus: true })
+    }),
+
+    focusFound: safely('focus found', async id => {
+      const view = await state.read('view')
+      if (view.found === id) return
+      await setView(current => ({ ...quiet(current), found: id }))
+      await showCatalog()
+    }),
+
+    openFound: safely('open found', async id => {
+      await setView(view => pushOverlay({ ...quiet(view), found: id }, 'detail'))
+      await showCatalog()
+      await ringToOverlay()
+      // A local entry is read now: the detail and the review say what it can do.
+      await rt?.catalog.inspect(id)
+    }),
+
+    install: safely('install', async id => {
+      if (rt === undefined) return
+      const [view, page] = await Promise.all([state.read('view'), state.read('catalogPage')])
+      const found = id ?? foundRow(view, page)?.id
+      const entry = found === undefined ? undefined : rt.catalog.entry(found)
+      if (entry === undefined) return
+      const inspection = await rt.catalog.inspect(entry.id)
+      await openReview(installReview(entry, 'user', inspection))
+    }),
+
+    scope: safely('scope', async value => {
+      if (!isInstallScope(value)) return
+      await state.update('review', review => (review === null ? null : withScope(review, value)))
+    }),
+
+    cycleKind: safely('kind', async () => {
+      await setView(view => ({ ...quiet(view), kind: nextKind(view.kind) }))
+      await showCatalog()
+    }),
+
+    cycleSort: safely('sort', async () => {
+      await setView(view => ({ ...quiet(view), sort: nextSort(view.sort) }))
+      await showCatalog()
+    }),
+
+    acceptShown: safely('accept', async () => {
+      const queue = await state.read('queue')
+      const stopped = awaitingAcceptance(queue.jobs)
+      const review = stopped === undefined ? undefined : acceptReview(stopped)
+      if (review === undefined) {
+        await notice('Nothing waits for a command to be reviewed')
+        return
+      }
+      await openReview(review)
+    }),
+
+    addMarketplace: safely('add marketplace', async () => {
+      await setView(view => pushOverlay(quiet(view), 'marketplace'))
+      await ringToOverlay()
+    }),
+
+    submitMarketplace: safely('submit marketplace', async text => {
+      const asked = marketplaceReview(text)
+      if ('error' in asked) {
+        await notice(asked.error)
+        return
+      }
+      await setView(view => ({
+        ...view,
+        stack: view.stack.filter(overlay => overlay !== 'marketplace'),
+      }))
+      await openReview(asked.review)
     }),
 
     close: safely('close', async () => {
@@ -463,6 +606,7 @@ export const createActions = (
               const now = escapeStep(current, true)
               return now.kind === 'close' ? current : quiet(now.view)
             })
+            if (step.kind === 'clear-query') await showCatalog()
             await retake()
             await ringToOverlay()
             return true
