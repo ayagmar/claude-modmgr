@@ -1,0 +1,88 @@
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+❯ /probe pane
+  ⎿  probe: probe: pane opened
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /probe
+  ⎿  probe: probe gen=4uailj starts=1
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /aaa
+  ⎿  aaa-mod: aaa is active
+❯ /reload-plugins
+  ⎿  Reloaded: 1 plugin · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+● Unknown command: /aaa
+❯ /probe pane
+  ⎿  probe: probe: pane opened
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+     probe@probemkt re-read from its folder: /tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f
+❯ /probe
+  ⎿  probe: probe gen=tmiv49 starts=2
+❯ /probe pane
+  ⎿  probe: probe: pane opened
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+     probe@probemkt re-read from its folder: /tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f
+❯ /probe reload-timer
+  ⎿  probe: probe: reload scheduled in 1.5 s
+❯ /reload-plugins
+  ⎿  Reloaded: 2 plugins · 0 skills · 6 agents · 0 hooks · 0 plugin MCP servers · 0 plugin LSP servers
+❯ /probe reload-cmd
+  ⎿  probe: probe: reload from command hook attempted (see log)

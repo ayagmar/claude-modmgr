@@ -1,0 +1,40 @@
+[
+  {
+    "id": "aaa-mod@probemkt",
+    "version": "0.0.1",
+    "scope": "user",
+    "enabled": false,
+    "installPath": "/tmp/scratch/live-cfg/plugins/cache/probemkt/aaa-mod/0.0.1",
+    "readFromFolder": "/tmp/scratch/probemkt/aaa",
+    "folderVersion": "0.0.1",
+    "installedAt": "2026-10-07T00:43:57.611Z",
+    "lastUpdated": "2026-10-07T00:43:57.611Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "cmdmod@s2mkt",
+    "version": "0.1.0-585e53f58487",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/tmp/scratch/live-cfg/plugins/cache/s2mkt/cmdmod/0.1.0-585e53f58487",
+    "installedAt": "2026-10-07T00:44:49.579Z",
+    "lastUpdated": "2026-10-07T00:44:49.579Z",
+    "projectEnabled": false
+  },
+  {
+    "id": "probe@probemkt",
+    "version": "0.0.1",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/tmp/scratch/live-cfg/plugins/cache/probemkt/probe/0.0.1",
+    "readFromFolder": "/tmp/scratch/probemkt/probe",
+    "folderVersion": "0.0.1",
+    "installedAt": "2026-10-07T00:43:30.040Z",
+    "lastUpdated": "2026-10-07T00:43:30.040Z",
+    "projectEnabled": false,
+    "dataDirSize": {
+      "bytes": 12345,
+      "human": "12.1KB"
+    }
+  }
+]

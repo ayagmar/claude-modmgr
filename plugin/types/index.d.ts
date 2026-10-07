@@ -52,7 +52,7 @@ export type CatalogRow = {
   id: PluginId
   name: string
   marketplace: string
-  installs: number
+  installs?: number
   kind: CatalogKind
   blurb: string
 }
@@ -118,7 +118,13 @@ export type Attention = {
   dismissedAt?: number
 }
 
-export type Degraded = { process: boolean; network: boolean; reason?: string }
+export type Degraded = {
+  process: boolean
+  network: boolean
+  /** Set after Claude Code refused a declared-command acceptance from this session (C4, C8). */
+  acceptCommand: boolean
+  reason?: string
+}
 
 export type CatalogPage = { rows: CatalogRow[]; total: number; matched: number; loading: boolean }
 export type DetectProgress = { checked: number; total: number; found: number; running: boolean }

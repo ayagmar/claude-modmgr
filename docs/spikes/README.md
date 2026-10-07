@@ -11,6 +11,8 @@ the plan changes they cause are in PLAN.md "Changes during build".
 - `validate-json-sample.json`: real `claude plugin validate --json` output.
 - `probe/`: the M0 probe mod (S8, S9, S11, S12, and S2 from a mod's child process). Logs to `$PROBE_OUT`.
 - `s2/`, `s6/`, `s8-s9-s11-s12/`: raw evidence for the M0 spikes.
+- `rerun-2026-10-07/`: the rerun after the Fable 5.1 M0 review (M6–M9): one raw log per run, the probe logging its own
+  command answers, launched from a clean shell. This is the primary evidence for S8, S9, F38 and the S2/M9 question.
 
 Reproduce F2:
     claude -p --plugin-dir ./gate --plugin-dir ./aaa "ok"   # aaa refused
@@ -70,14 +72,19 @@ the agent's Bash tool and (b) a mod's `$.process.run` in an interactive session 
 - **Nothing runs before acceptance.** The marker file stayed absent through every refused run.
 - The sha is stable across runs and **changes on any catalogue revision**, even a description-only edit followed by
   `marketplace update` (`catalogRevision` is the marketplace's git HEAD or a content hash).
+- Evidence for the revision rule: `s2/catalog-revision-moves-sha.txt` (a description-only edit moved
+  `catalogRevision` and so the sha).
 - `-y` and `--accept-command` conflict (`error: option '--accept-command <sha256>' cannot be used with option '-y, --yes'`).
 - **Surprise 1: stdout is not one JSON line.** The human lines (the command, "Not an interactive terminal…") go to
   **stdout** ahead of the JSON line, and the message goes to stderr too. Parse the **last** stdout line that parses as JSON.
-- **Surprise 2: context matters.** From the agent's Bash tool the CLI answered "`--accept-command is ignored inside a
-  Claude Code session: run this in your own terminal`" even with `acceptCommandMatched: true`. From a mod's
-  `$.process.run` child of an interactive session it **worked**: `outcome: ok`, the command ran exactly once, after
-  acceptance. modmgr must still handle the "ignored" refusal (treat it as `rejected`, show the command and point to
-  `/plugin` → details, or a terminal).
+- **Surprise 2: the launching environment matters.** From the agent's Bash tool the CLI answered "`--accept-command is
+  ignored inside a Claude Code session: run this in your own terminal`" even with `acceptCommandMatched: true`. From a
+  mod's `$.process.run` child it **worked** (`outcome: ok`, the command ran exactly once, after acceptance), both in an
+  interactive session and in an SDK-style `stream-json` session (`rerun-2026-10-07/sdk.log`). The review (M9) inferred
+  that SDK hosts would be refused because the first `-p`/SDK children carried `CLAUDECODE`; the rerun shows that was a
+  confound: those runs were launched from the agent's shell, which carries `CLAUDECODE`, and `$.process.run` children
+  inherit the session's environment. Launched from a clean shell, the SDK child has no `CLAUDECODE` and acceptance
+  works. modmgr still maps the "ignored" refusal to `rejected` (a Claude Code started from inside another one's tool).
 - A command-sourced install records a content-hashed version: `0.1.0-585e53f58487`.
 
 **Impact.** The §2.3 install review stands. `cli-results.ts` takes the last JSON line of stdout. A new error sentence
@@ -96,6 +103,8 @@ for "acceptance refused in this context". F25–F27.
 | seed 1 | 4.1 s | 505 ms | 581 ms | 712 ms | 2 | 7 | 41 | 0 |
 | seed 7 | 3.9 s | 473 ms | 569 ms | 629 ms | 0 | 9 | 39 | 2 |
 
+Catalogue counts: `s6/catalogue-summary.json`.
+
 **Answers.** About 12 entries/s at concurrency 6, so the 600-probe session budget is ≈ 50 s of idle time and full
 coverage of 3,545 entries ≈ 5 min across sessions. Most entries cost two requests (404 then `plugin.json`). 2 of 100
 sampled entries had a 404 on both files (no manifest at the root): `unknown`, as planned. **Mods already exist in the
@@ -104,7 +113,7 @@ official catalogue** (2 in the first sample), so F15's "no mods yet" is stale. C
 
 **Impact.** No design change; numbers updated (F28).
 
-## S8: `$.command.run({ command: 'reload-plugins' })` from four places (answered)
+## S8: `$.command.run({ command: 'reload-plugins' })` from four places (answered; raw rerun in `rerun-2026-10-07/`)
 
 **Method.** `probe/` calls it from (a) a pane Button's `onPress`, (b) a `command.run` hook (awaited and unawaited),
 (c) a `$.clock.after` callback, (d) `claude -p "/probe reload-cmd"`. Logs in `s8-s9-s11-s12/`.
@@ -119,7 +128,20 @@ official catalogue** (2 in the first sample), so F15's "no mods yet" is stale. C
 **Impact.** The job runner never runs inside a `command.run` hook: `/mods` (UI) opens the pane and returns; jobs and
 the reload run from press handlers or `$.clock.after(0, …)`. Non-UI `/mods` never reloads (as planned). F29.
 
-## S9: what survives `/reload-plugins` for modmgr itself (answered, and it changes F19)
+## S9: what survives `/reload-plugins` for modmgr itself (answered, and it changes F19; raw rerun in `rerun-2026-10-07/`)
+
+The first run's interactive log was overwritten (its lines are transcribed in `s8-s9-s11-s12/interactive-plugin-dir.log`),
+and the review (M6) rightly noted the `/probe` answers were never logged. The rerun logs every answer
+(`rerun-2026-10-07/installed.log`, `transcript-full.txt`): three unchanged `/reload-plugins` kept `gen=4uailj`; editing
+the folder-marketplace copy then reloading gave `gen=tmiv49` with the folder "re-read" line (which explains the earlier
+unexplained re-registration: the probe folder had been edited to add `exec`); with the pane open, a button-pressed reload
+after an edit gave `gen=f3vge6`, `starts=3`, `$.ui.panes()` listing the pane, and the pane redrawn by the new module
+(`pane-after.txt`). The old module's press handler finished *after* the new module's `session.start` and its `$` calls
+still worked (F39).
+
+**F38, found in the rerun: a reload right after a CLI write reads stale settings.** `settle.log`: `enable`/`disable`
+followed by `/reload-plugins` within 0–0.5 s applied nothing (5 of 5 trials); after ≥ 1 s it applied every time
+(4 of 4). The CLI's settings write reaches the session through a watcher, so the batch's reload must wait for it.
 
 **Method.** The probe with an open pane, then (1) `/reload-plugins` with nothing changed, (2) an edit of its module
 (hot reload of a watched `--plugin-dir`), (3) as an installed folder-marketplace plugin: `/reload-plugins` unchanged,
@@ -162,7 +184,7 @@ which is how the desktop app and SDK hosts run the engine), interactive terminal
 
 ## S12: baselines (answered)
 
-- `list --data-size --json` adds **`dataDirSize: { bytes, human }`** only to plugins whose data directory exists
+- `list --data-size --json` adds **`dataDirSize: { bytes, human }`** (`s8-s9-s11-s12/list-data-size.json`) only to plugins whose data directory exists
   (`$CLAUDE_CONFIG_DIR/plugins/data/<name>-<marketplace>`); others have no field. `list --json` entries for
   `@skills-dir` have no `installedAt`, `lastUpdated` or `projectEnabled`.
 - `CLAUDE_CODE_PLUGIN_DIRS` folders appear in a child's `list --json` as **`<name>@inline` with `scope: "session"`**

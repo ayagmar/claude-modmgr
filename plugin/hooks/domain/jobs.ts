@@ -1,0 +1,192 @@
+// The job queue as a pure reducer (PLAN §2.8, C3). The queue itself lives in
+// `$.state` (it survives a reload of modmgr, F31); services/job-runner.ts drives
+// these functions. Jobs run one at a time; a batch ends with one reload, which
+// runs only when nothing else is queued or running.
+
+import type { Job, JobKind, JobState, Scope } from '../../types/index.d.ts'
+import { tailLines } from './sanitize.ts'
+
+export type { Job, JobKind, JobState }
+
+export const JOBS_CAP = 50
+export const TAIL_LINES = 20
+
+export type JobSpec = {
+  readonly kind: Exclude<JobKind, 'reload'>
+  readonly target?: string
+  readonly args?: Job['args']
+}
+
+const ACTIVE: ReadonlySet<JobState> = new Set(['queued', 'running'])
+export const isActive = (job: Job): boolean => ACTIVE.has(job.state)
+
+const withJob = (jobs: readonly Job[], id: string, fn: (job: Job) => Job): Job[] =>
+  jobs.map(job => (job.id === id ? fn(job) : job))
+
+const build = (id: string, spec: JobSpec | { kind: 'reload' }, batch: string | undefined): Job => {
+  const job: Job = { id, kind: spec.kind, state: 'queued', tail: [] }
+  return {
+    ...job,
+    ...(batch === undefined ? {} : { batch }),
+    ...('target' in spec && spec.target !== undefined ? { target: spec.target } : {}),
+    ...('args' in spec && spec.args !== undefined ? { args: spec.args } : {}),
+  }
+}
+
+/** Kinds whose success changes what a session loads, so they need a reload. */
+export const NEEDS_RELOAD: ReadonlySet<JobKind> = new Set([
+  'install',
+  'update',
+  'remove',
+  'enable',
+  'disable',
+])
+
+/**
+ * Queues a batch. When `reload` is set and any spec needs one, the batch ends
+ * with a reload job; a reload already queued moves behind the new jobs, so
+ * there is never more than one.
+ */
+export const enqueueBatch = (
+  jobs: readonly Job[],
+  batch: { readonly id: string; readonly specs: readonly JobSpec[]; readonly reload: boolean },
+  newId: (index: number) => string,
+): Job[] => {
+  const added = batch.specs.map((spec, index) => build(newId(index), spec, batch.id))
+  if (added.length === 0) return [...jobs]
+  const wantsReload = batch.reload && batch.specs.some(spec => NEEDS_RELOAD.has(spec.kind))
+  const pendingReload = jobs.find(job => job.kind === 'reload' && job.state === 'queued')
+  const rest = pendingReload === undefined ? [...jobs] : jobs.filter(job => job !== pendingReload)
+  const reload =
+    pendingReload ??
+    (wantsReload ? build(newId(added.length), { kind: 'reload' }, batch.id) : undefined)
+  return reload === undefined ? [...rest, ...added] : [...rest, ...added, reload]
+}
+
+/**
+ * The job the runner should start now: nothing while one runs; otherwise the
+ * oldest queued non-reload job; a queued reload only once it is alone.
+ */
+export const nextRunnable = (jobs: readonly Job[]): Job | undefined => {
+  if (jobs.some(job => job.state === 'running')) return undefined
+  const queued = jobs.filter(job => job.state === 'queued')
+  return queued.find(job => job.kind !== 'reload') ?? queued[0]
+}
+
+/**
+ * A queued reload whose batch changed nothing (every job failed or was
+ * cancelled) is pointless; the runner cancels it instead of running it.
+ */
+export const reloadIsUseful = (jobs: readonly Job[], reload: Job): boolean => {
+  const others = jobs.filter(job => job.kind !== 'reload' && NEEDS_RELOAD.has(job.kind))
+  const sameBatch =
+    reload.batch === undefined ? others : others.filter(job => job.batch === reload.batch)
+  const relevant = sameBatch.length > 0 ? sameBatch : others
+  return relevant.some(job => job.state === 'ok') || relevant.length === 0
+}
+
+export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
+  withJob(jobs, id, job =>
+    job.state === 'queued' ? { ...job, state: 'running', startedAt: now } : job,
+  )
+
+export type Finish =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly error: { readonly kind: string; readonly message: string } }
+  | { readonly cancelled: true }
+
+export const finish = (jobs: readonly Job[], id: string, now: number, how: Finish): Job[] =>
+  withJob(jobs, id, job => {
+    if (!isActive(job)) return job
+    if ('cancelled' in how) return { ...job, state: 'cancelled', endedAt: now }
+    if (how.ok) return { ...job, state: 'ok', endedAt: now }
+    return { ...job, state: 'failed', endedAt: now, error: how.error }
+  })
+
+/** Appends streamed output, sanitised, keeping the last TAIL_LINES lines. */
+export const appendTail = (jobs: readonly Job[], id: string, lines: readonly string[]): Job[] =>
+  withJob(jobs, id, job => ({ ...job, tail: tailLines([...job.tail, ...lines], TAIL_LINES) }))
+
+/** Cancels a queued job at once; a running one is cancelled by the runner, which then finishes it. */
+export const cancelQueued = (jobs: readonly Job[], id: string, now: number): Job[] =>
+  withJob(jobs, id, job =>
+    job.state === 'queued' ? { ...job, state: 'cancelled', endedAt: now } : job,
+  )
+
+/** On `register`: a job a previous module left running can't be finished by this one (F31). */
+export const interruptRunning = (jobs: readonly Job[], now: number): Job[] =>
+  jobs.map(job => (job.state === 'running' ? { ...job, state: 'interrupted', endedAt: now } : job))
+
+export const retry = (jobs: readonly Job[], id: string, newId: string): Job[] => {
+  const old = jobs.find(job => job.id === id)
+  if (old === undefined || isActive(old) || old.state === 'ok') return [...jobs]
+  const spec: JobSpec | { kind: 'reload' } =
+    old.kind === 'reload'
+      ? { kind: 'reload' }
+      : {
+          kind: old.kind,
+          ...(old.target === undefined ? {} : { target: old.target }),
+          ...(old.args === undefined ? {} : { args: old.args }),
+        }
+  return [...jobs, build(newId, spec, old.batch)]
+}
+
+/** Keeps the newest `cap` finished jobs and every active one. */
+export const prune = (jobs: readonly Job[], cap = JOBS_CAP): Job[] => {
+  const finished = jobs.filter(job => !isActive(job))
+  const drop = new Set(finished.slice(0, Math.max(0, finished.length - cap)))
+  return jobs.filter(job => !drop.has(job))
+}
+
+/** The CLI calls that undo a job, where one exists (`z`, PLAN §2.1). */
+export const inverseOf = (job: Job): JobSpec | undefined => {
+  if (job.state !== 'ok' || job.target === undefined) return undefined
+  const scope: Scope | undefined = job.args?.scope
+  const args = scope === undefined ? undefined : { scope }
+  const kind = {
+    enable: 'disable',
+    disable: 'enable',
+    install: 'remove',
+    remove: 'install',
+  } as const
+  const inverse = (kind as Readonly<Partial<Record<JobKind, JobSpec['kind']>>>)[job.kind]
+  if (inverse === undefined) return undefined
+  return args === undefined
+    ? { kind: inverse, target: job.target }
+    : { kind: inverse, target: job.target, args }
+}
+
+/** The most recent batch whose every undoable job succeeded and can be inverted, newest job last. */
+export const undoSpecs = (
+  jobs: readonly Job[],
+): { batch: string; specs: JobSpec[] } | undefined => {
+  for (let i = jobs.length - 1; i >= 0; i -= 1) {
+    const batch = jobs[i]?.batch
+    if (batch === undefined || jobs[i]?.kind === 'reload') continue
+    const members = jobs.filter(job => job.batch === batch && job.kind !== 'reload')
+    if (members.some(isActive)) return undefined
+    const specs = members.flatMap(job => {
+      const inverse = inverseOf(job)
+      return inverse === undefined ? [] : [inverse]
+    })
+    return specs.length === 0 ? undefined : { batch, specs: specs.reverse() }
+  }
+  return undefined
+}
+
+export type QueueSummary = {
+  readonly running?: Job
+  readonly queued: number
+  readonly reloadPending: boolean
+  readonly failed: number
+}
+
+export const summarize = (jobs: readonly Job[]): QueueSummary => {
+  const running = jobs.find(job => job.state === 'running')
+  const summary = {
+    queued: jobs.filter(job => job.state === 'queued').length,
+    reloadPending: jobs.some(job => job.kind === 'reload' && isActive(job)),
+    failed: jobs.filter(job => job.state === 'failed' || job.state === 'interrupted').length,
+  }
+  return running === undefined ? summary : { ...summary, running }
+}

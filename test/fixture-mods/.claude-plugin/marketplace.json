@@ -1,0 +1,13 @@
+{
+  "name": "fixtures",
+  "owner": { "name": "modmgr fixtures" },
+  "description": "Fixture mods for modmgr tests.",
+  "plugins": [
+    { "name": "turn-band", "source": "./turn-band", "description": "Shows last-turn duration above the prompt.", "version": "0.3.1" },
+    { "name": "redactor", "source": "./redactor", "description": "Redacts secrets from what the model reads.", "version": "2.1.0" },
+    { "name": "quiet-bash", "source": "./quiet-bash", "description": "Runs a formatter after Bash calls.", "version": "0.2.0" },
+    { "name": "spawner", "source": "./spawner", "description": "Spawns a reviewer agent.", "version": "1.0.0" },
+    { "name": "plain-skill", "source": "./plain-skill", "description": "A skills-only plugin.", "version": "1.0.0" },
+    { "name": "broken", "source": "./broken", "description": "Does not validate.", "version": "0.0.1" }
+  ]
+}

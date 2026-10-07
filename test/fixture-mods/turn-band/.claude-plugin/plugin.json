@@ -1,0 +1,1 @@
+{ "name": "turn-band", "version": "0.3.1", "description": "Shows last-turn duration above the prompt.", "types": "./types/index.d.ts", "author": { "name": "modmgr fixtures" } }
