@@ -345,3 +345,38 @@ describe('adding a marketplace', () => {
     expect(w.process.calls.filter(call => call.argv.includes('--available'))).toHaveLength(2)
   })
 })
+
+describe('a local fixture mod, end to end (M4 done criterion)', () => {
+  it('is found on disk, read before installing, installed and loaded', async () => {
+    const MKT = '/tmp/modmgr-fixtures/mkt'
+    const SPAWNER = 'spawner@fixtures'
+    const { w, act, drain, argvs } = await setup(world => {
+      world.process.when(['list', '--json', '--available'], () => {
+        const listed = JSON.parse(runs['list-available'].stdout) as { available: unknown[] }
+        const spawner = {
+          pluginId: SPAWNER,
+          name: 'spawner',
+          description: 'Spawns a reviewer agent.',
+          marketplaceName: 'fixtures',
+          source: './spawner',
+          version: '1.0.0',
+        }
+        return out(JSON.stringify({ ...listed, available: [spawner, ...listed.available] }))
+      })
+      world.fs.files.set(`${MKT}/spawner/hooks/hooks.json`, MODS_JSON)
+      world.process.when(['install', SPAWNER], out(runs['install-ok-local'].stdout))
+    })
+    await act.tab('discover')
+    for (let i = 0; i < 10; i += 1) await w.clock.advance(0)
+    expect(w.state.values.catalogPage.rows.map(row => row.id)).toEqual([SPAWNER])
+    expect(w.http.gets).not.toContain(`${MKT}/spawner/hooks/hooks.json`)
+    await act.openFound(SPAWNER)
+    await act.install()
+    expect(w.state.values.review?.notable.length).toBeGreaterThan(0)
+    await act.scope('local')
+    await act.confirm()
+    await drain()
+    expect(argvs()).toContain(`install ${SPAWNER} --scope local --json`)
+    expect(w.command.reloads).toBe(1)
+  })
+})
