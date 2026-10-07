@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { INITIAL_VIEW } from '../../plugin/hooks/domain/state.ts'
 import {
   bandOf,
+  batchLineOf,
   closedView,
   commandLine,
   escapeStep,
@@ -23,7 +24,7 @@ import {
   stagedChanges,
   stagedIds,
   stageToggle,
-  statusOf,
+  summaryOf,
   toggleOverlay,
   toggleReview,
   topOverlay,
@@ -216,14 +217,14 @@ describe('the toggle review', () => {
     expect(review).toEqual({
       action: 'toggle',
       targets: [
-        { id: 'quiet@m', scope: 'user', enable: true },
-        { id: 'band@m', scope: 'project', enable: false },
-        { id: 'plain@m', scope: 'user', enable: false },
-        { id: 'nofacts@m', enable: true },
+        { id: 'quiet@m', op: 'enable', scope: 'user' },
+        { id: 'band@m', op: 'disable', scope: 'project' },
+        { id: 'plain@m', op: 'disable', scope: 'user' },
+        { id: 'nofacts@m', op: 'enable' },
       ],
       notable: ['quiet: Can run programs or change files on your machine'],
       changesRepoFile: true,
-      alsoDisables: { skills: 2, agents: 0, mcp: 1 },
+      parts: { skills: 2, agents: 0, mcp: 1 },
     })
     expect(specsOf(review)).toEqual([
       { kind: 'enable', target: 'quiet@m', args: { scope: 'user' } },
@@ -235,7 +236,7 @@ describe('the toggle review', () => {
 
   it('leaves out what does not apply', () => {
     const review = toggleReview([{ row: row('a'), enable: false }], () => undefined)
-    expect(review.alsoDisables).toBeUndefined()
+    expect(review.parts).toBeUndefined()
     expect(review.changesRepoFile).toBe(false)
   })
 
@@ -292,7 +293,7 @@ describe('the status line', () => {
   const queue = (jobs: Job[]): JobQueue => ({ owner: 'o', jobs })
 
   it('says nothing without a batch', () => {
-    expect(statusOf(queue([job('x', { batch: undefined })]), false)).toBeUndefined()
+    expect(batchLineOf(queue([job('x', { batch: undefined })]), false)).toBeUndefined()
     expect(latestBatch([])).toEqual([])
   })
 
@@ -303,23 +304,23 @@ describe('the status line', () => {
       job('3', { state: 'queued' }),
       job('r', { kind: 'reload', state: 'queued', target: undefined }),
     ])
-    expect(statusOf(running, false)).toEqual({ tone: 'busy', text: 'disable b@m (2 of 3)…' })
+    expect(batchLineOf(running, false)).toEqual({ tone: 'busy', text: 'disable b@m (2 of 3)…' })
     const reloading = queue([
       job('1'),
       job('r', { kind: 'reload', state: 'running', target: undefined }),
     ])
-    expect(statusOf(reloading, false)).toEqual({ tone: 'busy', text: 'reloading plugins…' })
+    expect(batchLineOf(reloading, false)).toEqual({ tone: 'busy', text: 'reloading plugins…' })
   })
 
   it('says a reload waits for the settings, or that changes are queued', () => {
     expect(
-      statusOf(
+      batchLineOf(
         queue([job('1'), job('r', { kind: 'reload', state: 'queued', target: undefined })]),
         false,
       ),
     ).toEqual({ tone: 'busy', text: 'reload waits for the settings to settle…' })
     expect(
-      statusOf(queue([job('1', { state: 'queued' }), job('2', { state: 'queued' })]), false),
+      batchLineOf(queue([job('1', { state: 'queued' }), job('2', { state: 'queued' })]), false),
     ).toEqual({
       tone: 'busy',
       text: '2 changes queued…',
@@ -331,31 +332,44 @@ describe('the status line', () => {
       job('1', { state: 'failed', endedAt: 5, error: { kind: 'cli-failed', message: 'boom' } }),
       job('2', { state: 'interrupted', endedAt: 5 }),
     ])
-    expect(statusOf(failed, false)).toEqual({
+    expect(batchLineOf(failed, false)).toEqual({
       tone: 'error',
       text: '2 of 2 failed (disable a@m: boom)',
     })
-    expect(statusOf(queue([job('1', { state: 'interrupted', endedAt: 5 })]), false)?.text).toBe(
+    expect(batchLineOf(queue([job('1', { state: 'interrupted', endedAt: 5 })]), false)?.text).toBe(
       '1 of 1 failed (disable a@m)',
     )
     const done = queue([
       job('1', { endedAt: 100 }),
       job('r', { kind: 'reload', endedAt: 200, target: undefined }),
     ])
-    expect(statusOf(done, true)).toEqual({ tone: 'ok', text: '1 change applied, plugins reloaded' })
-    expect(statusOf(done, false)).toBeUndefined()
+    expect(batchLineOf(done, true)).toEqual({
+      tone: 'ok',
+      text: '1 change applied, plugins reloaded',
+    })
+    expect(batchLineOf(done, false)).toBeUndefined()
     const two = queue([job('1', { endedAt: 1 }), job('2', { endedAt: 1 })])
-    expect(statusOf(two, true)?.text).toBe('2 changes applied')
+    expect(batchLineOf(two, true)?.text).toBe('2 changes applied')
     const reloadOnly = queue([job('r', { kind: 'reload', endedAt: 1, target: undefined })])
-    expect(statusOf(reloadOnly, true)).toEqual({ tone: 'ok', text: 'plugins reloaded' })
+    expect(batchLineOf(reloadOnly, true)).toEqual({ tone: 'ok', text: 'plugins reloaded' })
   })
 })
 
 describe('the band', () => {
   const quiet = { attention: ATTENTION, queue: { owner: 'o', jobs: [] }, isWorking: false }
+  const band = (input: {
+    attention: Attention
+    queue: JobQueue
+    isWorking: boolean
+    mods?: ModRow[]
+  }) =>
+    bandOf(summaryOf({ attention: input.attention, queue: input.queue, mods: input.mods ?? [] }), {
+      dismissed: input.attention.dismissed,
+      isWorking: input.isWorking,
+    })
 
   it('stays away with nothing to say', () => {
-    expect(bandOf(quiet)).toBeUndefined()
+    expect(band(quiet)).toBeUndefined()
   })
 
   it('says what runs, and that a reload waits for the turn', () => {
@@ -366,40 +380,54 @@ describe('the band', () => {
         job('r', { kind: 'reload', state: 'running', target: undefined }),
       ],
     }
-    expect(bandOf({ ...quiet, queue, isWorking: true })?.text).toBe(
+    expect(band({ ...quiet, queue, isWorking: true })?.text).toBe(
       'mods · validate… · reload queued, runs when the turn ends',
     )
-    expect(bandOf({ ...quiet, queue })?.text).toBe('mods · validate… · reloading plugins…')
+    expect(band({ ...quiet, queue })?.text).toBe('mods · validate… · reloading plugins…')
   })
 
   it('offers a reload only when one is owed and none is queued', () => {
     const owed = { ...ATTENTION, reloadPending: true }
-    expect(bandOf({ ...quiet, attention: owed })).toEqual({
+    expect(band({ ...quiet, attention: owed })).toEqual({
       key: 'mods · reload to apply',
       text: 'mods · reload to apply',
       reload: true,
     })
     const queued = { owner: 'o', jobs: [job('r', { kind: 'reload', state: 'queued' })] }
-    expect(bandOf({ ...quiet, attention: owed, queue: queued })).toBeUndefined()
+    expect(band({ ...quiet, attention: owed, queue: queued })).toBeUndefined()
   })
 
-  it('counts updates and capability changes', () => {
+  it('counts updates and says what updates added', () => {
+    const news = (name: string, added: string[]): ModRow => ({
+      ...row(name),
+      capsNew: { since: '0.3.1', added },
+    })
     expect(
-      bandOf({ ...quiet, attention: { ...ATTENTION, updates: 1, capsChanged: 2 } })?.text,
-    ).toBe('mods · 1 update · 2 with new capabilities')
-    expect(bandOf({ ...quiet, attention: { ...ATTENTION, updates: 3 } })?.text).toBe(
+      band({
+        ...quiet,
+        attention: { ...ATTENTION, updates: 1 },
+        mods: [news('tb', ['runs-programs'])],
+      })?.text,
+    ).toBe('mods · 1 update · tb can now run programs')
+    expect(band({ ...quiet, mods: [news('tb', ['runs-programs', 'judges-plugins'])] })?.text).toBe(
+      'mods · tb can do 2 new things',
+    )
+    expect(
+      band({ ...quiet, mods: [news('a', ['runs-programs']), news('b', ['secret-env'])] })?.text,
+    ).toBe('mods · 2 mods can do more since an update')
+    expect(band({ ...quiet, attention: { ...ATTENTION, updates: 3 } })?.text).toBe(
       'mods · 3 updates',
     )
   })
 
   it('echoes the last reload, and stays dismissed until its line changes', () => {
     const echoed = { ...ATTENTION, lastReload: 'Reloaded: 1 plugin' }
-    expect(bandOf({ ...quiet, attention: echoed })?.text).toBe('mods · Reloaded: 1 plugin')
+    expect(band({ ...quiet, attention: echoed })?.text).toBe('mods · Reloaded: 1 plugin')
     expect(
-      bandOf({ ...quiet, attention: { ...echoed, dismissed: 'mods · Reloaded: 1 plugin' } }),
+      band({ ...quiet, attention: { ...echoed, dismissed: 'mods · Reloaded: 1 plugin' } }),
     ).toBeUndefined()
     expect(
-      bandOf({
+      band({
         ...quiet,
         attention: { ...echoed, updates: 1, dismissed: 'mods · Reloaded: 1 plugin' },
       })?.text,

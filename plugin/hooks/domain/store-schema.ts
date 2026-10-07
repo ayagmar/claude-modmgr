@@ -18,7 +18,17 @@ export type Prefs = {
 /** `[sha, kind]` per catalogue entry the detector checked. */
 export type DetectEntry = readonly [sha: string, kind: CatalogKind]
 
-export type CapsRecord = { readonly version: string; readonly notable: readonly string[] }
+/**
+ * A mod's notable capabilities at the version modmgr last saw (PLAN §2.2).
+ * `added` and `since` are what a version change added and the version it came
+ * from, kept until the person opens the mod's detail; both or neither.
+ */
+export type CapsRecord = {
+  readonly version: string
+  readonly notable: readonly string[]
+  readonly added?: readonly string[]
+  readonly since?: string
+}
 
 /** A finished job, without its output. */
 export type HistoryEntry = {
@@ -48,8 +58,19 @@ export const STORE_KEYS: readonly StoreKey[] = [
   'history',
 ]
 
-/** The envelope version each key is written at. */
-export const STORE_VERSION = 1
+/**
+ * The envelope version each key is written at. A key's version moves on when
+ * its data changes shape; an older modmgr then reads it as `newer` and leaves
+ * it alone instead of rewriting it without the new fields.
+ */
+export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
+  prefs: 1,
+  detect: 1,
+  validate: 1,
+  // 2: records gained `added` and `since` (M3b, the capability diff).
+  capsHistory: 2,
+  history: 1,
+}
 
 export const CAPS = { detect: 6000, validate: 300, history: 50 } as const
 
@@ -175,10 +196,15 @@ export const readAnalysis = (entry: unknown): Analysis | undefined => {
   }
 }
 
-const readCapsRecord = (entry: unknown): CapsRecord | undefined =>
-  isRecord(entry) && typeof entry.version === 'string' && isStringArray(entry.notable)
-    ? { version: entry.version, notable: entry.notable }
-    : undefined
+const readCapsRecord = (entry: unknown): CapsRecord | undefined => {
+  if (!isRecord(entry) || typeof entry.version !== 'string' || !isStringArray(entry.notable)) {
+    return undefined
+  }
+  const record = { version: entry.version, notable: entry.notable }
+  return isStringArray(entry.added) && entry.added.length > 0 && typeof entry.since === 'string'
+    ? { ...record, added: entry.added, since: entry.since }
+    : record
+}
 
 const readHistoryEntry = (entry: unknown): HistoryEntry | undefined => {
   if (!isRecord(entry)) return undefined
@@ -221,12 +247,16 @@ export type Envelope = { readonly v: number; readonly data: unknown }
 
 /**
  * `MIGRATIONS[key][n]` turns a key's data written at version `n + 1` into
- * version `n + 2`. Version 1 is the first; nothing to migrate yet.
+ * version `n + 2`.
  */
 export type Migrations = Readonly<
   Partial<Record<StoreKey, ReadonlyArray<(data: unknown) => unknown>>>
 >
-export const MIGRATIONS: Migrations = {}
+export const MIGRATIONS: Migrations = {
+  // 1 → 2: a version-1 record (`{ version, notable }`) is a version-2 record
+  // with nothing added since; the reader checks each field either way.
+  capsHistory: [data => data],
+}
 
 export type Opened<K extends StoreKey> = {
   readonly data: StoreData[K]
@@ -246,7 +276,7 @@ export const openKey = <K extends StoreKey>(
   key: K,
   stored: unknown,
   migrations: Migrations = MIGRATIONS,
-  version: number = STORE_VERSION,
+  version: number = KEY_VERSIONS[key],
 ): Opened<K> => {
   const fresh = emptyStore()[key]
   if (stored === undefined) return { data: fresh, note: 'missing' }
@@ -263,7 +293,7 @@ export const openKey = <K extends StoreKey>(
   return stored.v < version ? { data: read, note: 'migrated' } : { data: read }
 }
 
-export const envelope = (data: unknown, version: number = STORE_VERSION): Envelope => ({
+export const envelope = (data: unknown, version = 1): Envelope => ({
   v: version,
   data,
 })
@@ -281,6 +311,10 @@ const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
 
 export const capped = <K extends StoreKey>(key: K, data: StoreData[K]): StoreData[K] =>
   (CAPPERS[key] as (data: StoreData[K]) => StoreData[K])(data)
+
+/** A key's data in the envelope it is written in. */
+export const envelopeOf = <K extends StoreKey>(key: K, data: StoreData[K]): Envelope =>
+  envelope(data, KEY_VERSIONS[key])
 
 const encoder = new TextEncoder()
 

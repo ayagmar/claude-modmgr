@@ -34,7 +34,12 @@ export type ModRow = {
   updateTo?: string
   problems: number
   mixed: boolean
+  /** Notable capabilities its last update added, until its detail is opened (PLAN §2.2). */
+  capsNew?: CapsNew
 }
+
+/** What a version change added to a mod's notable list, and the version it came from. */
+export type CapsNew = { since: string; added: string[] }
 
 export type ModDetail = ModRow & {
   description?: string
@@ -44,7 +49,6 @@ export type ModDetail = ModRow & {
   tokens?: number
   dataBytes?: number
   validate?: { errors: number; warnings: number; at: number }
-  capsAdded?: string[]
   dev?: { failures: number; lastReason?: string; lastAt?: number; test?: 'pass' | 'fail' }
 }
 
@@ -84,6 +88,8 @@ export type Job = {
   endedAt?: number
   tail: string[]
   error?: { kind: string; message: string }
+  /** It succeeded without changing anything (already so, already up to date): no reload owed. */
+  unchanged?: boolean
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
@@ -92,27 +98,49 @@ export type Overlay = 'detail' | 'review' | 'help' | 'jobs'
 export type View = {
   tab: Tab
   selected?: PluginId
-  layout: 'stacked' | 'split'
   stack: Overlay[]
   query: string
   kind: 'mods' | 'hooks' | 'all'
   sort: 'installs' | 'name' | 'marketplace'
-  page: number
   /** Staged toggles: what each mod will be after apply. */
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
   notice?: string
 }
 
-/** One confirm at a time (a plain value, R19). */
+/** What a review would do to one mod. */
+export type ReviewOp = 'enable' | 'disable' | 'install' | 'remove' | 'update'
+
+export type ReviewTarget = {
+  id: PluginId
+  op: ReviewOp
+  scope?: Scope
+  /** The version it is at now (an update's "from"). */
+  version?: string
+  /** A reinstall (undo of a remove): whether that remove kept the mod's data. */
+  keptData?: boolean
+}
+
+/**
+ * One confirm at a time (a plain value, R19). Every action that runs new code
+ * or removes something passes through one (PLAN §5.1).
+ */
 export type ReviewRequest = {
-  action: 'install' | 'remove' | 'toggle' | 'update'
-  targets: Array<{ id: PluginId; scope?: Scope; enable?: boolean }>
+  action: 'toggle' | 'update' | 'remove' | 'undo' | 'install'
+  targets: ReviewTarget[]
+  /** Notable capabilities of what turns on or comes back, as lines. */
   notable: string[]
   declaredCommand?: { text: string; sha256: string }
   headersHelper?: { text: string; sha256: string }
   changesRepoFile: boolean
-  alsoDisables?: { skills: number; agents: number; mcp: number }
+  /** The other parts of what turns off or is removed: skills, agents, MCP servers. */
+  parts?: { skills: number; agents: number; mcp: number }
+  /** An update refreshes these marketplaces first. */
+  marketplaces?: string[]
+  /** A remove keeps the mod's data folder (the default), so undo restores it as it was. */
+  keepData?: boolean
+  /** A remove: the size of the mod's data folder, when it has one. */
+  dataBytes?: number
 }
 
 export type Attention = {

@@ -48,13 +48,20 @@ export const rootOf = (entry: InstalledEntry): AbsolutePath | undefined =>
   entry.readFromFolder ?? entry.installPath
 
 /**
+ * The version a session runs: a folder marketplace's plugin runs from its
+ * folder (verified M3b, F51), so its folder's version, not the install copy's.
+ */
+export const runningVersion = (entry: InstalledEntry): string | undefined =>
+  entry.folderVersion ?? entry.version
+
+/**
  * The cache key for an entry's analysis. A folder-marketplace plugin edited
  * without a version bump keeps its key; Dev's validate (`v`) refreshes it.
  */
 export const analysisKey = (entry: InstalledEntry): string | undefined => {
   const root = rootOf(entry)
   if (root === undefined) return undefined
-  return `${root}@${entry.folderVersion ?? entry.version ?? '?'}`
+  return `${root}@${runningVersion(entry) ?? '?'}`
 }
 
 export const originOf = (entry: InstalledEntry): Origin => {
@@ -75,6 +82,7 @@ const hasParts = (analysis: Analysis): boolean =>
 
 export const modRow = (entry: InstalledEntry, analysis: Analysis): ModRow => {
   const caps = capabilitiesOf(analysis)
+  const version = runningVersion(entry)
   const row: ModRow = {
     id: entry.id,
     name: splitPluginId(entry.id).name,
@@ -87,7 +95,7 @@ export const modRow = (entry: InstalledEntry, analysis: Analysis): ModRow => {
   }
   return {
     ...row,
-    ...(entry.version === undefined ? {} : { version: entry.version }),
+    ...(version === undefined ? {} : { version }),
     ...(entry.scope === 'session' ? {} : { scope: entry.scope }),
     ...(entry.projectEnabled === undefined ? {} : { projectEnabled: entry.projectEnabled }),
   }

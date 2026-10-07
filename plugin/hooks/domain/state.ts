@@ -32,26 +32,24 @@ export type ModmgrState = {
 export type StateKey = keyof ModmgrState
 
 export const SHAPES: Readonly<Record<StateKey, string>> = {
-  mods: 'mods/1',
-  detail: 'detail/1',
+  mods: 'mods/2',
+  detail: 'detail/2',
   catalogPage: 'catalogPage/1',
   detect: 'detect/1',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/2',
-  review: 'review/1',
+  view: 'view/3',
+  review: 'review/2',
   attention: 'attention/2',
   degraded: 'degraded/1',
 }
 
 export const INITIAL_VIEW: View = {
   tab: 'installed',
-  layout: 'stacked',
   stack: [],
   query: '',
   kind: 'mods',
   sort: 'name',
-  page: 0,
   staged: {},
 }
 

@@ -15,7 +15,8 @@ import {
   start,
   summarize,
   TAIL_LINES,
-  undoSpecs,
+  undoNeedsReview,
+  undoPlan,
 } from '../../plugin/hooks/domain/jobs.ts'
 
 const ids = (prefix: string) => (index: number) => `${prefix}${index}`
@@ -185,15 +186,16 @@ describe('prune', () => {
 })
 
 describe('undo', () => {
+  const done = (job: Partial<Job>): Job => ({
+    id: 'x',
+    kind: 'enable',
+    state: 'ok',
+    tail: [],
+    target: 'a@m',
+    ...job,
+  })
+
   it('inverts toggles and installs', () => {
-    const done = (job: Partial<Job>): Job => ({
-      id: 'x',
-      kind: 'enable',
-      state: 'ok',
-      tail: [],
-      target: 'a@m',
-      ...job,
-    })
     expect(inverseOf(done({ kind: 'enable' }))).toEqual({ kind: 'disable', target: 'a@m' })
     expect(inverseOf(done({ kind: 'disable', args: { scope: 'project' } }))).toEqual({
       kind: 'enable',
@@ -211,20 +213,47 @@ describe('undo', () => {
   it('undoes the newest finished batch, newest job first', () => {
     let jobs = toggleBatch()
     jobs = finish(start(jobs, 'j0', 1), 'j0', 2, { ok: true })
-    expect(undoSpecs(jobs)).toBeUndefined()
+    expect(undoPlan(jobs)).toEqual({ kind: 'none', reason: 'The last batch is still running' })
     jobs = finish(start(jobs, 'j1', 3), 'j1', 4, { ok: true })
     jobs = finish(start(jobs, 'j2', 5), 'j2', 6, { ok: true })
-    expect(undoSpecs(jobs)).toEqual({
-      batch: 'b1',
-      specs: [
-        { kind: 'disable', target: 'b@m' },
-        { kind: 'enable', target: 'a@m', args: { scope: 'user' } },
-      ],
+    const plan = undoPlan(jobs)
+    expect(plan.kind === 'ready' ? plan.steps.map(step => step.spec) : plan).toEqual([
+      { kind: 'disable', target: 'b@m' },
+      { kind: 'enable', target: 'a@m', args: { scope: 'user' } },
+    ])
+    expect(undoNeedsReview(plan)).toBe(false)
+    expect(undoPlan([])).toEqual({ kind: 'none', reason: 'Nothing to undo' })
+    expect(undoPlan([{ id: 'v', kind: 'validate', state: 'ok', tail: [], batch: 'b' }])).toEqual({
+      kind: 'none',
+      reason: 'The last batch changed nothing to undo',
     })
-    expect(undoSpecs([])).toBeUndefined()
-    expect(
-      undoSpecs([{ id: 'v', kind: 'validate', state: 'ok', tail: [], batch: 'b' }]),
-    ).toBeUndefined()
+  })
+
+  it('skips a batch of reloads alone and says an update has no undo', () => {
+    const toggled: Job = { ...done({ kind: 'disable' }), batch: 'b1' }
+    const reload: Job = { id: 'r', kind: 'reload', state: 'ok', tail: [], batch: 'b2' }
+    expect(undoPlan([toggled, reload])).toMatchObject({ kind: 'ready', batch: 'b1' })
+    const updated: Job = { ...done({ kind: 'update' }), batch: 'b3' }
+    expect(undoPlan([toggled, updated])).toEqual({
+      kind: 'none',
+      reason: "An update can't be undone: the CLI can't install an older version",
+    })
+  })
+
+  it('leaves alone what was already so, and reviews a reinstall', () => {
+    expect(inverseOf({ ...done({ kind: 'disable' }), unchanged: true })).toBeUndefined()
+    const removed: Job = { ...done({ kind: 'remove', args: { keepData: true } }), batch: 'b1' }
+    const plan = undoPlan([removed])
+    expect(plan).toMatchObject({
+      kind: 'ready',
+      steps: [{ spec: { kind: 'install', target: 'a@m' }, undoes: { id: removed.id } }],
+    })
+    expect(undoNeedsReview(plan)).toBe(true)
+    expect(inverseOf(done({ kind: 'install', args: { scope: 'local' } }))).toEqual({
+      kind: 'remove',
+      target: 'a@m',
+      args: { scope: 'local', keepData: true },
+    })
   })
 })
 
