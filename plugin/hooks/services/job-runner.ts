@@ -19,6 +19,7 @@ import {
   finish,
   isClaimedBy,
   type Job,
+  type JobQueue,
   type JobSpec,
   NEEDS_RELOAD,
   nextRunnable,
@@ -30,6 +31,7 @@ import type { ModmgrError } from '../domain/result.ts'
 import { sanitize, tailLines } from '../domain/sanitize.ts'
 import type { HistoryEntry } from '../domain/store-schema.ts'
 import { parseValidateReport } from '../domain/validate-report.ts'
+import { doneText, isWork } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, runOp } from './cli.ts'
 import type { StoreService } from './store.ts'
@@ -79,15 +81,23 @@ const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = [
 const succeeded = (tail: string[]): Outcome => ({ finish: { ok: true }, tail })
 
 /** Queues a batch on the queue atom: what a press handler does before `kick()`. */
-export const enqueue = (
+export const enqueue = async (
   ports: Pick<Ports, 'state'>,
   batch: { id: string; specs: readonly JobSpec[]; reload: boolean },
   newId: (index: number) => string,
-): Promise<unknown> =>
-  ports.state.update('queue', queue => ({
-    ...queue,
-    jobs: prune(enqueueBatch(queue.jobs, batch, newId)),
-  }))
+  /**
+   * Queues only while this holds, checked in the same versioned write: of two
+   * presses that read one queue, the second finds it changed (review R-M3b-2).
+   */
+  when: (queue: JobQueue) => boolean = () => true,
+): Promise<boolean> => {
+  let queued = false
+  await ports.state.update('queue', queue => {
+    queued = when(queue)
+    return queued ? { ...queue, jobs: prune(enqueueBatch(queue.jobs, batch, newId)) } : queue
+  })
+  return queued
+}
 
 export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner => {
   const { owner, store } = options
@@ -113,6 +123,20 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       ...('error' in outcome.finish ? { error: outcome.finish.error.message } : {}),
     }
     store.update('history', history => [...history, entry])
+  }
+
+  /** Says `line` in the band (and the pane's batch line) for a while (C8), then lets it go. */
+  const echo = async (line: string): Promise<void> => {
+    await ports.state.update('attention', attention => ({ ...attention, lastReload: line }))
+    ports.clock.after(RELOAD_ECHO_MS, () => {
+      void ports.state
+        .update('attention', attention => {
+          if (attention.lastReload !== line) return attention
+          const { lastReload: _done, ...rest } = attention
+          return rest
+        })
+        .catch(() => undefined)
+    })
   }
 
   const reload = async (): Promise<Outcome> => {
@@ -247,7 +271,16 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       )
     }
     const done = result.value
-    return succeeded([done.unchanged ? `already so: ${done.message}` : done.message])
+    // An update the CLI found current changed nothing, like an enable of an enabled mod.
+    const current =
+      done.update !== undefined &&
+      (done.update.outcome === 'up_to_date' ||
+        (done.update.from !== undefined && done.update.from === done.update.to))
+    if (done.unchanged || current) {
+      return { finish: { ok: true, unchanged: true }, tail: [`already so: ${done.message}`] }
+    }
+    const kept = done.keptData === undefined ? {} : { keptData: done.keptData }
+    return { finish: { ok: true, ...kept }, tail: [done.message] }
   }
 
   /** Runs jobs until none is runnable now; true when a CLI write finished. */
@@ -262,6 +295,9 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       if (next.kind === 'reload') {
         if (!reloadIsUseful(queue.jobs, next)) {
           await writeQueue(jobs => finish(jobs, next.id, now, { cancelled: true }))
+          // A batch that changed nothing still says so (review R-M3b-1).
+          const work = queue.jobs.filter(job => job.batch === next.batch && isWork(job))
+          if (work.some(job => job.state === 'ok')) await echo(doneText(work))
           continue
         }
         const readyAt = reloadReadyAt(queue.jobs)
@@ -289,7 +325,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       record(next, endedAt, outcome)
       if (NEEDS_RELOAD.has(next.kind)) {
         wrote = true
-        if ('ok' in outcome.finish && outcome.finish.ok) {
+        if ('ok' in outcome.finish && outcome.finish.ok && outcome.finish.unchanged !== true) {
           await ports.state.update('attention', attention => ({
             ...attention,
             reloadPending: true,

@@ -2,9 +2,12 @@
 // (and `details` for mods) for every `root@version` the store hasn't seen,
 // three at a time. Writes the rows to `$.state` `mods`, the selected mod's
 // detail to `detail`, and the refresh's outcome to `sync` (the `↻` marker, C8).
+// Each refresh also records what every mod can do at its version, so a
+// version change that adds notable capabilities is shown (PLAN §2.2).
 
-import type { ModRow } from '../../types/index.d.ts'
+import type { ModDetail, ModRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
+import { acknowledge, type CapsSighting, capsNewOf, recordCaps } from '../domain/caps-history.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
@@ -14,6 +17,7 @@ import {
   modDetail,
   modRow,
   rootOf,
+  runningVersion,
   sortRows,
 } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
@@ -43,8 +47,17 @@ export type Registry = {
   select(id: string | undefined): Promise<void>
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
-  /** What a review says about a mod: its notable capabilities and its other parts. */
+  /**
+   * What a review says about a mod: its notable capabilities, its other parts
+   * and its data's size; for a mod no longer installed, what it could do when
+   * last seen (an undo's reinstall).
+   */
   facts(id: string): ReviewFacts | undefined
+  /**
+   * The person opened the mod's detail: what its update added is now seen.
+   * The row, the band and the status line drop it; the detail on screen keeps it.
+   */
+  acknowledge(id: string): Promise<void>
   /** Whether a refresh has listed the plugins yet. */
   isLoaded(): boolean
 }
@@ -79,14 +92,31 @@ export const createRegistry = (
     return entry === undefined || analysis === undefined ? undefined : { entry, analysis }
   }
 
-  const detailOf = (id: string | undefined) => {
+  /** A row or detail with what its update added, from the capability history. */
+  const withNews = <T extends ModRow>(row: T): T => {
+    const news = capsNewOf(store.get('capsHistory')[row.id])
+    if (news !== undefined) return { ...row, capsNew: news }
+    if (row.capsNew === undefined) return row
+    const { capsNew: _seen, ...rest } = row
+    return rest as T
+  }
+
+  const detailOf = (id: string | undefined): ModDetail | null => {
     const found = analysisFor(id)
-    return found === undefined ? null : modDetail(found.entry, found.analysis)
+    return found === undefined ? null : withNews(modDetail(found.entry, found.analysis))
+  }
+
+  const writeNews = async (mods: readonly ModRow[]): Promise<void> => {
+    await ports.state.update('attention', attention => ({
+      ...attention,
+      problems: mods.reduce((sum, row) => sum + row.problems, 0),
+      capsChanged: mods.filter(row => row.capsNew !== undefined).length,
+    }))
   }
 
   const once = async (): Promise<Result<RefreshSummary>> => {
     await ports.state.update('sync', sync => ({ ...sync, refreshing: true }))
-    const listed = await listInstalled(ports)
+    const listed = await listInstalled(ports, { dataSize: true })
     const now = await ports.clock.now()
     if (!listed.ok) {
       const { kind, message } = listed.error
@@ -114,6 +144,7 @@ export const createRegistry = (
       }
     }
     const rows: ModRow[] = []
+    const sightings: CapsSighting[] = []
     let unread = 0
     for (const entry of listed.value.items) {
       const key = analysisKey(entry)
@@ -123,22 +154,24 @@ export const createRegistry = (
         continue
       }
       validate = lruTouch(validate, key)
-      if (analysis.mod) rows.push(modRow(entry, analysis))
+      if (!analysis.mod) continue
+      rows.push(modRow(entry, analysis))
+      const { notable } = capabilitiesOf(analysis)
+      sightings.push({ id: entry.id, version: runningVersion(entry) ?? '?', notable })
     }
     // Written only when something was analysed: each `$.store.set` rewrites the file (F16).
     // Installed entries are touched in that write, so a cache hit can't be evicted before them.
     if (fresh.some(Boolean)) store.set('validate', validate)
+    const history = recordCaps(store.get('capsHistory'), sightings)
+    if (history.changed) store.set('capsHistory', history.history)
     entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
     loaded = true
 
-    const mods = sortRows(rows)
+    const mods = sortRows(rows).map(withNews)
     const skipped = listed.value.skipped + unread
     await ports.state.update('mods', () => mods)
     await ports.state.update('detail', detail => detailOf(detail?.id))
-    await ports.state.update('attention', attention => ({
-      ...attention,
-      problems: mods.reduce((sum, row) => sum + row.problems, 0),
-    }))
+    await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
   }
@@ -174,10 +207,27 @@ export const createRegistry = (
     },
     entry: id => entries.get(id),
     facts(id) {
-      const analysis = analysisFor(id)?.analysis
-      if (analysis === undefined) return undefined
+      const found = analysisFor(id)
+      if (found === undefined) {
+        const last = store.get('capsHistory')[id]
+        return last === undefined ? undefined : { notable: last.notable }
+      }
+      const { analysis, entry } = found
       const { notable } = capabilitiesOf(analysis)
-      return analysis.parts === undefined ? { notable } : { notable, parts: analysis.parts }
+      return {
+        notable,
+        ...(analysis.parts === undefined ? {} : { parts: analysis.parts }),
+        ...(entry.dataBytes === undefined ? {} : { dataBytes: entry.dataBytes }),
+      }
+    },
+    async acknowledge(id) {
+      const before = store.get('capsHistory')
+      const after = acknowledge(before, id)
+      if (after === before) return
+      store.set('capsHistory', after)
+      // The detail open now keeps saying what was new; the next one won't.
+      const mods = await ports.state.update('mods', rows => rows.map(withNews))
+      await writeNews(mods)
     },
     isLoaded: () => loaded,
   }

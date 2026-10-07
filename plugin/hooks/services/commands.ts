@@ -4,8 +4,9 @@
 // opens the pane or reads `$.state`, and answers.
 
 import type { ModRow } from '../../types/index.d.ts'
+import { isActive } from '../domain/jobs.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { paneOpen } from '../domain/view.ts'
+import { paneOpen, summaryOf, titleOf } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 
 export type CommandAnswer = { text?: string; exitCode?: number }
@@ -44,9 +45,16 @@ export const modsCommand = async (
 /** Opens the dialog; false when this session places no panes (a `-p` run, an older host). */
 const openDialog = async (ports: Pick<Ports, 'state' | 'ui'>): Promise<boolean> => {
   try {
-    const [mods, queue] = await Promise.all([ports.state.read('mods'), ports.state.read('queue')])
-    const busy = queue.jobs.some(job => job.state === 'running' || job.state === 'queued')
-    const opened = await ports.ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
+    const [mods, queue, attention] = await Promise.all([
+      ports.state.read('mods'),
+      ports.state.read('queue'),
+      ports.state.read('attention'),
+    ])
+    const busy = queue.jobs.some(isActive)
+    const title = titleOf(summaryOf({ attention, queue, mods }))
+    const opened = await ports.ui.open(
+      paneOpen({ focus: true, hold: !busy, mods: mods.length, title }),
+    )
     return opened.isPlaced
   } catch {
     return false

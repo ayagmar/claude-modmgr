@@ -24,6 +24,11 @@ export const PICK = [
   'details-turn-band',
   'disable-ok',
   'enable-ok',
+  'uninstall-ok',
+  'install-quiet-bash',
+  'update-bumped',
+  'update-current',
+  'marketplace-update-ok',
 ] as const
 
 export const generate = (): string => {

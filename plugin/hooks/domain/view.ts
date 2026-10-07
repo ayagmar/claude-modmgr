@@ -9,14 +9,23 @@ import type {
   JobQueue,
   ModRow,
   Overlay,
+  ReviewOp,
   ReviewRequest,
+  ReviewTarget,
   Scope,
   View,
 } from '../../types/index.d.ts'
 import { argvOf, commandOfJob } from './argv.ts'
 import { notableText } from './capabilities.ts'
-import type { JobSpec } from './jobs.ts'
+import { capsLine } from './caps-history.ts'
+import { isActive, type JobSpec, NEEDS_RELOAD, type UndoStep } from './jobs.ts'
 import { sanitize } from './sanitize.ts'
+
+/** The name part of a plugin id (`turn-band` of `turn-band@fixtures`). */
+export const nameOf = (id: string): string => {
+  const at = id.indexOf('@')
+  return at < 0 ? id : id.slice(0, at)
+}
 
 /** The one pane modmgr opens. */
 export const PANE_ID = 'modmgr'
@@ -70,6 +79,14 @@ export const paneOpen = (how: {
   ...(how.hold ? { holdToasts: true as const } : {}),
 })
 
+/**
+ * Whether an open of the dialog holds other plugins' toasts (C8): only while
+ * nothing runs or waits and the job log isn't on top, since a pane that stays
+ * open must not silence them for long.
+ */
+export const holdsToasts = (queue: JobQueue, view: View): boolean =>
+  !queue.jobs.some(isActive) && view.stack.at(-1) !== 'jobs'
+
 // ---- rows -------------------------------------------------------------------
 
 /** Installed rows matching the filter: by name or id, case-insensitive. */
@@ -102,6 +119,18 @@ export const pagerLabel = (window: Window, count: number): string | undefined =>
   window.start === 0 && window.end >= count
     ? undefined
     : `${window.start + 1}–${window.end} of ${count}`
+
+/** The row the selection moves to when `id` goes: the next one shown, else the one before. */
+export const neighbourOf = (
+  view: View,
+  mods: readonly ModRow[],
+  id: string,
+): ModRow | undefined => {
+  const rows = filterRows(mods, view.query)
+  const at = rows.findIndex(row => row.id === id)
+  if (at < 0) return undefined
+  return rows[at + 1] ?? rows[at - 1]
+}
 
 /** The selected row's index among `rows`, 0 when it isn't there. */
 export const selectedIndex = (rows: readonly ModRow[], selected: string | undefined): number => {
@@ -167,14 +196,56 @@ export const whyLocked = (row: ModRow): string | undefined => {
   return "this session loaded it from its launch command; it can't be toggled here"
 }
 
-const toggleScope = (scope: Scope | undefined): 'user' | 'project' | 'local' | undefined =>
+const cliScope = (scope: Scope | undefined): 'user' | 'project' | 'local' | undefined =>
   scope === 'user' || scope === 'project' || scope === 'local' ? scope : undefined
+
+/** Why the CLI can't update a row, in the person's terms; undefined when it can. */
+export const whyNoUpdate = (row: ModRow): string | undefined => {
+  if (row.scope === 'managed') return 'managed by your organisation; it updates with their settings'
+  if (row.origin === 'folder-marketplace') return 'runs from its marketplace folder: no updates'
+  if (row.origin === 'skills-dir')
+    return 'lives in your skills folder; it changes when its files do'
+  return whyLocked(row)
+}
+
+/** Why the CLI can't remove a row; undefined when it can. */
+export const whyNoRemove = (row: ModRow): string | undefined => {
+  if (row.scope === 'managed') return "managed by your organisation; it can't be removed here"
+  if (row.origin === 'skills-dir') return 'lives in your skills folder; delete its folder there'
+  return whyLocked(row)
+}
 
 /** What a review needs to know about one mod beyond its row. */
 export type ReviewFacts = {
   readonly notable: readonly string[]
   readonly parts?: { readonly skills: number; readonly agents: number; readonly mcp: number }
+  /** Its data folder's size, when it has one. */
+  readonly dataBytes?: number
 }
+
+type Parts = { skills: number; agents: number; mcp: number }
+
+const addParts = (into: Parts, parts: ReviewFacts['parts']): void => {
+  if (parts === undefined) return
+  into.skills += parts.skills
+  into.agents += parts.agents
+  into.mcp += parts.mcp
+}
+
+const withParts = (review: ReviewRequest, parts: Parts): ReviewRequest =>
+  parts.skills + parts.agents + parts.mcp > 0 ? { ...review, parts } : review
+
+const targetOf = (row: ModRow, op: ReviewOp): ReviewTarget => {
+  const scope = cliScope(row.scope)
+  return {
+    id: row.id,
+    op,
+    ...(scope === undefined ? {} : { scope }),
+    ...(row.version === undefined ? {} : { version: row.version }),
+  }
+}
+
+const touchesRepo = (scope: Scope | undefined): boolean => scope === 'project' || scope === 'local'
 
 /** The review a batch of toggles opens (PLAN §5.3): one confirm for the whole batch. */
 export const toggleReview = (
@@ -182,38 +253,138 @@ export const toggleReview = (
   facts: (id: string) => ReviewFacts | undefined,
 ): ReviewRequest => {
   const notable: string[] = []
-  const also = { skills: 0, agents: 0, mcp: 0 }
+  const parts = { skills: 0, agents: 0, mcp: 0 }
   for (const { row, enable } of changes) {
     const known = facts(row.id)
     if (enable) {
       for (const id of known?.notable ?? []) notable.push(`${row.name}: ${notableText(id)}`)
-    } else if (known?.parts !== undefined) {
-      also.skills += known.parts.skills
-      also.agents += known.parts.agents
-      also.mcp += known.parts.mcp
+    } else {
+      addParts(parts, known?.parts)
     }
   }
-  const review: ReviewRequest = {
-    action: 'toggle',
-    targets: changes.map(({ row, enable }) => {
-      const scope = toggleScope(row.scope)
-      return scope === undefined ? { id: row.id, enable } : { id: row.id, scope, enable }
-    }),
-    notable,
-    changesRepoFile: changes.some(({ row }) => row.scope === 'project' || row.scope === 'local'),
-  }
-  return also.skills + also.agents + also.mcp > 0 ? { ...review, alsoDisables: also } : review
+  return withParts(
+    {
+      action: 'toggle',
+      targets: changes.map(({ row, enable }) => targetOf(row, enable ? 'enable' : 'disable')),
+      notable,
+      changesRepoFile: changes.some(({ row }) => touchesRepo(row.scope)),
+    },
+    parts,
+  )
 }
 
-/** The jobs a confirmed toggle review queues (the batch's reload is added by `enqueue`). */
-export const specsOf = (review: ReviewRequest): JobSpec[] =>
-  review.targets.map(target => {
-    const kind = target.enable === false ? 'disable' : 'enable'
-    const scope = toggleScope(target.scope)
-    return scope === undefined
-      ? { kind, target: target.id }
-      : { kind, target: target.id, args: { scope } }
+/** The marketplace a plugin id names. */
+export const marketplaceOf = (id: string): string => id.slice(id.indexOf('@') + 1)
+
+/**
+ * The review of updating `rows` (`u` one, `a` all): each marketplace is
+ * refreshed first, then each mod updated, then one reload. It runs new code,
+ * so it is always reviewed; it can't be undone.
+ */
+export const updateReview = (rows: readonly ModRow[]): ReviewRequest => {
+  const marketplaces = [...new Set(rows.map(row => marketplaceOf(row.id)))].sort()
+  return {
+    action: 'update',
+    targets: rows.map(row => targetOf(row, 'update')),
+    notable: [],
+    changesRepoFile: false,
+    marketplaces,
+  }
+}
+
+/**
+ * The review of removing `row` (`x`): what goes, from which scope, its other
+ * parts and its data, which is kept unless the person asks otherwise.
+ */
+export const removeReview = (row: ModRow, facts: ReviewFacts | undefined): ReviewRequest => {
+  const parts = { skills: 0, agents: 0, mcp: 0 }
+  addParts(parts, facts?.parts)
+  const review: ReviewRequest = {
+    action: 'remove',
+    targets: [targetOf(row, 'remove')],
+    notable: [],
+    changesRepoFile: touchesRepo(row.scope),
+    keepData: true,
+  }
+  return withParts(
+    facts?.dataBytes === undefined ? review : { ...review, dataBytes: facts.dataBytes },
+    parts,
+  )
+}
+
+const UNDO_OP: Readonly<Partial<Record<JobSpec['kind'], ReviewOp>>> = {
+  enable: 'enable',
+  disable: 'disable',
+  install: 'install',
+  remove: 'remove',
+}
+
+/**
+ * The review of an undo that reinstalls (the inverse of a remove): what comes
+ * back, what it can do, and that a declared install command stops it (C10).
+ */
+export const undoReview = (
+  plan: { readonly batch: string; readonly steps: readonly UndoStep[] },
+  rows: readonly ModRow[],
+  facts: (id: string) => ReviewFacts | undefined,
+): ReviewRequest => {
+  const { steps } = plan
+  const notable: string[] = []
+  const parts = { skills: 0, agents: 0, mcp: 0 }
+  const targets = steps.flatMap(({ spec, undoes }): ReviewTarget[] => {
+    const op = UNDO_OP[spec.kind]
+    if (op === undefined || spec.target === undefined) return []
+    // A queue job's target is checked only when it runs: drawn, it is sanitised (R-M3b-10).
+    const name = sanitize(rows.find(row => row.id === spec.target)?.name ?? nameOf(spec.target), {
+      max: 40,
+    })
+    const known = facts(spec.target)
+    if (op === 'install' || op === 'enable') {
+      for (const id of known?.notable ?? []) notable.push(`${name}: ${notableText(id)}`)
+    } else {
+      addParts(parts, known?.parts)
+    }
+    const scope = cliScope(spec.args?.scope)
+    return [
+      {
+        id: spec.target,
+        op,
+        ...(scope === undefined ? {} : { scope }),
+        // What the CLI said it did with the data, not what modmgr asked (R-M3b-6).
+        ...(op === 'install' && undoes.keptData !== undefined ? { keptData: undoes.keptData } : {}),
+      },
+    ]
   })
+  return withParts(
+    {
+      action: 'undo',
+      targets,
+      notable,
+      changesRepoFile: targets.some(target => touchesRepo(target.scope)),
+      undoes: plan.batch,
+    },
+    parts,
+  )
+}
+
+/** The jobs a confirmed review queues (the batch's reload is added by `enqueue`). */
+export const specsOf = (review: ReviewRequest): JobSpec[] => {
+  const refresh: JobSpec[] = (review.marketplaces ?? []).map(name => ({
+    kind: 'marketplace-update',
+    target: name,
+  }))
+  const ops = review.targets.map((target): JobSpec => {
+    const scope = cliScope(target.scope)
+    const scoped = scope === undefined ? {} : { scope }
+    const kind = target.op
+    const args: Job['args'] =
+      kind === 'remove' ? { ...scoped, keepData: review.keepData !== false } : scoped
+    return Object.keys(args).length === 0
+      ? { kind, target: target.id }
+      : { kind, target: target.id, args }
+  })
+  return [...refresh, ...ops]
+}
 
 /** The CLI line a job runs, for the review's "Runs" lines; undefined when it can't be built. */
 export const commandLine = (spec: JobSpec): string | undefined => {
@@ -239,6 +410,33 @@ export const partsLabel = (parts: {
     ...say(parts.agents, 'agent', 'agents'),
     ...say(parts.mcp, 'MCP server', 'MCP servers'),
   ].join(', ')
+}
+
+/** `12 KB`: a data folder's size, rounded. */
+export const bytesLabel = (n: number): string =>
+  n < 1024
+    ? `${n} B`
+    : n < 1024 * 1024
+      ? `${Math.round(n / 1024)} KB`
+      : `${(n / 1048576).toFixed(1)} MB`
+
+/**
+ * Rows a wrapping row of items takes at `columns` (the footer's keys, laid
+ * out with `columnGap`): each line fills until the next item would overflow.
+ */
+export const footerRowsFor = (widths: readonly number[], columns: number, gap = 2): number => {
+  let rows = 1
+  let used = 0
+  for (const width of widths) {
+    const need = used === 0 ? width : used + gap + width
+    if (used > 0 && need > columns) {
+      rows += 1
+      used = width
+    } else {
+      used = need
+    }
+  }
+  return rows
 }
 
 // ---- overlays and Esc -------------------------------------------------------
@@ -282,10 +480,15 @@ export const closedView = (view: View): View => {
   return { ...rest, stack: [] }
 }
 
-// ---- jobs: the status line and the band ----------------------------------------
+// ---- jobs: the batch line, the band, the status line and the title ------------
 
 const describeJob = (job: Job): string => {
-  const what = job.kind === 'reload' ? 'reload plugins' : job.kind
+  const what =
+    job.kind === 'reload'
+      ? 'reload plugins'
+      : job.kind === 'marketplace-update'
+        ? 'refresh marketplace'
+        : job.kind
   return job.target === undefined ? what : `${what} ${sanitize(job.target, { max: 60 })}`
 }
 
@@ -300,27 +503,61 @@ export type Status = {
   readonly text: string
 }
 
+const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
+
+/** How a finished batch's work reads: what changed, and what was already so. */
+export const doneText = (work: readonly Job[]): string => {
+  const changed = work.filter(job => job.state === 'ok' && job.unchanged !== true)
+  const same = work.length - changed.length
+  const updates = work.every(job => job.kind === 'update')
+  if (updates) {
+    if (changed.length === 0) return same === 1 ? 'already up to date' : 'all already up to date'
+    return same === 0
+      ? `${changed.length} updated`
+      : `${changed.length} updated, ${same} already up to date`
+  }
+  if (changed.length === 0) return 'nothing needed changing'
+  const [only] = changed
+  if (changed.length === 1 && same === 0 && only?.target !== undefined) {
+    const name = sanitize(nameOf(only.target), { max: 40 })
+    if (only.kind === 'remove') return `${name} removed`
+    if (only.kind === 'install') return `${name} installed`
+  }
+  const applied = plural(changed.length, 'change', 'changes')
+  return same === 0 ? `${applied} applied` : `${applied} applied, ${same} already so`
+}
+
 /**
- * One line about the newest batch: what runs now, or how it ended. A failure
- * stays until the next batch; a success shows only while `showDone` (the
- * band's echo of the reload, which the runner clears after a while: that write
- * is what redraws the pane, review R-M3a-4).
+ * The jobs a batch counts as its work: not the reload, and not a marketplace
+ * refresh (a step of an update). The pane's batch line and the summary share
+ * it, so they count a batch alike (review R-M3b-4).
  */
-export const statusOf = (queue: JobQueue, showDone: boolean): Status | undefined => {
+export const isWork = (job: Job): boolean =>
+  job.kind !== 'reload' && job.kind !== 'marketplace-update'
+
+/**
+ * One line about the newest batch, in the pane: what runs now, or how it
+ * ended. A failure stays until the next batch; a success shows only while
+ * `showDone` (the band's echo, which the runner clears after a while: that
+ * write is what redraws the pane, review R-M3a-4). A batch that changed
+ * nothing gets the same echo, though its reload never ran (R-M3b-1).
+ */
+export const batchLineOf = (queue: JobQueue, showDone: boolean): Status | undefined => {
   const jobs = latestBatch(queue.jobs)
   if (jobs.length === 0) return undefined
   const running = jobs.find(job => job.state === 'running')
-  const work = jobs.filter(job => job.kind !== 'reload')
+  const work = jobs.filter(isWork)
   const done = work.filter(job => job.state !== 'queued' && job.state !== 'running').length
   if (running !== undefined) {
-    return running.kind === 'reload'
-      ? { tone: 'busy', text: 'reloading plugins…' }
-      : { tone: 'busy', text: `${describeJob(running)} (${done + 1} of ${work.length})…` }
+    if (running.kind === 'reload') return { tone: 'busy', text: 'reloading plugins…' }
+    if (running.kind === 'marketplace-update')
+      return { tone: 'busy', text: `${describeJob(running)}…` }
+    return { tone: 'busy', text: `${describeJob(running)} (${done + 1} of ${work.length})…` }
   }
   if (jobs.some(job => job.state === 'queued')) {
     return work.every(job => job.state !== 'queued')
       ? { tone: 'busy', text: 'reload waits for the settings to settle…' }
-      : { tone: 'busy', text: `${work.length} changes queued…` }
+      : { tone: 'busy', text: `${plural(work.length, 'change', 'changes')} queued…` }
   }
   const failed = jobs.filter(job => job.state === 'failed' || job.state === 'interrupted')
   if (failed.length > 0) {
@@ -334,10 +571,65 @@ export const statusOf = (queue: JobQueue, showDone: boolean): Status | undefined
   if (!showDone) return undefined
   const reload = jobs.find(job => job.kind === 'reload')
   if (work.length === 0) return { tone: 'ok', text: 'plugins reloaded' }
-  const applied = `${work.length} ${work.length === 1 ? 'change' : 'changes'} applied`
+  const text = doneText(work)
+  return { tone: 'ok', text: reload?.state === 'ok' ? `${text}, plugins reloaded` : text }
+}
+
+/**
+ * What modmgr has to say outside the dialog, in one value (M3b): the band,
+ * the status line and the pane title are each drawn from it, so they never
+ * disagree.
+ */
+export type Summary = {
+  /** The job running now, not the reload (a refresh, a change, a test). */
+  readonly running?: Job
+  /** Changes (jobs that need a reload) queued or running: what "applying" counts. */
+  readonly pending: number
+  /** The batch's reload is running (or waiting for the turn to end). */
+  readonly reloading: boolean
+  /** A reload is owed and none is queued: `[l reload]`. */
+  readonly reloadOwed: boolean
+  readonly updates: number
+  /** Mods whose update added notable capabilities not yet seen. */
+  readonly capsCount: number
+  /** "turn-band can now run programs", when something is new. */
+  readonly caps?: string
+  /**
+   * The person dismissed the band line that said this news (updates, what an
+   * update added): the status line and the title leave it out too, until it
+   * changes (R-M3b-3). What is under way or owed is never quieted.
+   */
+  readonly newsDismissed: boolean
+  /** The CLI's answer to the last reload, or how a batch that needed none ended (C8). */
+  readonly echo?: string
+}
+
+const updatesText = (n: number): string | undefined =>
+  n > 0 ? plural(n, 'update', 'updates') : undefined
+
+export const summaryOf = (input: {
+  readonly attention: Attention
+  readonly queue: JobQueue
+  readonly mods: readonly ModRow[]
+}): Summary => {
+  const { attention, queue, mods } = input
+  const reloadJob = queue.jobs.find(job => job.kind === 'reload' && isActive(job))
+  const running = queue.jobs.find(job => job.kind !== 'reload' && job.state === 'running')
+  const caps = capsLine(mods)
+  const news = [updatesText(attention.updates), caps].filter(
+    (part): part is string => part !== undefined,
+  )
+  const said = new Set(attention.dismissed?.split(' · ') ?? [])
   return {
-    tone: 'ok',
-    text: reload?.state === 'ok' ? `${applied}, plugins reloaded` : applied,
+    ...(running === undefined ? {} : { running }),
+    pending: queue.jobs.filter(job => NEEDS_RELOAD.has(job.kind) && isActive(job)).length,
+    reloading: reloadJob?.state === 'running',
+    reloadOwed: attention.reloadPending && reloadJob === undefined,
+    updates: attention.updates,
+    capsCount: mods.filter(row => row.capsNew !== undefined).length,
+    ...(caps === undefined ? {} : { caps }),
+    newsDismissed: news.length > 0 && news.every(part => said.has(part)),
+    ...(attention.lastReload === undefined ? {} : { echo: attention.lastReload }),
   }
 }
 
@@ -354,32 +646,57 @@ export type Band = {
  * actionable and that very thing wasn't dismissed. `isWorking` is the band's
  * `e.props.isWorking`: a reload asked mid-turn waits for the turn to end.
  */
-export const bandOf = (input: {
-  readonly attention: Attention
-  readonly queue: JobQueue
-  readonly isWorking: boolean
-}): Band | undefined => {
-  const { attention, queue, isWorking } = input
-  const reloadJob = queue.jobs.find(
-    job => job.kind === 'reload' && (job.state === 'queued' || job.state === 'running'),
-  )
-  const busy = queue.jobs.find(job => job.kind !== 'reload' && job.state === 'running')
+export const bandOf = (
+  summary: Summary,
+  how: { readonly dismissed?: string | undefined; readonly isWorking: boolean },
+): Band | undefined => {
   const parts: string[] = []
-  if (busy !== undefined) parts.push(`${describeJob(busy)}…`)
-  if (reloadJob?.state === 'running') {
-    parts.push(isWorking ? 'reload queued, runs when the turn ends' : 'reloading plugins…')
+  if (summary.running !== undefined) parts.push(`${describeJob(summary.running)}…`)
+  if (summary.reloading) {
+    parts.push(how.isWorking ? 'reload queued, runs when the turn ends' : 'reloading plugins…')
   }
-  if (attention.updates > 0) {
-    parts.push(`${attention.updates} ${attention.updates === 1 ? 'update' : 'updates'}`)
-  }
-  if (attention.capsChanged > 0) parts.push(`${attention.capsChanged} with new capabilities`)
-  const reload = attention.reloadPending && reloadJob === undefined
-  if (reload) parts.push('reload to apply')
+  const updates = updatesText(summary.updates)
+  if (updates !== undefined) parts.push(updates)
+  if (summary.caps !== undefined) parts.push(summary.caps)
+  if (summary.reloadOwed) parts.push('reload to apply')
   if (parts.length === 0) {
-    if (attention.lastReload === undefined) return undefined
-    parts.push(attention.lastReload)
+    if (summary.echo === undefined) return undefined
+    parts.push(summary.echo)
   }
   const text = `mods · ${parts.join(' · ')}`
-  if (attention.dismissed === text) return undefined
-  return { key: text, text, reload }
+  if (how.dismissed === text) return undefined
+  return { key: text, text, reload: summary.reloadOwed }
+}
+
+/**
+ * The status line under the prompt (`$.ui.status`, one per plugin, drawn
+ * `modmgr: <text>`): what is under way or owed, and news the person hasn't
+ * dismissed; nothing when idle (undefined clears it). Echoes stay in the band.
+ */
+export const statusLineOf = (summary: Summary): string | undefined => {
+  const parts: string[] = []
+  const { running } = summary
+  if (running?.kind === 'marketplace-update') parts.push(`${describeJob(running)}…`)
+  else if (summary.pending > 0) parts.push(`applying ${summary.pending}…`)
+  else if (running !== undefined) parts.push(`${describeJob(running)}…`)
+  else if (summary.reloading) parts.push('reloading plugins…')
+  if (!summary.newsDismissed) {
+    const updates = updatesText(summary.updates)
+    if (updates !== undefined) parts.push(updates)
+    if (summary.caps !== undefined) parts.push(summary.caps)
+  }
+  if (summary.reloadOwed) parts.push('reload to apply')
+  // The engine names the plugin before it (`modmgr: …`, F52).
+  return parts.length === 0 ? undefined : parts.join(' · ')
+}
+
+/** The pane's title: `mods`, with news not dismissed (F22: a retitle is an open). */
+export const titleOf = (summary: Summary): string => {
+  const parts = [PANE_TITLE]
+  if (!summary.newsDismissed) {
+    const updates = updatesText(summary.updates)
+    if (updates !== undefined) parts.push(updates)
+    if (summary.capsCount > 0) parts.push(`${summary.capsCount} can do more`)
+  }
+  return parts.join(' · ')
 }

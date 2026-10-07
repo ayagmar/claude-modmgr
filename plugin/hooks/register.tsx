@@ -35,9 +35,9 @@ import { drawPane } from './ui/Pane.tsx'
 
 // One atom per key, its plugin and key spelled as literals (the validator lists
 // them) and a shape tag that changes with the key's type (C3; domain/state.ts).
-const MODS = atom({ plugin: 'modmgr', key: 'mods' } as const, INITIAL.mods, { shape: 'mods/1' })
+const MODS = atom({ plugin: 'modmgr', key: 'mods' } as const, INITIAL.mods, { shape: 'mods/2' })
 const DETAIL = atom({ plugin: 'modmgr', key: 'detail' } as const, INITIAL.detail, {
-  shape: 'detail/1',
+  shape: 'detail/2',
 })
 const CATALOG_PAGE = atom({ plugin: 'modmgr', key: 'catalogPage' } as const, INITIAL.catalogPage, {
   shape: 'catalogPage/1',
@@ -47,9 +47,9 @@ const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/2' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/3' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
-  shape: 'review/1',
+  shape: 'review/2',
 })
 const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.attention, {
   shape: 'attention/2',
@@ -150,6 +150,7 @@ function uiPorts($: EngineInterface): UiPort {
     close: id => $.ui.close({ id }),
     focus: (requestId, key) => $.ui.focus({ requestId, key }),
     copy: (text, surface) => $.ui.copy(surface === undefined ? { text } : { text, surface }),
+    status: text => $.ui.status(text),
   }
 }
 

@@ -88,15 +88,15 @@ export const nextRunnable = (jobs: readonly Job[]): Job | undefined => {
 }
 
 /**
- * A queued reload whose batch changed nothing (every job failed or was
- * cancelled) is pointless; the runner cancels it instead of running it.
+ * A queued reload whose batch changed nothing (every job failed, was
+ * cancelled or found it already so) is pointless; the runner cancels it instead of running it.
  */
 export const reloadIsUseful = (jobs: readonly Job[], reload: Job): boolean => {
   const others = jobs.filter(job => job.kind !== 'reload' && NEEDS_RELOAD.has(job.kind))
   const sameBatch =
     reload.batch === undefined ? others : others.filter(job => job.batch === reload.batch)
   const relevant = sameBatch.length > 0 ? sameBatch : others
-  return relevant.some(job => job.state === 'ok') || relevant.length === 0
+  return relevant.some(job => job.state === 'ok' && job.unchanged !== true) || relevant.length === 0
 }
 
 export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
@@ -105,7 +105,7 @@ export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
   )
 
 export type Finish =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly unchanged?: boolean; readonly keptData?: boolean }
   | { readonly ok: false; readonly error: { readonly kind: string; readonly message: string } }
   | { readonly cancelled: true }
 
@@ -113,7 +113,15 @@ export const finish = (jobs: readonly Job[], id: string, now: number, how: Finis
   withJob(jobs, id, job => {
     if (!isActive(job)) return job
     if ('cancelled' in how) return { ...job, state: 'cancelled', endedAt: now }
-    if (how.ok) return { ...job, state: 'ok', endedAt: now }
+    if (how.ok) {
+      return {
+        ...job,
+        state: 'ok',
+        endedAt: now,
+        ...(how.unchanged === true ? { unchanged: true } : {}),
+        ...(how.keptData === undefined ? {} : { keptData: how.keptData }),
+      }
+    }
     return { ...job, state: 'failed', endedAt: now, error: how.error }
   })
 
@@ -152,41 +160,78 @@ export const prune = (jobs: readonly Job[], cap = JOBS_CAP): Job[] => {
   return jobs.filter(job => !drop.has(job))
 }
 
-/** The CLI calls that undo a job, where one exists (`z`, PLAN §2.1). */
+/**
+ * The CLI call that undoes a job, where one exists (`z`, PLAN §2.1). A job
+ * that changed nothing (already so) has nothing to undo; an update has no
+ * inverse (the CLI can't install an older version). Undoing an install keeps
+ * the data the mod made since.
+ */
 export const inverseOf = (job: Job): JobSpec | undefined => {
-  if (job.state !== 'ok' || job.target === undefined) return undefined
+  if (job.state !== 'ok' || job.unchanged === true || job.target === undefined) return undefined
   const scope: Scope | undefined = job.args?.scope
-  const args = scope === undefined ? undefined : { scope }
-  const kind = {
-    enable: 'disable',
-    disable: 'enable',
-    install: 'remove',
-    remove: 'install',
-  } as const
-  const inverse = (kind as Readonly<Partial<Record<JobKind, JobSpec['kind']>>>)[job.kind]
-  if (inverse === undefined) return undefined
-  return args === undefined
-    ? { kind: inverse, target: job.target }
-    : { kind: inverse, target: job.target, args }
+  const scoped = scope === undefined ? {} : { scope }
+  const spec = (kind: JobSpec['kind'], args: Job['args']): JobSpec =>
+    args === undefined || Object.keys(args).length === 0
+      ? { kind, target: job.target as string }
+      : { kind, target: job.target as string, args }
+  switch (job.kind) {
+    case 'enable':
+      return spec('disable', scoped)
+    case 'disable':
+      return spec('enable', scoped)
+    case 'install':
+      return spec('remove', { ...scoped, keepData: true })
+    case 'remove':
+      return spec('install', scoped)
+    default:
+      return undefined
+  }
 }
 
-/** The most recent batch whose every undoable job succeeded and can be inverted, newest job last. */
-export const undoSpecs = (
-  jobs: readonly Job[],
-): { batch: string; specs: JobSpec[] } | undefined => {
+/** One step of an undo: the spec to queue and the job it undoes. */
+export type UndoStep = { readonly spec: JobSpec; readonly undoes: Job }
+
+export type UndoPlan =
+  | { readonly kind: 'ready'; readonly batch: string; readonly steps: UndoStep[] }
+  | { readonly kind: 'none'; readonly reason: string }
+
+/**
+ * What `z` would do: invert the newest batch that did something, newest job
+ * first. A batch of reloads alone is skipped (it changed no setting).
+ */
+export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
+  const seen = new Set<string>()
   for (let i = jobs.length - 1; i >= 0; i -= 1) {
     const batch = jobs[i]?.batch
-    if (batch === undefined || jobs[i]?.kind === 'reload') continue
+    if (batch === undefined || seen.has(batch)) continue
+    seen.add(batch)
     const members = jobs.filter(job => job.batch === batch && job.kind !== 'reload')
-    if (members.some(isActive)) return undefined
-    const specs = members.flatMap(job => {
-      const inverse = inverseOf(job)
-      return inverse === undefined ? [] : [inverse]
+    if (members.length === 0) continue
+    if (members.some(isActive)) return { kind: 'none', reason: 'The last batch is still running' }
+    const steps = members.flatMap(job => {
+      const spec = inverseOf(job)
+      return spec === undefined ? [] : [{ spec, undoes: job }]
     })
-    return specs.length === 0 ? undefined : { batch, specs: specs.reverse() }
+    if (steps.length > 0) return { kind: 'ready', batch, steps: steps.reverse() }
+    return members.some(job => job.kind === 'update' && job.state === 'ok' && !job.unchanged)
+      ? {
+          kind: 'none',
+          reason: "An update can't be undone: the CLI can't install an older version",
+        }
+      : { kind: 'none', reason: 'The last batch changed nothing to undo' }
   }
-  return undefined
+  return { kind: 'none', reason: 'Nothing to undo' }
 }
+
+/** Whether `batch` is still the one `z` would undo: what an undo queues is checked against it. */
+export const stillUndoes = (jobs: readonly Job[], batch: string): boolean => {
+  const plan = undoPlan(jobs)
+  return plan.kind === 'ready' && plan.batch === batch
+}
+
+/** An undo that reinstalls runs a mod's code again: it goes through the review (R-M3a §3). */
+export const undoNeedsReview = (plan: UndoPlan): boolean =>
+  plan.kind === 'ready' && plan.steps.some(step => step.spec.kind === 'install')
 
 export type QueueSummary = {
   readonly running?: Job

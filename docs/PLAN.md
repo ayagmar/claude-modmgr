@@ -75,6 +75,9 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F48 | The terminal lays out with Ink's flex defaults: children shrink (`flexShrink: 1`), vertically too inside a Box of fixed `height`, so lines overlap; `gap` also sets the row gap of a wrapping row. Fixed columns take `flexShrink={0}`; a clipped column wraps its content in a non-shrinking Box; a wrapping row uses `columnGap`. | M3a, live at 106 columns |
 | F49 | A pane **redraws when the keys leave it** without a key press of its own (ctrl+x tab away: `isFocused` false, drawn), so the last draw's `isFocused` is current when an Esc typed at the prompt closes it. The **close key ctrl+x x hands the keys back before `ui.close` too**, so it reaches the hook exactly as Esc does: the two can't be told apart, and with an overlay up ctrl+x x pops it. The mouse close mark was not tested (no click driver). | M3a review R-M3a-6, live debug log |
 | F50 | A focus ring moved onto an element of a tree that the next redraw replaces with a **differently built** one is lost: it lands on the first focusable element (here the filter field), with no `ui.focus` raised. Every intermediate state a multi-write action passes through must draw like its final state. | M3a review fixes, live |
+| F51 | A **folder-marketplace** plugin runs from its marketplace folder (`readFromFolder`: the session reads `hooks/hooks.json` there), so an edit or version bump there applies at the next reload. `list --json` gives the folder's `folderVersion` beside the install copy's `version`; `claude plugin update` refreshes the copy (and `version`) without `marketplace update`, which changes nothing that runs. `update` takes `--accept-command` too: a command-source update can need acceptance. `uninstall --keep-data` keeps `plugins/data/<name>-<marketplace>/` and a reinstall finds it; without the flag the folder is deleted. | M3b, isolated config + `claude -p` marker |
+| F52 | `$.ui.status(text)` is drawn under the prompt as `⚠ <plugin>: <text>` (the engine names the plugin). | M3b, live |
+| F53 | An **unasked** `ui.open` of a pane that is already placed (a retitle from a timer) keeps it placed, at 120 columns and below both floors at 64 (`ui.open modmgr modmgr (unasked, 64 columns): placed`): the 144/110-column floor is for placing a pane, not for retitling one. A pane's title is drawn only while more than one pane is open (d.ts `PaneOpenArgs.title`), so the badge is mostly seen in tabs. | M3b, live debug log |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -664,3 +667,73 @@ Pushes and GitHub actions still need the person's go-ahead.
   an update's version at 8 and cut their flags at the frame; the Esc cascade trusts only terminal draws and closes
   when the pane still holds the keys at the hook (F49: the close key can't be told from Esc, so it pops an overlay
   too, accepted); the footer says `close`/`back` off the terminal and gives the ctrl+x hint only there.
+
+**C12. Update, remove, undo and the capability diff (M3b, applied 2026-10-07).**
+- **Update** (`u` the selected mod, `a` every mod the CLI can update) always goes through the review: it runs new
+  code and can't be undone (no version pin in the CLI; `z` says so). One batch refreshes each marketplace involved
+  (`marketplace update <name>`), updates each mod, then reloads once. An update the CLI finds current (`up_to_date`,
+  or from = to) finishes `ok` with `unchanged: true`: it owes no reload (the batch's reload is cancelled when nothing
+  changed) and undo skips it, as it does any "already so" toggle. Folder-marketplace mods get no `u` (F51: they run
+  from their folder, so a change there applies at the next reload); skills-dir, managed and launch-command mods say why.
+  **Update detection** (the `↑` badge, `attention.updates`) stays 0 until M5b's scheduler (`marketplace update`, then
+  compare versions); F51's `folderVersion` is cheap but describes code that already runs, so it is not an update.
+- **Remove** (`x`) always goes through the review: what is removed, its version and scope, the repository-file change
+  for project/local, its other parts, and its data. **The data is kept by default** (`--keep-data`), so undo restores
+  the mod as it was; `d` on the review switches to deleting it (said in the error tone: undo can't bring it back). `d`
+  is offered only when the mod has a data folder. Managed and launch-command mods are locked; a skills-dir mod is
+  removed by deleting its folder. Confirming a remove also drops the detail of the mod that went.
+- **Undo** (`z`) is `undoPlan`: the newest batch that did something (a batch of reloads alone is skipped), inverted,
+  newest job first; or a reason ("still running", "an update can't be undone", "nothing to undo"). An undo that
+  reinstalls goes through the review (what comes back, what it can do from the capability history, whether its data
+  was kept, the marketplace's current version, and that a declared install command stops the job, C10; the full
+  re-verify is M4's). Toggle-only undos stay direct. Undoing an install removes with `--keep-data`.
+- **Review shape** (`review/2`): `targets` carry an `op` (`enable | disable | install | remove | update`) and the
+  version; `alsoDisables` became `parts`; `marketplaces`, `keepData` and `dataBytes` were added; `action` gained
+  `undo`. The keys sit under the heading so a clipped review keeps them; the rows a review takes are counted from its
+  lines' text, wrapped at the body's columns.
+- **Capability diff**: every refresh records each mod's notable list at its running version (`runningVersion`: the
+  folder's for a folder marketplace, F51) in the store's `capsHistory`, a recency-ordered map capped at 300 (removed
+  mods stay a while, so an undo's review can say what comes back). A first sight only records. A version change that
+  adds notable items keeps them as `added` with `since` (items added earlier and not yet seen carry over, from the
+  first version); both or neither, shape-checked on read. `capsHistory` is written at **envelope version 2** (store
+  keys now have their own versions, `KEY_VERSIONS`; an older modmgr reads v2 as `newer` and leaves it), migrated
+  from v1 as is. Rows carry `capsNew` (`mods/2`, `detail/2`; `ModDetail.capsAdded` went), drawn as a `new` flag on
+  the row and "New since 0.3.1" above Notable in the detail; `attention.capsChanged` counts them. **Opening the
+  detail (Enter) acknowledges**: the row, band, status line and title let go at once; the detail on screen keeps
+  saying it until it is left (found live: acknowledging the detail too hid it before it was read).
+- **One summary** (`summaryOf` in `domain/view.ts`) feeds the band (`bandOf`), the status line (`statusLineOf`) and
+  the title (`titleOf`), so they can't disagree. The status line (`UiPort.status`, F52) says what is under way or owed
+  (`applying 2…`, `reloading plugins…`, `reload to apply`, `turn-band can now run programs`), nothing when idle; the
+  reload's echo stays in the band. The title is `mods`, then `· 2 updates`, `· 1 can do more`. `services/chrome.ts`
+  syncs both: the runtime's state port is wrapped so its writes to `attention`, `queue` and `mods` schedule one sync
+  (coalesced on the clock); the status line is set only when its text changes; a retitle happens only for a pane
+  `$.ui.panes()` lists as placed whose title differs, through `paneOpen` with its manners (no `focus`, toasts held
+  only when no job is active; F53). Every other open (`/mods`, the band's `m`, the Esc cascade's re-take, a batch's
+  re-open) passes the current title too, since an open sets it anew.
+- **Contract hygiene**: `View.layout` and `View.page` are gone (`view/3`). `Job.unchanged` is optional and additive:
+  an older module reads a queue that has it correctly and a newer one reads a queue without it, so `queue` stays at
+  `/1` (a shape tag guards against misreads, and there is none).
+- **Footer**: only keys that apply are drawn (`u` for an updatable selection, `x` for a removable one, `a` with two or
+  more updatable mods); its rows are counted from the labels (`footerRowsFor`). The batch line names a single remove or
+  install (`quiet-bash removed`), counts updates (`1 updated, 1 already up to date`), and treats a marketplace refresh
+  as a step of an update. `list --json` now runs with `--data-size`, so the detail and the remove review know a mod's
+  data size.
+- **Tests**: vitest for the history, the store version, the reviews, the summary and the batch line
+  (`test/domain/m3b.test.ts`), and for update / update all / remove (data kept or deleted) / reviewed undo / the
+  status line and title service over the fixture CLI, including the done criterion: a fixture update
+  (`bumpTurnBand`: turn-band's folder at 0.4.0 calling `$.process.run`) shows "turn-band can now run programs" in the
+  row, the detail, the band, the status line and the title (`test/services/m3b.test.ts`). `plugin/tests/m3b.test.tsx`
+  runs remove → reviewed undo and an update on terminal and desktop, and the fixture update's diff on both.
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-07-m3b-review-response.md`): a batch that needed no reload
+  (an update found current, a toggle already so) gets the same echo a reload gives, its `doneText`, so the band and the
+  pane's batch line say "already up to date"; `z` queues by a guarded write (`enqueue`'s `when`, `stillUndoes`), so two
+  presses queue one undo, and an undo review carries the batch it undoes (`undoes`) and queues nothing, saying why, once
+  another batch landed; dismissing the band also quiets that news in the status line and the title
+  (`Summary.newsDismissed`; what is under way or owed stays); the status line counts changes (jobs that need a reload),
+  shows a marketplace refresh or a test by name, and shares `isWork` with the batch line; the data choice moved from `d`
+  (the band's dismiss) to `w`, and `y` reads "remove and wipe its data" once chosen; whether a remove kept the data is
+  the CLI's `keptData` (parsed, recorded on the job as `keptData`), and the undo review says nothing when the CLI said
+  nothing; a confirmed remove moves the selection to the next row; actions' own writes to summary keys schedule the
+  chrome; a retitle reads its `UiOpenResult` and logs an unplaced answer (F53, checked at 64 columns); toasts are
+  held only while no job is active and the job log isn't on top (`holdsToasts`); a removed mod's name is sanitised in
+  the undo review; the update review says "if a newer version exists".

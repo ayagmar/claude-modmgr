@@ -45,6 +45,8 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         kind: prefs.kind,
       }))
     }
+    // A reloaded module says again what the last one left on the status line.
+    await rt.chrome.sync()
     const probe = await probeAndRecord(ports)
     if (!probe.process) {
       await rt.registry.refresh()

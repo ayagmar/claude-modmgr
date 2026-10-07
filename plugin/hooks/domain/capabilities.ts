@@ -128,6 +128,19 @@ const NOTABLE_TEXT: Readonly<Record<NotableId, string>> = {
 export const notableText = (id: string): string =>
   (NOTABLE_TEXT as Readonly<Record<string, string>>)[id] ?? id
 
+/** The same, after "<mod> can now …" (the band's capability diff). */
+const NOTABLE_VERB: Readonly<Record<NotableId, string>> = {
+  'runs-programs': 'run programs',
+  'reads-and-sends': 'read your conversation and send data out',
+  'secret-env': 'read secret-looking variables',
+  'changes-model-input': 'change what the model reads',
+  'judges-plugins': 'judge other plugins',
+  'starts-model-calls': 'start model calls',
+}
+
+export const notableVerb = (id: string): string =>
+  (NOTABLE_VERB as Readonly<Record<string, string>>)[id] ?? `do more (${id})`
+
 const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH|COOKIE|SESSION/i
 const RUNS = ['process.run', 'process.spawn', 'fs.write', 'env.set']
 const READS = ['session.messages', 'settings.read', 'prompt.read', 'ui.selection', 'fs.read']

@@ -238,7 +238,8 @@ test('help is generated from the keymap; the job log lists what ran', async ($, 
     expect(await ui.find({ type: 'Text', text: 'enable/disable' })).toBeDefined()
     // Only keys that exist in this version are listed.
     expect(await ui.find({ type: 'Text', text: 'Discover' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: 'update all' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'sort' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'update all' })).toBeDefined()
     await ui.press({ key: 'act:help' })
     await ui.redraw()
     await ui.press({ key: 'act:jobs' })

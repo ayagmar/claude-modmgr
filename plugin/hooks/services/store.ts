@@ -9,7 +9,7 @@ import {
   bytesOf,
   capped,
   emptyStore,
-  envelope,
+  envelopeOf,
   fitBudget,
   HARD_BUDGET,
   openKey,
@@ -114,7 +114,7 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
     dirty.clear()
     for (const [index, key] of keys.entries()) {
       try {
-        await ports.store.set(key, envelope(data[key]))
+        await ports.store.set(key, envelopeOf(key, data[key]))
       } catch (error) {
         // Kept dirty for the next flush, which a later set schedules.
         for (const left of keys.slice(index)) dirty.add(left)

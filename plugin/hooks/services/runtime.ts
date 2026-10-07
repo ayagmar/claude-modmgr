@@ -5,7 +5,9 @@
 // the queue).
 
 import type { Config } from '../domain/config.ts'
-import type { Ports } from '../ports.ts'
+import type { StateKey } from '../domain/state.ts'
+import type { Ports, StatePort } from '../ports.ts'
+import { type Chrome, createChrome } from './chrome.ts'
 import { createRunner, type Runner } from './job-runner.ts'
 import { createRegistry, type Registry } from './registry.ts'
 import { createStore, type StoreService } from './store.ts'
@@ -18,13 +20,38 @@ export type Runtime = {
   readonly store: StoreService
   readonly registry: Registry
   readonly runner: Runner
+  /** The status line and the pane title. */
+  readonly chrome: Chrome
   /** Job ids unique across modules: the owner, then a counter. */
   newJobId(): string
   dispose(): void
 }
 
-export const createRuntime = (ports: Ports, config: Config, owner: string): Runtime => {
-  const debug = (text: string): void => ports.ui.debug(text)
+/** The keys the status line and the title are drawn from (domain/view.ts `summaryOf`). */
+const SUMMARY_KEYS: ReadonlySet<StateKey> = new Set(['attention', 'queue', 'mods'])
+
+/** A state port that calls `written` after each successful write of `keys`. */
+export const observedState = (
+  state: StatePort,
+  keys: ReadonlySet<StateKey>,
+  written: () => void,
+): StatePort => ({
+  read: key => state.read(key),
+  async update(key, change) {
+    const value = await state.update(key, change)
+    if (keys.has(key)) written()
+    return value
+  },
+})
+
+export const createRuntime = (base: Ports, config: Config, owner: string): Runtime => {
+  const debug = (text: string): void => base.ui.debug(text)
+  const chrome = createChrome(base, debug)
+  // The runtime's own writes (the runner's, the registry's) keep the status line current.
+  const ports: Ports = {
+    ...base,
+    state: observedState(base.state, SUMMARY_KEYS, () => chrome.schedule()),
+  }
   const store = createStore(ports, { debug })
   const registry = createRegistry(ports, store, debug)
   const runner = createRunner(ports, {
@@ -45,6 +72,7 @@ export const createRuntime = (ports: Ports, config: Config, owner: string): Runt
     store,
     registry,
     runner,
+    chrome,
     newJobId() {
       counter += 1
       return `${owner}-${counter}`

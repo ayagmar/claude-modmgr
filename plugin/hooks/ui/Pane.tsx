@@ -9,13 +9,16 @@ import type { Overlay } from '../../types/index.d.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
+  batchLineOf,
   FILTER_KEY,
   filterRows,
+  footerRowsFor,
   layoutFor,
   pagerLabel,
   selectedRow,
   stagedIds,
-  statusOf,
+  whyNoRemove,
+  whyNoUpdate,
   windowAround,
 } from '../domain/view.ts'
 import { Detail, detailRows } from './Detail.tsx'
@@ -36,9 +39,6 @@ const NOT_YET: ReadonlySet<string> = new Set([
   'tab.dev',
   'tab.health',
   'sort',
-  'update',
-  'update-all',
-  'remove',
 ])
 
 const OVERLAY_SURFACE: Readonly<Record<Overlay, KeySurface>> = {
@@ -74,15 +74,92 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const changing = stagedIds(view, mods)
   const staged = changing.size
   const showStaged = staged > 0 && !readOnly && top !== 'review'
-  const status = statusOf(queue, attention.lastReload !== undefined)
+  const status = batchLineOf(queue, attention.lastReload !== undefined)
   const terminal = v.surface === 'terminal'
   const on = mods.filter(row => row.enabled).length
   const listColumns = layout === 'split' ? Math.floor(frame.bodyColumns * 0.45) : frame.bodyColumns
   const showList = layout === 'split' || top === undefined
   const showFilter = Input !== undefined && showList && mods.length > 0
 
+  // The footer's keys: only what applies to what is shown (a key drawn is a
+  // key that works; help lists the rest).
+  type Key = {
+    readonly action: string
+    readonly on: KeySurface
+    readonly label: string
+    readonly onPress: () => void
+  }
+  const footer: Key[] = []
+  if (top === undefined) {
+    const updatable = readOnly ? 0 : mods.filter(row => whyNoUpdate(row) === undefined).length
+    if (!readOnly && selected !== undefined) {
+      footer.push({
+        action: 'toggle',
+        on: 'installed',
+        label: 'toggle',
+        onPress: () => v.act.toggle(),
+      })
+      if (whyNoUpdate(selected) === undefined) {
+        footer.push({
+          action: 'update',
+          on: 'installed',
+          label: 'update',
+          onPress: () => v.act.update(),
+        })
+      }
+      if (whyNoRemove(selected) === undefined) {
+        footer.push({
+          action: 'remove',
+          on: 'installed',
+          label: 'remove',
+          onPress: () => v.act.remove(),
+        })
+      }
+    }
+    if (updatable > 1) {
+      footer.push({
+        action: 'update-all',
+        on: 'installed',
+        label: 'update all',
+        onPress: () => v.act.updateAll(),
+      })
+    }
+    if (!readOnly) {
+      footer.push({ action: 'undo', on: 'installed', label: 'undo', onPress: () => v.act.undo() })
+    }
+    footer.push({
+      action: 'refresh',
+      on: 'installed',
+      label: 'refresh',
+      onPress: () => v.act.refresh(),
+    })
+    if (showFilter) {
+      footer.push({
+        action: 'filter',
+        on: 'installed',
+        label: 'filter',
+        onPress: () => v.act.focusFilter(),
+      })
+    }
+  }
+  if (top !== 'review') {
+    footer.push({ action: 'jobs', on: 'pane', label: 'jobs', onPress: () => v.act.overlay('jobs') })
+    footer.push({ action: 'help', on: 'pane', label: 'help', onPress: () => v.act.overlay('help') })
+  }
+  const closeLabel =
+    top === undefined ? (terminal ? 'esc close' : 'close') : terminal ? 'esc back' : 'back'
+  const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use the keys'
+
   // Rows the list may take: the body less every other line drawn.
-  const footerRows = frame.bodyColumns < 80 ? 2 : 1
+  const footerRows = footerRowsFor(
+    [
+      // A hotkey is painted before its label (`e: toggle`).
+      ...footer.map(key => key.label.length + 3),
+      closeLabel.length,
+      ...(hint === undefined ? [] : [hint.length]),
+    ],
+    frame.bodyColumns,
+  )
   const chrome =
     1 +
     (warning === undefined ? 0 : 1) +
@@ -127,7 +204,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     how: Parameters<typeof detailRows>[0],
   ): number =>
     which === 'review' && review !== null
-      ? reviewRows(review)
+      ? reviewRows(v, review, mods, frame.bodyColumns)
       : which === 'help'
         ? helpRows(helpSurfaces, NOT_YET)
         : which === 'detail'
@@ -180,65 +257,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       clipped(overlay(top) ?? list, overlayRows(top, detailHow(true)))
     )
 
-  const keys: RenderElement[] = []
-  if (top === undefined) {
-    if (!readOnly && selected !== undefined) {
-      keys.push(
-        KeyButton(v, {
-          action: 'toggle',
-          on: 'installed',
-          label: 'toggle',
-          onPress: () => v.act.toggle(),
-        }),
-      )
-    }
-    if (!readOnly) {
-      keys.push(
-        KeyButton(v, {
-          action: 'undo',
-          on: 'installed',
-          label: 'undo',
-          onPress: () => v.act.undo(),
-        }),
-      )
-    }
-    keys.push(
-      KeyButton(v, {
-        action: 'refresh',
-        on: 'installed',
-        label: 'refresh',
-        onPress: () => v.act.refresh(),
-      }),
-    )
-    if (showFilter) {
-      keys.push(
-        KeyButton(v, {
-          action: 'filter',
-          on: 'installed',
-          label: 'filter',
-          onPress: () => v.act.focusFilter(),
-        }),
-      )
-    }
-  }
-  if (top !== 'review') {
-    keys.push(
-      KeyButton(v, {
-        action: 'jobs',
-        on: 'pane',
-        label: 'jobs',
-        onPress: () => v.act.overlay('jobs'),
-      }),
-    )
-    keys.push(
-      KeyButton(v, {
-        action: 'help',
-        on: 'pane',
-        label: 'help',
-        onPress: () => v.act.overlay('help'),
-      }),
-    )
-  }
+  const keys = footer.map(key =>
+    KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress }),
+  )
 
   return (
     <Box flexDirection="column">
@@ -321,23 +342,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       <Box flexDirection="row" columnGap={2} flexWrap="wrap">
         {keys}
         {top === undefined ? (
-          <Button
-            key="act:close"
-            plain
-            dimColor
-            label={terminal ? 'esc close' : 'close'}
-            onPress={() => v.act.close()}
-          />
+          <Button key="act:close" plain dimColor label={closeLabel} onPress={() => v.act.close()} />
         ) : (
-          <Button
-            key="act:back"
-            plain
-            dimColor
-            label={terminal ? 'esc back' : 'back'}
-            onPress={() => v.act.back()}
-          />
+          <Button key="act:back" plain dimColor label={closeLabel} onPress={() => v.act.back()} />
         )}
-        {frame.isFocused || !terminal ? null : <Text dimColor>ctrl+x tab to use the keys</Text>}
+        {hint === undefined ? null : <Text dimColor>{hint}</Text>}
       </Box>
     </Box>
   )

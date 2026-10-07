@@ -41,13 +41,14 @@ describe('registry.refresh', () => {
     const first = validateCalls(w)
     expect(first).toBe(6)
     await w.clock.advance(2000)
-    expect(w.store.sets).toEqual(['validate'])
+    // The first sight of each mod is recorded for the capability diff.
+    expect(w.store.sets).toEqual(['validate', 'capsHistory'])
     await registry.refresh()
     expect(validateCalls(w)).toBe(first)
     expect(Object.keys(store.get('validate'))).toHaveLength(6)
     await w.clock.advance(2000)
     // Nothing new: the store file isn't rewritten.
-    expect(w.store.sets).toEqual(['validate'])
+    expect(w.store.sets).toEqual(['validate', 'capsHistory'])
   })
 
   it('asks details for mods only', async () => {

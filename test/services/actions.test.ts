@@ -85,7 +85,7 @@ describe('toggle → review → confirm → reload', () => {
     expect(w.state.values.view.stack).toEqual(['review'])
     expect(w.state.values.review).toMatchObject({
       action: 'toggle',
-      targets: [{ id: TURN_BAND, scope: 'user', enable: false }],
+      targets: [{ id: TURN_BAND, op: 'disable', scope: 'user' }],
       changesRepoFile: false,
     })
 
@@ -120,7 +120,7 @@ describe('toggle → review → confirm → reload', () => {
     })
     await act.toggle(TURN_BAND)
     await act.apply()
-    expect(w.state.values.review?.alsoDisables).toEqual({ skills: 2, agents: 0, mcp: 1 })
+    expect(w.state.values.review?.parts).toEqual({ skills: 2, agents: 0, mcp: 1 })
   })
 
   it('turning a mod on lists what it may do', async () => {
@@ -354,7 +354,7 @@ describe('review findings R-M3a-1 to R-M3a-3', () => {
     const w = world()
     const review = {
       action: 'toggle' as const,
-      targets: [{ id: TURN_BAND, enable: false }],
+      targets: [{ id: TURN_BAND, op: 'disable' as const }],
       notable: [],
       changesRepoFile: false,
     }
