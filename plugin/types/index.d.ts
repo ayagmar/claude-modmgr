@@ -52,7 +52,7 @@ export type CatalogRow = {
   id: PluginId
   name: string
   marketplace: string
-  installs: number
+  installs?: number
   kind: CatalogKind
   blurb: string
 }
