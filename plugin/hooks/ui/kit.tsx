@@ -1,0 +1,82 @@
+// What every view draws with (C2): the surface's element table, state reads
+// and the actions, never `$`. Theme keys and glyphs are fixed (PLAN §5.1,
+// §5.6, F13, R18); hotkeys come only from domain/keymap.ts.
+
+import type { Color, Elements, RenderElement, RenderSurface } from 'claude-code'
+import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
+import type { StatePort } from '../ports.ts'
+import type { Actions } from '../services/actions.ts'
+
+/** The elements every surface has, plus `Input` where the surface takes typing (not mobile). */
+export type El = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'> & {
+  readonly Input?: Elements['terminal']['Input']
+}
+
+export type ViewPorts = {
+  readonly el: El
+  readonly surface: RenderSurface
+  readonly read: StatePort['read']
+  readonly act: Actions
+}
+
+export const GLYPH = {
+  on: '●',
+  off: '○',
+  update: '↑',
+  problem: '▲',
+  notable: '◆',
+  ok: '✓',
+  failed: '✗',
+  locked: '⊘',
+  stale: '↻',
+} as const
+
+/** The theme keys modmgr uses (F13): one accent, quiet metadata, three tones. */
+export const TONE = {
+  accent: 'claude',
+  muted: 'subtle',
+  ok: 'success',
+  warn: 'warning',
+  bad: 'error',
+} as const satisfies Record<string, Color>
+
+/**
+ * A plain Button for a keymap action: drawn `e: toggle` on the terminal, its
+ * hotkey from the keymap (a binding missing from the surface draws no hotkey).
+ */
+export const KeyButton = (
+  v: ViewPorts,
+  props: {
+    readonly action: string
+    readonly on: KeySurface
+    readonly label: string
+    readonly onPress: () => void
+    readonly dim?: boolean
+  },
+): RenderElement => {
+  const { Button } = v.el
+  const hotkey = hotkeyFor(props.action, props.on)
+  return (
+    <Button
+      key={`act:${props.action}`}
+      plain
+      label={props.label}
+      {...(hotkey === undefined ? {} : { hotkey })}
+      {...(props.dim === true ? { dimColor: true } : {})}
+      onPress={props.onPress}
+    />
+  )
+}
+
+/** A bold section heading. */
+export const Heading = (v: ViewPorts, text: string): RenderElement => {
+  const { Text } = v.el
+  return <Text bold>{text}</Text>
+}
+
+/** Fire-and-forget for a press handler: the action catches its own failures. */
+export const run =
+  (fn: () => Promise<void>): (() => void) =>
+  () => {
+    void fn()
+  }

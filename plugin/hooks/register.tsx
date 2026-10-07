@@ -3,9 +3,17 @@
 // delegates to services. `.catch` handlers never touch `$`: on re-entry their
 // `$` calls reject (review M2), so they pass through or answer plainly.
 
-import { atom, type EngineInterface, type Register, read, update } from 'claude-code'
+import {
+  atom,
+  type EngineInterface,
+  type Register,
+  type RenderInput,
+  read,
+  update,
+} from 'claude-code'
 import { parseConfig } from './domain/config.ts'
 import { INITIAL, type ModmgrState, type StateKey } from './domain/state.ts'
+import { rowOfKey } from './domain/view.ts'
 import type {
   ClockPort,
   CommandPort,
@@ -17,9 +25,13 @@ import type {
   StorePort,
   UiPort,
 } from './ports.ts'
+import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
 import { MODS_DESCRIPTION, onSessionStart } from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
+import { drawBand } from './ui/Band.tsx'
+import type { El, ViewPorts } from './ui/kit.tsx'
+import { drawPane } from './ui/Pane.tsx'
 
 // One atom per key, its plugin and key spelled as literals (the validator lists
 // them) and a shape tag that changes with the key's type (C3; domain/state.ts).
@@ -35,12 +47,12 @@ const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/1' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/2' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
   shape: 'review/1',
 })
 const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.attention, {
-  shape: 'attention/1',
+  shape: 'attention/2',
 })
 const DEGRADED = atom({ plugin: 'modmgr', key: 'degraded' } as const, INITIAL.degraded, {
   shape: 'degraded/1',
@@ -134,6 +146,10 @@ function uiPorts($: EngineInterface): UiPort {
   return {
     debug: text => $.ui.log(text, { to: 'debug' }),
     panes: () => $.ui.panes(),
+    open: args => $.ui.open(args),
+    close: id => $.ui.close({ id }),
+    focus: (requestId, key) => $.ui.focus({ requestId, key }),
+    copy: (text, surface) => $.ui.copy(surface === undefined ? { text } : { text, surface }),
   }
 }
 
@@ -150,6 +166,20 @@ function portsOf($: EngineInterface): Ports {
   }
 }
 
+function actionsOf($: EngineInterface): Actions {
+  return createActions({ state: statePorts($), ui: uiPorts($) }, runtime)
+}
+
+/** What a view draws with: the surface's elements, state reads (which subscribe), the actions. */
+function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
+  const table = $.ui.resolve(e)
+  const el: El =
+    'Input' in table
+      ? { Box: table.Box, Text: table.Text, Button: table.Button, Input: table.Input }
+      : { Box: table.Box, Text: table.Text, Button: table.Button }
+  return { el, surface: e.surface, read: statePorts($).read, act: actionsOf($) }
+}
+
 // This module instance's services, built at its first `session.start` and
 // gone with the module (a reload of modmgr builds the next one, F31).
 let runtime: Runtime | undefined
@@ -164,6 +194,39 @@ export const register: Register = (on, options) => {
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'mods' }, ($, e) =>
-    modsCommand({ state: statePorts($) }, e.args),
+    modsCommand({ state: statePorts($), ui: uiPorts($) }, e.args),
   ).catch(() => ({ text: 'modmgr failed to answer; run with --debug for the reason.' }))
+
+  on('ui.render', { component: 'Pane', requestId: 'modmgr' }, async ($, e) =>
+    drawPane(viewPortsOf($, e), {
+      bodyColumns: e.props.bodyColumns,
+      bodyRows: e.props.scroll.bodyRows,
+      isFocused: e.props.isFocused,
+      now: await $.clock.now(),
+    }),
+  ).catch((_$, e, next) => next(e))
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const band = await drawBand(viewPortsOf($, e), e.props)
+    return band ?? next(e)
+  }).catch((_$, e, next) => next(e))
+
+  // Matchers spell the pane id (domain/view.ts PANE_ID) as a literal: the
+  // validator names it, and scripts/validate-plugin.ts allows these two gates
+  // only on modmgr's own pane.
+
+  // The ring landing on a row makes it the selection (the window and the split follow).
+  on('ui.focus', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
+    const moved = await next(e)
+    const id = rowOfKey(e.element)
+    if (id !== undefined && moved.deny === undefined) await actionsOf($).focusRow(id)
+    return moved
+  }).catch((_$, e, next) => next(e))
+
+  // Esc pops an overlay, then clears the filter, then closes (PLAN §5.2).
+  on('ui.close', { id: 'modmgr' }, async ($, e, next) =>
+    e.origin.kind !== 'unload' && (await actionsOf($).closing(e.origin.kind))
+      ? { value: undefined }
+      : next(e),
+  ).catch((_$, e, next) => next(e))
 }
