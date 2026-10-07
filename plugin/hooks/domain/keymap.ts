@@ -1,0 +1,157 @@
+// The one keymap (PLAN §5.5, R17). Every hotkey a Button carries comes from
+// here, and the help overlay and the landing page are generated from it.
+// A hotkey is one digit or one lowercase letter (F12); the band takes letters
+// only, since a bare digit in an empty composer presses a band Button.
+
+export const SURFACES = [
+  'pane',
+  'installed',
+  'discover',
+  'discover-empty',
+  'dev',
+  'health',
+  'detail',
+  'discover-detail',
+  'review',
+  'help',
+  'jobs',
+  'band',
+] as const
+export type KeySurface = (typeof SURFACES)[number]
+
+export type Binding = {
+  readonly action: string
+  /** A Button hotkey, or undefined for an engine key (shown in help only). */
+  readonly hotkey?: string
+  /** How help names an engine key (`enter`, `esc`, `↑↓`). */
+  readonly key?: string
+  readonly label: string
+  readonly on: readonly KeySurface[]
+}
+
+const LISTS: readonly KeySurface[] = ['installed', 'discover', 'dev', 'health']
+
+export const BINDINGS: readonly Binding[] = [
+  { action: 'tab.installed', hotkey: '1', label: 'Installed', on: ['pane'] },
+  { action: 'tab.discover', hotkey: '2', label: 'Discover', on: ['pane'] },
+  { action: 'tab.dev', hotkey: '3', label: 'Dev', on: ['pane'] },
+  { action: 'tab.health', hotkey: '4', label: 'Health', on: ['pane'] },
+  { action: 'move', key: '↑↓ tab', label: 'move', on: ['pane'] },
+  { action: 'open', key: 'enter', label: 'open', on: LISTS },
+  { action: 'back', key: 'esc', label: 'back · clear filter · close', on: ['pane'] },
+  { action: 'jobs', hotkey: 'j', label: 'jobs', on: ['pane'] },
+  { action: 'help', hotkey: 'h', label: 'help', on: ['pane'] },
+  { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover', 'dev'] },
+  { action: 'sort', hotkey: 'o', label: 'sort', on: ['installed', 'discover'] },
+  { action: 'kind', hotkey: 'k', label: 'kind', on: ['discover', 'discover-empty'] },
+  { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS },
+  { action: 'page.last', hotkey: 'b', label: 'last page', on: LISTS },
+  { action: 'refresh', hotkey: 'r', label: 'refresh', on: LISTS },
+  { action: 'toggle', hotkey: 'e', label: 'enable/disable', on: ['installed', 'detail'] },
+  { action: 'apply', hotkey: 's', label: 'apply staged', on: ['installed'] },
+  { action: 'undo', hotkey: 'z', label: 'undo last batch', on: ['installed'] },
+  { action: 'update', hotkey: 'u', label: 'update', on: ['installed', 'detail'] },
+  { action: 'update-all', hotkey: 'a', label: 'update all', on: ['installed', 'detail'] },
+  { action: 'remove', hotkey: 'x', label: 'remove', on: ['installed', 'detail'] },
+  { action: 'install', hotkey: 'i', label: 'install', on: ['discover-detail'] },
+  { action: 'marketplace-add', hotkey: 'm', label: 'add a marketplace', on: ['discover-empty'] },
+  { action: 'validate', hotkey: 'v', label: 'validate', on: ['dev'] },
+  { action: 'test', hotkey: 't', label: 'test', on: ['dev'] },
+  {
+    action: 'copy',
+    hotkey: 'c',
+    label: 'copy id or path',
+    on: ['detail', 'discover-detail', 'dev'],
+  },
+  { action: 'share', hotkey: 'p', label: 'share', on: ['dev'] },
+  { action: 'reload', hotkey: 'l', label: 'reload plugins', on: ['dev', 'health', 'band'] },
+  { action: 'confirm', hotkey: 'y', label: 'confirm', on: ['review'] },
+  { action: 'cancel', hotkey: 'n', label: 'cancel', on: ['review'] },
+  { action: 'cancel-job', hotkey: 'q', label: 'cancel running job', on: ['jobs'] },
+  { action: 'open-modmgr', hotkey: 'm', label: 'open mods', on: ['band'] },
+  { action: 'dismiss', hotkey: 'd', label: 'dismiss', on: ['band'] },
+]
+
+/**
+ * Surfaces mounted together: the pane shell, one view, and the overlay on top
+ * (in the split layout the list and the overlay are both drawn). The band is
+ * its own site.
+ */
+export const MOUNT_SETS: readonly (readonly KeySurface[])[] = (() => {
+  const views: KeySurface[] = ['installed', 'discover', 'discover-empty', 'dev', 'health']
+  const overlays: (KeySurface | undefined)[] = [
+    undefined,
+    'detail',
+    'discover-detail',
+    'review',
+    'help',
+    'jobs',
+  ]
+  const sets: KeySurface[][] = [['band']]
+  for (const view of views) {
+    for (const overlay of overlays) sets.push(['pane', view, ...(overlay ? [overlay] : [])])
+  }
+  return sets
+})()
+
+export const HOTKEY = /^[0-9a-z]$/
+
+export type Collision = {
+  readonly hotkey: string
+  readonly actions: string[]
+  readonly set: string
+}
+
+/**
+ * Two Buttons with one hotkey in one site: "two clash, later wins" (F12). The
+ * same action on two surfaces of a set is fine: the shell draws it once.
+ */
+export const collisions = (
+  bindings: readonly Binding[] = BINDINGS,
+  sets: readonly (readonly KeySurface[])[] = MOUNT_SETS,
+): Collision[] =>
+  sets.flatMap(set => {
+    const byKey = new Map<string, Set<string>>()
+    for (const binding of bindings) {
+      if (binding.hotkey === undefined || !binding.on.some(surface => set.includes(surface)))
+        continue
+      byKey.set(binding.hotkey, (byKey.get(binding.hotkey) ?? new Set()).add(binding.action))
+    }
+    return [...byKey.entries()]
+      .filter(([, actions]) => actions.size > 1)
+      .map(([hotkey, actions]) => ({ hotkey, actions: [...actions].sort(), set: set.join('+') }))
+  })
+
+/** Bindings that break F12: a malformed hotkey, or a digit on the band. */
+export const invalidHotkeys = (bindings: readonly Binding[] = BINDINGS): Binding[] =>
+  bindings.filter(
+    binding =>
+      binding.hotkey !== undefined &&
+      (!HOTKEY.test(binding.hotkey) || (binding.on.includes('band') && /\d/.test(binding.hotkey))),
+  )
+
+/** The hotkey for an action on a surface. */
+export const hotkeyFor = (action: string, surface: KeySurface): string | undefined =>
+  BINDINGS.find(binding => binding.action === action && binding.on.includes(surface))?.hotkey
+
+/** Help rows for what is mounted: engine keys first, then hotkeys, once per action. */
+export const helpFor = (surfaces: readonly KeySurface[]): { key: string; label: string }[] => {
+  const seen = new Set<string>()
+  const rows: { key: string; label: string; engine: boolean }[] = []
+  for (const binding of BINDINGS) {
+    if (seen.has(binding.action) || !binding.on.some(surface => surfaces.includes(surface)))
+      continue
+    seen.add(binding.action)
+    rows.push({
+      key: binding.hotkey ?? binding.key ?? '',
+      label: binding.label,
+      engine: binding.hotkey === undefined,
+    })
+  }
+  return [...rows.filter(row => row.engine), ...rows.filter(row => !row.engine)].map(
+    ({ key, label }) => ({
+      key,
+      label,
+    }),
+  )
+}
