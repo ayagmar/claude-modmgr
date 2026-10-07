@@ -163,6 +163,12 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       })
       return succeeded([line])
     } catch (error) {
+      // A reload that restarted modmgr rejects in the old module: the new one owns
+      // the queue and has settled this reload (F54), so say nothing more.
+      const queue = await ports.state.read('queue').catch(() => undefined)
+      if (queue !== undefined && queue.owner !== owner) {
+        return failed({ kind: 'unavailable', message: 'modmgr was reloaded' })
+      }
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
       return failed({ kind: 'rejected', message: String(error) }, [
         'Run /reload-plugins yourself, or restart Claude Code, to apply the changes.',

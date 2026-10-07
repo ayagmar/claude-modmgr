@@ -6,7 +6,7 @@
 // timer. It runs again when modmgr's own module reloads (F31), so every step is
 // idempotent.
 
-import { takeOver } from '../domain/jobs.ts'
+import { RELOADED_WITH_MODMGR, takeOver, tookOverReload } from '../domain/jobs.ts'
 import { readPrefs } from '../domain/store-schema.ts'
 import { probeAndRecord } from './capability-probe.ts'
 import type { Runtime } from './runtime.ts'
@@ -18,10 +18,21 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
   await ports.command.registerMods()
   const now = await ports.clock.now()
   let fresh = false
+  let reloaded = false
   await ports.state.update('queue', queue => {
     fresh = queue.owner === ''
-    return takeOver(queue, rt.owner, now)
+    const next = takeOver(queue, rt.owner, now)
+    reloaded = tookOverReload(queue, next)
+    return next
   })
+  // The reload that restarted this module applied what the batch changed (F54).
+  if (reloaded) {
+    await ports.state.update('attention', attention => ({
+      ...attention,
+      reloadPending: false,
+      lastReload: RELOADED_WITH_MODMGR,
+    }))
+  }
   ports.clock.after(0, () => {
     void background(rt, { fresh })
   })
@@ -51,6 +62,12 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     if (!probe.process) {
       await rt.registry.refresh()
       rt.runner.kick()
+      // A reloaded modmgr with Discover showing reads its catalogue again (module memory).
+      if ((await ports.state.read('view')).tab === 'discover') {
+        await rt.catalog.load()
+        await rt.catalog.show()
+        rt.detector.start()
+      }
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

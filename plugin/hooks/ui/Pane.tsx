@@ -6,7 +6,7 @@
 
 import type { RenderElement } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
-import { awaitingAcceptance, detectLine, foundRow } from '../domain/discover.ts'
+import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
@@ -147,16 +147,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         onPress: () => v.act.install(),
       })
     }
+    // Each says what pressing it does next.
     footer.push({
       action: 'kind',
       on: surface,
-      label: `show ${view.kind === 'mods' ? 'mods' : view.kind === 'hooks' ? 'with hooks' : 'all'}`,
+      label:
+        view.kind === 'mods' ? 'with hooks' : view.kind === 'hooks' ? 'all plugins' : 'mods only',
       onPress: () => v.act.cycleKind(),
     })
     footer.push({
       action: 'sort',
       on: surface,
-      label: `by ${view.sort}`,
+      label: `sort by ${nextSort(view.sort)}`,
       onPress: () => v.act.cycleSort(),
     })
     if (!readOnly) {
@@ -346,8 +348,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress }),
   )
   const on = mods.filter(row => row.enabled).length
+  // Tabs keep their width (F48: children shrink by default); the counts give way.
   const tabKey = (tab: 'installed' | 'discover', label: string) => (
-    <Box flexDirection="row">
+    <Box flexDirection="row" flexShrink={0}>
       {KeyButton(v, {
         action: `tab.${tab}`,
         on: 'pane',
@@ -370,12 +373,14 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
-        <Box flexDirection="row" columnGap={2}>
+        <Box flexDirection="row" columnGap={2} flexShrink={1}>
           {tabKey('installed', 'Installed')}
           {tabKey('discover', 'Discover')}
-          <Text dimColor wrap="truncate-end">
-            {meta}
-          </Text>
+          <Box flexShrink={1} height={1} overflow="hidden">
+            <Text dimColor wrap="truncate-end">
+              {meta}
+            </Text>
+          </Box>
         </Box>
         {stale ? (
           <Text dimColor>{GLYPH.stale}</Text>

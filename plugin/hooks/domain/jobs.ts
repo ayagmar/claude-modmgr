@@ -272,13 +272,40 @@ export const reloadReadyAt = (jobs: readonly Job[]): number => {
   return last === undefined ? 0 : last + RELOAD_SETTLE_MS
 }
 
+/** What a reload job says when the reload restarted modmgr with it (F54). */
+export const RELOADED_WITH_MODMGR = 'Plugins reloaded, modmgr with them'
+
 /**
  * A module takes the queue over at `session.start`: a job another module left
- * running can't be finished by this one (F31), so it becomes `interrupted`.
- * The same owner taking over again changes nothing.
+ * running can't be finished by this one (F31), so it becomes `interrupted`;
+ * but a reload left running is what restarted this module (a reload re-runs
+ * modmgr when its files changed or a plugin that hooks `plugin.register`
+ * joined, F19, F54), so it is done. The same owner taking over again changes
+ * nothing.
  */
 export const takeOver = (queue: JobQueue, owner: string, now: number): JobQueue =>
-  queue.owner === owner ? queue : { owner, jobs: interruptRunning(queue.jobs, now) }
+  queue.owner === owner
+    ? queue
+    : {
+        owner,
+        jobs: interruptRunning(
+          queue.jobs.map(job =>
+            job.kind === 'reload' && job.state === 'running'
+              ? { ...job, state: 'ok', endedAt: now, tail: [...job.tail, RELOADED_WITH_MODMGR] }
+              : job,
+          ),
+          now,
+        ),
+      }
+
+/** Whether taking over completed a reload the previous module had running. */
+export const tookOverReload = (before: JobQueue, after: JobQueue): boolean =>
+  before.jobs.some(
+    job =>
+      job.kind === 'reload' &&
+      job.state === 'running' &&
+      after.jobs.some(next => next.id === job.id && next.state === 'ok'),
+  )
 
 /**
  * Starts job `id` for `owner` if it still owns the queue and the job is still

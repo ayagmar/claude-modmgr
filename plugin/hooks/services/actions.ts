@@ -236,9 +236,14 @@ export const createActions = (
     if (row !== undefined) await ringTo(rowKey(row.id))
   }
 
-  /** Discover's window follows its search and selection. */
+  /**
+   * Discover's window follows its search and selection. The catalogue is module
+   * memory: a reloaded modmgr starts without it, so it is read on demand (once).
+   */
   const showCatalog = async (): Promise<void> => {
-    await rt?.catalog.show()
+    if (rt === undefined) return
+    await rt.catalog.load()
+    await rt.catalog.show()
   }
 
   /** The ring onto what an overlay offers first: its safe default (review: cancel). */
@@ -387,13 +392,16 @@ export const createActions = (
       // A removed mod's detail goes with it, and the selection moves on, or the
       // ring would land on a row the refresh is about to take away (R-M3b-8).
       const gone = review.targets.find(target => target.op === 'remove')?.id
+      // An entry installed leaves the catalogue: its Discover detail goes too.
+      const installed = review.action === 'install'
       const mods = await state.read('mods')
       await setView(view => {
         const staged = Object.fromEntries(
           Object.entries(view.staged).filter(([id]) => !ids.has(id)),
         )
         const stack = view.stack.filter(
-          overlay => overlay !== 'review' && !(gone !== undefined && overlay === 'detail'),
+          overlay =>
+            overlay !== 'review' && !((gone !== undefined || installed) && overlay === 'detail'),
         )
         const next = gone === undefined ? undefined : neighbourOf(view, mods, gone)
         const moved = next === undefined ? {} : { selected: next.id }
@@ -483,6 +491,7 @@ export const createActions = (
 
     edge: safely('edge', async which => {
       if ((await state.read('view')).tab === 'discover') {
+        await rt?.catalog.load()
         const id = rt?.catalog.edge(which)
         if (id === undefined) return
         await setView(current => ({ ...quiet(current), found: id }))
@@ -514,6 +523,8 @@ export const createActions = (
       if (view.found === id) return
       await setView(current => ({ ...quiet(current), found: id }))
       await showCatalog()
+      // A local entry beside the list (the split) says what it can do too; read once.
+      if (rt?.catalog.folderOf(id) !== undefined) await rt.catalog.inspect(id)
     }),
 
     openFound: safely('open found', async id => {
@@ -526,10 +537,16 @@ export const createActions = (
 
     install: safely('install', async id => {
       if (rt === undefined) return
+      await rt.catalog.load()
       const [view, page] = await Promise.all([state.read('view'), state.read('catalogPage')])
       const found = id ?? foundRow(view, page)?.id
       const entry = found === undefined ? undefined : rt.catalog.entry(found)
-      if (entry === undefined) return
+      if (entry === undefined) {
+        await notice(
+          found === undefined ? 'Select an entry to install' : `${found} is no longer listed`,
+        )
+        return
+      }
       const inspection = await rt.catalog.inspect(entry.id)
       await openReview(installReview(entry, 'user', inspection))
     }),

@@ -133,7 +133,7 @@ const reviewLines = (
     push(
       <Select
         key="scope"
-        label="scope "
+        label="scope"
         options={INSTALL_SCOPES.map(scope => ({ value: scope, label: SCOPE_LABEL[scope] }))}
         value={scoped ?? 'user'}
         onSelect={value => v.act.scope(value)}
@@ -165,7 +165,13 @@ const reviewLines = (
   const say = (text: string, tone?: string) =>
     push(tone === undefined ? <Text>{text}</Text> : <Text color={tone}>{text}</Text>, text)
   if (review.notable.length > 0) {
-    say(review.action === 'undo' ? 'What comes back can:' : 'Turning these on lets them:')
+    say(
+      review.action === 'undo'
+        ? 'What comes back can:'
+        : review.action === 'install'
+          ? 'Installing it lets it:'
+          : 'Turning these on lets them:',
+    )
     for (const line of review.notable) {
       push(
         <Box flexDirection="row" gap={1} paddingLeft={1}>

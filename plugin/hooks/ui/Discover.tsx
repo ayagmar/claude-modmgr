@@ -161,7 +161,11 @@ export const FoundDetail = (
         from {row.source}
       </Text>
       {notable === undefined ? (
-        <Text dimColor>What it can do is read once it is installed.</Text>
+        <Text dimColor>
+          {row.local === true
+            ? 'Reading what it can do…'
+            : 'What it can do is read once it is installed.'}
+        </Text>
       ) : notable.length === 0 ? (
         <Text dimColor>{GLYPH.ok} Nothing notable in what it can do.</Text>
       ) : (

@@ -380,3 +380,44 @@ describe('a local fixture mod, end to end (M4 done criterion)', () => {
     expect(w.command.reloads).toBe(1)
   })
 })
+
+describe('a reload that restarts modmgr (F54)', () => {
+  it('is done, not interrupted: the new module settles it', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    w.state.values.queue = {
+      owner: 'old',
+      jobs: [
+        { id: 'a', kind: 'install', state: 'ok', tail: [], batch: 'b', target: 'spawner@fixtures' },
+        { id: 'r', kind: 'reload', state: 'running', tail: [], batch: 'b' },
+      ],
+    }
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    const rt = createRuntime(w.ports, DEFAULT_CONFIG, 'new')
+    const { onSessionStart } = await import('../../plugin/hooks/services/lifecycle.ts')
+    await onSessionStart(rt)
+    expect(w.state.values.queue.jobs.at(-1)).toMatchObject({ state: 'ok' })
+    expect(w.state.values.attention).toMatchObject({
+      reloadPending: false,
+      lastReload: 'Plugins reloaded, modmgr with them',
+    })
+  })
+
+  it("the old module's late rejection writes nothing", async () => {
+    const w = world()
+    fixtureCli(w.process)
+    const rt = createRuntime(w.ports, DEFAULT_CONFIG, 'old')
+    w.state.values.queue = {
+      owner: 'old',
+      jobs: [{ id: 'r', kind: 'reload', state: 'queued', tail: [], batch: 'b' }],
+    }
+    w.command.reloadAnswer = async () => {
+      w.state.values.queue = { ...w.state.values.queue, owner: 'new' }
+      throw new Error('the module was reloaded')
+    }
+    rt.runner.kick()
+    await w.clock.advance(0)
+    await rt.runner.whenIdle()
+    expect(w.state.values.attention.reloadPending).toBe(false)
+  })
+})

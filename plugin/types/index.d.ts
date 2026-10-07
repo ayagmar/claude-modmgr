@@ -66,6 +66,8 @@ export type CatalogRow = {
   source: string
   /** What it can do, when modmgr read it before installing (a local source); notable ids. */
   notable?: string[]
+  /** Its files are on disk (a folder in its marketplace): modmgr can read it before installing. */
+  local?: boolean
 }
 
 export type JobKind =

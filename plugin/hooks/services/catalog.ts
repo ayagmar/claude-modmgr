@@ -125,7 +125,8 @@ export const createCatalog = (
     const rows = window.rows.map(row => {
       const entry = index?.byId.get(row.id)?.entry
       const inspection = inspections.get(`${row.id}@${entry?.version ?? '?'}`)
-      return inspection === undefined ? row : { ...row, notable: [...inspection.notable] }
+      const local = folderOf(row.id) === undefined ? row : { ...row, local: true }
+      return inspection === undefined ? local : { ...local, notable: [...inspection.notable] }
     })
     const total = index.size
     const matched = memo.matched.length
