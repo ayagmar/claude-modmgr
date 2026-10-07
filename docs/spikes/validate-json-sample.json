@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "strict": false,
+  "target": "/tmp/claude-1000/-home-ayagmar-projects/bc3dfdbe-f603-46cc-9da1-c322ea069397/scratchpad/spike/gate/.claude-plugin/plugin.json",
+  "manifest": {
+    "file": "/tmp/claude-1000/-home-ayagmar-projects/bc3dfdbe-f603-46cc-9da1-c322ea069397/scratchpad/spike/gate/.claude-plugin/plugin.json",
+    "type": "plugin",
+    "errors": [],
+    "warnings": [
+      {
+        "path": "author",
+        "message": "No author information provided. Consider adding author details for plugin attribution",
+        "code": null
+      }
+    ],
+    "notes": [],
+    "gatingHooks": []
+  },
+  "contents": [
+    {
+      "file": "/tmp/claude-1000/-home-ayagmar-projects/bc3dfdbe-f603-46cc-9da1-c322ea069397/scratchpad/spike/gate/hooks/hooks.json",
+      "type": "hooks",
+      "errors": [],
+      "warnings": [],
+      "notes": [
+        "./register.ts hooks: plugin.register, session.start",
+        "./register.ts gating hook without .catch: plugin.register",
+        "./register.ts calls: $.command.list, $.fs.write"
+      ],
+      "gatingHooks": [
+        {
+          "module": "./register.ts",
+          "pattern": "plugin.register",
+          "hook": "plugin.register",
+          "hasCatch": false
+        }
+      ]
+    }
+  ]
+}
