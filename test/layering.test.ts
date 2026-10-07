@@ -7,7 +7,8 @@
 // - no `.catch` handler touches `$` (on re-entry its `$` calls reject, review M2);
 // - only register.tsx imports values from 'claude-code' (atom, read, update);
 // - every function in register.tsx that takes `$` is declared at the top level (F40);
-// - ui/ never names the process, store, env or command ports.
+// - ui/ never names the process, store, env or command ports;
+// - ui/ takes hotkeys only from domain/keymap.ts and colours only from the theme keys.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -62,6 +63,28 @@ const violations = (layer: string, allowed: (to: string, imp: Import) => boolean
 describe('layering', () => {
   it('finds the plugin sources', () => {
     expect(files.some(file => file.includes('/domain/'))).toBe(true)
+    expect(files.some(file => file.includes('/ui/'))).toBe(true)
+  })
+
+  const uiSources = files
+    .filter(file => relative(hooks, file).startsWith('ui/'))
+    .map(file => ({ file: relative(root, file), code: readFileSync(file, 'utf8') }))
+
+  it('ui spells no hotkey of its own: they come from domain/keymap.ts (R17)', () => {
+    const literal = uiSources.filter(({ code }) =>
+      /hotkey\s*[=:]\s*["'{]\s*['"]?[0-9a-z]['"]/.test(code),
+    )
+    expect(literal.map(({ file }) => file)).toEqual([])
+  })
+
+  it('ui colours only through the theme keys (F13, PLAN §5.6)', () => {
+    const literal = uiSources.filter(({ code }) => /(color|Color)\s*=\s*["'{]\s*['"]/.test(code))
+    expect(literal.map(({ file }) => file)).toEqual([])
+    const kit = uiSources.find(({ file }) => file.endsWith('ui/kit.tsx'))?.code ?? ''
+    const keys = [...kit.matchAll(/^\s+\w+: '(\w+)',$/gm)].map(match => match[1])
+    expect(keys).toEqual(
+      expect.arrayContaining(['claude', 'subtle', 'success', 'warning', 'error']),
+    )
   })
 
   it('domain imports only domain and contract types', () => {

@@ -39,6 +39,9 @@ export type RunnerPorts = CliPorts & Pick<Ports, 'state' | 'command' | 'ui'>
 /** Streamed output reaches `$.state` at most this often (PLAN §2.8: ≤ 10 writes/s). */
 export const TAIL_FLUSH_MS = 100
 
+/** How long the band echoes a reload's answer. */
+export const RELOAD_ECHO_MS = 8000
+
 export type RunnerOptions = {
   /** This module's queue owner id. */
   readonly owner: string
@@ -115,8 +118,24 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
   const reload = async (): Promise<Outcome> => {
     try {
       const text = await ports.command.reloadPlugins()
-      await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
-      return succeeded(text === undefined ? [] : [text])
+      // Always something to echo: the status line's "applied" shows while it does.
+      const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'
+      await ports.state.update('attention', attention => ({
+        ...attention,
+        reloadPending: false,
+        lastReload: line,
+      }))
+      // The band echoes the CLI's line for a while (C8), then lets it go.
+      ports.clock.after(RELOAD_ECHO_MS, () => {
+        void ports.state
+          .update('attention', attention => {
+            if (attention.lastReload !== line) return attention
+            const { lastReload: _done, ...rest } = attention
+            return rest
+          })
+          .catch(() => undefined)
+      })
+      return succeeded([line])
     } catch (error) {
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
       return failed({ kind: 'rejected', message: String(error) }, [

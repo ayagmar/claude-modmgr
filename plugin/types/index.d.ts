@@ -98,7 +98,10 @@ export type View = {
   kind: 'mods' | 'hooks' | 'all'
   sort: 'installs' | 'name' | 'marketplace'
   page: number
+  /** Staged toggles: what each mod will be after apply. */
   staged: Record<PluginId, boolean>
+  /** One short line the pane shows until the next action (a copy, a refused focus). */
+  notice?: string
 }
 
 /** One confirm at a time (a plain value, R19). */
@@ -117,7 +120,10 @@ export type Attention = {
   problems: number
   reloadPending: boolean
   capsChanged: number
-  dismissedAt?: number
+  /** The band line the person dismissed; the band returns once its line changes. */
+  dismissed?: string
+  /** The CLI's answer to the last reload ("Reloaded: …"), echoed in the band for a while (C8). */
+  lastReload?: string
 }
 
 export type Degraded = {

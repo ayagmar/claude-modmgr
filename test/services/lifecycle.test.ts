@@ -207,7 +207,7 @@ describe('/mods (text)', () => {
       reason: 'no CLI',
     }
     const answer = await modsCommand(w.ports, ' list ')
-    expect(answer.text.split('\n')).toEqual([
+    expect(answer.text?.split('\n')).toEqual([
       'no CLI',
       '2 mods (1 on) ↻',
       '●  a  1.0.0  user  ▲1  ◆2',
@@ -218,10 +218,39 @@ describe('/mods (text)', () => {
 
   it('says when it is still reading, or when there are none', async () => {
     const w = world()
-    expect((await modsCommand(w.ports, '')).text).toBe(
+    expect((await modsCommand(w.ports, 'list')).text).toBe(
       'modmgr is reading your plugins; try again in a moment.',
     )
     w.state.values.sync = { refreshing: false, at: 1, skipped: 0 }
+    expect((await modsCommand(w.ports, 'list')).text).toBe('No mods installed.')
+  })
+
+  it('bare /mods opens the dialog with focus, Esc and held toasts, and answers nothing', async () => {
+    const w = world()
+    expect(await modsCommand(w.ports, '')).toEqual({})
+    expect(w.ui.opens).toEqual([
+      { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, focus: true, holdToasts: true },
+    ])
+  })
+
+  it('opens without holding toasts while jobs run (C8)', async () => {
+    const w = world()
+    w.state.values.queue = {
+      owner: 'o',
+      jobs: [{ id: 'j', kind: 'disable', state: 'running', tail: [] }],
+    }
+    await modsCommand(w.ports, '')
+    expect(w.ui.opens[0]?.holdToasts).toBeUndefined()
+  })
+
+  it('answers as text where no pane can be placed, or opening fails', async () => {
+    const w = world()
+    w.state.values.sync = { refreshing: false, at: 1, skipped: 0 }
+    w.ui.placed = false
+    expect((await modsCommand(w.ports, '')).text).toBe('No mods installed.')
+    w.ui.open = async () => {
+      throw new Error('no ui')
+    }
     expect((await modsCommand(w.ports, '')).text).toBe('No mods installed.')
   })
 

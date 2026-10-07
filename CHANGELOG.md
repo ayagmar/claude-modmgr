@@ -9,3 +9,6 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Repository scaffold: tooling, CI, vendored Claude Code types, an empty `/mods` command.
+- `/mods` opens a dialog: installed mods with their state and notable capabilities, a detail of what each one can
+  do, staged enable/disable applied as one reviewed batch followed by an automatic plugin reload, undo, help, a job
+  log, and a band above the prompt while work runs or a reload is owed.

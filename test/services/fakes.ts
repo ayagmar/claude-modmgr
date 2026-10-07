@@ -10,9 +10,13 @@ import type {
   RenderSurface,
   SessionVersion,
   Timer,
+  UiCopyResult,
+  UiFocusResult,
+  UiOpenResult,
   UiPane,
 } from 'claude-code'
 import { INITIAL, type ModmgrState, type StateKey } from '../../plugin/hooks/domain/state.ts'
+import type { PaneOpen } from '../../plugin/hooks/domain/view.ts'
 import type {
   ClockPort,
   CommandPort,
@@ -295,11 +299,61 @@ export const fakeSession = (
 
 export class FakeUi implements UiPort {
   lines: string[] = []
-  open: UiPane[] = []
+  shown: UiPane[] = []
+  opens: PaneOpen[] = []
+  closes: string[] = []
+  focuses: string[] = []
+  copies: string[] = []
+  /** Whether an open is placed (false: a session that places no panes). */
+  placed = true
+  /** Whether the person holds the pane's keys (the Esc cascade reads it). */
+  focused = true
+  copyFails?: 'no-clipboard' | 'no-surface' | 'refused'
+
   debug = (text: string): void => {
     this.lines.push(text)
   }
-  panes = async (): Promise<readonly UiPane[]> => this.open
+
+  panes = async (): Promise<readonly UiPane[]> => this.shown
+
+  open = async (args: PaneOpen): Promise<UiOpenResult> => {
+    this.opens.push(args)
+    if (!this.placed) return { isPlaced: false, reason: 'no surface places panes' }
+    const pane: UiPane = {
+      id: args.id,
+      title: args.title,
+      isShown: true,
+      isFocused: this.focused,
+      isPlaced: true,
+    }
+    this.shown = [...this.shown.filter(item => item.id !== args.id), pane]
+    return { isPlaced: true }
+  }
+
+  close = async (id: string): Promise<void> => {
+    this.closes.push(id)
+    this.shown = this.shown.filter(pane => pane.id !== id)
+  }
+
+  /** Element keys `focus` denies (not drawn); the rest move. */
+  undrawn = new Set<string>()
+
+  focus = async (requestId: string, key: string): Promise<UiFocusResult> => {
+    this.focuses.push(`${requestId}:${key}`)
+    return this.undrawn.has(key) ? { deny: 'not drawn' } : {}
+  }
+
+  /** Esc hands the keys back to the prompt before `ui.close` reaches the plugin (F45). */
+  keysToPrompt(): void {
+    this.shown = this.shown.map(pane => ({ ...pane, isFocused: false }))
+  }
+
+  copy = async (text: string): Promise<UiCopyResult> => {
+    this.copies.push(text)
+    return this.copyFails === undefined
+      ? { isCopied: true }
+      : { isCopied: false, reason: this.copyFails }
+  }
 }
 
 export type World = {

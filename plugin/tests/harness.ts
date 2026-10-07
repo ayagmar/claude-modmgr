@@ -3,8 +3,9 @@
 // answers state (with versions and `ifVersion`), the session, commands, logs
 // and a fake `claude` CLI that replies from captured output (fixtures.ts).
 
-import type { On } from 'claude-code'
+import type { On, PaneOpenArgs, UiPane } from 'claude-code'
 import { mock } from 'claude-code/testing'
+import { SHAPES } from '../hooks/domain/state.ts'
 import { RUNS } from './fixtures.ts'
 
 export type CliAnswer = { exitCode?: number; stdout?: string; stderr?: string } | { throws: string }
@@ -22,6 +23,10 @@ export type HostOptions = {
   state?: Readonly<Record<string, unknown>>
   /** Make `$.command.register` reject. */
   refuseRegister?: boolean
+  /** Whether a pane open is placed (false: a session that places none). */
+  placePanes?: boolean
+  /** Whether the person holds an open pane's keys (the Esc cascade reads it). */
+  paneFocused?: boolean
 }
 
 const fromFixtures = (args: readonly string[]): CliAnswer => {
@@ -58,12 +63,18 @@ export const host = (on: On, options: HostOptions = {}) => {
 
   const state = new Map<string, { value: unknown; version: number }>()
   for (const [key, value] of Object.entries(options.state ?? {})) {
-    state.set(`modmgr.${key}`, { value: { shape: `${key}/1`, value }, version: 1 })
+    const shape = (SHAPES as Record<string, string>)[key] ?? `${key}/1`
+    state.set(`modmgr.${key}`, { value: { shape, value }, version: 1 })
   }
   const logs: string[] = []
   const argvs: string[] = []
   let registered = 0
   let reloads = 0
+  const opens: PaneOpenArgs[] = []
+  const closes: string[] = []
+  const focuses: string[] = []
+  const copies: string[] = []
+  let panes: UiPane[] = []
 
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('state.get', (_$, e) => ({
@@ -93,6 +104,37 @@ export const host = (on: On, options: HostOptions = {}) => {
     return { value: undefined }
   })
   on('session.root', () => ({ value: '/repo' }))
+  on('ui.open', (_$, e) => {
+    opens.push(e)
+    if (options.placePanes === false) {
+      return { value: { isPlaced: false as const, reason: 'no surface places panes' } }
+    }
+    const pane: UiPane = {
+      id: e.id,
+      title: e.title ?? e.id,
+      isShown: true,
+      isFocused: options.paneFocused ?? true,
+      isPlaced: true,
+    }
+    panes = [...panes.filter(item => item.id !== e.id), pane]
+    return { value: { isPlaced: true as const } }
+  })
+  on('ui.close', (_$, e) => {
+    closes.push(`${e.id}:${e.origin.kind}`)
+    panes = panes.filter(pane => pane.id !== e.id)
+    return { value: undefined }
+  })
+  on('ui.panes', () => ({ value: panes }))
+  // What the engine draws in the band when no plugin does: nothing.
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({}))
+  on('ui.focus', (_$, e) => {
+    focuses.push(e.element ?? '')
+    return {}
+  })
+  on('ui.copy', (_$, e) => {
+    copies.push(e.text)
+    return { value: { isCopied: true as const } }
+  })
   on('process.run', (_$, e) => {
     const args = e.argv.slice(1)
     argvs.push(args.join(' '))
@@ -127,6 +169,14 @@ export const host = (on: On, options: HostOptions = {}) => {
     stored: (key: string): unknown => stored.get(key),
     registered: () => registered,
     reloads: () => reloads,
+    opens,
+    closes,
+    focuses,
+    copies,
+    /** Opens the pane as the engine records it (what `$.ui.panes()` lists). */
+    showPane: (focused = true) => {
+      panes = [{ id: 'modmgr', title: 'mods', isShown: true, isFocused: focused, isPlaced: true }]
+    },
   }
 }
 
@@ -134,7 +184,7 @@ export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } 
 
 export const MODS = {
   command: 'mods',
-  args: '',
+  args: 'list',
   origin: { kind: 'composer' },
   presentation: { isFullscreen: false, columns: 80 },
 } as const
