@@ -11,9 +11,13 @@ import type {
   RenderSurface,
   SessionVersion,
   Timer,
+  UiCopyResult,
+  UiFocusResult,
+  UiOpenResult,
   UiPane,
 } from 'claude-code'
 import type { ModmgrState, StateKey } from './domain/state.ts'
+import type { PaneOpen } from './domain/view.ts'
 
 export type { ModmgrState, StateKey }
 
@@ -84,6 +88,12 @@ export interface UiPort {
   /** One line to the debug log (`--debug`), never the transcript. */
   debug(text: string): void
   panes(): Promise<readonly UiPane[]>
+  /** Opens modmgr's pane, or retitles it and sets its manners anew when open (F22). */
+  open(args: PaneOpen): Promise<UiOpenResult>
+  close(id: string): Promise<void>
+  /** Moves the pane's focus ring onto an element it drew (rejects or denies when it can't). */
+  focus(requestId: string, key: string): Promise<UiFocusResult>
+  copy(text: string, surface?: RenderSurface): Promise<UiCopyResult>
 }
 
 export type Ports = {

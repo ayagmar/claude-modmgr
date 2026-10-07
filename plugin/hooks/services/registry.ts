@@ -4,6 +4,7 @@
 // detail to `detail`, and the refresh's outcome to `sync` (the `↻` marker, C8).
 
 import type { ModRow } from '../../types/index.d.ts'
+import { capabilitiesOf } from '../domain/capabilities.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
@@ -17,6 +18,7 @@ import {
 } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
 import { CAPS } from '../domain/store-schema.ts'
+import type { ReviewFacts } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
 import { mapLimit } from './pool.ts'
@@ -41,6 +43,8 @@ export type Registry = {
   select(id: string | undefined): Promise<void>
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
+  /** What a review says about a mod: its notable capabilities and its other parts. */
+  facts(id: string): ReviewFacts | undefined
   /** Whether a refresh has listed the plugins yet. */
   isLoaded(): boolean
 }
@@ -68,11 +72,16 @@ export const createRegistry = (
     return analysisOf(report.value, details.ok ? details.value : undefined, now)
   }
 
-  const detailOf = (id: string | undefined) => {
+  const analysisFor = (id: string | undefined) => {
     const entry = id === undefined ? undefined : entries.get(id)
     const key = entry === undefined ? undefined : analysisKey(entry)
     const analysis = key === undefined ? undefined : store.get('validate')[key]
-    return entry === undefined || analysis === undefined ? null : modDetail(entry, analysis)
+    return entry === undefined || analysis === undefined ? undefined : { entry, analysis }
+  }
+
+  const detailOf = (id: string | undefined) => {
+    const found = analysisFor(id)
+    return found === undefined ? null : modDetail(found.entry, found.analysis)
   }
 
   const once = async (): Promise<Result<RefreshSummary>> => {
@@ -164,6 +173,12 @@ export const createRegistry = (
       await ports.state.update('detail', () => detailOf(id))
     },
     entry: id => entries.get(id),
+    facts(id) {
+      const analysis = analysisFor(id)?.analysis
+      if (analysis === undefined) return undefined
+      const { notable } = capabilitiesOf(analysis)
+      return analysis.parts === undefined ? { notable } : { notable, parts: analysis.parts }
+    },
     isLoaded: () => loaded,
   }
 }

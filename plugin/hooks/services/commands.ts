@@ -1,12 +1,14 @@
-// `/mods` as text. The pane replaces the bare command in M3a; the full set of
-// subcommands (PLAN §2.7) comes in M6. A command never runs a job or a reload
-// (F29): it reads `$.state` and answers.
+// `/mods`: the bare command opens the dialog (PLAN §5.2); `/mods list`, and
+// a session that places no panes, answer as text. The full set of subcommands
+// (PLAN §2.7) comes in M6. A command never runs a job or a reload (F29): it
+// opens the pane or reads `$.state`, and answers.
 
 import type { ModRow } from '../../types/index.d.ts'
 import { sanitize } from '../domain/sanitize.ts'
+import { paneOpen } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 
-export type CommandAnswer = { text: string; exitCode?: number }
+export type CommandAnswer = { text?: string; exitCode?: number }
 
 const GLYPH = { on: '●', off: '○', problem: '▲', notable: '◆' } as const
 
@@ -26,12 +28,32 @@ const rowLine = (row: ModRow): string => {
 export const USAGE = 'Usage: /mods [list]'
 
 export const modsCommand = async (
-  ports: Pick<Ports, 'state'>,
+  ports: Pick<Ports, 'state' | 'ui'>,
   args: string,
 ): Promise<CommandAnswer> => {
   const sub = args.trim().split(/\s+/)[0] ?? ''
   if (sub !== '' && sub !== 'list')
     return { text: `${USAGE}\nUnknown subcommand: ${sanitize(sub, { max: 40 })}`, exitCode: 2 }
+  if (sub === '') {
+    const opened = await openDialog(ports)
+    if (opened) return {}
+  }
+  return listText(ports)
+}
+
+/** Opens the dialog; false when this session places no panes (a `-p` run, an older host). */
+const openDialog = async (ports: Pick<Ports, 'state' | 'ui'>): Promise<boolean> => {
+  try {
+    const [mods, queue] = await Promise.all([ports.state.read('mods'), ports.state.read('queue')])
+    const busy = queue.jobs.some(job => job.state === 'running' || job.state === 'queued')
+    const opened = await ports.ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
+    return opened.isPlaced
+  } catch {
+    return false
+  }
+}
+
+const listText = async (ports: Pick<Ports, 'state'>): Promise<CommandAnswer> => {
   const [mods, sync, degraded] = await Promise.all([
     ports.state.read('mods'),
     ports.state.read('sync'),
