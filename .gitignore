@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+plugin/.claude-plugin/types/
+site/dist/
+site/.astro/
+*.log
+.DS_Store
