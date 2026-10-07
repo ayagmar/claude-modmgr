@@ -1,0 +1,16 @@
+{
+  "name": "modmgr",
+  "owner": { "name": "ayagmar", "url": "https://github.com/ayagmar" },
+  "metadata": {
+    "description": "modmgr: discover, inspect, toggle and update Claude Code mods."
+  },
+  "plugins": [
+    {
+      "name": "modmgr",
+      "source": "./plugin",
+      "version": "0.0.0",
+      "description": "Discover, install, inspect, toggle, update and debug Claude Code mods (function-hook plugins).",
+      "category": "development"
+    }
+  ]
+}
