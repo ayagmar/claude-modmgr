@@ -760,7 +760,7 @@ Pushes and GitHub actions still need the person's go-ahead.
   notable capabilities to the detail (also beside the list, read on focus) and the install review; a remote entry's
   review says it is read once installed (`uninspected`), as PLAN §12 defers the pre-install diff.
 - **Install** (`i` on a row or its detail) goes through the review with a **scope Select** (user, project, local; the
-  Select element, F-free) and says when project/local edit this repository. An install that a marketplace-declared
+  `Select` element) and says when project/local edit this repository. An install that a marketplace-declared
   command stops fails as `conflict` and keeps what the CLI showed on the job (`Job.shown`, additive); `v` ("review the
   command", in both tabs' footers while one waits) opens a review that shows the command line for line with its
   sha256, warns when sanitising removed hidden characters, and whose confirm reads "run it and install"; confirming
