@@ -202,7 +202,10 @@ export class FakeProcess implements ProcessPort {
   }
 
   /** Answers argv that starts with `prefix` (after `claude plugin`, or `claude` for --version). */
-  when(prefix: readonly string[], answer: Answer | ((argv: readonly string[]) => Answer)): this {
+  when(
+    prefix: readonly string[],
+    answer: Answer | ((argv: readonly string[]) => Answer | undefined),
+  ): this {
     return this.on(argv => {
       const rest = argv[1] === 'plugin' ? argv.slice(2) : argv.slice(1)
       return prefix.every((part, index) => rest[index] === part)
@@ -304,6 +307,8 @@ export class FakeUi implements UiPort {
   closes: string[] = []
   focuses: string[] = []
   copies: string[] = []
+  /** Each `status` call, in order (undefined clears the line). */
+  statuses: (string | undefined)[] = []
   /** Whether an open is placed (false: a session that places no panes). */
   placed = true
   /** Whether the person holds the pane's keys (the Esc cascade reads it). */
@@ -346,6 +351,15 @@ export class FakeUi implements UiPort {
   /** Esc hands the keys back to the prompt before `ui.close` reaches the plugin (F45). */
   keysToPrompt(): void {
     this.shown = this.shown.map(pane => ({ ...pane, isFocused: false }))
+  }
+
+  status = (text: string | undefined): void => {
+    this.statuses.push(text)
+  }
+
+  /** The status line as the person sees it now. */
+  get statusLine(): string | undefined {
+    return this.statuses.at(-1)
   }
 
   copy = async (text: string): Promise<UiCopyResult> => {

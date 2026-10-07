@@ -30,3 +30,28 @@ export const fixtureCli = (process: FakeProcess): FakeProcess =>
     .when(['install'], out(runs['install-ok-user'].stdout))
 
 export const FIXTURE_MODS = ['broken', 'quiet-bash', 'redactor', 'spawner', 'turn-band']
+
+/**
+ * A fixture update: turn-band's folder moves to 0.4.0 and its module now
+ * calls `$.process.run` (a new notable capability). turn-band comes from a
+ * folder marketplace, so `list --json` shows the folder's version (F51).
+ */
+export const bumpTurnBand = (process: FakeProcess): FakeProcess =>
+  process
+    .when(['list', '--json'], () => {
+      const list = JSON.parse(runs.list.stdout) as Array<Record<string, unknown>>
+      const bumped = list.map(entry =>
+        entry.id === 'turn-band@fixtures' ? { ...entry, folderVersion: '0.4.0' } : entry,
+      )
+      return out(JSON.stringify(bumped))
+    })
+    .when(['validate'], argv =>
+      basename(argv.at(-1) ?? '') === 'turn-band'
+        ? out(
+            runs['validate-turn-band'].stdout.replace(
+              'calls: $.clock.now,',
+              'calls: $.clock.now, $.process.run,',
+            ),
+          )
+        : undefined,
+    )

@@ -5,7 +5,7 @@
 
 import type { RenderSurface } from 'claude-code'
 import type { ReviewRequest, Tab, View } from '../../types/index.d.ts'
-import { enqueueReload, prune, undoSpecs } from '../domain/jobs.ts'
+import { enqueueReload, isActive, prune, undoNeedsReview, undoPlan } from '../domain/jobs.ts'
 import {
   closedView,
   escapeStep,
@@ -16,15 +16,22 @@ import {
   popOverlay,
   pruneStaged,
   pushOverlay,
+  removeReview,
   rowKey,
   selectedRow,
   specsOf,
   stagedChanges,
   stageToggle,
+  summaryOf,
+  titleOf,
   toggleOverlay,
   toggleReview,
   topOverlay,
+  undoReview,
+  updateReview,
   whyLocked,
+  whyNoRemove,
+  whyNoUpdate,
 } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { enqueue } from './job-runner.ts'
@@ -45,13 +52,21 @@ export type Actions = {
   back(): Promise<void>
   /** Stages a toggle of the selected mod, or of `id`. */
   toggle(id?: string): Promise<void>
+  /** `u`: reviews updating the selected mod, or `id`. */
+  update(id?: string): Promise<void>
+  /** `a`: reviews updating every mod the CLI can update. */
+  updateAll(): Promise<void>
+  /** `x`: reviews removing the selected mod, or `id`. */
+  remove(id?: string): Promise<void>
+  /** `d` on a remove's review: keep the mod's data (the default) or delete it too. */
+  keepData(): Promise<void>
   /** Opens the review of what is staged. */
   apply(): Promise<void>
   /** `y` on the review: queues the batch and its reload. */
   confirm(): Promise<void>
   /** `n` on the review. */
   cancel(): Promise<void>
-  /** Queues the inverse of the last batch. */
+  /** Queues the inverse of the last batch; one that reinstalls is reviewed first. */
   undo(): Promise<void>
   refresh(): Promise<void>
   /** Queues a reload on its own (the band's `[l reload]`). */
@@ -110,6 +125,22 @@ export const createActions = (
     await rt?.registry.select(id)
   }
 
+  /**
+   * Opens (or re-opens) the dialog with its manners and the current title: a
+   * re-open sets both anew (F22), so every open says them. Toasts are held
+   * only while nothing runs (C8).
+   */
+  const openDialog = async (how: { focus: boolean; idle?: boolean }): Promise<void> => {
+    const [attention, queue, mods] = await Promise.all([
+      state.read('attention'),
+      state.read('queue'),
+      state.read('mods'),
+    ])
+    const idle = how.idle ?? !queue.jobs.some(isActive)
+    const title = titleOf(summaryOf({ attention, queue, mods }))
+    await ui.open(paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title }))
+  }
+
   const queueBatch = async (specs: Parameters<typeof enqueue>[1]['specs']): Promise<boolean> => {
     if (rt === undefined) {
       await notice('modmgr is still starting; try again in a moment')
@@ -117,20 +148,15 @@ export const createActions = (
     }
     await enqueue(ports, { id: rt.newJobId(), specs, reload: true }, () => rt.newJobId())
     // A pane left open while jobs run must not hold other plugins' toasts (C8).
-    const mods = await state.read('mods')
     if ((await ui.panes()).some(pane => pane.id === PANE_ID)) {
-      await ui.open(paneOpen({ focus: false, hold: false, mods: mods.length }))
+      await openDialog({ focus: false, idle: false })
     }
     rt.runner.kick()
     return true
   }
 
   /** Re-takes the keys after an Esc the cascade answered (the selected row's autoFocus takes the ring). */
-  const retake = async (): Promise<void> => {
-    const [mods, queue] = await Promise.all([state.read('mods'), state.read('queue')])
-    const busy = queue.jobs.some(job => job.state === 'running' || job.state === 'queued')
-    await ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
-  }
+  const retake = (): Promise<void> => openDialog({ focus: true })
 
   /**
    * Puts the ring on the first of `keys` the pane draws (F46: a ring whose
@@ -166,6 +192,19 @@ export const createActions = (
     await state.update('review', () => null)
   }
 
+  /** Puts a review on top, the ring on its safe default (cancel). */
+  const openReview = async (review: ReviewRequest): Promise<void> => {
+    await state.update('review', () => review)
+    await setView(current => pushOverlay(quiet(current), 'review'))
+    await ringToOverlay()
+  }
+
+  /** The row an action names, or the selected one. */
+  const rowFor = async (id: string | undefined) => {
+    const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
+    return id === undefined ? selectedRow(view, mods) : mods.find(item => item.id === id)
+  }
+
   return {
     tab: safely('tab', async tab => {
       await setView(view => ({ ...quiet(view), tab, stack: [] }))
@@ -183,6 +222,8 @@ export const createActions = (
       await setView(view => pushOverlay({ ...quiet(view), selected: id }, 'detail'))
       await select(id)
       await ringToOverlay()
+      // Opening the detail is seeing what its update added (PLAN §2.2).
+      await rt?.registry.acknowledge(id)
     }),
 
     back: safely('back', async () => {
@@ -193,8 +234,7 @@ export const createActions = (
     }),
 
     toggle: safely('toggle', async id => {
-      const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
-      const row = id === undefined ? selectedRow(view, mods) : mods.find(item => item.id === id)
+      const row = await rowFor(id)
       if (row === undefined) return
       const locked = whyLocked(row)
       if (locked !== undefined) {
@@ -204,6 +244,44 @@ export const createActions = (
       await setView(current => stageToggle(quiet(current), row))
     }),
 
+    update: safely('update', async id => {
+      const row = await rowFor(id)
+      if (row === undefined) return
+      const why = whyNoUpdate(row)
+      if (why !== undefined) {
+        await notice(`${row.name}: ${why}`)
+        return
+      }
+      await openReview(updateReview([row]))
+    }),
+
+    updateAll: safely('update all', async () => {
+      const mods = await state.read('mods')
+      const rows = mods.filter(row => whyNoUpdate(row) === undefined)
+      if (rows.length === 0) {
+        await notice('None of these mods updates through the CLI')
+        return
+      }
+      await openReview(updateReview(rows))
+    }),
+
+    remove: safely('remove', async id => {
+      const row = await rowFor(id)
+      if (row === undefined) return
+      const why = whyNoRemove(row)
+      if (why !== undefined) {
+        await notice(`${row.name}: ${why}`)
+        return
+      }
+      await openReview(removeReview(row, rt?.registry.facts(row.id)))
+    }),
+
+    keepData: safely('keep data', async () => {
+      await state.update('review', review =>
+        review?.action === 'remove' ? { ...review, keepData: review.keepData === false } : review,
+      )
+    }),
+
     apply: safely('apply', async () => {
       const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
       const changes = stagedChanges(view, mods)
@@ -211,10 +289,7 @@ export const createActions = (
         await setView(current => pruneStaged({ ...current, notice: 'Nothing is staged' }, mods))
         return
       }
-      const review = toggleReview(changes, id => rt?.registry.facts(id))
-      await state.update('review', () => review)
-      await setView(current => pushOverlay(quiet(current), 'review'))
-      await ringToOverlay()
+      await openReview(toggleReview(changes, id => rt?.registry.facts(id)))
     }),
 
     confirm: safely('confirm', async () => {
@@ -232,11 +307,15 @@ export const createActions = (
         return
       }
       const ids = new Set(review.targets.map(target => target.id))
+      // A removed mod's detail goes with it, or the next row's would show in its place.
+      const gone = review.targets.some(target => target.op === 'remove')
       await setView(view => {
         const staged = Object.fromEntries(
           Object.entries(view.staged).filter(([id]) => !ids.has(id)),
         )
-        const stack = view.stack.filter(overlay => overlay !== 'review')
+        const stack = view.stack.filter(
+          overlay => overlay !== 'review' && !(gone && overlay === 'detail'),
+        )
         return { ...quiet(view), staged, stack }
       })
       await ringToOverlay()
@@ -252,14 +331,19 @@ export const createActions = (
     }),
 
     undo: safely('undo', async () => {
-      const queue = await state.read('queue')
-      const undo = undoSpecs(queue.jobs)
-      if (undo === undefined) {
-        await notice('Nothing to undo')
+      const [queue, mods] = await Promise.all([state.read('queue'), state.read('mods')])
+      const plan = undoPlan(queue.jobs)
+      if (plan.kind === 'none') {
+        await notice(plan.reason)
         return
       }
-      if (await queueBatch(undo.specs)) {
-        await notice(`Undoing the last batch (${undo.specs.length})`)
+      // A reinstall runs the mod's code again: reviewed, as an install is.
+      if (undoNeedsReview(plan)) {
+        await openReview(undoReview(plan.steps, mods, id => rt?.registry.facts(id)))
+        return
+      }
+      if (await queueBatch(plan.steps.map(step => step.spec))) {
+        await notice(`Undoing the last batch (${plan.steps.length})`)
       }
     }),
 
@@ -314,9 +398,7 @@ export const createActions = (
     }),
 
     openPane: safely('open pane', async () => {
-      const [mods, queue] = await Promise.all([state.read('mods'), state.read('queue')])
-      const busy = queue.jobs.some(job => job.state === 'running' || job.state === 'queued')
-      await ui.open(paneOpen({ focus: true, hold: !busy, mods: mods.length }))
+      await openDialog({ focus: true })
     }),
 
     close: safely('close', async () => {

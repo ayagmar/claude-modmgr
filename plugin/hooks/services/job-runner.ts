@@ -247,7 +247,15 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       )
     }
     const done = result.value
-    return succeeded([done.unchanged ? `already so: ${done.message}` : done.message])
+    // An update the CLI found current changed nothing, like an enable of an enabled mod.
+    const current =
+      done.update !== undefined &&
+      (done.update.outcome === 'up_to_date' ||
+        (done.update.from !== undefined && done.update.from === done.update.to))
+    if (done.unchanged || current) {
+      return { finish: { ok: true, unchanged: true }, tail: [`already so: ${done.message}`] }
+    }
+    return succeeded([done.message])
   }
 
   /** Runs jobs until none is runnable now; true when a CLI write finished. */
@@ -289,7 +297,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       record(next, endedAt, outcome)
       if (NEEDS_RELOAD.has(next.kind)) {
         wrote = true
-        if ('ok' in outcome.finish && outcome.finish.ok) {
+        if ('ok' in outcome.finish && outcome.finish.ok && outcome.finish.unchanged !== true) {
           await ports.state.update('attention', attention => ({
             ...attention,
             reloadPending: true,

@@ -94,6 +94,8 @@ export interface UiPort {
   /** Moves the pane's focus ring onto an element it drew (rejects or denies when it can't). */
   focus(requestId: string, key: string): Promise<UiFocusResult>
   copy(text: string, surface?: RenderSurface): Promise<UiCopyResult>
+  /** modmgr's one status line under the prompt; undefined clears it. */
+  status(text: string | undefined): void
 }
 
 export type Ports = {
