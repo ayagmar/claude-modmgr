@@ -15,8 +15,8 @@ reload, or to stop launching it.
 | Threat | Example | What modmgr does |
 |---|---|---|
 | **A hostile catalogue entry** | A look-alike name, a description with terminal escapes or bidi overrides, a plugin id shaped like a flag | Every id is checked against a strict pattern before it reaches a process (below). All untrusted text is sanitised and drawn as plain text, never Markdown. Names are always shown with their marketplace. |
-| **A malicious mod** | A mod that reads your conversation and posts it somewhere, runs programs, or rewrites what the model reads | Before install and in every detail view, modmgr shows the mod's **capabilities as facts** from `claude plugin validate --json` (what it hooks, what it calls, which environment variables it reads), grouped by reach, with the dangerous combinations called out ("Can read your conversation and send data out"). After an update it shows what was **added**. It does not block anything: you decide. |
-| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | A declared command is shown **verbatim with its sha256** on the review screen. Nothing runs before you accept (the CLI enforces this, F25). Just before the install runs, modmgr asks the CLI again without acceptance and compares the sha; if it changed, you see the new command and decide again (M4). modmgr never passes `-y`. |
+| **A malicious mod** | A mod that reads your conversation and posts it somewhere, runs programs, or rewrites what the model reads | In every detail view, and **before install for an entry whose files are on disk** (a folder in its marketplace or its clone), modmgr shows the mod's **capabilities as facts** from `claude plugin validate --json` (what it hooks, what it calls, which environment variables it reads), grouped by reach, with the dangerous combinations called out ("Can read your conversation and send data out"). A remote entry is read once installed, and the install review says so. After an update it shows what was **added**. It does not block anything: you decide. |
+| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | An install runs without acceptance first; when the marketplace declares a command, nothing runs (the CLI enforces this, F25) and the job stops. modmgr then shows the command **line for line with its sha256** (and says when sanitising removed hidden or control characters) on a review whose confirm key reads "run it and install". Confirming passes `--accept-command <sha256>`: the CLI runs the command only while it is still that very command, and otherwise shows the new one, which modmgr reviews again. modmgr never passes `-y`. |
 | **modmgr's own bugs** | A crash in a hook, a corrupt store, an unreadable CLI answer | Every hook has a `.catch` that passes through, so a failing modmgr never blocks a session event. Errors are values, never thrown across layers. The store is shape-checked on every read and starts a key empty when it's unreadable. A CLI answer modmgr can't parse is reported, never guessed. |
 
 ## Trust boundaries worth knowing
@@ -67,11 +67,16 @@ isolates, and zero-width characters are removed, and lengths are capped. The tex
 `Markdown`, so a link or image in a description stays inert. The source tree itself is checked for raw control, bidi
 and zero-width characters (`test/layering.test.ts`).
 
-**Network.** modmgr makes no network requests of its own except, from M4, the mod detector's reads of
+**Network and files.** modmgr makes no network requests of its own except the mod detector's reads of
 `https://raw.githubusercontent.com/` (a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the
-entry's pinned commit), without credentials, with response sizes checked and JSON shape-checked. The CLI's own fetches
-(`marketplace update`, installs) are the CLI's. All of it is off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is
-set (to anything but empty, `0` or `false`) or `detectRemote` is off.
+entry's pinned commit, at most 600 a session, only while no turn runs), without credentials, with response sizes
+checked and JSON shape-checked. They are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
+empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
+files with `$.fs.read`, only inside that marketplace's folder (paths are checked segment by segment: no `..`, no
+absolute part). The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
+files and fetches, its own capability list (as modmgr would show it) carries "Can read your conversation or files and
+send data out": what it reads is plugin manifests, and what it fetches is the same manifests by URL; nothing it reads
+is sent.
 
 **No telemetry.** modmgr never calls `$.telemetry`; `node scripts/validate-plugin.ts` fails the build if it does.
 

@@ -78,6 +78,8 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F51 | A **folder-marketplace** plugin runs from its marketplace folder (`readFromFolder`: the session reads `hooks/hooks.json` there), so an edit or version bump there applies at the next reload. `list --json` gives the folder's `folderVersion` beside the install copy's `version`; `claude plugin update` refreshes the copy (and `version`) without `marketplace update`, which changes nothing that runs. `update` takes `--accept-command` too: a command-source update can need acceptance. `uninstall --keep-data` keeps `plugins/data/<name>-<marketplace>/` and a reinstall finds it; without the flag the folder is deleted. | M3b, isolated config + `claude -p` marker |
 | F52 | `$.ui.status(text)` is drawn under the prompt as `⚠ <plugin>: <text>` (the engine names the plugin). | M3b, live |
 | F53 | An **unasked** `ui.open` of a pane that is already placed (a retitle from a timer) keeps it placed, at 120 columns and below both floors at 64 (`ui.open modmgr modmgr (unasked, 64 columns): placed`): the 144/110-column floor is for placing a pane, not for retitling one. A pane's title is drawn only while more than one pane is open (d.ts `PaneOpenArgs.title`), so the badge is mostly seen in tabs. | M3b, live debug log |
+| F54 | Installing a mod that hooks `plugin.register` makes the batch's `/reload-plugins` reload **every** module, modmgr included (F19): the new modmgr's `session.start` finds the reload job still `running`, and the old module's `$.command.run` then rejects. The reload did apply. | M4, live debug log (`hooks modules reloaded in full: spawner hooks plugin.register and joins`) |
+| F55 | `claude plugin validate --json` reports nothing for a plugin with classic command hooks only (`contents: []`), and `claude plugin details` answers only for installed plugins: neither tells `hooks` from `plain` before install. A local entry's kind is read from its `hooks/hooks.json` and `plugin.json` on disk instead. `marketplace list --json` gives each marketplace's `installLocation` (a clone for a repository), under which relative-source entries sit. | M4, isolated config |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -737,3 +739,42 @@ Pushes and GitHub actions still need the person's go-ahead.
   chrome; a retitle reads its `UiOpenResult` and logs an unplaced answer (F53, checked at 64 columns); toasts are
   held only while no job is active and the job log isn't on top (`holdsToasts`); a removed mod's name is sanitised in
   the undo review; the update review says "if a newer version exists".
+
+**C13. Discover as built (M4, applied 2026-10-07).**
+- **Catalogue** (`services/catalog.ts`): `list --json --available` and `marketplace list --json` read into a module-
+  memory index (never `$.state` or `$.store`) at the first visit to Discover and again past 6 h, after `r`, and after an
+  install, a remove or a marketplace job. `$.state` `catalogPage` (`/2`) holds a window of at most 50 rows around
+  Discover's selection (`view.found`) and its place (`offset`) among the matches, so moving through 3.5k entries is
+  moving the window, with no pages to turn; the pane windows those rows to its height as Installed does. Matching is
+  one pass over a pre-sorted list per search, memoised per search, kind, sort and detector version. `view` (`/4`)
+  gained `search` and `found`; `kind` and `sort` are Discover's. A reloaded modmgr (module memory gone) reads the
+  catalogue again on demand and at `session.start` when Discover is showing (found live).
+- **Detector** (`services/detector.ts`): six workers over the entries the cache doesn't know at their current key (a
+  remote entry's pinned commit; a local one's version, `local:<version>`), most installed first; ≤ 600 network
+  requests a session; paused while a turn runs (`turn.start`/`turn.complete`, observed only, not gates); a 429/403/5xx
+  pauses every worker for `backoffMs` and requeues the entry (three tries a session); results written to the store's
+  `detect` key in batches of 50, after which the catalogue's kinds are read again and the window redrawn; progress in
+  `detect` (`mods found 12 · checked 1,804/3,544`). Remote probes are off under the traffic switch or `detectRemote:
+  false`; local ones (F55) read the marketplace folder through a new `FsPort` (`$.fs.read`). A new `HttpPort` is a GET.
+- **Local entries are read before install**: `validate --json` on the entry's folder (memoised per version) gives its
+  notable capabilities to the detail (also beside the list, read on focus) and the install review; a remote entry's
+  review says it is read once installed (`uninspected`), as PLAN §12 defers the pre-install diff.
+- **Install** (`i` on a row or its detail) goes through the review with a **scope Select** (user, project, local; the
+  Select element, F-free) and says when project/local edit this repository. An install that a marketplace-declared
+  command stops fails as `conflict` and keeps what the CLI showed on the job (`Job.shown`, additive); `v` ("review the
+  command", in both tabs' footers while one waits) opens a review that shows the command line for line with its
+  sha256, warns when sanitising removed hidden characters, and whose confirm reads "run it and install"; confirming
+  queues the install with `--accept-command <sha256>`. **The re-verify is the CLI's**: an acceptance runs only the
+  command whose sha it names, and a changed one is refused and shown again (F25), so modmgr doesn't run a separate
+  pre-check install (which would install outright when nothing is declared). When Claude Code refuses acceptances from
+  this session (C4), that review swaps confirm for `c` "copy the terminal command" and says where to accept it.
+- **Marketplaces**: `m` opens a field (owner/repo, https URL or absolute folder), Enter reviews it (it fetches a
+  catalogue and writes settings, runs no plugin code), confirm runs `marketplace add`; the catalogue is read again
+  after. `review` went to `/3` (`action: 'marketplace'`, `source`, `uninspected`).
+- **A reload that restarts modmgr** (F54): `takeOver` counts a reload job left `running` as done
+  ("Plugins reloaded, modmgr with them"), `session.start` clears `reloadPending` and echoes it, and an old runner that
+  no longer owns the queue writes nothing after its rejected `$.command.run`.
+- **Keys**: `1`/`2` switch tabs (Dev and Health stay out of help until M5); Discover's footer has `i`, `k` (labelled
+  with what it switches to), `o` (likewise), `m`, `r`, `f` (search, the same field key as Installed's filter); `c` is
+  bound on the review too (the terminal command). Esc clears Discover's search like Installed's filter. A key is drawn
+  once: the empty state says "k shows plugins with hooks; m adds a marketplace" instead of drawing them twice.
