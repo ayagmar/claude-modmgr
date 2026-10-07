@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The Claude Code build modmgr is pinned to (vendor/claude-code-types/<version>).
+  CLAUDE_CODE_VERSION: 2.1.292
+  # No telemetry or non-essential traffic from the CLI in CI.
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+  DISABLE_AUTOUPDATER: '1'
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dev tooling
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format
+        run: pnpm biome ci .
+
+      - name: Type-check the plugin (vendored types)
+        run: pnpm tsc -p plugin --noEmit
+
+      - name: Type-check tests and scripts
+        run: pnpm tsc -p tsconfig.json --noEmit
+
+      - name: Domain tests with coverage
+        run: pnpm vitest run --coverage
+
+      - name: Install the pinned Claude Code
+        run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+      - name: Check the pinned version
+        run: |
+          actual="$(claude --version | cut -d' ' -f1)"
+          test "$actual" = "$CLAUDE_CODE_VERSION" || { echo "expected $CLAUDE_CODE_VERSION, got $actual"; exit 1; }
+
+      # Every CLI call below runs against a throwaway config dir.
+      - name: Isolate the Claude Code config
+        run: echo "CLAUDE_CONFIG_DIR=$(mktemp -d)" >> "$GITHUB_ENV"
+
+      - name: Validate the plugin (strict)
+        run: claude plugin validate --strict --json plugin
+
+      - name: Validate the marketplace
+        run: claude plugin validate .
+
+      - name: Plugin tests (services and UI)
+        run: claude plugin test plugin
+
+      - name: Build the site
+        run: pnpm --filter modmgr-site build
