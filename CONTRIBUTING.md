@@ -60,6 +60,10 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
   python3 -m http.server 8765 --directory /tmp/index &
   MODMGR_INDEX_URL=http://127.0.0.1:8765/v1.json claude --plugin-dir ./plugin
   ```
+- The community index (not in the tree): `GITHUB_TOKEN=$(gh auth token) node scripts/build-mods.ts <dir>/mods-v1.json`
+  (about half an hour; it clones every candidate repository into a temporary folder and validates each mod there).
+  `index.yml` publishes it beside `v1.json`; a client pointed at `MODMGR_INDEX_URL` reads `mods-v1.json` from the same
+  folder.
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes
