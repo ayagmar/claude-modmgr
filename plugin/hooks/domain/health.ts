@@ -16,7 +16,7 @@ import type {
 import { notableVerb } from './capabilities.ts'
 import { isActive } from './jobs.ts'
 import { sanitize } from './sanitize.ts'
-import { bytesLabel, whyLocked, whyNoUpdate } from './view.ts'
+import { bytesLabel, type Window, whyLocked, whyNoUpdate, windowAround } from './view.ts'
 
 /** What pressing an item does. */
 export type HealthFix =
@@ -39,8 +39,8 @@ export type HealthItem = {
   readonly fixLabel?: string
 }
 
-/** modmgr's own heading, and the hook-order notes'. */
-export const OWN_GROUP = 'modmgr'
+/** modmgr's own heading (apart from an installed mod named modmgr), and the hook-order notes'. */
+export const OWN_GROUP = 'modmgr itself'
 export const ORDER_GROUP = 'Hook order'
 
 /** A Health item's Button key: what `ui.focus` and `ui.press` name. */
@@ -317,4 +317,52 @@ export const loggedFailures = (log: string): Record<string, string> => {
     }
   }
   return found
+}
+
+/** A row of Health's list: a group's name, or one of its items. */
+export type HealthLine =
+  | { readonly kind: 'group'; readonly group: string }
+  | { readonly kind: 'item'; readonly item: HealthItem }
+
+/**
+ * The rows of Health's list that fit in `rows` around `items[at]`: each
+ * group's name on a row of its own above its items, again at the top when the
+ * window starts inside a group. `items` is the window over the items, for
+ * the pager.
+ */
+export const healthLines = (
+  items: readonly HealthItem[],
+  at: number,
+  rows: number,
+): { readonly lines: HealthLine[]; readonly items: Window } => {
+  const all: HealthLine[] = []
+  items.forEach((item, index) => {
+    if (index === 0 || items[index - 1]?.group !== item.group)
+      all.push({ kind: 'group', group: item.group })
+    all.push({ kind: 'item', item })
+  })
+  const size = Math.max(2, rows)
+  const selected = items[at]
+  const focus = all.findIndex(line => line.kind === 'item' && line.item === selected)
+  const window = windowAround(all.length, focus, size)
+  let lines = all.slice(window.start, window.end)
+  const first = lines[0]
+  if (first?.kind === 'item') {
+    lines = [{ kind: 'group', group: first.item.group }, ...lines]
+    // Over by the name: cut the end, or the top item when that would take the
+    // selection or the row under it (the arrows' way down).
+    const near = lines.slice(-2).some(line => line.kind === 'item' && line.item === selected)
+    if (near && lines[1] !== undefined && !(lines[1].kind === 'item' && lines[1].item === selected))
+      lines.splice(1, 1)
+    else lines.pop()
+    // A top item cut away leaves the next group's name right under this one.
+    if (lines[1]?.kind === 'group') lines.shift()
+  }
+  // A group's name with none of its items under it.
+  if (lines.at(-1)?.kind === 'group') lines.pop()
+  const shown = lines.flatMap(line => (line.kind === 'item' ? [items.indexOf(line.item)] : []))
+  return {
+    lines,
+    items: { start: shown[0] ?? 0, end: (shown.at(-1) ?? -1) + 1 },
+  }
 }

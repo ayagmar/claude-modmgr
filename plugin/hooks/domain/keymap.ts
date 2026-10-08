@@ -40,7 +40,7 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'tab.health', hotkey: '4', label: 'Health', on: ['pane'] },
   { action: 'move', key: '↑↓ tab', label: 'move', on: ['pane'] },
   { action: 'open', key: 'enter', label: 'open', on: LISTS },
-  { action: 'back', key: 'esc', label: 'back · clear filter · close', on: ['pane'] },
+  { action: 'back', key: 'esc', label: 'back · list · clear · close', on: ['pane'] },
   { action: 'jobs', hotkey: 'j', label: 'jobs', on: ['pane'] },
   { action: 'help', hotkey: 'h', label: 'keys', on: ['pane'] },
   { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },

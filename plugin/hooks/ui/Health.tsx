@@ -1,13 +1,13 @@
-// Health: one row per item, grouped by mod (the name once,
-// on its first item), worst first, then hook order and modmgr's own state. An
-// item with a fix is a Button whose press runs it, the fix named after it;
-// every row takes the ring so the arrows walk the list. Words a plugin or the
+// Health: one row per item, grouped by mod (its name on a row
+// of its own above its items), worst first, then hook order and modmgr's own
+// state. An item with a fix is a Button whose press runs it, the fix named
+// after it; every row takes the ring so the arrows walk the list. Words a plugin or the
 // debug log supplied are sanitised by domain/health.ts and drawn as Text.
 
 import type { RenderElement } from 'claude-code'
-import { type HealthItem, type HealthTone, healthKey } from '../domain/health.ts'
+import { type HealthItem, type HealthLine, type HealthTone, healthKey } from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { type Window, wrappedRows } from '../domain/view.ts'
+import { wrappedRows } from '../domain/view.ts'
 import { GLYPH, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone: string }>> = {
@@ -16,31 +16,24 @@ const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone:
   info: { glyph: ' ', tone: TONE.muted },
 }
 
-export const HealthLine = (
+export const HealthRow = (
   v: ViewPorts,
   item: HealthItem,
   how: {
     readonly columns: number
     readonly focus: boolean
-    readonly first: boolean
     /** Stacked: Enter opens the item whole (its row is clipped); split: moves onto its fix. */
     readonly stacked: boolean
   },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
-  const group = Math.max(8, Math.min(18, Math.floor(how.columns * 0.28)))
   // Beside the list the detail names the fix: the row keeps its room for the words.
   const fix = item.fixLabel === undefined || !how.stacked ? undefined : `→ ${item.fixLabel}`
-  const text = Math.max(10, how.columns - 4 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
+  const text = Math.max(10, how.columns - 4 - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>
       {Pointer(v, how.focus)}
       <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
-      <Box width={group} flexShrink={0}>
-        <Text bold={how.first} dimColor={!how.first} wrap="truncate-end">
-          {how.first ? item.group : ''}
-        </Text>
-      </Box>
       {/* One row per item (the window counts them): the detail has the whole text. */}
       <Box width={text} height={1} flexShrink={1} overflow="hidden">
         <Button
@@ -60,28 +53,33 @@ export const HealthLine = (
   )
 }
 
-/** The items in the window (a group's name drawn on its first one shown). */
+/** The rows `healthLines` chose: each group's name above its items. */
 export const HealthList = (
   v: ViewPorts,
-  items: readonly HealthItem[],
+  lines: readonly HealthLine[],
   how: {
     readonly columns: number
-    readonly window: Window
     readonly focusKey: string | undefined
     readonly stacked: boolean
   },
 ): RenderElement => {
-  const { Box } = v.el
-  const shown = items.slice(how.window.start, how.window.end)
+  const { Box, Text } = v.el
   return (
     <Box flexDirection="column">
-      {shown.map((item, index) =>
-        HealthLine(v, item, {
-          columns: how.columns,
-          focus: item.key === how.focusKey,
-          first: index === 0 || shown[index - 1]?.group !== item.group,
-          stacked: how.stacked,
-        }),
+      {lines.map((line, index) =>
+        line.kind === 'group' ? (
+          <Box key={`group:${index}`} paddingLeft={2}>
+            <Text bold wrap="truncate-end">
+              {line.group}
+            </Text>
+          </Box>
+        ) : (
+          HealthRow(v, line.item, {
+            columns: how.columns,
+            focus: line.item.key === how.focusKey,
+            stacked: how.stacked,
+          })
+        ),
       )}
     </Box>
   )
@@ -91,7 +89,9 @@ export const HealthList = (
 export const healthDetailRows = (item: HealthItem | undefined, columns: number): number =>
   item === undefined
     ? 1
-    : wrappedRows([item.group, sanitize(item.text, { max: 300 }), item.fixLabel ?? ''], columns)
+    : 2 +
+      wrappedRows([sanitize(item.text, { max: 300 })], columns - 2) +
+      (item.fixLabel === undefined ? 0 : 2)
 
 /**
  * The selected item in full, its words wrapped, its fix a button: beside the
@@ -105,7 +105,12 @@ export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): Re
   return (
     <Box flexDirection="column">
       <Text bold>{item.group}</Text>
-      <Text>{sanitize(item.text, { max: 300 })}</Text>
+      <Text> </Text>
+      <Box flexDirection="row" gap={1}>
+        <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
+        <Text>{sanitize(item.text, { max: 300 })}</Text>
+      </Box>
+      {label === undefined ? null : <Text> </Text>}
       {label === undefined ? null : (
         <Button key="act:fix" plain label={`→ ${label}`} onPress={() => v.act.fix(item.key)} />
       )}

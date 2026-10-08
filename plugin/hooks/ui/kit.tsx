@@ -84,10 +84,58 @@ export const Rule = (v: ViewPorts, columns: number): RenderElement => {
   return <Text dimColor>{'─'.repeat(Math.max(0, columns))}</Text>
 }
 
-/** A bold section heading. */
+/** A section heading: bold, in the accent the tab title has. */
 export const Heading = (v: ViewPorts, text: string): RenderElement => {
   const { Text } = v.el
-  return <Text bold>{text}</Text>
+  return (
+    <Text bold color={TONE.accent}>
+      {text}
+    </Text>
+  )
+}
+
+/** A part of a detail: what it draws, and the rows that takes. */
+export type Section = { readonly rows: number; readonly el: RenderElement }
+
+/** The rows `sections` take, a blank row apart when `spaced`. */
+export const sectionRows = (sections: readonly Section[], spaced: boolean): number =>
+  sections.reduce((sum, section) => sum + section.rows, 0) +
+  (spaced ? Math.max(0, sections.length - 1) : 0)
+
+/** `sections` as one column, a blank row apart when `spaced`. */
+export const Sections = (
+  v: ViewPorts,
+  sections: readonly Section[],
+  spaced: boolean,
+): RenderElement => {
+  const { Box, Text } = v.el
+  return (
+    <Box flexDirection="column">
+      {sections.flatMap((section, index) =>
+        spaced && index > 0 ? [<Text key={`gap:${index}`}> </Text>, section.el] : [section.el],
+      )}
+    </Box>
+  )
+}
+
+/** A label column `width` cells wide, then `children`: one aligned row of a table. */
+export const LabelRow = (
+  v: ViewPorts,
+  label: string,
+  width: number,
+  children: RenderElement | readonly RenderElement[],
+): RenderElement => {
+  const { Box, Text } = v.el
+  return (
+    <Box flexDirection="row" gap={1}>
+      <Box width={width} flexShrink={0}>
+        <Text dimColor wrap="truncate-end">
+          {label}
+        </Text>
+      </Box>
+      {children}
+    </Box>
+  )
 }
 
 /** Fire-and-forget for a press handler: the action catches its own failures. */

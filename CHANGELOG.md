@@ -38,7 +38,9 @@ All notable changes to this project are documented here. The format follows
 - `/mods` as text for scripts and `-p` runs: `list`, `info`, `doctor [--json]`, `export`, and `install`, `remove`,
   `update`, `enable`, `disable`, `apply <file>`, which need `--yes` and say how to apply what they changed.
 - The dialog fills its room with the keys of the moment in a footer pinned to the bottom; from 80 columns the
-  selected entry's detail sits beside the list with its own keys, and a docked dialog asks for 96 columns.
+  selected entry's detail sits beside the list with its own keys, and a docked dialog asks for 96 columns. Details
+  read in sections a blank row apart; Discover's rows say what each mod does; Health names each mod above its
+  items; Esc from a key brings the ring back to the list before it closes.
 - A welcome on the first run; the tab and sort are remembered between sessions.
 - `debugTimings` writes how long each step took to the debug log; `docs/PERF.md` has the measurements.
 - A landing page (`site/`): the install line, the dialog as it draws, what modmgr calls out, the keys, and answers

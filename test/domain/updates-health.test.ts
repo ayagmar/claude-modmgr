@@ -6,11 +6,14 @@ import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
 import {
   agoLabel,
   type HealthInput,
+  type HealthItem,
   healthItemsOf,
   healthKey,
+  healthLines,
   healthOfKey,
   loadStates,
   loggedFailures,
+  OWN_GROUP,
   problemCount,
 } from '../../plugin/hooks/domain/health.ts'
 import type { AbsolutePath, PluginId } from '../../plugin/hooks/domain/ids.ts'
@@ -192,7 +195,7 @@ describe('Health’s items', () => {
         facts: facts({ logged: { quiet: 'tool.call (Error)' } }),
       }),
     )
-    const mine = items.filter(item => item.group !== 'modmgr')
+    const mine = items.filter(item => item.group !== OWN_GROUP)
     expect(mine.map(item => [item.group, item.tone, item.text, item.fixLabel])).toEqual([
       ['hurt', 'bad', 'validate finds 2 errors in it', 'see it'],
       ['quiet', 'bad', 'a hook failed: tool.call (Error) (debug log)', undefined],
@@ -246,15 +249,15 @@ describe('Health’s items', () => {
     )
     expect(texts).toEqual([
       'Hook order: a then b rewrite each row (session.append).',
-      'modmgr: no claude CLI',
-      "modmgr: couldn't read the installed list: list ran past 30 s → try again",
-      'modmgr: changes wait for a plugin reload → reload',
-      "modmgr: modmgr's cache is full; what it knows is not saved → clear cache",
-      'modmgr: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
-      'modmgr: 1 enabled · 1 disabled · 1 managed',
-      'modmgr: updates checked 3 h ago, every 6 hours → check now',
-      'modmgr: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
-      'modmgr: A hook that fails is logged only in a session started with --debug → copy command',
+      'modmgr itself: no claude CLI',
+      "modmgr itself: couldn't read the installed list: list ran past 30 s → try again",
+      'modmgr itself: changes wait for a plugin reload → reload',
+      "modmgr itself: modmgr's cache is full; what it knows is not saved → clear cache",
+      'modmgr itself: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      'modmgr itself: 1 enabled · 1 disabled · 1 managed',
+      'modmgr itself: updates checked 3 h ago, every 6 hours → check now',
+      'modmgr itself: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
+      'modmgr itself: A hook that fails is logged only in a session started with --debug → copy command',
     ])
   })
 
@@ -320,6 +323,57 @@ describe('Health’s items', () => {
       redactor: 'session.append (Error)',
     })
     expect(loggedFailures('')).toEqual({})
+  })
+})
+
+describe('Health’s list rows', () => {
+  const item = (group: string, key: string): HealthItem => ({
+    key,
+    group,
+    tone: 'info',
+    text: key,
+  })
+  const items = [
+    item('a', 'a1'),
+    item('a', 'a2'),
+    item('b', 'b1'),
+    item('modmgr', 'm1'),
+    item('modmgr', 'm2'),
+    item('modmgr', 'm3'),
+  ]
+  const shown = (lines: ReturnType<typeof healthLines>['lines']) =>
+    lines.map(line => (line.kind === 'group' ? `[${line.group}]` : line.item.key))
+
+  it('names each group on a row of its own above its items', () => {
+    const all = healthLines(items, 0, 20)
+    expect(shown(all.lines)).toEqual(['[a]', 'a1', 'a2', '[b]', 'b1', '[modmgr]', 'm1', 'm2', 'm3'])
+    expect(all.items).toEqual({ start: 0, end: 6 })
+  })
+
+  it('names the group again when the window starts inside it, and keeps the selection', () => {
+    const end = healthLines(items, 5, 4)
+    expect(shown(end.lines)).toEqual(['[modmgr]', 'm1', 'm2', 'm3'])
+    expect(end.items).toEqual({ start: 3, end: 6 })
+    const inside = healthLines(items, 1, 3)
+    expect(shown(inside.lines)).toContain('a2')
+    expect(inside.lines[0]).toEqual({ kind: 'group', group: 'a' })
+    expect(inside.lines.length).toBeLessThanOrEqual(3)
+  })
+
+  it('keeps the row under the selection, the arrows’ way down', () => {
+    const one = [item('a', 'a1'), item('a', 'a2'), item('a', 'a3'), item('a', 'a4')]
+    expect(shown(healthLines(one, 2, 3).lines)).toEqual(['[a]', 'a3', 'a4'])
+  })
+
+  it('never ends on a group with none of its items shown', () => {
+    for (let at = 0; at < items.length; at += 1) {
+      for (const rows of [2, 3, 4, 5]) {
+        const { lines } = healthLines(items, at, rows)
+        expect(lines.at(-1)?.kind).toBe('item')
+        expect(lines.length).toBeLessThanOrEqual(rows)
+        expect(shown(lines)).toContain(items[at]?.key)
+      }
+    }
   })
 })
 

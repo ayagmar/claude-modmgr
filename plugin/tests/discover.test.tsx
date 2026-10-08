@@ -50,7 +50,7 @@ for (const surface of SURFACES) {
     await ui.press({ key: `found:${AWS}` })
     await ui.redraw()
     expect(
-      await ui.find({ type: 'Text', text: 'What it can do is read once it is installed.' }),
+      await ui.find({ type: 'Text', text: 'modmgr reads it once the mod is installed.' }),
     ).toBeDefined()
     await ui.press({ key: 'act:install' })
     await ui.redraw()
@@ -241,8 +241,31 @@ test('from 100 body columns the selected entry’s detail sits beside the Discov
     expect(await ui.find({ key: `found:${AWS}` })).toBeDefined()
     // No Enter: the split draws the selection's detail beside the rows.
     expect(
-      await ui.find({ type: 'Text', text: 'What it can do is read once it is installed.' }),
+      await ui.find({ type: 'Text', text: 'modmgr reads it once the mod is installed.' }),
     ).toBeDefined()
     await ui.unmount()
   }
+})
+
+test('a name two marketplaces share is drawn with each marketplace', async ($, on) => {
+  const entry = (name: string, marketplace: string) => ({
+    id: `${name}@${marketplace}`,
+    name,
+    marketplace,
+    kind: 'mod',
+    blurb: `${name} from ${marketplace}`,
+    source: `github.com/${marketplace}/${name}`,
+  })
+  const rows = [entry('twin', 'one'), entry('twin', 'two'), entry('solo', 'one')]
+  host(on, {
+    state: {
+      view: { tab: 'discover', stack: [], query: '', search: '', sort: 'name', staged: {} },
+      catalogPage: { rows, total: 3, matched: 3, offset: 0, loading: false },
+    },
+  })
+  const ui = await mountPane($, 'terminal', PANE(64, 24))
+  expect((await ui.find({ key: 'found:twin@one' }))?.text).toBe('twin · one')
+  expect((await ui.find({ key: 'found:twin@two' }))?.text).toBe('twin · two')
+  expect((await ui.find({ key: 'found:solo@one' }))?.text).toBe('solo')
+  await ui.unmount()
 })

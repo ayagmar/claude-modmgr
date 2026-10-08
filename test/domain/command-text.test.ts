@@ -100,7 +100,7 @@ describe('doctor', () => {
       fixLabel: 'see it',
     },
     { key: 'b', group: 'tb', tone: 'warn', text: 'since 0.3 it can run programs' },
-    { key: 'c', group: 'modmgr', tone: 'info', text: 'cache: 1 KB' },
+    { key: 'c', group: 'modmgr itself', tone: 'info', text: 'cache: 1 KB' },
   ]
 
   it('says problems by group, with where to fix them', () => {
@@ -109,7 +109,7 @@ describe('doctor', () => {
       'tb',
       '  ▲ validate finds 1 error in it  (in /mods → Health: see it)',
       '  ◆ since 0.3 it can run programs',
-      'modmgr',
+      'modmgr itself',
       '    cache: 1 KB',
     ])
     expect(doctorText([], false)).toBe('✓ Nothing needs you.')
@@ -124,7 +124,7 @@ describe('doctor', () => {
       items: [
         { group: 'tb', tone: 'bad', text: 'validate finds 1 error in it', fix: 'see it' },
         { group: 'tb', tone: 'warn', text: 'since 0.3 it can run programs' },
-        { group: 'modmgr', tone: 'info', text: 'cache: 1 KB' },
+        { group: 'modmgr itself', tone: 'info', text: 'cache: 1 KB' },
       ],
     })
   })

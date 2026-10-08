@@ -281,6 +281,13 @@ describe('overlays and Esc', () => {
     expect(escapeStep(view(), true)).toEqual({ kind: 'close' })
   })
 
+  it('brings the ring back to the list from a key before clearing the filter', () => {
+    expect(escapeStep(view({ query: 'x' }), true, true)).toEqual({ kind: 'to-list' })
+    // An overlay pops first; from the prompt it closes.
+    expect(escapeStep(view({ stack: ['help'] }), true, true)).toMatchObject({ kind: 'pop' })
+    expect(escapeStep(view(), false, true)).toEqual({ kind: 'close' })
+  })
+
   it('closes at once from the prompt', () => {
     expect(escapeStep(view({ stack: ['review'], query: 'x' }), false)).toEqual({ kind: 'close' })
   })

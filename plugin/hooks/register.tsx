@@ -18,7 +18,7 @@ import { devOfKey } from './domain/dev.ts'
 import { foundOfKey } from './domain/discover.ts'
 import { healthOfKey } from './domain/health.ts'
 import { INITIAL, type ModmgrState, type StateKey } from './domain/state.ts'
-import { rowOfKey } from './domain/view.ts'
+import { FILTER_KEY, rowOfKey } from './domain/view.ts'
 import type {
   ClockPort,
   CommandPort,
@@ -180,7 +180,12 @@ function uiPorts($: EngineInterface): UiPort {
     panes: () => $.ui.panes(),
     open: args => $.ui.open(args),
     close: id => $.ui.close({ id }),
-    focus: (requestId, key) => $.ui.focus({ requestId, key }),
+    focus: async (requestId, key) => {
+      const moved = await $.ui.focus({ requestId, key })
+      // The engine doesn't raise modmgr's own `ui.focus` hook for this move.
+      if (moved.deny === undefined) noteRing(key)
+      return moved
+    },
     copy: (text, surface) => $.ui.copy(surface === undefined ? { text } : { text, surface }),
     status: text => $.ui.status(text),
   }
@@ -253,6 +258,18 @@ let runtime: Runtime | undefined
 // pane redraws when the keys leave it. Module memory: a reload of modmgr
 // starts it false, and the first Esc then closes.
 let paneHadKeys = false
+
+// Whether the ring last landed on one of modmgr's keys rather than a row of
+// the list or its field: Esc then brings it back to the list first. Module
+// memory, set by every move the ring makes; one Esc spends it.
+let ringAway = false
+
+function noteRing(element: string | undefined): void {
+  ringAway =
+    element !== undefined &&
+    element !== FILTER_KEY &&
+    [rowOfKey, foundOfKey, devOfKey, healthOfKey].every(keyOf => keyOf(element) === undefined)
+}
 
 export const register: Register = (on, options) => {
   const config = parseConfig(options)
@@ -339,6 +356,7 @@ export const register: Register = (on, options) => {
     const found = foundOfKey(e.element)
     const dev = devOfKey(e.element)
     const item = healthOfKey(e.element)
+    noteRing(e.element)
     if (id !== undefined) await actionsOf($).focusRow(id)
     else if (found !== undefined) await actionsOf($).focusFound(found)
     else if (dev !== undefined) await actionsOf($).focusDev(dev)
@@ -346,10 +364,14 @@ export const register: Register = (on, options) => {
     return moved
   }).catch((_$, e, next) => next(e))
 
-  // Esc pops an overlay, then clears the filter, then closes.
-  on('ui.close', { id: 'modmgr' }, async ($, e, next) =>
-    e.origin.kind !== 'unload' && (await actionsOf($).closing(e.origin.kind, paneHadKeys))
+  // Esc pops an overlay, then brings the ring back to the list, then clears the
+  // filter, then closes.
+  on('ui.close', { id: 'modmgr' }, async ($, e, next) => {
+    const away = ringAway
+    ringAway = false
+    return e.origin.kind !== 'unload' &&
+      (await actionsOf($).closing(e.origin.kind, paneHadKeys, away))
       ? { value: undefined }
-      : next(e),
-  ).catch((_$, e, next) => next(e))
+      : next(e)
+  }).catch((_$, e, next) => next(e))
 }

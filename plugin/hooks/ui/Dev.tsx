@@ -19,7 +19,18 @@ import {
 } from '../domain/dev.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
-import { GLYPH, Heading, KeyButton, Pointer, TONE, type ViewPorts } from './kit.tsx'
+import {
+  GLYPH,
+  Heading,
+  KeyButton,
+  LabelRow,
+  Pointer,
+  type Section,
+  Sections,
+  sectionRows,
+  TONE,
+  type ViewPorts,
+} from './kit.tsx'
 
 /** Lines of a run's output the detail shows (the job log has the rest). */
 const TAIL_SHOWN = 6
@@ -142,111 +153,168 @@ const tailOf = (job: Job | undefined): readonly string[] => {
   return lines.map(line => sanitize(line, { max: 300 }))
 }
 
-/** A line of the detail: prose wraps; a line of output is cut at the frame. */
-type DetailLine = { readonly text: string; readonly tone?: string; readonly output?: true }
-
-/** What the detail says, line by line (its row count clips it). */
-const detailLines = (row: DevRow, how: DevHow): DetailLine[] => {
-  const lines: DetailLine[] = []
-  lines.push({ text: SECTION_LABEL[row.how] })
-  lines.push({ text: sanitize(row.path, { max: 300 }) })
-  lines.push({ text: appliesOf(row.how) })
-  const stop = stopLoadingOf(row)
-  if (stop !== undefined) lines.push({ text: stop })
-  const validate = lastRun(how.jobs, 'validate', row.path)
-  const valid = validateMark(validate)
-  lines.push({
-    text: valid === undefined ? 'Not validated yet (v).' : `Validate: ${valid.text}`,
-    ...(valid === undefined ? {} : { tone: MARK_TONE[valid.tone] }),
-  })
-  for (const line of tailOf(validate)) lines.push({ text: `  ${line}`, output: true })
-  const test = lastRun(how.jobs, 'test', row.path)
-  const tests = testMark(test)
-  lines.push({
-    text: tests === undefined ? 'Not tested yet (t).' : `Tests: ${tests.text}`,
-    ...(tests === undefined ? {} : { tone: MARK_TONE[tests.tone] }),
-  })
-  for (const line of tailOf(test)) lines.push({ text: `  ${line}`, output: true })
-  const failed = how.failures[row.name]
-  if (failed !== undefined) {
-    lines.push({
-      text: `${GLYPH.problem} ${failed.count} ${failed.count === 1 ? 'failure' : 'failures'} reported while it reloaded`,
-      tone: TONE.bad,
-    })
-    lines.push({ text: `  last: ${failed.lastReason}`, output: true })
-  }
-  return lines
+export type DevDetailHow = DevHow & {
+  readonly readOnly: boolean
+  /** Rows and columns the detail has: past the rows it draws without blank rows. */
+  readonly rows: number
+  readonly columns: number
 }
 
-/** The rows the dev detail takes at `columns` (Pane clips a taller one to the body). */
-export const devDetailRows = (row: DevRow | undefined, how: DevHow, columns: number): number => {
+/** A run's mark beside its name, its output under it, cut at the frame. */
+const runLines = (
+  v: ViewPorts,
+  label: string,
+  mark: RunMark | undefined,
+  idle: string,
+  job: Job | undefined,
+): { readonly rows: number; readonly el: RenderElement } => {
+  const { Box, Text } = v.el
+  const tail = tailOf(job)
+  return {
+    rows: 1 + tail.length,
+    el: (
+      <Box flexDirection="column">
+        {LabelRow(
+          v,
+          label,
+          8,
+          mark === undefined ? (
+            <Text dimColor>{idle}</Text>
+          ) : (
+            <Text color={MARK_TONE[mark.tone]}>{mark.text}</Text>
+          ),
+        )}
+        {tail.map((line, index) => (
+          <Box key={`tail:${index}`} paddingLeft={2}>
+            <Text dimColor wrap="truncate-end">
+              {line}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+    ),
+  }
+}
+
+/** The head, where it loads from, and what its checks and the session said. */
+const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] => {
+  const { Box, Text } = v.el
+  const runs = !how.readOnly
+  const { path } = row
+  const keys = [...(runs ? ['v: validate', 't: test'] : []), 'c: copy path', 'p: share'].join('  ')
+  const head: Section = {
+    rows: 1 + wrappedRows([keys], how.columns),
+    el: (
+      <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          <Text bold>{sanitize(row.name, { max: 64 })}</Text>
+          <Text dimColor>
+            {row.version === undefined ? '' : sanitize(row.version, { max: 20 })}
+          </Text>
+        </Box>
+        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+          {runs
+            ? KeyButton(v, {
+                action: 'validate',
+                on: 'dev-detail',
+                label: 'validate',
+                onPress: () => v.act.devRun('validate', row.key),
+              })
+            : null}
+          {runs
+            ? KeyButton(v, {
+                action: 'test',
+                on: 'dev-detail',
+                label: 'test',
+                onPress: () => v.act.devRun('test', row.key),
+              })
+            : null}
+          {KeyButton(v, {
+            action: 'copy',
+            on: 'dev-detail',
+            label: 'copy path',
+            onPress: press => v.act.copy(path, press.surface),
+          })}
+          {KeyButton(v, {
+            action: 'share',
+            on: 'dev-detail',
+            label: 'share',
+            onPress: () => v.act.share(row.key),
+          })}
+        </Box>
+      </Box>
+    ),
+  }
+  const shownPath = sanitize(path, { max: 300 })
+  const said = [appliesOf(row.how), stopLoadingOf(row)].filter(
+    (line): line is string => line !== undefined,
+  )
+  const source: Section = {
+    rows: 1 + wrappedRows([shownPath, ...said], how.columns),
+    el: (
+      <Box flexDirection="column">
+        {Heading(v, SECTION_LABEL[row.how])}
+        <Text>{shownPath}</Text>
+        {said.map((line, index) => (
+          <Text key={`said:${index}`} dimColor>
+            {line}
+          </Text>
+        ))}
+      </Box>
+    ),
+  }
+  const validate = lastRun(how.jobs, 'validate', row.path)
+  const test = lastRun(how.jobs, 'test', row.path)
+  const checks = [
+    runLines(v, 'Validate', validateMark(validate), 'not run yet (v)', validate),
+    runLines(v, 'Tests', testMark(test), 'not run yet (t)', test),
+  ]
+  const failed = how.failures[row.name]
+  const failure =
+    failed === undefined
+      ? []
+      : [
+          `${GLYPH.problem} ${failed.count} ${failed.count === 1 ? 'failure' : 'failures'} reported while it reloaded`,
+        ]
+  const check: Section = {
+    rows:
+      1 +
+      checks.reduce((sum, run) => sum + run.rows, 0) +
+      (failed === undefined ? 0 : wrappedRows(failure, how.columns) + 1),
+    el: (
+      <Box flexDirection="column">
+        {Heading(v, 'Checks')}
+        {checks.map(run => run.el)}
+        {failed === undefined ? null : <Text color={TONE.bad}>{failure[0]}</Text>}
+        {failed === undefined ? null : (
+          <Box paddingLeft={2}>
+            <Text dimColor wrap="truncate-end">
+              last: {failed.lastReason}
+            </Text>
+          </Box>
+        )}
+      </Box>
+    ),
+  }
+  return [head, source, check]
+}
+
+/** The rows the dev detail takes (Pane clips a taller one to the body). */
+export const devDetailRows = (v: ViewPorts, row: DevRow | undefined, how: DevDetailHow): number => {
   if (row === undefined) return 1
-  const lines = detailLines(row, how)
-  const prose = lines.filter(line => line.output !== true).map(line => line.text)
-  // The keys row: four labels at most, wrapping like the footer's.
-  const keys = wrappedRows(['v: validate  t: test  c: copy path  p: share'], columns)
-  return 1 + keys + wrappedRows(prose, columns) + (lines.length - prose.length)
+  const sections = devSections(v, row, how)
+  return sectionRows(sections, sectionRows(sections, true) <= how.rows)
 }
 
 export const DevDetail = (
   v: ViewPorts,
   row: DevRow | undefined,
-  how: DevHow & { readonly readOnly: boolean },
+  how: DevDetailHow,
 ): RenderElement => {
-  const { Box, Text } = v.el
+  const { Text } = v.el
   if (row === undefined) return <Text dimColor>Select a mod to see more.</Text>
-  const runs = !how.readOnly
-  const { path } = row
-  return (
-    <Box flexDirection="column">
-      <Box flexDirection="row" gap={1}>
-        <Text bold>{sanitize(row.name, { max: 64 })}</Text>
-        <Text dimColor>{row.version === undefined ? '' : sanitize(row.version, { max: 20 })}</Text>
-      </Box>
-      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-        {runs
-          ? KeyButton(v, {
-              action: 'validate',
-              on: 'dev-detail',
-              label: 'validate',
-              onPress: () => v.act.devRun('validate', row.key),
-            })
-          : null}
-        {runs
-          ? KeyButton(v, {
-              action: 'test',
-              on: 'dev-detail',
-              label: 'test',
-              onPress: () => v.act.devRun('test', row.key),
-            })
-          : null}
-        {KeyButton(v, {
-          action: 'copy',
-          on: 'dev-detail',
-          label: 'copy path',
-          onPress: press => v.act.copy(path, press.surface),
-        })}
-        {KeyButton(v, {
-          action: 'share',
-          on: 'dev-detail',
-          label: 'share',
-          onPress: () => v.act.share(row.key),
-        })}
-      </Box>
-      {detailLines(row, how).map((line, index) => {
-        const wrap = line.output === true ? ('truncate-end' as const) : ('wrap' as const)
-        return line.tone === undefined ? (
-          <Text key={`detail:${index}`} dimColor wrap={wrap}>
-            {line.text}
-          </Text>
-        ) : (
-          <Text key={`detail:${index}`} color={line.tone} wrap={wrap}>
-            {line.text}
-          </Text>
-        )
-      })}
-    </Box>
-  )
+  const sections = devSections(v, row, how)
+  return Sections(v, sections, sectionRows(sections, true) <= how.rows)
 }
 
 /** The share overlay's lines of text. */

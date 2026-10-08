@@ -440,9 +440,31 @@ export const bytesLabel = (n: number): string =>
       ? `${Math.round(n / 1024)} KB`
       : `${(n / 1048576).toFixed(1)} MB`
 
-/** Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's height). */
-export const wrappedRows = (texts: readonly string[], columns: number): number =>
-  texts.reduce((sum, text) => sum + Math.max(1, Math.ceil(text.length / Math.max(1, columns))), 0)
+/**
+ * Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's
+ * height): words move whole to the next row, as the terminal wraps them, and
+ * a word longer than the row is cut across rows.
+ */
+export const wrappedRows = (texts: readonly string[], columns: number): number => {
+  const width = Math.max(1, columns)
+  const rowsOf = (text: string): number => {
+    let rows = 1
+    let used = 0
+    for (const word of text.split(' ')) {
+      const length = [...word].length
+      const need = used === 0 ? length : used + 1 + length
+      if (need <= width) {
+        used = need
+        continue
+      }
+      if (used > 0) rows += 1
+      rows += Math.max(0, Math.ceil(length / width) - 1)
+      used = length % width === 0 && length > 0 ? width : length % width
+    }
+    return rows
+  }
+  return texts.reduce((sum, text) => sum + rowsOf(text), 0)
+}
 
 /**
  * Rows a wrapping row of items takes at `columns` (the footer's keys, laid
@@ -488,18 +510,21 @@ export const toggleOverlay = (view: View, overlay: Overlay): View =>
 
 export type Escape =
   | { readonly kind: 'pop'; readonly view: View }
+  | { readonly kind: 'to-list' }
   | { readonly kind: 'clear-query'; readonly view: View }
   | { readonly kind: 'close' }
 
 /**
  * What an Esc does: while the pane holds the keys it
- * pops the top overlay, then clears the filter, then closes. An Esc at the
- * prompt (the pane not focused) always closes: the person can't see what a
- * cascade would pop.
+ * pops the top overlay, then brings the ring back to the list from a key
+ * (`ringAway`: beside the list, in the footer), then clears the filter, then
+ * closes. An Esc at the prompt (the pane not focused) always closes: the
+ * person can't see what a cascade would pop.
  */
-export const escapeStep = (view: View, paneFocused: boolean): Escape => {
+export const escapeStep = (view: View, paneFocused: boolean, ringAway = false): Escape => {
   if (!paneFocused) return { kind: 'close' }
   if (view.stack.length > 0) return { kind: 'pop', view: popOverlay(view) }
+  if (ringAway) return { kind: 'to-list' }
   // The field of the tab shown: Installed's filter, or Discover's search.
   if (view.tab === 'discover' && view.search !== '')
     return { kind: 'clear-query', view: { ...view, search: '' } }
