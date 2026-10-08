@@ -778,3 +778,24 @@ Pushes and GitHub actions still need the person's go-ahead.
   with what it switches to), `o` (likewise), `m`, `r`, `f` (search, the same field key as Installed's filter); `c` is
   bound on the review too (the terminal command). Esc clears Discover's search like Installed's filter. A key is drawn
   once: the empty state says "k shows plugins with hooks; m adds a marketplace" instead of drawing them twice.
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-07-m4-review-response.md`): a local entry's inspection is
+  cached in the store's `validate` key by `folder@version` (beside the registry's analyses, so a reload or a new
+  session reads it back), run three at a time, shared by concurrent callers, and **never awaited on focus** (the
+  detail redraws when it lands); it is tri-state: not read yet, read with its notable list, or `Unread` with the
+  reason validate gave (the row's `unread`, the review's `unreadable`: the detail says it couldn't read it and `r`
+  retries, the review keeps the warning). **Idle-only is by
+  turn id**: `onTurnStart`/`onTurnEnd` keep the running main turns in `rt.turns` (a subagent's `turn.complete`
+  carries an `agentId` and ends nothing, d.ts `TurnCompleteFields`), and the detector pauses while any is open.
+  `show()` keeps a generation, so an older window never lands over a newer one. The runner's echo (`echoLine`, 8 s)
+  is shared with F54's "Plugins reloaded, modmgr with them". The detector `restart`s when a recatalogue lands while
+  it runs, and counts its totals over checkable entries only. The install and accept reviews name the marketplace
+  beside the plugin. A declared command is kept to `SHOWN_MAX` (4,000 characters) and drawn uncut; a `truncated` one
+  is accepted in a terminal only (`c`). `tab()` drops a review. An old module's late rejection is `ABANDONED` and
+  writes nothing. The remove review's data key is `w`. The mobile review says its scope as text: mobile draws no
+  `Select` (d.ts `Elements`), and the test kit's table carries one that draws as nothing, so `viewPortsOf` asks the
+  surface rather than the table. A local manifest's `hooks` path is read as written on disk (URL-encoded only for
+  raw.githubusercontent.com).
+- **Not done, on purpose:** PLAN §2.3's "background catalogue refreshes pause while a review is open" (R-M4-14). A
+  review carries its own facts (`notable`, `uninspected`, the declared command and its sha), the catalogue is read
+  again only after a job or `r`, and `install` refuses an id "no longer listed", so a refresh under an open review
+  changes nothing it shows or queues.

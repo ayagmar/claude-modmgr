@@ -72,8 +72,8 @@ and zero-width characters (`test/layering.test.ts`).
 entry's pinned commit, at most 600 a session, only while no turn runs), without credentials, with response sizes
 checked and JSON shape-checked. They are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
 empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
-files with `$.fs.read`, only inside that marketplace's folder (paths are checked segment by segment: no `..`, no
-absolute part). The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
+files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
+part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
 files and fetches, its own capability list (as modmgr would show it) carries "Can read your conversation or files and
 send data out": what it reads is plugin manifests, and what it fetches is the same manifests by URL; nothing it reads
 is sent.
