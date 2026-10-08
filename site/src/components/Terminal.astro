@@ -1,0 +1,182 @@
+---
+// The dialog as it draws: frames rendered from ui/Pane.tsx over the fixture
+// world (test/demo, R23). Switching frames is a radio group, so it works with
+// no script and moves only when the person asks.
+import { COLUMNS, FRAMES, type Segment } from '../data/demo.ts'
+
+const classOf = (seg: Segment): string =>
+  [
+    seg.tone === undefined ? '' : `t-${seg.tone}`,
+    seg.dim === true ? 'dim' : '',
+    seg.bold === true ? 'b' : '',
+    seg.ring === true ? 'ring' : '',
+  ]
+    .filter(name => name !== '')
+    .join(' ')
+
+const escapeHtml = (text: string): string =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+
+/** One frame as the HTML inside its <pre>: no template whitespace can slip in. */
+const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
+  lines
+    .map(line =>
+      line
+        .map(seg => {
+          const name = classOf(seg)
+          return name === ''
+            ? escapeHtml(seg.text)
+            : `<span class="${name}">${escapeHtml(seg.text)}</span>`
+        })
+        .join(''),
+    )
+    .join('\n')
+---
+
+<fieldset class="term" style={`--cols: ${COLUMNS}`}>
+  <legend class="vh">Show the dialog's</legend>
+  {
+    FRAMES.map((_frame, index) => (
+      <input class="vh" type="radio" name="frame" id={`frame-${index}`} checked={index === 0} />
+    ))
+  }
+  <div class="tabs">
+    {FRAMES.map((frame, index) => <label for={`frame-${index}`}>{frame.title}</label>)}
+  </div>
+  <div class="screens">
+    {
+      FRAMES.map((frame, index) => (
+        <figure class={`screen frame-${index}`}>
+          <div class="pane">
+            <span class="pane-title">mods</span>
+            <pre aria-label={`The /mods dialog, ${frame.title}`} set:html={screenOf(frame.lines)} />
+          </div>
+          <figcaption>{frame.caption}</figcaption>
+        </figure>
+      ))
+    }
+  </div>
+</fieldset>
+
+<style>
+  .term {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .screen {
+    margin: 0;
+  }
+
+  .vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.1rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .tabs label {
+    cursor: pointer;
+    color: var(--muted);
+    padding-block: 0.15rem;
+    border-bottom: 2px solid transparent;
+  }
+
+  #frame-0:checked ~ .tabs [for='frame-0'],
+  #frame-1:checked ~ .tabs [for='frame-1'],
+  #frame-2:checked ~ .tabs [for='frame-2'],
+  #frame-3:checked ~ .tabs [for='frame-3'],
+  #frame-4:checked ~ .tabs [for='frame-4'] {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+
+  #frame-0:focus-visible ~ .tabs [for='frame-0'],
+  #frame-1:focus-visible ~ .tabs [for='frame-1'],
+  #frame-2:focus-visible ~ .tabs [for='frame-2'],
+  #frame-3:focus-visible ~ .tabs [for='frame-3'],
+  #frame-4:focus-visible ~ .tabs [for='frame-4'] {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .screen {
+    display: none;
+  }
+
+  #frame-0:checked ~ .screens .frame-0,
+  #frame-1:checked ~ .screens .frame-1,
+  #frame-2:checked ~ .screens .frame-2,
+  #frame-3:checked ~ .screens .frame-3,
+  #frame-4:checked ~ .screens .frame-4 {
+    display: block;
+  }
+
+  .pane {
+    position: relative;
+    background: var(--term-bg);
+    color: var(--term-fg);
+    border: 1px solid var(--term-rule);
+    border-radius: 10px;
+    padding: 1.4rem 1rem 1rem;
+    overflow-x: auto;
+  }
+
+  .pane-title {
+    position: absolute;
+    top: 0.45rem;
+    left: 1rem;
+    font: 500 0.75rem var(--mono);
+    color: var(--t-subtle);
+  }
+
+  pre {
+    margin: 0;
+    font-size: clamp(0.7rem, 0.45rem + 0.55vw, 0.86rem);
+    line-height: 1.5;
+    min-width: calc(var(--cols) * 1ch);
+  }
+
+  figcaption {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  pre :global(.t-success) {
+    color: var(--t-success);
+  }
+  pre :global(.t-warning) {
+    color: var(--t-warning);
+  }
+  pre :global(.t-error) {
+    color: var(--t-error);
+  }
+  pre :global(.t-claude) {
+    color: var(--t-claude);
+  }
+  pre :global(.t-subtle),
+  pre :global(.dim) {
+    color: var(--t-subtle);
+  }
+  pre :global(.b) {
+    font-weight: 700;
+  }
+  pre :global(.ring) {
+    background: var(--term-fg);
+    color: var(--term-bg);
+  }
+</style>

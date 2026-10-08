@@ -18,7 +18,9 @@
     "test:plugin": "CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin test plugin",
     "explanations": "node scripts/gen-explanations.ts",
     "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin",
-    "fixtures:plugin-tests": "node scripts/fixtures-to-plugin-tests.ts"
+    "fixtures:plugin-tests": "node scripts/fixtures-to-plugin-tests.ts",
+    "demo": "RENDER_DEMO=1 vitest run test/demo",
+    "site": "pnpm --filter modmgr-site build && node scripts/check-site.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

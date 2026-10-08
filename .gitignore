@@ -5,3 +5,5 @@ site/dist/
 site/.astro/
 *.log
 .DS_Store
+.lighthouseci/
+.lhci-root/

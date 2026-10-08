@@ -35,3 +35,5 @@ All notable changes to this project are documented here. The format follows
   `update`, `enable`, `disable`, `apply <file>`, which need `--yes` and say how to apply what they changed.
 - A welcome on the first run; the tab, sort and filter kind are remembered between sessions.
 - `debugTimings` writes how long each step took to the debug log; `docs/PERF.md` has the measurements.
+- A landing page (`site/`): the install line, the dialog as it draws, what modmgr calls out, the keys, and answers
+  about network use and safety.

@@ -14,6 +14,8 @@ A mod manager for [Claude Code](https://claude.com/claude-code): discover, insta
 Requires Claude Code 2.1.292 or newer. Then type `/mods`, or `/mods help` for the text commands (`list`, `info`,
 `doctor`, `export`, and writes that need `--yes`).
 
+The landing page is built from `site/` (`pnpm site`); it will live at https://ayagmar.github.io/modmgr/.
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/PLAN.md](docs/PLAN.md).
