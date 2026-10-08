@@ -4,7 +4,7 @@
     "types": ["node"]
   },
   "include": [
-    "vendor/claude-code-types/2.1.292/claude-code.d.ts",
+    "vendor/claude-code-types/2.1.293/claude-code.d.ts",
     "test",
     "scripts",
     "vitest.config.ts"

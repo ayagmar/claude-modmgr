@@ -6,5 +6,5 @@
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment"
   },
-  "include": ["../vendor/claude-code-types/2.1.292/claude-code.d.ts", "hooks", "types", "tests"]
+  "include": ["../vendor/claude-code-types/2.1.293/claude-code.d.ts", "hooks", "types", "tests"]
 }

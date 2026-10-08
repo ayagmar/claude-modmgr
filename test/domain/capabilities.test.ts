@@ -144,7 +144,7 @@ describe('explanations.ts', () => {
   it('is fresh: regenerating from the vendored d.ts changes nothing', () => {
     const root = join(import.meta.dirname, '..', '..')
     const dts = readFileSync(
-      join(root, 'vendor/claude-code-types/2.1.292/claude-code.d.ts'),
+      join(root, 'vendor/claude-code-types/2.1.293/claude-code.d.ts'),
       'utf8',
     )
     const current = readFileSync(join(root, 'plugin/hooks/domain/explanations.ts'), 'utf8')
