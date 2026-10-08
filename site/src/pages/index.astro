@@ -335,7 +335,9 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
     outline-color: var(--cover-ink);
   }
 
+  /* Code on the cloth keeps the cover's own ink: muted ink on its tint is too faint. */
   .cover :not(pre) > code {
+    color: var(--cover-ink);
     background: rgb(28 14 8 / 0.1);
   }
 
