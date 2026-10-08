@@ -1,4 +1,4 @@
-// M3b on the surfaces that draw it (PLAN §9): remove with its data kept,
+// Updates and removes on the surfaces that draw them: remove with its data kept,
 // undo through the review, update of a mod the CLI can update, and a fixture
 // update's capability diff in the row, the detail, the band and the status line.
 import { type Engine, expect, test } from 'claude-code/testing'

@@ -1,5 +1,5 @@
-// The dialog, the band and their wiring on the surfaces that draw them
-// (PLAN §5, §9): every body runs on terminal and desktop; mobile is checked
+// The dialog, the band and their wiring on the surfaces that draw them:
+// every body runs on terminal and desktop; mobile is checked
 // for its fallback (no Input). Acts by element key; nothing here paints.
 import { type Engine, expect, test } from 'claude-code/testing'
 import { host, START } from './harness.ts'
@@ -26,7 +26,7 @@ const BAND = (isWorking = false) => ({
 
 const TURN_BAND = 'turn-band@fixtures'
 
-// The harness answers `state.*` beneath the plugin (F44), so the engine never
+// The harness answers `state.*` beneath the plugin, so the engine never
 // sees a write and doesn't redraw by itself: each act is followed by `redraw()`.
 
 /** Moves the focus ring onto a row, as the person's arrow does. */
@@ -132,7 +132,7 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
 
     await ui.redraw()
     expect(h.read('review')).toBeNull()
-    // The pane re-opens without holding toasts while the batch runs (C8).
+    // The pane re-opens without holding toasts while the batch runs.
     expect(h.opens.at(-1)?.holdToasts).toBeUndefined()
     await h.clock.advance(1)
     expect(h.argvs.filter(argv => argv.startsWith('plugin disable'))).toHaveLength(disables + 1)
@@ -287,9 +287,9 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
       props: PANE(64, 20),
     })
     const paint = Date.now() - started
-    // PLAN §6 budgets 50 ms for the first paint (measured 2026-10-07: 37 ms on the
+    // The budget for the first paint is 50 ms (measured 2026-10-07: 37 ms on the
     // terminal, the module's first draw, and 3 ms on desktop). The bound leaves room
-    // for a loaded CI runner (review R-M3a-12).
+    // for a loaded CI runner.
     expect(paint).toBeLessThan(150)
     const drawn = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
     expect(drawn.length).toBeGreaterThan(5)
@@ -392,7 +392,7 @@ test('mobile draws the list without the filter field (no Input there)', async ($
   expect(await ui.find({ key: 'filter' })).toBeUndefined()
 })
 
-// ---- review R-M3a-1, R-M3a-9, R-M3a-13 -------------------------------------
+// ---- a filter's selection, scope warnings, read-only, the job log, layout -----
 
 const mountPane = ($: Engine, surface: 'terminal' | 'desktop', props = PANE()) =>
   $.ui.mount({ plugin: 'modmgr', surface, component: 'Pane', requestId: 'modmgr', props })

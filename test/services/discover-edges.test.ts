@@ -1,4 +1,4 @@
-// What the Fable 5.1 M4 review asked for, over fake ports: inspections shared
+// Discover's edges over fake ports: inspections shared
 // and never on the ring's path, idle-only by turn id, no stale catalogue window,
 // echoes that clear, a failed local read said, a detector that restarts, the
 // tab key dropping a review, a too-long declared command, a silent old module.
@@ -70,7 +70,7 @@ const catalogWorld = async () => {
   return { w, store, catalog }
 }
 
-describe('inspections (R-M4-1, R-M4-5)', () => {
+describe('inspections', () => {
   it('concurrent reads of one entry run one validate, kept in the store for next time', async () => {
     const { w, store, catalog } = await catalogWorld()
     const gate = gatedValidate(w.process)
@@ -136,7 +136,7 @@ describe('inspections (R-M4-1, R-M4-5)', () => {
   })
 })
 
-describe('idle-only by turn id (R-M4-2)', () => {
+describe('idle-only by turn id', () => {
   it("a subagent's end doesn't end the main turn", async () => {
     const w = world()
     catalogCli(w.process)
@@ -159,7 +159,7 @@ describe('idle-only by turn id (R-M4-2)', () => {
   })
 })
 
-describe('the catalogue window (R-M4-3)', () => {
+describe('the catalogue window', () => {
   it('a window computed from a replaced view is dropped', async () => {
     const { w, catalog } = await catalogWorld()
     w.state.values.view = { ...w.state.values.view, kind: 'all' }
@@ -190,8 +190,8 @@ describe('the catalogue window (R-M4-3)', () => {
   })
 })
 
-describe('echoes and the old module (R-M4-4, R-M4-13)', () => {
-  it("F54's echo clears after a while", async () => {
+describe('echoes and the old module', () => {
+  it('the echo of a reload that restarted modmgr clears after a while', async () => {
     const w = world()
     fixtureCli(w.process)
     w.state.values.queue = {
@@ -227,7 +227,7 @@ describe('echoes and the old module (R-M4-4, R-M4-13)', () => {
   })
 })
 
-describe('the detector restarts for what a refresh added (R-M4-6)', () => {
+describe('the detector restarts for what a refresh added', () => {
   it('a start while running goes again over the new catalogue', async () => {
     const { w, store, catalog } = await catalogWorld()
     let gate: () => void = () => {}
@@ -261,7 +261,7 @@ describe('the detector restarts for what a refresh added (R-M4-6)', () => {
   })
 })
 
-describe('reviews and tabs (R-M4-8, R-M4-9)', () => {
+describe('reviews and tabs', () => {
   it('a tab switch drops a review in state', async () => {
     const w = world()
     catalogCli(w.process)
@@ -292,7 +292,7 @@ describe('reviews and tabs (R-M4-8, R-M4-9)', () => {
   })
 })
 
-describe('a reloaded modmgr with Discover showing (C13)', () => {
+describe('a reloaded modmgr with Discover showing', () => {
   it('reads the catalogue again and probes', async () => {
     const w = world()
     catalogCli(w.process)

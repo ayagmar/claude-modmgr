@@ -1,4 +1,4 @@
-// M3b over fake ports: a fixture update's capability diff in the detail, the
+// Updates and removes over fake ports: a fixture update's capability diff in the detail, the
 // band, the status line and the title; update, update all, remove (data kept
 // or not) and undo through the review; the status line and title service.
 import { describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ const SPAWNER = 'spawner@fixtures'
 
 /**
  * Lists `ids` as installed from a git marketplace (no folder of their own),
- * which the CLI can update; the fixture marketplace is a folder (F51).
+ * which the CLI can update; the fixture marketplace is a folder (it runs from there).
  */
 const fromGit = (process: FakeProcess, ...ids: string[]): FakeProcess =>
   process.when(['list', '--json'], () => {
@@ -66,7 +66,7 @@ const setup = async (more: (process: FakeProcess) => void = () => {}) => {
   return { w, rt, act, drain, argvs, band }
 }
 
-describe('a fixture update shows its capability diff (M3b done criterion)', () => {
+describe('a fixture update shows its capability diff', () => {
   it('in the row, the detail, the band, the status line and the title, until the detail is opened', async () => {
     const { w, rt, act, band } = await setup()
     expect(w.state.values.mods.find(row => row.id === TURN_BAND)).toMatchObject({
@@ -87,7 +87,7 @@ describe('a fixture update shows its capability diff (M3b done criterion)', () =
     expect(w.state.values.attention.capsChanged).toBe(1)
     expect(band()).toBe('mods · turn-band can now run programs')
     expect(w.ui.statusLine).toBe('turn-band can now run programs')
-    // Retitled with its manners, never asking for the keys (F22).
+    // Retitled with its manners, never asking for the keys.
     expect(w.ui.opens).toEqual([
       {
         id: 'modmgr',
@@ -425,8 +425,8 @@ describe('what a review knows about a mod', () => {
   })
 })
 
-describe('after the M3b review', () => {
-  it('an update the CLI finds current still says so (R-M3b-1)', async () => {
+describe('batches that changed nothing, double presses, dismissals', () => {
+  it('an update the CLI finds current still says so', async () => {
     const { w, act, drain } = await setup(process => {
       fromGit(process, QUIET)
       process.when(['update'], out(runs['update-current'].stdout))
@@ -440,7 +440,7 @@ describe('after the M3b review', () => {
     expect(w.state.values.attention.lastReload).toBeUndefined()
   })
 
-  it('two z before the redraw queue one undo (R-M3b-2)', async () => {
+  it('two z before the redraw queue one undo', async () => {
     const { w, act, drain } = await setup()
     await act.toggle(TURN_BAND)
     await act.apply()
@@ -455,7 +455,7 @@ describe('after the M3b review', () => {
     ])
   })
 
-  it('an undo review whose batch moved on queues nothing and says why (R-M3b-8)', async () => {
+  it('an undo review whose batch moved on queues nothing and says why', async () => {
     const { w, act, drain } = await setup()
     await act.remove(QUIET)
     await act.confirm()
@@ -477,7 +477,7 @@ describe('after the M3b review', () => {
     expect(w.state.values.review).toBeNull()
   })
 
-  it('a confirmed remove moves the selection to the next row (R-M3b-8)', async () => {
+  it('a confirmed remove moves the selection to the next row', async () => {
     const { w, act } = await setup()
     await act.focusRow(QUIET)
     await act.remove()
@@ -486,7 +486,7 @@ describe('after the M3b review', () => {
     expect(w.state.values.detail?.id).toBe('redactor@fixtures')
   })
 
-  it('dismissing the band quiets the status line and the title, not what is owed (R-M3b-3)', async () => {
+  it('dismissing the band quiets the status line and the title, not what is owed', async () => {
     const { w, act } = await setup()
     bumpTurnBand(w.process)
     await act.refresh()
@@ -502,7 +502,7 @@ describe('after the M3b review', () => {
     expect(w.ui.statusLine).toBe('reload to apply')
   })
 
-  it('a retitle the engine leaves unplaced is logged; the job log on top holds no toasts (R-M3b-7)', async () => {
+  it('a retitle the engine leaves unplaced is logged; the job log on top holds no toasts', async () => {
     const w = world()
     const lines: string[] = []
     const chrome = createChrome(w.ports, line => lines.push(line))

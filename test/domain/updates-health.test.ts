@@ -1,6 +1,6 @@
-// M5b's decisions: what can update (F58), when the next check is due, the
+// What can update, when the next check is due, the
 // store key that keeps it, Health's items and their fixes, the debug log's
-// lines, and the status line's one clause (C15).
+// lines, and the status line's one clause.
 import { describe, expect, it } from 'vitest'
 import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
 import {
@@ -38,7 +38,7 @@ const installed = (id: string, more: Partial<InstalledEntry> = {}): InstalledEnt
   ...more,
 })
 
-describe('what can update (F58)', () => {
+describe('what can update', () => {
   const file = JSON.stringify({
     plugins: [
       { name: 'declared', version: '1.2.0', source: './declared' },
@@ -174,7 +174,7 @@ const input = (more: Partial<HealthInput> = {}): HealthInput => ({
   ...more,
 })
 
-describe('Health’s items (PLAN §2.5)', () => {
+describe('Health’s items', () => {
   it('shows seeded problems, worst first, each with its fix', () => {
     const dev: DevState = {
       rows: [{ key: '/dev/tb', name: 'tb', how: 'plugin-dir', path: '/dev/tb' }],
@@ -299,7 +299,7 @@ describe('Health’s items (PLAN §2.5)', () => {
     expect(agoLabel(3 * 86_400_000)).toBe('3 days ago')
   })
 
-  it('reads the last hook failure per plugin from a debug log (F35)', () => {
+  it('reads the last hook failure per plugin from a debug log', () => {
     const log = [
       '2026-10-08T01:00:00.000Z [WARN] hook failed closed: quiet-bash: errorKind=Error errorChars=24 (tool.call; its .catch answered)',
       '2026-10-08T01:00:01.000Z [DEBUG] something else',
@@ -314,7 +314,7 @@ describe('Health’s items (PLAN §2.5)', () => {
   })
 })
 
-describe('the status line: one clause (C15)', () => {
+describe('the status line: one clause', () => {
   const idle = { owner: 'o', jobs: [] }
   it('says the most important thing only', () => {
     const news = summaryOf({

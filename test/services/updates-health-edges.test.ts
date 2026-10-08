@@ -1,5 +1,6 @@
-// The Fable 5.1 review of M5a and M5b (docs/reviews/2026-10-08-fable-5.1-m5-review.md):
-// one test per finding, each failing before its fix.
+// The update scheduler's, Health's and Dev's edges over fake ports: checks
+// switched off, the version the CLI compares, check now, the debug log, a
+// hostile marketplace file, a notice's folder, the pinned selection.
 import { describe, expect, it } from 'vitest'
 import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
@@ -71,7 +72,7 @@ const setup = async (
   return { w, rt, act, drain, refreshes }
 }
 
-describe('R-M5-1: no timer while checks are off', () => {
+describe('no timer while checks are off', () => {
   // A check 1 ms after the epoch is past due for a 6-minute period at the fakes' start (1,000,000 ms).
   const pastDue = { updates: { v: 1, data: { at: 1, found: {} } } }
 
@@ -99,7 +100,7 @@ describe('R-M5-1: no timer while checks are off', () => {
   })
 })
 
-describe('R-M5-2: the version the CLI compares, and a guess the CLI refuses', () => {
+describe('the version the CLI compares, and a guess the CLI refuses', () => {
   const installed = (version: string): InstalledEntry => ({
     id: SDK as PluginId,
     scope: 'user',
@@ -155,7 +156,7 @@ describe('R-M5-2: the version the CLI compares, and a guess the CLI refuses', ()
   })
 })
 
-describe('R-M5-3: check now re-arms; one refresh at a time', () => {
+describe('check now re-arms; one refresh at a time', () => {
   it('check now moves the next check a period on', async () => {
     const { w, rt, drain, refreshes } = await setup()
     await rt.updater.arm()
@@ -180,7 +181,7 @@ describe('R-M5-3: check now re-arms; one refresh at a time', () => {
     expect(refreshes()).toHaveLength(1)
   })
 
-  it('waits behind a reload, as behind a turn (R-M5-10)', async () => {
+  it('waits behind a reload, as behind a turn', async () => {
     const { w, rt } = await setup()
     w.state.values.queue = {
       owner: 'own',
@@ -190,7 +191,7 @@ describe('R-M5-3: check now re-arms; one refresh at a time', () => {
   })
 })
 
-describe('R-M5-4: this session’s debug log, and one too large to read', () => {
+describe('this session’s debug log, and one too large to read', () => {
   it('a log the engine won’t read whole is said, with a search to copy', async () => {
     const { w, rt } = await setup()
     w.fs.dirs.set('/cfg/debug', [
@@ -240,7 +241,7 @@ describe('R-M5-4: this session’s debug log, and one too large to read', () => 
   })
 })
 
-describe('R-M5-6: a hostile marketplace file', () => {
+describe('a hostile marketplace file', () => {
   it('keeps names that are names and versions cut short; says newer only of a whole version', () => {
     const entries = marketplaceEntriesOf(
       JSON.stringify({
@@ -265,7 +266,7 @@ describe('R-M5-6: a hostile marketplace file', () => {
   })
 })
 
-describe('R-M5-7: the folder a notice names', () => {
+describe('the folder a notice names', () => {
   it('may hold spaces, and is taken only from the notices that name a module’s file', () => {
     expect(
       failureOf(
@@ -281,7 +282,7 @@ describe('R-M5-7: the folder a notice names', () => {
   })
 })
 
-describe('R-M5-10: the selection pinned only without a filter', () => {
+describe('the selection pinned only without a filter', () => {
   it('a filtered first row does not become the selection', async () => {
     const { w, rt } = await setup()
     w.state.values.view = { ...w.state.values.view, query: 'turn' }

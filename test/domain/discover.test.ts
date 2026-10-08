@@ -1,4 +1,4 @@
-// M4's pure logic: matching the catalogue around a selection, where an entry
+// Discover's pure logic: matching the catalogue around a selection, where an entry
 // comes from, probe keys, the install / declared-command / marketplace reviews
 // and what Discover draws.
 import { describe, expect, it } from 'vitest'

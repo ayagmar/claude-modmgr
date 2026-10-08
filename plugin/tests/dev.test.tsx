@@ -1,4 +1,4 @@
-// M5a on the surfaces that draw it (PLAN §9): Dev lists the mods this session
+// Dev on the surfaces that draw it: it lists the mods this session
 // runs from folders, validates and tests one, counts what the session reports
 // while hot-reloading it, and says how to share it.
 import { type Engine, expect, test } from 'claude-code/testing'
@@ -126,7 +126,7 @@ test('p says how to share a dev mod, and c copies the install line', async ($, o
   expect(h.copies).toEqual(['/plugin install turn-band --marketplace me/mods'])
 })
 
-test('a --plugin-dir mod shows once its folder is found where the session runs (review R-M5-8)', async ($, on) => {
+test('a --plugin-dir mod shows once its folder is found where the session runs', async ($, on) => {
   const h = host(on, {
     env: { CLAUDE_CONFIG_DIR: '/cfg' },
     // modmgr registered /mods but isn't listed: --plugin-dir, its repository the marketplace.

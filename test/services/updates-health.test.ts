@@ -1,4 +1,4 @@
-// M5b over fake ports: the update scheduler (timed, idle-only, off switches,
+// The update scheduler over fake ports (timed, idle-only, off switches,
 // re-armed by a reloaded module from the stored time), what a marketplace
 // refresh finds, Health's facts and each item's fix.
 import { describe, expect, it } from 'vitest'
@@ -66,7 +66,7 @@ const setup = async (
   return { w, rt, act, drain, refreshes, config }
 }
 
-describe('the update scheduler (PLAN §2.6)', () => {
+describe('the update scheduler', () => {
   it('first checks a minute after start-up, refreshes each marketplace a mod comes from, and marks what can update', async () => {
     const { w, rt, drain, refreshes } = await setup()
     await rt.updater.arm()
@@ -74,7 +74,7 @@ describe('the update scheduler (PLAN §2.6)', () => {
     expect(refreshes()).toEqual([])
     await w.clock.advance(1)
     await drain()
-    // Folder marketplaces have no updates (F51): only the repository one is refreshed.
+    // Folder marketplaces have no updates (they run from their folder): only the repository one is refreshed.
     expect(refreshes()).toEqual(['claude-plugins-official'])
     expect(w.state.values.queue.jobs.some(job => job.kind === 'reload')).toBe(false)
     await w.clock.advance(0)
@@ -117,7 +117,7 @@ describe('the update scheduler (PLAN §2.6)', () => {
     }
   })
 
-  it('re-arms in a reloaded module from the stored time (F31)', async () => {
+  it('re-arms in a reloaded module from the stored time', async () => {
     // The last check was a minute before this module started.
     const at = 1_000_000 - 60_000
     const { w, rt, drain, refreshes } = await setup({
@@ -190,10 +190,10 @@ describe('the update scheduler (PLAN §2.6)', () => {
   })
 })
 
-describe('Health (PLAN §2.5)', () => {
+describe('Health', () => {
   it('gathers its facts: hook order without modmgr, the debug log, the detector, the cache, the checks', async () => {
     const { w, rt } = await setup()
-    // This session's own log, not `latest` (review R-M5-4).
+    // This session's own log, not `latest`.
     w.fs.dirs.set('/cfg/debug', [
       { name: 'latest', kind: 'other' },
       { name: 'session-1.txt', kind: 'file' },

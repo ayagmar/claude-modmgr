@@ -1,5 +1,5 @@
-// The Fable 5.1 review of M6 (docs/reviews/2026-10-08-fable-5.1-m6-review.md):
-// one test per finding, each failing before its fix.
+// Text writes on the job queue, a remembered tab that costs nothing until the
+// dialog shows it, and a text update of a repository-marketplace mod.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { modsCommand } from '../../plugin/hooks/services/commands.ts'
@@ -20,7 +20,7 @@ const setup = async (store: Record<string, unknown> = {}) => {
   return { w, rt }
 }
 
-describe('R-M6-1: a text write goes on the queue', () => {
+describe('a text write goes on the queue', () => {
   it('is refused beside a job queued or running, and a reload waiting', async () => {
     const { w, rt } = await setup()
     await rt.registry.refresh()
@@ -67,7 +67,7 @@ describe('R-M6-1: a text write goes on the queue', () => {
   })
 })
 
-describe('R-M6-2: a remembered tab costs nothing until the dialog shows it', () => {
+describe('a remembered tab costs nothing until the dialog shows it', () => {
   it('reads the catalogue when /mods opens on Discover, not at start', async () => {
     const { w, rt } = await setup({
       prefs: { v: 1, data: { tab: 'discover', sort: 'name', kind: 'mods', firstRunDone: true } },
@@ -85,7 +85,7 @@ describe('R-M6-2: a remembered tab costs nothing until the dialog shows it', () 
   })
 })
 
-describe('R-M6-7: a text update of a repository-marketplace mod', () => {
+describe('a text update of a repository-marketplace mod', () => {
   it('refreshes its marketplace first, then updates it', async () => {
     const { w, rt } = await setup()
     w.process

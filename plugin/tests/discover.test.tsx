@@ -1,4 +1,4 @@
-// M4 on the surfaces that draw it (PLAN §9): Discover's tab, its empty state,
+// Discover on the surfaces that draw it: the tab, its empty state,
 // a detected mod, the install review with its scope Select, a declared
 // command shown verbatim and accepted by its sha, and adding a marketplace.
 import { type Engine, expect, test } from 'claude-code/testing'
@@ -244,7 +244,7 @@ test('from 100 body columns the selected entry’s detail sits beside the Discov
     await settle(h)
     await ui.redraw()
     expect(await ui.find({ key: `found:${AWS}` })).toBeDefined()
-    // No Enter: the split draws the selection's detail beside the rows (review R-M4-10).
+    // No Enter: the split draws the selection's detail beside the rows.
     expect(
       await ui.find({ type: 'Text', text: 'What it can do is read once it is installed.' }),
     ).toBeDefined()

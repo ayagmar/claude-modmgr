@@ -1,4 +1,4 @@
-// M6's text: what `/mods` says for each subcommand (PLAN §2.7, C16).
+// What `/mods` says as text for each subcommand.
 import { describe, expect, it } from 'vitest'
 import {
   APPLY_MAX,

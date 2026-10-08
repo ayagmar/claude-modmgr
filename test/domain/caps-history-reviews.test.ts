@@ -1,4 +1,4 @@
-// M3b's pure logic: the capability history and its diff, capsHistory's
+// The capability history and its diff, capsHistory's
 // store version, the update / remove / undo reviews and the summary the band,
 // the status line and the title share.
 import { describe, expect, it } from 'vitest'
@@ -358,7 +358,7 @@ describe('the summary: band, status line and title agree', () => {
   it('what updates added, in all three', () => {
     const mods = [row('turn-band', { capsNew: { since: '0.3.1', added: ['runs-programs'] } })]
     const summary = summaryOf({ attention: { ...ATTENTION, updates: 2 }, queue: IDLE, mods })
-    // One clause under the prompt (C15): what an update added outranks the count.
+    // One clause under the prompt: what an update added outranks the count.
     expect(statusLineOf(summary)).toBe('turn-band can now run programs')
     const { caps: _caps, ...noCaps } = summary
     expect(statusLineOf(noCaps)).toBe('2 updates')
@@ -452,11 +452,11 @@ describe('layout helpers', () => {
   })
 })
 
-describe('after the M3b review', () => {
+describe('the status line and a dismissed band', () => {
   const job = (id: string, more: Loose<Job>): Job =>
     ({ id, kind: 'update', state: 'queued', tail: [], batch: 'b', target: 'a@m', ...more }) as Job
 
-  it('the status line counts changes, not marketplace refreshes or tests (R-M3b-4)', () => {
+  it('the status line counts changes, not marketplace refreshes or tests', () => {
     const queue = {
       owner: 'o',
       jobs: [
@@ -486,7 +486,7 @@ describe('after the M3b review', () => {
     )
   })
 
-  it('a dismissed line quiets only its news (R-M3b-3)', () => {
+  it('a dismissed line quiets only its news', () => {
     const mods = [row('tb', { capsNew: { since: '1', added: ['runs-programs'] } })]
     const dismissed = 'mods · 1 update · tb can now run programs'
     const attention = { ...ATTENTION, updates: 1, reloadPending: true, dismissed }

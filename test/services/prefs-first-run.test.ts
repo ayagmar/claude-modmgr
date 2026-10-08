@@ -1,4 +1,4 @@
-// M6 over fake ports: preferences remembered for the next session, the first
+// Over fake ports: preferences remembered for the next session, the first
 // run's welcome said once, the timings behind docs/PERF.md, and a store update
 // that changes nothing writing nothing.
 import { describe, expect, it } from 'vitest'
@@ -56,7 +56,7 @@ describe('the first run', () => {
     expect(rt.store.get('prefs').firstRunDone).toBe(false)
   })
 
-  it('opens on the welcome until it is left, then never again (review R-M6-5)', async () => {
+  it('opens on the welcome until it is left, then never again', async () => {
     const first = await setup()
     await background(first.rt, { fresh: true })
     expect(first.w.state.values.view.stack).toEqual(['welcome'])
@@ -134,7 +134,7 @@ describe('the store', () => {
   })
 })
 
-describe('runJob, shared by the runner and the text writes (F59)', () => {
+describe('runJob, shared by the runner and the text writes', () => {
   it('refuses a streamed test and an id it can’t check', async () => {
     const { w } = await setup()
     const test = await runJob(w.ports, {

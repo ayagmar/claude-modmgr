@@ -1,4 +1,4 @@
-// Domain modules added in M2: argv, mods, store schema, config, version,
+// The domain's foundations: argv, mods, store schema, config, version,
 // queue ownership, marketplace sources and the state defaults.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -241,7 +241,7 @@ describe('queue ownership', () => {
     expect(isClaimedBy(queue, 'me', 'b')).toBe(false)
   })
 
-  it('times a reload 1.5 s after the last write (F38)', () => {
+  it('times a reload 1.5 s after the last write', () => {
     const jobs = [
       job({ id: 'a', kind: 'disable', state: 'ok', endedAt: 100 }),
       job({ id: 'b', kind: 'enable', state: 'failed', endedAt: 300 }),

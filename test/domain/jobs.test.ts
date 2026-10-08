@@ -142,7 +142,7 @@ describe('running', () => {
   })
 })
 
-describe('reload of modmgr itself (F31)', () => {
+describe('reload of modmgr itself', () => {
   it('marks a running job interrupted and lets it be retried', () => {
     let jobs = start(toggleBatch(), 'j0', 1)
     jobs = interruptRunning(jobs, 2)

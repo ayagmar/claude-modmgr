@@ -1,4 +1,4 @@
-// M4 over fake ports: the catalogue in module memory with a window in
+// Discover over fake ports: the catalogue in module memory with a window in
 // `$.state`, the detector's budget, idle rule, backoff and cache, and the
 // install, declared-command and marketplace flows through the review.
 import { describe, expect, it } from 'vitest'
@@ -113,7 +113,7 @@ describe('the catalogue', () => {
     await act.tab('discover')
     await act.openFound(SDK)
     expect(w.state.values.view.stack).toEqual(['detail'])
-    // Read in the background (R-M4-1): the detail redraws when it lands.
+    // Read in the background: the detail redraws when it lands.
     await rt.catalog.inspect(SDK)
     expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)?.notable).toContain(
       'starts-model-calls',
@@ -161,7 +161,7 @@ describe('the detector', () => {
     expect(catalog.kindOf(AWS)).toBe('mod')
     expect(catalog.kindOf(SDK)).toBe('mod')
     expect(store.get('detect')[AWS]?.[0]).toBe('097fe8ad56d8a1d5e2c81d7880adf145553cf244')
-    // A command source can never be checked: it isn't counted (R-M4-6).
+    // A command source can never be checked: it isn't counted.
     expect(w.state.values.detect).toMatchObject({ found: 2, running: false, total: 200 })
     // A 404 hooks.json falls back to the manifest.
     expect(w.http.gets).toContain(
@@ -339,7 +339,7 @@ describe('adding a marketplace', () => {
   })
 })
 
-describe('a local fixture mod, end to end (M4 done criterion)', () => {
+describe('a local fixture mod, end to end', () => {
   it('is found on disk, read before installing, installed and loaded', async () => {
     const MKT = '/tmp/modmgr-fixtures/mkt'
     const SPAWNER = 'spawner@fixtures'
@@ -375,7 +375,7 @@ describe('a local fixture mod, end to end (M4 done criterion)', () => {
   })
 })
 
-describe('a reload that restarts modmgr (F54)', () => {
+describe('a reload that restarts modmgr', () => {
   it('is done, not interrupted: the new module settles it', async () => {
     const w = world()
     fixtureCli(w.process)

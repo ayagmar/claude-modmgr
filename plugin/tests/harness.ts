@@ -1,4 +1,4 @@
-// The host beneath modmgr in `claude plugin test` (F24): every `$` call the
+// The host beneath modmgr in `claude plugin test`: every `$` call the
 // plugin makes reaches a hook here. `mock` answers clock, store and env; this
 // answers state (with versions and `ifVersion`), the session, commands, logs
 // and a fake `claude` CLI that replies from captured output (fixtures.ts).
@@ -77,7 +77,8 @@ export const host = (on: On, options: HostOptions = {}) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   // The test's `$` has no store noun: watch the plugin's writes above the mock.
   const stored = new Map<string, unknown>()
-  // (A matcher, because mock.store hooks the event without one, F37.)
+  // (A matcher, because mock.store hooks the event without one, and an event is
+  // hooked once without a matcher per module.)
   on('store.set', { key: /^/ }, (_$, e, next) => {
     stored.set(e.key, e.value)
     return next(e)

@@ -1,4 +1,4 @@
-// Dev's decisions (PLAN §2.4, C14): which folders are dev mods, what their
+// Dev's decisions: which folders are dev mods, what their
 // last validate and test said, the failures the session reported, sharing.
 import { describe, expect, it } from 'vitest'
 import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
@@ -241,7 +241,7 @@ describe('what ran', () => {
   })
 })
 
-describe('what the session reported (F20)', () => {
+describe('what the session reported', () => {
   const PATH = '/tmp/x/dev/broken'
 
   it('reads a failure, and the folder a hooks file names', () => {
@@ -279,7 +279,7 @@ describe('what the session reported (F20)', () => {
   })
 })
 
-describe('sharing (reference §Sharing a mod)', () => {
+describe('sharing', () => {
   it('reads owner/repo from a GitHub remote', () => {
     expect(githubRepoOf('https://github.com/ayagmar/modmgr.git')).toBe('ayagmar/modmgr')
     expect(githubRepoOf('git@github.com:ayagmar/modmgr.git')).toBe('ayagmar/modmgr')

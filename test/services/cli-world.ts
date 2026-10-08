@@ -41,7 +41,7 @@ export const FIXTURE_MODS = ['broken', 'quiet-bash', 'redactor', 'spawner', 'tur
 /**
  * A fixture update: turn-band's folder moves to 0.4.0 and its module now
  * calls `$.process.run` (a new notable capability). turn-band comes from a
- * folder marketplace, so `list --json` shows the folder's version (F51).
+ * folder marketplace, so `list --json` shows the folder's version.
  */
 export const bumpTurnBand = (process: FakeProcess): FakeProcess =>
   process

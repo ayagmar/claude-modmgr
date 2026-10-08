@@ -26,7 +26,7 @@ describe('manifests', () => {
     expect(isRecord(entry) && entry.version).toBe(plugin.version)
   })
 
-  it('declare the userConfig fields the plan names', () => {
+  it('declare the userConfig fields the README documents', () => {
     const config = isRecord(plugin) ? plugin.userConfig : undefined
     expect(isRecord(config) && Object.keys(config).sort()).toEqual([
       'debugTimings',

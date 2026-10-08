@@ -1,4 +1,4 @@
-// M5b on the surfaces that draw it (PLAN §9): Health lists seeded problems,
+// Health on the surfaces that draw it: it lists seeded problems,
 // worst first, each with its fix, and a fix runs from a press.
 import { type Engine, expect, test } from 'claude-code/testing'
 import { host, START } from './harness.ts'
@@ -46,7 +46,7 @@ for (const surface of SURFACES) {
     expect(await ui.find({ type: 'Text', text: '→ see it' })).toBeDefined()
     expect(await ui.find({ key: 'health:redactor:failures' })).toBeDefined()
     expect(await ui.find({ key: 'health:own:reload' })).toBeDefined()
-    // Stacked, a press opens the item whole (review R-M5-5), and its fix runs from there:
+    // Stacked, a press opens the item whole (its row is clipped), and its fix runs from there:
     // the broken mod's detail on Installed.
     await ui.press({ key: 'health:redactor:failures' })
     await ui.redraw()

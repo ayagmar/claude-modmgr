@@ -1,4 +1,4 @@
-// The landing page's terminal mock (PLAN §8, R23): frames drawn by the real
+// The landing page's terminal mock: frames drawn by the real
 // ui/Pane.tsx over the fixture world the tests use, through the real actions,
 // rendered to text. `site/src/data/demo.ts` must match what this draws, so the
 // site can't drift from the UI; `RENDER_DEMO=1 pnpm vitest run test/demo`
