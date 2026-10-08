@@ -82,6 +82,7 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F55 | `claude plugin validate --json` reports nothing for a plugin with classic command hooks only (`contents: []`), and `claude plugin details` answers only for installed plugins: neither tells `hooks` from `plain` before install. A local entry's kind is read from its `hooks/hooks.json` and `plugin.json` on disk instead. `marketplace list --json` gives each marketplace's `installLocation` (a clone for a repository), under which relative-source entries sit. | M4, isolated config |
 | F56 | `list --json` gives an `installPath` for `<name>@inline` (`CLAUDE_CODE_PLUGIN_DIRS`, scope `session`) and `<name>@skills-dir` entries: the folder the session runs. `$.command.list()` names a command's plugin by its bare name, a `--plugin-dir` one (`modmgr`) and a built-in one (`cc-plugin-diff`) alike, so a plugin that registered a command but isn't listed is a `--plugin-dir` mod only once its folder is found. | M5a, isolated config, live debug log |
 | F57 | While a session hot-reloads a watched folder, a plugin's failure reaches `session.append` as a `door: 'notice'` row whose one text block reads `<name>: <what>`, naming the module's file: `broken: reload failed, the previous version stays loaded: <folder>/hooks/register.ts, compiled line 3 …`; a plugin's reload line arrives the same way (`modmgr: reloaded (8 hooks: …)`). A module that fails at **start-up** says so before modmgr has loaded (not observable), and the same failure is said once per load and reason (saving again with the same error says nothing new). The validator reports any `session.append` hook as a gating hook, matcher or not. | M5a, live debug log, `plugin/tests/m5a.test.tsx` |
+| F58 | There is no `claude plugin outdated` and no dry run (`update` installs). `update --json` decides by **version string**, and the string is the **plugin's own `plugin.json` version when it has one**, the marketplace file's declaration only when it doesn't: declaring `2.0.12` for a plugin whose `plugin.json` says `2.0.11` gets "already at the latest version (2.0.11)" (live, Fable review R-M5-2); `pyright-lsp`, with no `plugin.json`, updated 1.0.0 → 1.0.1 from the declaration. A plugin with no version of its own is named by a **12-hex commit prefix** (a relative source in a cloned marketplace: the clone's commit; a pinned one: its `sha`). `marketplace update` doesn't change an installed plugin's reported version. Marketplace files rarely declare `version` (14 of 315 entries in the official one, a 190 KB file); `list --available` derives one for 3,070 of 3,544 but leaves installed plugins out (F10). The installed commit (`gitCommitSha`) is only in the CLI's own `installed_plugins.json`. | M5b, isolated config, Fable review |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -301,10 +302,14 @@ declare module 'claude-code' {
       review: ReviewRequest | null                    // one confirm at a time (plain value, R19)
       attention: { updates: number; problems: number; reloadPending: boolean; capsChanged: number; dismissedAt?: number }
       degraded: { process: boolean; network: boolean; reason?: string }
+      dev: { rows: DevRow[]; failures: Record<name, DevFailures>; loading: boolean; at?: number; share?: DevShare }  // C14
+      health: HealthFacts                             // hook order, debug-log lines, detector, cache, update checks (C15)
     }
   }
 }
 ```
+As built, `plugin/types/index.d.ts` is the contract and wins where this sketch is older: every key is `Shaped<T>` under
+a tag (`domain/state.ts` `SHAPES`); C10–C15 record each change.
 
 ### `$.store` (persists; versioned `{ v: 1, … }`; total budget **< 1 MiB**, hard guard at 3 MiB)
 
@@ -315,6 +320,7 @@ declare module 'claude-code' {
 | `validate` | `{ [root@version]: { mod, events, calls, envReads, errors, warnings, parts?, tokens?, at } }` (`parts`/`tokens` from `details`, mods only) | 300 entries LRU |
 | `capsHistory` | `{ [pluginId]: { version, notable[] } }` (for diffs) | per installed mod |
 | `history` | last 50 finished jobs, without tails | 50 |
+| `updates` | `{ at?, found: { [pluginId]: { from, to } } }`: the last update check and what it found (C15) | per installed mod |
 
 The catalogue is never stored. On `store-full`, Health shows "modmgr's cache is full; `[clear cache]`".
 
@@ -843,3 +849,66 @@ Pushes and GitHub actions still need the person's go-ahead.
   row shown selected (`keptSelection` for Dev; the registry pins Installed's the same way, since an install that sorts
   first did the same there). Dev's detail wraps its prose (path, how it loads) and cuts only output lines; row counts
   are wrap-aware.
+
+**C15. Health and the update scheduler (M5b, applied 2026-10-08).**
+- **Update detection** (`domain/updates.ts`, F58). The CLI can't be asked what would update without updating, so
+  after a marketplace refresh modmgr reads each marketplace's own `.claude-plugin/marketplace.json` (under its
+  `installLocation`) and says an update only when sure: the entry declares a newer version than the installed one, or
+  the installed version is a commit prefix and the entry is pinned to another commit. Everything else is unknown (no
+  badge), and `a` still asks the CLI, which says "already up to date" where nothing changed. modmgr doesn't read the
+  CLI's internal `installed_plugins.json`. What a check found is kept in the store's `updates` key (`{ at, found:
+  { id: { from, to } } }`, v1) and shown while the mod is still at `from`; the registry puts `updateTo` on the row
+  (`↑`), and `attention.updates` counts them (band, title, status line).
+- **Scheduler** (`services/updates.ts`): due `updateCheckHours` after the stored last check (the first one a minute
+  after start-up), so it spans sessions; `0` or the traffic switch turns it off. While a main turn runs (`rt.turns`,
+  R-M4-2's bookkeeping) it retries a minute later. It queues one batch of `marketplace update <name>` jobs, one per
+  marketplace an installed mod comes from (folder marketplaces have no updates, F51), with no reload, guarded so two
+  never wait at once; the queue serialises it with other CLI writes and the status line names it. Each refresh that
+  ends `ok` runs `check()` (no network), and the existing recatalogue restarts the detector (R-M4-6). Every module arms
+  it from the stored time at start-up (after the CLI probe), so a reload re-arms it (the M5b done criterion).
+- **Status line budget** (open since M3b): **one clause**, the most important: what runs (a marketplace refresh,
+  `applying n…`, a job, `reloading plugins…`), then `reload to apply`, then news not dismissed (what an update added
+  before the update count). The band keeps the whole line.
+- **Health** (`4`, `domain/health.ts`, `ui/Health.tsx`): items grouped by mod, worst group first, then "Hook order"
+  (chain notes, PLAN §2.5; modmgr's own notice observer is left out, it changes no row), then modmgr's own state. Per
+  mod: validate errors (fix: its Installed detail), what an update added (fix: the detail, which acknowledges it), an
+  update found (fix: the update review), failures the session reported while hot-reloading (fix: validate, when Dev
+  lists its folder), and the last `hook failed closed` line of a `--debug` log (C6, F35; event and error kind only).
+  modmgr's own: the CLI missing, the installed list unreadable (fix: refresh), a reload owed (fix: reload), a full
+  cache (fix: clear), refused acceptances, load states in one line (enabled, disabled, managed, launch command), the
+  update checks (when, how often, or why off; fix: check now), the detector (requests left of 600, or why remote checks
+  are off), the cache's size (fix: clear), and, without a debug log, that failures are logged only under `--debug`
+  (fix: copy `claude --debug`). Each item is a Button: Enter runs its fix, named after it (`→ update`); the split shows
+  the selected item in full. The tab says `Health ▲n` for the items that say something is wrong. A `health` state key
+  (`/1`) holds what isn't elsewhere (hook-order notes, the debug log's lines, the detector's spend, the cache, the
+  checks), gathered when Health opens or on `r`.
+- **Not done, on purpose:** "off in this project" (C10, C11) would need `$.settings.read({ source: 'project' })`,
+  which reads every key of the project's settings; one load-state word isn't worth that reach, so Health doesn't say
+  it.
+- **Shape:** `view` gained `health` (the selection; additive), the store `updates` key, the `health` state key.
+  `Actions.fix(key)` runs a fix; the actions object is named so a fix can call the others.
+- **Found in the live check** (inline at 120 and 64 columns, an isolated config with the official marketplace): an
+  item's label wrapped onto several rows, breaking the one-row-per-item window (now clipped to a row; the split shows
+  it whole), and a detector that hadn't run read "0 of 0 checked" (now "not run yet; it starts when Discover opens").
+  The first timed check ran a minute after start-up and "check now" answered. A local folder or bare repository can
+  only be a folder marketplace (no updates by design) and a git source needs a network host, so update detection
+  end to end is proven in vitest over the CLI's real output shapes, not live.
+- **Tests:** `test/domain/m5b.test.ts` (detection rules, due times, the store key, Health's items with seeded problems
+  and modmgr's own, the debug log's lines, the one-clause status line), `test/services/m5b.test.ts` (the first check
+  after a minute and the next a period later, idle-only with a subagent, both off switches, re-armed by a reloaded
+  module from the stored time, an update dropped once applied, one refresh waiting at a time, the detector restarted,
+  Health's facts and every fix), `plugin/tests/m5b.test.tsx` (terminal and desktop: seeded problems with their fixes,
+  a fix from a press; the reload fix).
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-08-m5-review-response.md`): the scheduler's off state is
+  terminal (no timer when `updateCheckHours` is 0 or the traffic switch is on; a check past due used to re-arm at 0 ms
+  forever), `run()` re-arms whoever calls it ("check now" moves the next check a period on), at most one refresh is
+  queued or running, and a reload under way or waiting goes first. Detection reads an installed mod's own
+  `plugin.json` in the clone (F58: what the CLI compares), uses a declaration only without one, treats a declared
+  version of a remote source as unknown, and says newer only of a whole version string; names must be names and
+  versions are cut at 64. An update the CLI calls up to date drops what the check found (`updater.forget`), so a wrong
+  guess costs one `u`. `found` records mods only. Health reads **this session's** debug log
+  (`<config>/debug/<session id>.txt`), not `latest`, and says when it is too large to read (with a search to copy)
+  instead of "nothing failed". Stacked, Enter on a Health item opens it whole with its fix as a button; the split
+  keeps Enter-runs-the-fix. `failureOf` takes a folder (spaces allowed) only from "reload failed" and "did not load".
+  The registry pins a selection only without a filter. Chain notes still take `list --json` order as load order (F3
+  was observed on `enabledPlugins`, not on the list; a suspicion) and can't see `--plugin-dir` mods.

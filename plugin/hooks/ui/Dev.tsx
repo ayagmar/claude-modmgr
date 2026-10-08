@@ -79,7 +79,9 @@ export const DevLine = (
       ) : null}
       <Box flexDirection="row" gap={1} flexShrink={1} height={1} overflow="hidden">
         {marksOf(row, how).map(mark => (
-          <Text color={MARK_TONE[mark.tone]}>{mark.text}</Text>
+          <Text key={mark.text} color={MARK_TONE[mark.tone]}>
+            {mark.text}
+          </Text>
         ))}
       </Box>
     </Box>
@@ -107,8 +109,10 @@ export const DevList = (
         ]
     return (
       <Box flexDirection="column">
-        {lines.map(line => (
-          <Text dimColor>{line}</Text>
+        {lines.map((line, index) => (
+          <Text key={`empty:${index}`} dimColor>
+            {line}
+          </Text>
         ))}
       </Box>
     )
@@ -233,14 +237,14 @@ export const DevDetail = (
           })}
         </Box>
       ) : null}
-      {detailLines(row, how).map(line => {
+      {detailLines(row, how).map((line, index) => {
         const wrap = line.output === true ? ('truncate-end' as const) : ('wrap' as const)
         return line.tone === undefined ? (
-          <Text dimColor wrap={wrap}>
+          <Text key={`detail:${index}`} dimColor wrap={wrap}>
             {line.text}
           </Text>
         ) : (
-          <Text color={line.tone} wrap={wrap}>
+          <Text key={`detail:${index}`} color={line.tone} wrap={wrap}>
             {line.text}
           </Text>
         )
@@ -284,8 +288,10 @@ export const Share = (v: ViewPorts, share: DevShare | undefined): RenderElement 
       </Box>
       <Text dimColor>{intro}</Text>
       <Text color={share.complete ? TONE.accent : TONE.warn}>{line}</Text>
-      {rest.map(text => (
-        <Text dimColor>{text}</Text>
+      {rest.map((text, index) => (
+        <Text key={`share:${index}`} dimColor>
+          {text}
+        </Text>
       ))}
     </Box>
   )

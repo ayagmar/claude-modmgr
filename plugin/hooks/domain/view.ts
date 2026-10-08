@@ -689,24 +689,21 @@ export const bandOf = (
 
 /**
  * The status line under the prompt (`$.ui.status`, one per plugin, drawn
- * `modmgr: <text>`): what is under way or owed, and news the person hasn't
- * dismissed; nothing when idle (undefined clears it). Echoes stay in the band.
+ * `modmgr: <text>`): one clause, the most important (C15), since it sits under
+ * every prompt. What is under way, then what is owed, then news the person
+ * hasn't dismissed (what an update added before how many updates wait);
+ * nothing when idle (undefined clears it). The band says the rest.
  */
 export const statusLineOf = (summary: Summary): string | undefined => {
-  const parts: string[] = []
   const { running } = summary
-  if (running?.kind === 'marketplace-update') parts.push(`${describeJob(running)}…`)
-  else if (summary.pending > 0) parts.push(`applying ${summary.pending}…`)
-  else if (running !== undefined) parts.push(`${describeJob(running)}…`)
-  else if (summary.reloading) parts.push('reloading plugins…')
-  if (!summary.newsDismissed) {
-    const updates = updatesText(summary.updates)
-    if (updates !== undefined) parts.push(updates)
-    if (summary.caps !== undefined) parts.push(summary.caps)
-  }
-  if (summary.reloadOwed) parts.push('reload to apply')
+  if (running?.kind === 'marketplace-update') return `${describeJob(running)}…`
+  if (summary.pending > 0) return `applying ${summary.pending}…`
+  if (running !== undefined) return `${describeJob(running)}…`
+  if (summary.reloading) return 'reloading plugins…'
+  if (summary.reloadOwed) return 'reload to apply'
+  if (summary.newsDismissed) return undefined
   // The engine names the plugin before it (`modmgr: …`, F52).
-  return parts.length === 0 ? undefined : parts.join(' · ')
+  return summary.caps ?? updatesText(summary.updates)
 }
 
 /** The pane's title: `mods`, with news not dismissed (F22: a retitle is an open). */

@@ -9,11 +9,13 @@ import type { StateKey } from '../domain/state.ts'
 import type { Ports, StatePort } from '../ports.ts'
 import { type Catalog, createCatalog } from './catalog.ts'
 import { type Chrome, createChrome } from './chrome.ts'
-import { createDetector, type Detector } from './detector.ts'
+import { createDetector, DETECT_BUDGET, type Detector } from './detector.ts'
 import { createDev, type Dev } from './dev.ts'
+import { createHealth, type Health } from './health.ts'
 import { createRunner, type Runner } from './job-runner.ts'
 import { createRegistry, type Registry } from './registry.ts'
 import { createStore, type StoreService } from './store.ts'
+import { createUpdater, type Updater } from './updates.ts'
 
 export type Runtime = {
   /** This module's queue owner id. */
@@ -31,6 +33,10 @@ export type Runtime = {
   readonly detector: Detector
   /** Dev's mods under development and their failures. */
   readonly dev: Dev
+  /** Checks for updates every `updateCheckHours`, while idle. */
+  readonly updater: Updater
+  /** Health's facts beyond the other keys. */
+  readonly health: Health
   /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
   readonly turns: Set<string>
   /** Job ids unique across modules: the owner, then a counter. */
@@ -66,15 +72,13 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
   const store = createStore(ports, { debug })
   const registry = createRegistry(ports, store, debug)
   const catalog = createCatalog(ports, store, debug)
+  const trafficIsOff = async (): Promise<boolean> =>
+    trafficOff(await ports.env.nonessentialTraffic().catch(() => undefined))
   const detector = createDetector(ports, {
     store,
     catalog,
     debug,
-    remoteAllowed: async () => {
-      if (!config.detectRemote) return false
-      const traffic = await ports.env.nonessentialTraffic().catch(() => undefined)
-      return !trafficOff(traffic)
-    },
+    remoteAllowed: async () => config.detectRemote && !(await trafficIsOff()),
   })
   /** A marketplace or an install changes what the catalogue lists. */
   const recatalog = (): void => {
@@ -98,11 +102,41 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
       if (job.kind === 'validate' && path !== undefined && registry.forget(path)) {
         void registry.refresh()
       }
+      // A refreshed marketplace says what can update (PLAN §2.6).
+      if (job.kind === 'marketplace-update' && job.state === 'ok') void updater.check()
+      // The CLI found it current: what a check guessed goes, before the refresh that follows.
+      if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
+        updater.forget(job.target)
+      }
     },
     debug,
   })
   const dev = createDev(ports, registry, debug)
   let counter = 0
+  const newJobId = (): string => {
+    counter += 1
+    return `${owner}-${counter}`
+  }
+  const turns = new Set<string>()
+  const updater = createUpdater(ports, {
+    store,
+    registry,
+    hours: config.updateCheckHours,
+    turns,
+    trafficOff: trafficIsOff,
+    newJobId,
+    kick: () => runner.kick(),
+    debug,
+  })
+  const health = createHealth(ports, {
+    registry,
+    store,
+    detector,
+    budget: DETECT_BUDGET,
+    config,
+    trafficOff: trafficIsOff,
+    debug,
+  })
   return {
     owner,
     ports,
@@ -114,14 +148,14 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     catalog,
     detector,
     dev,
-    turns: new Set(),
-    newJobId() {
-      counter += 1
-      return `${owner}-${counter}`
-    },
+    updater,
+    health,
+    turns,
+    newJobId,
     dispose() {
       runner.dispose()
       detector.dispose()
+      updater.dispose()
       void store.flush()
     },
   }

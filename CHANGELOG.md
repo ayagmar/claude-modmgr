@@ -25,3 +25,9 @@ All notable changes to this project are documented here. The format follows
   session's mods folder, your skills folder, folder marketplaces), with `v` validate (strict), `t` test (streamed into
   the job log, `q` cancels), `l` reload, `c` copy the path, `p` share (the install line and the marketplace file it
   needs), and the failures the session reports while it hot-reloads one.
+- Health (`4`): what needs you, by mod and worst first (validate errors, what an update added, updates found,
+  failures while reloading, hook failures in a `--debug` log), hook-order notes, and modmgr's own state (reload owed,
+  cache, update checks, the detector), each with a one-press fix.
+- Update checks every `updateCheckHours` (default 6, `0` turns them off; off under
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`), while no turn runs: marketplaces are refreshed and mods with a newer
+  version get `↑`. The status line under the prompt says one thing at a time.

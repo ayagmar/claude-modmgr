@@ -8,8 +8,10 @@
 import type { ModDetail, ModRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
 import { acknowledge, type CapsSighting, capsNewOf, recordCaps } from '../domain/caps-history.ts'
+import type { ChainMod } from '../domain/chain.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
 import type { Listed } from '../domain/dev.ts'
+import { splitPluginId } from '../domain/ids.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
   type Analysis,
@@ -23,6 +25,7 @@ import {
 } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
 import { CAPS } from '../domain/store-schema.ts'
+import { updateTo } from '../domain/updates.ts'
 import { type ReviewFacts, selectedRow } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
@@ -67,6 +70,8 @@ export type Registry = {
    * listed sources.
    */
   listed(): Listed[]
+  /** The listed mods in load order (F3) with the events they hook: Health's hook-order notes. */
+  chainMods(): ChainMod[]
   /**
    * Forgets the analyses of `root` (any version), so the next refresh reads it
    * again (Dev's `v`: a folder edited without a version bump keeps its key).
@@ -124,6 +129,7 @@ export const createRegistry = (
       ...attention,
       problems: mods.reduce((sum, row) => sum + row.problems, 0),
       capsChanged: mods.filter(row => row.capsNew !== undefined).length,
+      updates: mods.filter(row => row.updateTo !== undefined).length,
     }))
   }
 
@@ -168,7 +174,10 @@ export const createRegistry = (
       }
       validate = lruTouch(validate, key)
       if (!analysis.mod) continue
-      rows.push(modRow(entry, analysis))
+      const to = updateTo(store.get('updates'), entry)
+      rows.push(
+        to === undefined ? modRow(entry, analysis) : { ...modRow(entry, analysis), updateTo: to },
+      )
       const { notable } = capabilitiesOf(analysis)
       sightings.push({ id: entry.id, version: runningVersion(entry) ?? '?', notable })
     }
@@ -185,7 +194,9 @@ export const createRegistry = (
     const [before, view] = await Promise.all([ports.state.read('mods'), ports.state.read('view')])
     // The row shown selected stays so when a new one sorts above it (found live in Dev);
     // written only when it moves, since a view write redraws the pane.
-    const shown = view.selected === undefined ? selectedRow(view, before)?.id : undefined
+    // Not under a filter: the first row it shows isn't what the person picked (review R-M5-10).
+    const shown =
+      view.selected === undefined && view.query === '' ? selectedRow(view, before)?.id : undefined
     if (shown !== undefined) {
       await ports.state.update('view', current =>
         current.selected === undefined ? { ...current, selected: shown } : current,
@@ -257,6 +268,22 @@ export const createRegistry = (
       return [...entries.values()].map(entry => {
         const key = analysisKey(entry)
         return { entry, mod: key === undefined ? undefined : cache[key]?.mod }
+      })
+    },
+    chainMods() {
+      const cache = store.get('validate')
+      return [...entries.values()].flatMap(entry => {
+        const key = analysisKey(entry)
+        const analysis = key === undefined ? undefined : cache[key]
+        if (analysis?.mod !== true) return []
+        return [
+          {
+            id: entry.id,
+            name: splitPluginId(entry.id).name,
+            enabled: entry.enabled,
+            events: analysis.events,
+          },
+        ]
       })
     },
     forget(root) {

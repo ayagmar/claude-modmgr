@@ -133,6 +133,8 @@ export type View = {
   found?: PluginId
   /** The dev mod Dev has selected (its `DevRow.key`). */
   dev?: string
+  /** The item Health has selected (its key). */
+  health?: string
   /** Staged toggles: what each mod will be after apply. */
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
@@ -288,6 +290,29 @@ export type DevState = {
   share?: DevShare
 }
 
+/** A note that two or more enabled mods hook an event whose order decides the result (PLAN §2.5). */
+export type ChainNoteRow = { event: string; text: string }
+
+/**
+ * What Health shows beyond the other keys (PLAN §2.5, C15), gathered when it is
+ * opened or refreshed: notes on hook order, the last hook failures the debug
+ * log names, the detector's budget, the store's size, the update checks.
+ */
+export type HealthFacts = {
+  at?: number
+  chain: ChainNoteRow[]
+  /** By plugin name: the last `hook failed closed` line's event and error kind. */
+  logged: Record<string, string>
+  /**
+   * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`, F35):
+   * none, read, or too large to read here (over 4 MiB), with its path.
+   */
+  debugLog: { state: 'none' | 'read' | 'too-big'; path?: string }
+  detector: { spent: number; budget: number; remote: boolean; why?: string }
+  cache: { bytes: number; full: boolean }
+  updates: { at?: number; every: number; off?: string }
+}
+
 declare module 'claude-code' {
   interface PluginState {
     modmgr: {
@@ -302,6 +327,7 @@ declare module 'claude-code' {
       attention: Shaped<Attention>
       degraded: Shaped<Degraded>
       dev: Shaped<DevState>
+      health: Shaped<HealthFacts>
     }
   }
 }

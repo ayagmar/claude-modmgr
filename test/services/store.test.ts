@@ -80,7 +80,7 @@ describe('store.load', () => {
     const store = createStore(w.ports, { debug: line => debug.push(line) })
     await store.load()
     expect(store.get('history')).toEqual([])
-    expect(debug).toHaveLength(5)
+    expect(debug).toHaveLength(6)
   })
 })
 

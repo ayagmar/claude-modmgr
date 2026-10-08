@@ -125,3 +125,33 @@ test('p says how to share a dev mod, and c copies the install line', async ($, o
   await ui.press({ key: 'act:copy' })
   expect(h.copies).toEqual(['/plugin install turn-band --marketplace me/mods'])
 })
+
+test('a --plugin-dir mod shows once its folder is found where the session runs (review R-M5-8)', async ($, on) => {
+  const h = host(on, {
+    env: { CLAUDE_CONFIG_DIR: '/cfg' },
+    // modmgr registered /mods but isn't listed: --plugin-dir, its repository the marketplace.
+    commands: [
+      { name: 'mods', description: '', source: 'plugin', plugin: 'modmgr' },
+      { name: 'diff', description: '', source: 'plugin', plugin: 'cc-plugin-diff' },
+    ],
+    files: {
+      '/repo/.claude-plugin/marketplace.json': JSON.stringify({
+        name: 'modmgr',
+        plugins: [{ name: 'modmgr', source: './plugin' }],
+      }),
+      '/repo/plugin/.claude-plugin/plugin.json': '{"name":"modmgr","version":"0.1.0"}',
+    },
+  })
+  await $.session.start(START)
+  await settle(h)
+  const ui = await mountPane($, 'terminal', PANE(120, 30))
+  await ui.press({ key: 'act:tab.dev' })
+  await settle(h)
+  await ui.redraw()
+  expect(await ui.find({ key: 'dev:/repo/plugin' })).toBeDefined()
+  // A built-in's command names no folder: no row.
+  const keys = (await ui.findAll({ type: 'Button' })).map(button => button.key ?? '')
+  expect(keys.some(key => key.includes('cc-plugin-diff'))).toBe(false)
+  // The split shows how it loads.
+  expect(await ui.find({ type: 'Text', text: 'Loaded with --plugin-dir' })).toBeDefined()
+})
