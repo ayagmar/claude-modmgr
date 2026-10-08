@@ -17,7 +17,7 @@ import { out, world } from '../services/fakes.ts'
 import { ELEMENTS, installJsx, type Line, render, tidy } from './render.ts'
 
 const COLUMNS = 96
-const ROWS = 24
+const ROWS = 20
 const DEMO = join(import.meta.dirname, '../../site/src/data/demo.ts')
 const AWS = 'aws-serverless@claude-plugins-official'
 
@@ -50,7 +50,8 @@ const frames = async (): Promise<Frame[]> => {
     w.state.values.view = { ...w.state.values.view, ...change }
   }
   const shown: Frame[] = []
-  setView({ selected: 'turn-band@fixtures' })
+  // The ring on redactor: beside the list, its detail says what it can do.
+  await act.focusRow('redactor@fixtures')
   shown.push(await draw('Installed', 'Every mod, what it can do at a glance, and what changed.'))
   await act.open('turn-band@fixtures')
   shown.push(
@@ -80,6 +81,7 @@ const fileOf = (shown: readonly Frame[]): string =>
     '  readonly tone?: string',
     '  readonly bold?: true',
     '  readonly dim?: true',
+    '  readonly underline?: true',
     '  readonly ring?: true',
     '}',
     'export type Frame = {',

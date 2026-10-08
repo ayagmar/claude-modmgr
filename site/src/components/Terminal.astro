@@ -1,6 +1,6 @@
 ---
 // The dialog as it draws: frames rendered from ui/Pane.tsx over the fixture
-// world (test/demo, R23). Switching frames is a radio group, so it works with
+// world (test/demo). Switching frames is a radio group, so it works with
 // no script and moves only when the person asks.
 import { COLUMNS, FRAMES, type Segment } from '../data/demo.ts'
 
@@ -9,6 +9,7 @@ const classOf = (seg: Segment): string =>
     seg.tone === undefined ? '' : `t-${seg.tone}`,
     seg.dim === true ? 'dim' : '',
     seg.bold === true ? 'b' : '',
+    seg.underline === true ? 'u' : '',
     seg.ring === true ? 'ring' : '',
   ]
     .filter(name => name !== '')
@@ -17,6 +18,14 @@ const classOf = (seg: Segment): string =>
 const escapeHtml = (text: string): string =>
   text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 
+/**
+ * Symbols a monospace font may lack (◆ ● ▲ ❯ …) are drawn by a fallback font at
+ * its own width: each is held to one cell so the columns stay aligned. Box
+ * drawing (U+2500–U+257F) is in the font.
+ */
+const cells = (html: string): string =>
+  html.replace(/[^\p{ASCII}\u2500-\u257f]/gu, glyph => `<span class="g">${glyph}</span>`)
+
 /** One frame as the HTML inside its <pre>: no template whitespace can slip in. */
 const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
   lines
@@ -24,9 +33,8 @@ const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
       line
         .map(seg => {
           const name = classOf(seg)
-          return name === ''
-            ? escapeHtml(seg.text)
-            : `<span class="${name}">${escapeHtml(seg.text)}</span>`
+          const text = cells(escapeHtml(seg.text))
+          return name === '' ? text : `<span class="${name}">${text}</span>`
         })
         .join(''),
     )
@@ -133,6 +141,8 @@ const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
     border-radius: 10px;
     padding: 1.4rem 1rem 1rem;
     overflow-x: auto;
+    width: fit-content;
+    max-width: 100%;
   }
 
   .pane-title {
@@ -174,6 +184,17 @@ const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
   }
   pre :global(.b) {
     font-weight: 700;
+  }
+  /* One cell, the glyph centred and drawn a little smaller than a wide fallback. */
+  pre :global(.g) {
+    display: inline-flex;
+    justify-content: center;
+    width: 1ch;
+    transform: scale(0.8);
+  }
+  pre :global(.u) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
   pre :global(.ring) {
     background: var(--term-fg);

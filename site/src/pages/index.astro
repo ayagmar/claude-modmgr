@@ -7,6 +7,11 @@ import Terminal from '../components/Terminal.astro'
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 const INSTALL = '/plugin install modmgr --marketplace ayagmar/modmgr'
+// A flag stays with its value when the line wraps; built as one string, since
+// whitespace from the template would show inside the <pre>.
+const INSTALL_HTML = INSTALL.split(' --')
+  .map((part, index) => `<span class="keep">${index === 0 ? part : `--${part}`}</span>`)
+  .join(' ')
 const REPO = 'https://github.com/ayagmar/modmgr'
 const description =
   'modmgr finds, installs, inspects, toggles and updates the mods that run inside your Claude Code sessions, and says what each one can do before it runs.'
@@ -70,7 +75,7 @@ const NOTABLE = [
           <div class="install">
             <p id="install-label">Type this at the Claude Code prompt:</p>
             <div class="line">
-              <pre aria-labelledby="install-label"><code id="install-line">{INSTALL}</code></pre>
+              <pre aria-labelledby="install-label"><code id="install-line" set:html={INSTALL_HTML} /></pre>
               <button class="copy" type="button" hidden data-copy="install-line">Copy</button>
             </div>
             <p class="small">
@@ -98,8 +103,10 @@ const NOTABLE = [
             <div>
               <dt>Find mods where they are</dt>
               <dd>
-                Discover searches every marketplace you have added and checks, a little at a time
-                while you work, which entries are mods. A local entry is read before you install it.
+                Discover searches every marketplace you have added, mods first. The official
+                catalogues' mods are known at once from an index rebuilt daily; anything else is
+                checked while you work, what you are looking at first. A local entry is read before
+                you install it.
               </dd>
             </div>
             <div>
@@ -202,11 +209,13 @@ const NOTABLE = [
           <details>
             <summary>Does modmgr use the network?</summary>
             <p>
-              Two things fetch. The update check asks the <code>claude</code> CLI to refresh your
-              marketplaces every few hours, and the mod detector reads a catalogue entry's
-              <code>hooks.json</code> from <code>raw.githubusercontent.com</code>, at most 600 times a
-              session, only while no turn runs. Both stop when
-              <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code> is set. modmgr sends no telemetry.
+              Three things fetch. The update check asks the <code>claude</code> CLI to refresh your
+              marketplaces every few hours. Discover reads modmgr's catalogue index (one file, at most
+              every 12 hours) and a catalogue entry's <code>hooks.json</code>, both from
+              <code>raw.githubusercontent.com</code>, the entries at most 600 times a session and only
+              while no turn runs. All of it stops when
+              <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code> is set, and the last two with the
+              <code>detectRemote</code> option off. modmgr sends no telemetry.
             </p>
           </details>
           <details>
@@ -323,10 +332,18 @@ const NOTABLE = [
     padding-block: clamp(2rem, 1rem + 4vw, 4.5rem) clamp(3rem, 2rem + 4vw, 5rem);
   }
 
+  /* The dialog takes the whole width under the pitch: it is drawn 96 cells wide, as docked. */
   @media (min-width: 64rem) {
-    .hero {
-      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-      align-items: start;
+    .pitch {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+      column-gap: 3.5rem;
+      align-items: end;
+    }
+
+    .pitch h1 {
+      grid-row: span 2;
+      align-self: start;
     }
   }
 
@@ -362,9 +379,14 @@ const NOTABLE = [
     color: var(--term-fg);
     border-radius: 8px;
     font-size: 0.95rem;
-    /* The whole line, wrapped where it must: it is what people copy. */
+    /* The whole line, wrapped where it must: it is what people copy. A flag
+       stays with its value, never broken at its hyphens. */
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+
+  .line :global(.keep) {
+    white-space: nowrap;
   }
 
   .copy {

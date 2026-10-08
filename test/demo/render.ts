@@ -144,13 +144,7 @@ export const render = (node: unknown, width: number): Line[] => {
       const value = typeof props.value === 'string' && props.value !== '' ? props.value : undefined
       const placeholder = typeof props.placeholder === 'string' ? props.placeholder : ''
       return [
-        cut(
-          [
-            { text: '› ' },
-            { text: value ?? placeholder, ...(value ? {} : { dim: true as const }) },
-          ],
-          width,
-        ),
+        cut([{ text: value ?? placeholder, ...(value ? {} : { dim: true as const }) }], width),
       ]
     }
     case 'Select': {

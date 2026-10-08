@@ -6,6 +6,7 @@ export type Segment = {
   readonly tone?: string
   readonly bold?: true
   readonly dim?: true
+  readonly underline?: true
   readonly ring?: true
 }
 export type Frame = {
@@ -79,17 +80,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ "
+          "text": "⌕ Filter 5 mods"
         },
         {
-          "text": "› "
-        },
-        {
-          "text": "Filter 5 mods",
-          "dim": true
-        },
-        {
-          "text": "                                                                  "
+          "text": "                                                                    "
         },
         {
           "dim": true,
@@ -136,14 +130,14 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "turn-band"
+          "text": "redactor"
         },
         {
           "text": " "
         },
         {
           "dim": true,
-          "text": "0.4.0"
+          "text": "2.1.0"
         }
       ],
       [
@@ -180,19 +174,30 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "· user · fixtures"
+          "text": "· project · fixtures"
         }
       ],
       [
         {
-          "text": "  "
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": " "
         },
         {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " redactor           "
+          "text": " "
+        },
+        {
+          "ring": true,
+          "text": "redactor"
+        },
+        {
+          "text": "           "
         },
         {
           "tone": "claude",
@@ -241,25 +246,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "tone": "claude",
-          "text": "❯"
-        },
-        {
-          "text": " "
+          "text": "  "
         },
         {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " "
-        },
-        {
-          "ring": true,
-          "text": "turn-band"
-        },
-        {
-          "text": "          "
+          "text": " turn-band          "
         },
         {
           "tone": "claude",
@@ -283,8 +277,8 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "dim": true,
-          "text": "Reading what it can do…"
+          "bold": true,
+          "text": "Notable"
         }
       ],
       [
@@ -294,6 +288,16 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "claude",
+          "text": "◆"
+        },
+        {
+          "text": " Can read your conversation or files and send data out"
         }
       ],
       [
@@ -303,6 +307,16 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "claude",
+          "text": "◆"
+        },
+        {
+          "text": " Reads environment variables that look like secrets"
         }
       ],
       [
@@ -312,6 +326,16 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "claude",
+          "text": "◆"
+        },
+        {
+          "text": " Can change what the model reads"
         }
       ],
       [
@@ -321,6 +345,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "What it can do"
         }
       ],
       [
@@ -330,6 +361,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Network "
+        },
+        {
+          "dim": true,
+          "text": "http.fetch"
         }
       ],
       [
@@ -339,6 +377,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Session content "
+        },
+        {
+          "dim": true,
+          "text": "env.get session.messages"
         }
       ],
       [
@@ -348,6 +393,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " What the model sees "
+        },
+        {
+          "dim": true,
+          "text": "session.append"
         }
       ],
       [
@@ -357,42 +409,20 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
-        }
-      ],
-      [
+        },
         {
-          "text": "                                       "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "│"
-        }
-      ],
-      [
+          "text": "Display only"
+        },
         {
-          "text": "                                       "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": "session.end"
         }
       ],
       [
@@ -481,17 +511,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ "
+          "text": "⌕ Filter 5 mods"
         },
         {
-          "text": "› "
-        },
-        {
-          "text": "Filter 5 mods",
-          "dim": true
-        },
-        {
-          "text": "                                                                  "
+          "text": "                                                                    "
         },
         {
           "dim": true,
@@ -711,22 +734,6 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": "   "
-        },
-        {
-          "dim": true,
-          "text": "process.run"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
           "text": " "
         },
         {
@@ -762,22 +769,6 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": "   "
-        },
-        {
-          "dim": true,
-          "text": "prompt.submit"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
           "text": " "
         },
         {
@@ -794,33 +785,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " Your machine"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
+          "text": " Your machine "
         },
         {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "tone": "claude",
           "text": "process.run"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "Runs a command on the host by its argumen"
-        },
-        {
-          "text": "…"
         }
       ],
       [
@@ -832,33 +801,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " What the model sees"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
+          "text": " What the model sees "
         },
         {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "tone": "claude",
           "text": "prompt.submit"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "Fires when a prompt is submitted, befor"
-        },
-        {
-          "text": "…"
         }
       ],
       [
@@ -984,7 +931,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "1–17 of 201"
+          "text": "1–13 of 201"
         },
         {
           "text": "  "
@@ -1017,17 +964,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ "
+          "text": "⌕ Search 201 plugins"
         },
         {
-          "text": "› "
-        },
-        {
-          "text": "Search 201 plugins",
-          "dim": true
-        },
-        {
-          "text": "                                                             "
+          "text": "                                                               "
         },
         {
           "dim": true,
@@ -1311,70 +1251,6 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    imessage                       "
-        },
-        {
-          "dim": true,
-          "text": "17k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    lua-lsp                        "
-        },
-        {
-          "dim": true,
-          "text": "16k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    session-report                 "
-        },
-        {
-          "dim": true,
-          "text": "14k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    deploy-on-aws                  "
-        },
-        {
-          "dim": true,
-          "text": "11k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
           "dim": true,
           "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
@@ -1447,7 +1323,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "1–17 of 201"
+          "text": "1–13 of 201"
         }
       ],
       [
@@ -1466,17 +1342,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ "
+          "text": "⌕ Search 201 plugins"
         },
         {
-          "text": "› "
-        },
-        {
-          "text": "Search 201 plugins",
-          "dim": true
-        },
-        {
-          "text": "                                                             "
+          "text": "                                                               "
         },
         {
           "dim": true,
@@ -1784,70 +1653,6 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    imessage                       "
-        },
-        {
-          "dim": true,
-          "text": "17k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    lua-lsp                        "
-        },
-        {
-          "dim": true,
-          "text": "16k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    session-report                 "
-        },
-        {
-          "dim": true,
-          "text": "14k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "    deploy-on-aws                  "
-        },
-        {
-          "dim": true,
-          "text": "11k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
           "dim": true,
           "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
@@ -2060,42 +1865,6 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "text": "            A hook that fails is l… "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
         },
         {
           "dim": true,
