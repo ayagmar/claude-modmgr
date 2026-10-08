@@ -1,8 +1,95 @@
 ---
 // The dialog as it draws: frames rendered from ui/Pane.tsx over the fixture
-// world (test/demo). Switching frames is a radio group, so it works with
-// no script and moves only when the person asks.
-import { COLUMNS, FRAMES, type Segment } from '../data/demo.ts'
+// world (test/demo), shown as plates with numbered field marks. Switching
+// plates is a radio group, so it works with no script and moves only when the
+// person asks.
+import { COLUMNS, FRAMES, type Frame, type Segment } from '../data/demo.ts'
+
+type Mark = {
+  /** Text on the frame the mark sits on; its first occurrence. */
+  readonly find: string
+  /** How many lines the mark covers, from that one down (default 1). */
+  readonly rows?: number
+  readonly note: string
+}
+
+// What each plate points at. A mark whose text is gone from its frame fails
+// the build, so a regenerated demo can't leave a mark pointing at nothing.
+const MARKS: Readonly<Record<string, readonly Mark[]>> = {
+  Installed: [
+    { find: '◆3', note: 'Three notable capabilities, counted on the row.' },
+    { find: '◆2 new', note: 'An update added one. The row says new until you open the mod.' },
+    { find: 'Notable', rows: 4, note: 'The combinations worth a second look, in plain words.' },
+    { find: 'z: undo', note: 'Changes apply together, and the last batch can be undone.' },
+  ],
+  Detail: [
+    { find: 'New since 0.3.1', rows: 2, note: 'What the update added since the version you had.' },
+    { find: 'process.run', note: 'The call behind it, as claude plugin validate reports it.' },
+    { find: '✓ validates', note: 'The mod passes claude plugin validate.' },
+  ],
+  Discover: [
+    { find: 'fixtures', note: 'The marketplace an entry comes from, named in its detail.' },
+    { find: 'i: install', note: 'Installing opens a review first.' },
+    {
+      find: 'What it can do',
+      rows: 2,
+      note: 'A remote entry is read once it is installed, and Discover says so.',
+    },
+  ],
+  Review: [
+    { find: 'y: confirm', note: 'Nothing runs until you confirm.' },
+    {
+      find: 'scope: user: every project ▾',
+      note: 'The scope it installs at: user (every project), project or local.',
+    },
+    { find: 'Runs', rows: 2, note: 'The claude command it will run.' },
+  ],
+  Health: [
+    { find: '▲ validate finds 1 error in it', note: 'What needs you, worst first.' },
+    { find: '→ see it', note: 'The fix, one key away.' },
+    {
+      find: '5 enabled',
+      rows: 5,
+      note: 'modmgr’s own state: what is on, update checks, the detector, its cache.',
+    },
+  ],
+}
+
+type Placed = Mark & {
+  readonly row: number
+  readonly col: number
+  readonly width: number
+  readonly height: number
+}
+
+const textOf = (line: Frame['lines'][number]): string => line.map(seg => seg.text).join('')
+const cellsIn = (text: string): number => Array.from(text).length
+
+/** A mark's box in cells: the found text, or from it down `rows` lines, as
+ * wide as the widest of those lines up to the pane's divider. */
+const place = (frame: Frame, mark: Mark): Placed => {
+  const lines = frame.lines.map(textOf)
+  const row = lines.findIndex(line => line.includes(mark.find))
+  if (row < 0) throw new Error(`plate ${frame.title}: no "${mark.find}" on the frame`)
+  const line = lines[row] ?? ''
+  const col = cellsIn(line.slice(0, line.indexOf(mark.find)))
+  const height = mark.rows ?? 1
+  if (height === 1) return { ...mark, row, col, height, width: cellsIn(mark.find) }
+  const widths = lines.slice(row, row + height).map(text => {
+    const rest = Array.from(text).slice(col).join('')
+    const divider = rest.indexOf('│')
+    return cellsIn((divider < 0 ? rest : rest.slice(0, divider)).trimEnd())
+  })
+  return { ...mark, row, col, height, width: Math.max(...widths) }
+}
+
+// Plates are numbered in roman, apart from the dialog's own tab keys (1: Installed…).
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']
+
+const PLATES = FRAMES.map(frame => ({
+  ...frame,
+  marks: (MARKS[frame.title] ?? []).map(mark => place(frame, mark)),
+}))
 
 const classOf = (seg: Segment): string =>
   [
@@ -26,8 +113,16 @@ const escapeHtml = (text: string): string =>
 const cells = (html: string): string =>
   html.replace(/[^\p{ASCII}\u2500-\u257f]/gu, glyph => `<span class="g">${glyph}</span>`)
 
+/** A caption with the mod ids it names (ones on its frame) set like binomials. */
+const captionOf = (frame: Frame): string => {
+  const screen = frame.lines.map(textOf).join('\n')
+  return escapeHtml(frame.caption).replace(/\b[a-z0-9]+(?:-[a-z0-9]+)+\b/g, word =>
+    screen.includes(word) ? `<i class="id">${word}</i>` : word,
+  )
+}
+
 /** One frame as the HTML inside its <pre>: no template whitespace can slip in. */
-const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
+const screenOf = (lines: Frame['lines']): string =>
   lines
     .map(line =>
       line
@@ -41,129 +136,462 @@ const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
     .join('\n')
 ---
 
-<fieldset class="term" style={`--cols: ${COLUMNS}`}>
+<fieldset class="plates" style={`--cols: ${COLUMNS}`}>
   <legend class="vh">Show the dialog's</legend>
   {
-    FRAMES.map((_frame, index) => (
-      <input class="vh" type="radio" name="frame" id={`frame-${index}`} checked={index === 0} />
+    PLATES.map((_plate, index) => (
+      <input class="vh" type="radio" name="plate" id={`plate-${index}`} checked={index === 0} />
     ))
   }
-  <div class="tabs">
-    {FRAMES.map((frame, index) => <label for={`frame-${index}`}>{frame.title}</label>)}
+  <div class="index">
+    {
+      PLATES.map((plate, index) => (
+        <label for={`plate-${index}`}>
+          <span class="no">{ROMAN[index]}</span>
+          {plate.title}
+        </label>
+      ))
+    }
   </div>
   <div class="screens">
     {
-      FRAMES.map((frame, index) => (
-        <figure class={`screen frame-${index}`}>
-          <div class="pane">
-            <span class="pane-title">mods</span>
-            <pre aria-label={`The /mods dialog, ${frame.title}`} set:html={screenOf(frame.lines)} />
+      PLATES.map((plate, index) => (
+        <figure class={`plate plate-${index}`}>
+          <div class="pane" data-pane>
+            <div class="sheet">
+              <pre aria-label={`The /mods dialog, ${plate.title}`} set:html={screenOf(plate.lines)} />
+              <div class="marks" aria-hidden="true">
+                {plate.marks.map((mark, n) => (
+                  <span
+                    class="mark"
+                    data-n={n + 1}
+                    style={`--r: ${mark.row}; --c: ${mark.col}; --w: ${mark.width}; --h: ${mark.height}; --i: ${n}`}
+                  />
+                ))}
+                {plate.marks.map((mark, n) => (
+                  <span class="tag" style={`--r: ${mark.row}; --c: ${mark.col}; --i: ${n}`}>
+                    {n + 1}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-          <figcaption>{frame.caption}</figcaption>
+          <p class="scroll-cue" aria-hidden="true">
+            The frame is drawn 96 columns wide: swipe it sideways, or tap a mark below.
+          </p>
+          <figcaption>
+            <p class="title">
+              Plate {ROMAN[index]}. {plate.title}
+            </p>
+            <p class="caption" set:html={captionOf(plate)} />
+            <ol class="legend">
+              {plate.marks.map((mark, n) => (
+                <li data-n={n + 1} style={`--i: ${n}`}>
+                  <span class="tag">{n + 1}</span>
+                  {mark.note}
+                </li>
+              ))}
+            </ol>
+          </figcaption>
         </figure>
       ))
     }
   </div>
 </fieldset>
 
+<script is:inline>
+  // On a narrow screen the frame scrolls inside its box: bring a mark's cells
+  // into view when its plate opens or its legend entry is tapped.
+  {
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reveal = (plate, n) => {
+      const pane = plate.querySelector('[data-pane]')
+      const mark = plate.querySelector(`.mark[data-n="${n}"]`)
+      if (!pane || !mark || pane.scrollWidth <= pane.clientWidth) return
+      const left = mark.getBoundingClientRect().left - pane.getBoundingClientRect().left
+      pane.scrollTo({ left: pane.scrollLeft + left - 48, behavior: smooth ? 'smooth' : 'auto' })
+    }
+    for (const plate of document.querySelectorAll('.plate')) {
+      for (const entry of plate.querySelectorAll('.legend li')) {
+        entry.addEventListener('click', () => reveal(plate, entry.dataset.n))
+      }
+    }
+    for (const [index, input] of document.querySelectorAll('input[name="plate"]').entries()) {
+      input.addEventListener('change', () => {
+        const plate = document.querySelector(`.plate-${index}`)
+        if (plate) requestAnimationFrame(() => reveal(plate, 1))
+      })
+    }
+  }
+</script>
+
 <style>
-  .term {
+  .plates {
     margin: 0;
     padding: 0;
     border: 0;
     min-width: 0;
   }
 
-  .screen {
-    margin: 0;
-  }
-
-  .vh {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .tabs {
+  /* The plate index: five tabs on the cover's edge. */
+  .index {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 1.1rem;
-    margin: 0 0 0.75rem;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+  }
+
+  .index label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem 0.45rem 0.6rem;
+    font-weight: 650;
     font-size: 0.95rem;
-  }
-
-  .tabs label {
-    cursor: pointer;
-    color: var(--muted);
-    padding-block: 0.15rem;
-    border-bottom: 2px solid transparent;
-  }
-
-  #frame-0:checked ~ .tabs [for='frame-0'],
-  #frame-1:checked ~ .tabs [for='frame-1'],
-  #frame-2:checked ~ .tabs [for='frame-2'],
-  #frame-3:checked ~ .tabs [for='frame-3'],
-  #frame-4:checked ~ .tabs [for='frame-4'] {
+    font-stretch: 85%;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     color: var(--ink);
-    border-bottom-color: var(--accent);
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    cursor: pointer;
   }
 
-  #frame-0:focus-visible ~ .tabs [for='frame-0'],
-  #frame-1:focus-visible ~ .tabs [for='frame-1'],
-  #frame-2:focus-visible ~ .tabs [for='frame-2'],
-  #frame-3:focus-visible ~ .tabs [for='frame-3'],
-  #frame-4:focus-visible ~ .tabs [for='frame-4'] {
-    outline: 3px solid var(--accent);
+  .index label:hover {
+    border-color: var(--ink);
+  }
+
+  /* The plate's number in the guide's register: roman, no disc. */
+  .no {
+    min-width: 2.2em;
+    padding-right: 0.5rem;
+    border-right: 1px solid var(--rule);
+    text-align: center;
+    color: var(--muted);
+  }
+
+  #plate-0:checked ~ .index [for='plate-0'],
+  #plate-1:checked ~ .index [for='plate-1'],
+  #plate-2:checked ~ .index [for='plate-2'],
+  #plate-3:checked ~ .index [for='plate-3'],
+  #plate-4:checked ~ .index [for='plate-4'] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  #plate-0:checked ~ .index [for='plate-0'] .no,
+  #plate-1:checked ~ .index [for='plate-1'] .no,
+  #plate-2:checked ~ .index [for='plate-2'] .no,
+  #plate-3:checked ~ .index [for='plate-3'] .no,
+  #plate-4:checked ~ .index [for='plate-4'] .no {
+    color: inherit;
+    border-color: var(--mark);
+  }
+
+  #plate-0:focus-visible ~ .index [for='plate-0'],
+  #plate-1:focus-visible ~ .index [for='plate-1'],
+  #plate-2:focus-visible ~ .index [for='plate-2'],
+  #plate-3:focus-visible ~ .index [for='plate-3'],
+  #plate-4:focus-visible ~ .index [for='plate-4'] {
+    outline: 3px solid var(--ink);
     outline-offset: 3px;
   }
 
-  .screen {
+  .plate {
     display: none;
+    margin: 0;
   }
 
-  #frame-0:checked ~ .screens .frame-0,
-  #frame-1:checked ~ .screens .frame-1,
-  #frame-2:checked ~ .screens .frame-2,
-  #frame-3:checked ~ .screens .frame-3,
-  #frame-4:checked ~ .screens .frame-4 {
-    display: block;
+  #plate-0:checked ~ .screens .plate-0,
+  #plate-1:checked ~ .screens .plate-1,
+  #plate-2:checked ~ .screens .plate-2,
+  #plate-3:checked ~ .screens .plate-3,
+  #plate-4:checked ~ .screens .plate-4 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem 2.5rem;
+  }
+
+  @media (min-width: 78rem) {
+    #plate-0:checked ~ .screens .plate-0,
+    #plate-1:checked ~ .screens .plate-1,
+    #plate-2:checked ~ .screens .plate-2,
+    #plate-3:checked ~ .screens .plate-3,
+    #plate-4:checked ~ .screens .plate-4 {
+      grid-template-columns: auto minmax(15rem, 1fr);
+      align-items: start;
+    }
+
+    /* Below the cover's edge, on paper. */
+    figcaption {
+      padding-top: 3.25rem;
+    }
   }
 
   .pane {
-    position: relative;
     background: var(--term-bg);
     color: var(--term-fg);
     border: 1px solid var(--term-rule);
-    border-radius: 10px;
-    padding: 1.4rem 1rem 1rem;
+    border-radius: 12px;
+    padding: 1.25rem 1.1rem 1.25rem 0;
     overflow-x: auto;
     width: fit-content;
     max-width: 100%;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.12), 0 28px 50px -24px rgb(0 0 0 / 0.55);
+    scrollbar-color: var(--t-subtle) transparent;
   }
 
-  .pane-title {
+  /* The frame's text and its marks share one cell grid: 1ch wide, 1.5em tall. */
+  .sheet {
+    position: relative;
+    font: 400 clamp(0.66rem, 0.4rem + 0.55vw, 0.86rem) / 1.5 var(--mono);
+    min-width: calc(var(--cols) * 1ch);
+    margin-left: 3.6ch;
+  }
+
+  /* The gutter the numbers sit in. */
+  .sheet::before {
+    content: '';
     position: absolute;
-    top: 0.45rem;
-    left: 1rem;
-    font: 500 0.75rem var(--mono);
-    color: var(--t-subtle);
+    top: 0;
+    bottom: 0;
+    left: -1.2ch;
+    border-left: 1px dashed var(--term-rule);
   }
 
   pre {
     margin: 0;
-    font-size: clamp(0.7rem, 0.45rem + 0.55vw, 0.86rem);
-    line-height: 1.5;
-    min-width: calc(var(--cols) * 1ch);
+    font: inherit;
+  }
+
+  .marks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .mark {
+    position: absolute;
+    left: calc(var(--c) * 1ch - 0.3ch);
+    top: calc(var(--r) * 1.5em);
+    width: calc(var(--w) * 1ch + 0.6ch);
+    height: calc(var(--h) * 1.5em);
+    border: 2px solid var(--mark);
+    border-radius: 4px;
+    background: rgb(215 119 87 / 0.1);
+  }
+
+  /* Each mark's number sits in the gutter, on its row, clear of the text. */
+  .marks .tag {
+    position: absolute;
+    left: -2.9ch;
+    top: calc(var(--r) * 1.5em + 0.75em);
+    translate: 0 -50%;
+    /* The row unit is the sheet's em: the tag keeps that size. */
+    font-size: inherit;
+  }
+
+  .tag {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5em;
+    height: 1.5em;
+    border-radius: 50%;
+    background: var(--mark);
+    color: var(--mark-ink);
+    font: 750 0.85em/1 var(--sans);
+    font-variant-numeric: tabular-nums;
   }
 
   figcaption {
-    margin-top: 0.75rem;
+    min-width: 0;
+  }
+
+  .title {
+    margin: 0 0 0.35rem;
+    font-size: clamp(1.35rem, 1.1rem + 1vw, 1.8rem);
+    font-weight: 750;
+    font-stretch: 72%;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  .caption {
+    margin: 0 0 1.25rem;
     color: var(--muted);
+  }
+
+  .legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .legend li {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: baseline;
+    font-size: 0.98rem;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 40rem) {
+    .index {
+      gap: 0.3rem;
+    }
+
+    .index label {
+      gap: 0.35rem;
+      padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+      font-size: 0.82rem;
+    }
+  }
+
+  /* On a narrow screen the frame scrolls inside its box: say so. */
+  .scroll-cue {
+    display: none;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  @media (max-width: 60rem) {
+    .scroll-cue {
+      display: block;
+    }
+
+    /* The frame scrolls here: each number sits beside its own box. */
+    .marks .tag {
+      left: calc(var(--c) * 1ch - 2.6ch);
+    }
+
+    .legend li {
+      cursor: pointer;
+    }
+  }
+
+  .legend .tag {
     font-size: 0.95rem;
+    transform: translateY(0.1em);
+  }
+
+  @media (min-width: 52rem) and (max-width: 77.99rem) {
+    .legend {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.9rem 2.5rem;
+    }
+  }
+
+  /* A legend entry lights its mark. */
+  .plate:has(.legend [data-n='1']:hover) .mark[data-n='1'],
+  .plate:has(.legend [data-n='2']:hover) .mark[data-n='2'],
+  .plate:has(.legend [data-n='3']:hover) .mark[data-n='3'],
+  .plate:has(.legend [data-n='4']:hover) .mark[data-n='4'] {
+    background: rgb(215 119 87 / 0.32);
+  }
+
+  /* Motion, all of it off under reduced motion: a plate arrives, its marks
+     draw in one after another with their legend entries, and the controls
+     answer the pointer. Transform and opacity only. */
+  @media (prefers-reduced-motion: no-preference) {
+    .index {
+      animation: plate-rise 0.5s var(--ease) 0.3s backwards;
+    }
+
+    .index label {
+      transition:
+        transform 0.2s var(--ease),
+        background-color 0.25s var(--ease),
+        border-color 0.25s var(--ease),
+        color 0.25s var(--ease);
+    }
+
+    .index label:hover {
+      transform: translateY(-2px);
+    }
+
+    .index label:active {
+      transform: translateY(0) scale(0.97);
+    }
+
+    /* The frame stays painted (it is the page's largest text); it settles in. */
+    .plate .pane {
+      animation: plate-settle 0.6s var(--ease) backwards;
+    }
+
+    .plate figcaption > p {
+      animation: plate-rise 0.5s var(--ease) backwards;
+    }
+
+    .plate .caption {
+      animation-delay: 0.06s;
+    }
+
+    .mark {
+      transform-origin: left center;
+      animation: mark-draw 0.6s var(--ease) backwards;
+      animation-delay: calc(0.3s + var(--i) * 0.15s);
+      transition:
+        background-color 0.2s var(--ease),
+        transform 0.25s var(--ease);
+    }
+
+    .marks .tag {
+      animation: mark-pop 0.45s var(--ease) backwards;
+      animation-delay: calc(0.42s + var(--i) * 0.15s);
+    }
+
+    .legend li {
+      animation: plate-rise 0.5s var(--ease) backwards;
+      animation-delay: calc(0.3s + var(--i) * 0.15s);
+    }
+
+    .legend .tag {
+      transition: transform 0.2s var(--ease);
+    }
+
+    .legend li:hover .tag {
+      transform: translateY(0.1em) scale(1.15);
+    }
+
+    .plate:has(.legend [data-n='1']:hover) .mark[data-n='1'],
+    .plate:has(.legend [data-n='2']:hover) .mark[data-n='2'],
+    .plate:has(.legend [data-n='3']:hover) .mark[data-n='3'],
+    .plate:has(.legend [data-n='4']:hover) .mark[data-n='4'] {
+      transform: scale(1.03);
+    }
+  }
+
+  @keyframes plate-settle {
+    from {
+      transform: translateY(0.9rem);
+    }
+  }
+
+  @keyframes plate-rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+
+  @keyframes mark-draw {
+    from {
+      opacity: 0;
+      transform: scaleX(0.15);
+    }
+  }
+
+  @keyframes mark-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
   }
 
   pre :global(.t-success) {
@@ -199,5 +627,10 @@ const screenOf = (lines: (typeof FRAMES)[number]['lines']): string =>
   pre :global(.ring) {
     background: var(--term-fg);
     color: var(--term-bg);
+  }
+  pre::selection,
+  pre :global(*::selection) {
+    background: var(--mark);
+    color: var(--mark-ink);
   }
 </style>
