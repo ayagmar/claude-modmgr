@@ -9,7 +9,7 @@ import { createDetector } from '../../plugin/hooks/services/detector.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { fixtureCli } from './cli-world.ts'
+import { fixtureCli, markMods } from './cli-world.ts'
 import { type FakeProcess, out, type World, world } from './fakes.ts'
 
 const AWS = 'aws-serverless@claude-plugins-official'
@@ -48,12 +48,16 @@ const setup = async (more: (w: World) => void = () => {}, env: Record<string, st
 }
 
 describe('the catalogue', () => {
-  it('opens Discover by reading it once, keeping only a window in $.state', async () => {
+  it('opens Discover by reading it once, keeping only a window of mods in $.state', async () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')
+    // Mods only: nothing is known to be one yet.
+    expect(w.state.values.catalogPage).toMatchObject({ total: 201, matched: 0, rows: [] })
+    const mods = markMods(rt.store, rt.catalog)
+    await rt.catalog.show()
     const page = w.state.values.catalogPage
     expect(page.total).toBe(201)
-    expect(page.matched).toBe(201)
+    expect(page.matched).toBe(mods)
     expect(page.rows.length).toBeLessThanOrEqual(50)
     expect(page.loading).toBe(false)
     // The first visit read it; a second visit within hours does not.
@@ -67,8 +71,9 @@ describe('the catalogue', () => {
   })
 
   it('searches, sorts and moves its window with the selection', async () => {
-    const { w, act } = await setup()
+    const { w, act, rt } = await setup()
     await act.tab('discover')
+    markMods(rt.store, rt.catalog)
     await act.filter('aws')
     expect(w.state.values.view.search).toBe('aws')
     expect(w.state.values.catalogPage.rows.map(row => row.id)).toContain(AWS)
@@ -111,6 +116,7 @@ describe('the catalogue', () => {
       ),
     )
     await act.tab('discover')
+    markMods(rt.store, rt.catalog, [SDK])
     await act.openFound(SDK)
     expect(w.state.values.view.stack).toEqual(['detail'])
     // Read in the background (R-M4-1): the detail redraws when it lands.

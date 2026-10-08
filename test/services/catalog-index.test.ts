@@ -93,6 +93,20 @@ describe('the hosted index', () => {
     expect(other.store.get('catalogIndex')).toEqual({})
   })
 
+  it('reads an index being tried out (MODMGR_INDEX_URL) at every sync, and only an http(s) one', async () => {
+    const TRIAL = 'http://127.0.0.1:8000/v1.json'
+    const { w, store, catalog } = await setup(world({ env: { MODMGR_INDEX_URL: TRIAL } }))
+    w.http.answers.set(TRIAL, { status: 200, text: indexText(9, remoteIndex()) })
+    const sync = createIndexSync(w.ports, { store })
+    expect(await sync.sync(catalog.entries())).toBe(remoteIndex().size)
+    await sync.sync(catalog.entries())
+    expect(w.http.gets.filter(url => url === TRIAL)).toHaveLength(2)
+    expect(indexGets(w)).toBe(0)
+    const odd = await setup(world({ env: { MODMGR_INDEX_URL: 'file:///etc/passwd' } }))
+    await createIndexSync(odd.w.ports, { store: odd.store }).sync(odd.catalog.entries())
+    expect(odd.w.http.gets).toEqual([INDEX_URL])
+  })
+
   it('says when the index it gave was built, in a later session too', async () => {
     const { w, store } = await setup()
     store.set('catalogIndex', { at: 0, built: 4 })

@@ -136,32 +136,7 @@ describe('walkProbe', () => {
   })
 })
 
-describe('Discover’s order', () => {
-  it('puts mods first, then command hooks, each in its sort’s order', () => {
-    const index = buildIndex([entry('c@m'), entry('a@m'), entry('d@m'), entry('b@m')])
-    const kinds: Record<string, CatalogKind> = {
-      'a@m': 'plain',
-      'b@m': 'hooks',
-      'c@m': 'mod',
-      'd@m': 'unknown',
-    }
-    const ids = matchAll(
-      index,
-      { text: '', kind: 'all', sort: 'name' },
-      id => kinds[id] ?? 'unknown',
-    ).map(match => match.item.entry.id)
-    expect(ids).toEqual(['c@m', 'b@m', 'a@m', 'd@m'])
-  })
-})
-
-describe('preferences, version 2', () => {
-  it('reads the old default (mods only) as every plugin, and keeps a chosen filter', () => {
-    const old = (kind: string) =>
-      openKey('prefs', { v: 1, data: { tab: 'discover', sort: 'name', kind, firstRunDone: true } })
-    expect(old('mods')).toMatchObject({ data: { kind: 'all' }, note: 'migrated' })
-    expect(old('hooks').data.kind).toBe('hooks')
-  })
-
+describe('the index check in the store', () => {
   it('keeps the index check’s times and drops anything else', () => {
     expect(openKey('catalogIndex', { v: 1, data: { at: 3, built: 2, more: true } }).data).toEqual({
       at: 3,

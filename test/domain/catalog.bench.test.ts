@@ -33,7 +33,14 @@ describe.each([3_545, 10_000])('search over %d entries', size => {
         for (const text of typed) {
           const start = performance.now()
           // What a keystroke runs: one pass, then the window `$.state` gets.
-          windowOf(matchAll(index, { text, kind, sort: 'installs' }, kindOf), undefined)
+          windowOf(
+            matchAll(
+              index,
+              { text, sort: 'installs', ...(kind === 'mods' ? { only: 'mod' as const } : {}) },
+              kindOf,
+            ),
+            undefined,
+          )
           times.push(performance.now() - start)
         }
       }

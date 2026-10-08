@@ -69,6 +69,8 @@ export interface EnvPort {
   /** `CLAUDE_CONFIG_DIR` and `HOME`: where this session's mods folder is (Dev). */
   configDir(): Promise<string | undefined>
   home(): Promise<string | undefined>
+  /** `MODMGR_INDEX_URL`: where to read the catalogue index instead, to try one before it is published. */
+  indexUrl(): Promise<string | undefined>
 }
 
 export interface SessionPort {

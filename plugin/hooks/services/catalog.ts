@@ -187,11 +187,12 @@ export const createCatalog = (
     const mine = generation
     const view = await ports.state.read('view')
     if (mine !== generation) return
-    const key = `${view.search}\u0000${view.kind}\u0000${view.sort}\u0000${kindsVersion}`
+    // Discover lists mods only: the rest of the catalogue is what the detector checks.
+    const key = `${view.search}\u0000${view.sort}\u0000${kindsVersion}`
     if (memo?.key !== key) {
       memo = {
         key,
-        matched: matchAll(index, { text: view.search, kind: view.kind, sort: view.sort }, kindOf),
+        matched: matchAll(index, { text: view.search, sort: view.sort, only: 'mod' }, kindOf),
       }
     }
     const window = windowOf(memo.matched, view.found, PAGE_SIZE)
@@ -249,11 +250,7 @@ export const createCatalog = (
       if (index === undefined || shown === undefined) return []
       const key = `${shown.text}\u0000${shown.sort}`
       if (searched?.key !== key) {
-        const all = matchAll(
-          index,
-          { text: shown.text, kind: 'all', sort: shown.sort },
-          () => 'unknown',
-        )
+        const all = matchAll(index, { text: shown.text, sort: shown.sort }, () => 'unknown')
         searched = { key, ids: all.slice(0, PRIORITY_MAX).map(match => match.item.entry.id) }
       }
       return [...shown.ids, ...searched.ids]

@@ -3,7 +3,7 @@
 // command shown verbatim and accepted by its sha, and adding a marketplace.
 import { type Engine, expect, test } from 'claude-code/testing'
 import { RUNS } from './fixtures.ts'
-import { host, START } from './harness.ts'
+import { host, MODS, START } from './harness.ts'
 
 const SURFACES = ['terminal', 'desktop'] as const
 const AWS = 'aws-serverless@claude-plugins-official'
@@ -84,16 +84,13 @@ for (const surface of SURFACES) {
     await $.session.start(START)
     await h.clock.advance(1)
     const ui = await mountPane($, surface, PANE(64, 30))
+    // A command source can't be checked before it is installed, so Discover never
+    // lists it: the install starts as text, and the dialog reviews its command.
+    const ran = await $.command.run({ ...MODS, args: `install ${CMD} --yes` })
+    expect(ran.exitCode).toBe(1)
     // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
     if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
-    await ui.redraw()
-    await ui.input({ key: 'filter', text: 'cmdmod', kind: 'change' })
-    await ui.redraw()
-    await ui.press({ key: 'act:install' })
-    await ui.redraw()
-    await ui.press({ key: 'act:confirm' })
-    await h.clock.advance(1)
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: /needs review first/ })).toBeDefined()
     await ui.press({ key: 'act:accept' })
@@ -121,9 +118,7 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
     if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
-    // Mods only (`k`, kept for the next surface): none found yet.
-    if (at === 0) await ui.press({ key: 'act:kind' })
-    await ui.redraw()
+    // Discover lists mods only: none found yet.
     expect(
       await ui.find({ type: 'Text', text: 'No mods found in your marketplaces yet.' }),
     ).toBeDefined()
@@ -146,7 +141,6 @@ const reviewState = (declared: { text: string; sha256: string; truncated?: boole
     stack: ['review'],
     query: '',
     search: '',
-    kind: 'mods',
     sort: 'name',
     staged: {},
   },
@@ -207,7 +201,6 @@ test('on mobile the install review says its scope (no picker there)', async ($, 
         stack: ['review'],
         query: '',
         search: '',
-        kind: 'mods',
         sort: 'name',
         staged: {},
       },

@@ -291,6 +291,7 @@ export class FakeCommand implements CommandPort {
 export const fakeEnv = (vars: Record<string, string> = {}): EnvPort => ({
   pluginDirs: async () => vars.CLAUDE_CODE_PLUGIN_DIRS,
   nonessentialTraffic: async () => vars.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,
+  indexUrl: async () => vars.MODMGR_INDEX_URL,
   configDir: async () => vars.CLAUDE_CONFIG_DIR,
   home: async () => vars.HOME,
 })

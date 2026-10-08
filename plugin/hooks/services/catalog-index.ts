@@ -23,7 +23,7 @@ export type IndexSync = {
 }
 
 export const createIndexSync = (
-  ports: Pick<Ports, 'http' | 'clock'>,
+  ports: Pick<Ports, 'http' | 'clock' | 'env'>,
   deps: {
     readonly store: Pick<StoreService, 'get' | 'update'>
     readonly debug?: (text: string) => void
@@ -31,7 +31,7 @@ export const createIndexSync = (
   },
 ): IndexSync => {
   const debug = deps.debug ?? (() => {})
-  const url = deps.url ?? INDEX_URL
+  const base = deps.url ?? INDEX_URL
   let held: CatalogIndexFile | undefined
   let unreachable = false
 
@@ -42,8 +42,12 @@ export const createIndexSync = (
 
   const fetchIndex = async (): Promise<CatalogIndexFile | undefined> => {
     const now = await ports.clock.now()
+    // An index being tried out (MODMGR_INDEX_URL) is read at every catalogue read.
+    const trial = await ports.env.indexUrl().catch(() => undefined)
+    const url = trial !== undefined && /^https?:\/\//.test(trial) ? trial : base
     const last = deps.store.get('catalogIndex').at
-    if (unreachable || (last !== undefined && now - last < INDEX_MAX_AGE_MS)) return undefined
+    if (url === base && (unreachable || (last !== undefined && now - last < INDEX_MAX_AGE_MS)))
+      return undefined
     let response: { readonly status: number; readonly text: string }
     try {
       response = await ports.http.get(url)

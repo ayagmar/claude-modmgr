@@ -1,5 +1,10 @@
 // A fake `claude` answering from the captured fixtures (test/domain/fixtures),
 // so service tests run against real CLI output.
+import { planProbe, probeKey } from '../../plugin/hooks/domain/detector.ts'
+import { lruSetMany } from '../../plugin/hooks/domain/lru.ts'
+import { CAPS, type DetectEntry } from '../../plugin/hooks/domain/store-schema.ts'
+import type { Catalog } from '../../plugin/hooks/services/catalog.ts'
+import type { StoreService } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
 import { type FakeProcess, out } from './fakes.ts'
 
@@ -62,3 +67,24 @@ export const bumpTurnBand = (process: FakeProcess): FakeProcess =>
           )
         : undefined,
     )
+
+/**
+ * Records catalogue entries as mods in the detector's cache, as its probes
+ * would (every entry a probe can check, by default): Discover lists mods only.
+ * Returns how many it marked.
+ */
+export const markMods = (
+  store: Pick<StoreService, 'update'>,
+  catalog: Pick<Catalog, 'entries' | 'invalidate'>,
+  ids?: readonly string[],
+): number => {
+  const marked: [string, DetectEntry][] = []
+  for (const entry of catalog.entries()) {
+    if (ids !== undefined && !ids.includes(entry.id)) continue
+    const key = probeKey(planProbe(entry), entry.version)
+    if (key !== undefined) marked.push([entry.id, [key, 'mod']])
+  }
+  store.update('detect', cache => lruSetMany(cache, marked, CAPS.detect))
+  catalog.invalidate()
+  return marked.length
+}

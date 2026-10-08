@@ -59,7 +59,6 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         ...view,
         tab: prefs.tab,
         sort: prefs.sort,
-        kind: prefs.kind,
         ...(welcome ? { stack: ['welcome' as const] } : {}),
       }))
     }

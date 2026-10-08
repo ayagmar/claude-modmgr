@@ -70,7 +70,7 @@ describe('R-M6-1: a text write goes on the queue', () => {
 describe('R-M6-2: a remembered tab costs nothing until the dialog shows it', () => {
   it('reads the catalogue when /mods opens on Discover, not at start', async () => {
     const { w, rt } = await setup({
-      prefs: { v: 1, data: { tab: 'discover', sort: 'name', kind: 'mods', firstRunDone: true } },
+      prefs: { v: 1, data: { tab: 'discover', sort: 'name', firstRunDone: true } },
     })
     w.process.when(['list', '--json', '--available'], out(runs['list-available'].stdout))
     w.process.when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))

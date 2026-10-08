@@ -15,7 +15,6 @@ import {
   installReview,
   isInstallScope,
   marketplaceReview,
-  nextKind,
   nextSort,
   withScope,
 } from '../../plugin/hooks/domain/discover.ts'
@@ -34,7 +33,7 @@ const SHA = '5e549c09f0d775042a59d57dd4fc222b2d9ad6babc928bf603998e1661f65695'
 
 describe('the catalogue around a selection', () => {
   it('matches in sort order and windows around the selected entry', () => {
-    const all = matchAll(index, { text: '', kind: 'all', sort: 'name' }, () => 'unknown')
+    const all = matchAll(index, { text: '', sort: 'name' }, () => 'unknown')
     expect(all).toHaveLength(index.size)
     const middle = all[100]?.item.entry.id
     const { rows, offset } = windowOf(all, middle, 50)
@@ -46,11 +45,11 @@ describe('the catalogue around a selection', () => {
     expect(windowOf(all.slice(0, 3), undefined, 50).rows).toHaveLength(3)
   })
 
-  it('keeps only the kinds the filter allows, and every search word', () => {
+  it('keeps only the kind asked for, and every search word', () => {
     const kinds = (id: string): 'mod' | 'plain' => (id.startsWith('a') ? 'mod' : 'plain')
-    const mods = matchAll(index, { text: '', kind: 'mods', sort: 'installs' }, kinds)
+    const mods = matchAll(index, { text: '', sort: 'installs', only: 'mod' }, kinds)
     expect(mods.every(match => match.kind === 'mod')).toBe(true)
-    const aws = matchAll(index, { text: 'aws serverless', kind: 'all', sort: 'name' }, kinds)
+    const aws = matchAll(index, { text: 'aws serverless', sort: 'name' }, kinds)
     expect(aws.map(match => match.item.entry.id)).toContain(
       'aws-serverless@claude-plugins-official',
     )
@@ -218,14 +217,13 @@ describe('what Discover draws', () => {
     const page = { ...INITIAL.catalogPage, rows: [] as never[] }
     expect(foundRow(INITIAL_VIEW, page)).toBeUndefined()
     const rows = windowOf(
-      matchAll(index, { text: '', kind: 'all', sort: 'name' }, () => 'unknown'),
+      matchAll(index, { text: '', sort: 'name' }, () => 'unknown'),
       undefined,
       3,
     ).rows
     const shown = { ...page, rows }
     expect(foundRow({ ...INITIAL_VIEW, found: rows[1]?.id ?? '' }, shown)).toBe(rows[1])
     expect(foundRow({ ...INITIAL_VIEW, found: 'gone@x' }, shown)).toBe(rows[0])
-    expect([nextKind('mods'), nextKind('hooks'), nextKind('all')]).toEqual(['hooks', 'all', 'mods'])
     expect([nextSort('installs'), nextSort('name'), nextSort('marketplace')]).toEqual([
       'name',
       'marketplace',

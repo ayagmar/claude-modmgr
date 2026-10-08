@@ -215,7 +215,6 @@ test('the detail draws what is new apart, and says why a folder mod has no updat
         tab: 'installed',
         stack: [],
         query: '',
-        kind: 'mods',
         sort: 'name',
         staged: {},
         selected: TURN_BAND,

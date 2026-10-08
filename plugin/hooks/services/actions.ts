@@ -15,7 +15,6 @@ import {
   isInstallScope,
   MARKETPLACE_KEY,
   marketplaceReview,
-  nextKind,
   nextSort,
   withScope,
 } from '../domain/discover.ts'
@@ -133,8 +132,6 @@ export type Actions = {
   install(id?: string): Promise<void>
   /** The install review's scope Select. */
   scope(value: string): Promise<void>
-  /** `k`: the next kind filter. */
-  cycleKind(): Promise<void>
   /** `o`: the next sort. */
   cycleSort(): Promise<void>
   /** `v`: reviews the declared command a stopped install or update showed. */
@@ -348,12 +345,12 @@ export const createActions = (
     )
   }
 
-  /** The tab, sort and kind a next session opens with (the store's prefs, written in a batch). */
+  /** The tab and sort a next session opens with (the store's prefs, written in a batch). */
   const remember = (view: View): void => {
     rt?.store.update('prefs', prefs =>
-      prefs.tab === view.tab && prefs.sort === view.sort && prefs.kind === view.kind
+      prefs.tab === view.tab && prefs.sort === view.sort
         ? prefs
-        : { ...prefs, tab: view.tab, sort: view.sort, kind: view.kind },
+        : { ...prefs, tab: view.tab, sort: view.sort },
     )
   }
 
@@ -665,11 +662,6 @@ export const createActions = (
     scope: safely('scope', async value => {
       if (!isInstallScope(value)) return
       await state.update('review', review => (review === null ? null : withScope(review, value)))
-    }),
-
-    cycleKind: safely('kind', async () => {
-      remember(await setView(view => ({ ...quiet(view), kind: nextKind(view.kind) })))
-      await showCatalog()
     }),
 
     cycleSort: safely('sort', async () => {

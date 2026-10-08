@@ -11,7 +11,7 @@ import type {
   View,
 } from '../../types/index.d.ts'
 import { notableText } from './capabilities.ts'
-import { KIND_FILTERS, SORTS } from './catalog.ts'
+import { SORTS } from './catalog.ts'
 import { parseMarketplaceSource } from './ids.ts'
 
 export const INSTALL_SCOPES = ['user', 'project', 'local'] as const
@@ -159,10 +159,6 @@ export const foundOfKey = (key: string | undefined): string | undefined =>
 /** The catalogue row Discover shows as selected and acts on: the selection when drawn, else the first. */
 export const foundRow = (view: View, page: CatalogPage): CatalogRow | undefined =>
   page.rows.find(row => row.id === view.found) ?? page.rows[0]
-
-/** The next kind filter (`k`): mods → hooks → all. */
-export const nextKind = (kind: View['kind']): View['kind'] =>
-  KIND_FILTERS[(KIND_FILTERS.indexOf(kind) + 1) % KIND_FILTERS.length] ?? 'mods'
 
 /** The next sort (`o`): installs → name → marketplace. */
 export const nextSort = (sort: View['sort']): View['sort'] =>

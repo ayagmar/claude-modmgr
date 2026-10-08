@@ -883,7 +883,7 @@ export const FRAMES: readonly Frame[] = [
   },
   {
     "title": "Discover",
-    "caption": "Every marketplace, searchable, with the mods found in it.",
+    "caption": "The mods in every marketplace you have, found at once.",
     "lines": [
       [
         {
@@ -924,28 +924,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "201 plugins · 0 mods so far · checking 0 of 200"
-        },
-        {
-          "text": "                   "
-        },
-        {
-          "dim": true,
-          "text": "1–13 of 201"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "g: first"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "b: last"
+          "text": "5 mods"
         }
       ],
       [
@@ -964,10 +943,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ Search 201 plugins"
+          "text": "⌕ Search 5 mods"
         },
         {
-          "text": "                                                               "
+          "text": "                                                                    "
         },
         {
           "dim": true,
@@ -993,18 +972,18 @@ export const FRAMES: readonly Frame[] = [
           "text": "❯"
         },
         {
-          "text": "   "
+          "text": " "
         },
         {
           "ring": true,
-          "text": "frontend-design"
+          "text": "secret-scrub"
         },
         {
-          "text": "               "
+          "text": "                    "
         },
         {
           "dim": true,
-          "text": "1.2M"
+          "text": "4.2k"
         },
         {
           "text": " "
@@ -1018,16 +997,23 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "frontend-design"
+          "text": "secret-scrub"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "1.0.0"
         }
       ],
       [
         {
-          "text": "    code-review                   "
+          "text": "  commit-guard                    "
         },
         {
           "dim": true,
-          "text": "492k"
+          "text": "2.8k"
         },
         {
           "text": " "
@@ -1040,20 +1026,24 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "dim": true,
-          "text": "not checked yet · claude-plugins-official · 1.2M insta"
+          "tone": "claude",
+          "text": "◆ mod"
         },
         {
-          "text": "…"
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "· fixtures · 4.2k installs"
         }
       ],
       [
         {
-          "text": "    context7                      "
+          "text": "  turn-timer                      "
         },
         {
           "dim": true,
-          "text": "458k"
+          "text": "1.9k"
         },
         {
           "text": " "
@@ -1068,11 +1058,11 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    security-guidance             "
+          "text": "  cost-meter                      "
         },
         {
           "dim": true,
-          "text": "273k"
+          "text": "1.2k"
         },
         {
           "text": " "
@@ -1082,16 +1072,16 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " Create distinctive, production-grade frontend"
+          "text": " Masks tokens and keys in tool output before the model"
         }
       ],
       [
         {
-          "text": "    telegram                      "
+          "text": "  quiet-hours                      "
         },
         {
           "dim": true,
-          "text": "110k"
+          "text": "610"
         },
         {
           "text": " "
@@ -1101,38 +1091,12 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " interfaces with high design quality. Generates"
+          "text": " reads it."
         }
       ],
       [
         {
-          "text": "    plugin-dev                     "
-        },
-        {
-          "dim": true,
-          "text": "73k"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " creative, polished code that avoids generic AI…"
-        }
-      ],
-      [
-        {
-          "text": "    agent-sdk-dev                  "
-        },
-        {
-          "dim": true,
-          "text": "70k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1143,19 +1107,12 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "from its marketplace folder"
+          "text": "from github.com/modmgr-fixtures/secret-scrub"
         }
       ],
       [
         {
-          "text": "    gopls-lsp                      "
-        },
-        {
-          "dim": true,
-          "text": "45k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1166,19 +1123,12 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "Reading what it can do…"
+          "text": "What it can do is read once it is installed."
         }
       ],
       [
         {
-          "text": "    discord                        "
-        },
-        {
-          "dim": true,
-          "text": "36k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1187,14 +1137,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    php-lsp                        "
-        },
-        {
-          "dim": true,
-          "text": "35k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1203,14 +1146,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    clangd-lsp                     "
-        },
-        {
-          "dim": true,
-          "text": "32k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1219,14 +1155,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    claude-security                "
-        },
-        {
-          "dim": true,
-          "text": "23k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1235,14 +1164,16 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    laravel-boost                  "
+          "text": "                                       "
         },
         {
           "dim": true,
-          "text": "23k"
-        },
+          "text": "│"
+        }
+      ],
+      [
         {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1257,7 +1188,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "k: mods only  o: sort by name  m: marketplace                        "
+          "text": "o: sort by name  m: marketplace                                      "
         },
         {
           "dim": true,
@@ -1316,14 +1247,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "201 plugins · 0 mods so far · checking 0 of 200"
-        },
-        {
-          "text": "                                      "
-        },
-        {
-          "dim": true,
-          "text": "1–13 of 201"
+          "text": "5 mods"
         }
       ],
       [
@@ -1342,10 +1266,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "⌕ Search 201 plugins"
+          "text": "⌕ Search 5 mods"
         },
         {
-          "text": "                                                               "
+          "text": "                                                                    "
         },
         {
           "dim": true,
@@ -1371,18 +1295,18 @@ export const FRAMES: readonly Frame[] = [
           "text": "❯"
         },
         {
-          "text": "   "
+          "text": " "
         },
         {
           "ring": true,
-          "text": "frontend-design"
+          "text": "secret-scrub"
         },
         {
-          "text": "               "
+          "text": "                    "
         },
         {
           "dim": true,
-          "text": "1.2M"
+          "text": "4.2k"
         },
         {
           "text": " "
@@ -1396,16 +1320,16 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "Install aws-serverless from claude-plugins-official"
+          "text": "Install secret-scrub from fixtures"
         }
       ],
       [
         {
-          "text": "    code-review                   "
+          "text": "  commit-guard                    "
         },
         {
           "dim": true,
-          "text": "492k"
+          "text": "2.8k"
         },
         {
           "text": " "
@@ -1420,11 +1344,11 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    context7                      "
+          "text": "  turn-timer                      "
         },
         {
           "dim": true,
-          "text": "458k"
+          "text": "1.9k"
         },
         {
           "text": " "
@@ -1443,11 +1367,11 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    security-guidance             "
+          "text": "  cost-meter                      "
         },
         {
           "dim": true,
-          "text": "273k"
+          "text": "1.2k"
         },
         {
           "text": " "
@@ -1468,26 +1392,23 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "aws-serverless"
+          "text": "secret-scrub"
         },
         {
           "text": " "
         },
         {
           "dim": true,
-          "text": "claude-plugins-official · u"
-        },
-        {
-          "text": "…"
+          "text": "1.0.0 · fixtures · user"
         }
       ],
       [
         {
-          "text": "    telegram                      "
+          "text": "  quiet-hours                      "
         },
         {
           "dim": true,
-          "text": "110k"
+          "text": "610"
         },
         {
           "text": " "
@@ -1502,14 +1423,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    plugin-dev                     "
-        },
-        {
-          "dim": true,
-          "text": "73k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1521,14 +1435,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    agent-sdk-dev                  "
-        },
-        {
-          "dim": true,
-          "text": "70k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1540,14 +1447,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    gopls-lsp                      "
-        },
-        {
-          "dim": true,
-          "text": "45k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1563,14 +1463,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    discord                        "
-        },
-        {
-          "dim": true,
-          "text": "36k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1581,7 +1474,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "  claude plugin install aws-serverless@claude-plugins-"
+          "text": "  claude plugin install secret-scrub@fixtures --scope "
         },
         {
           "text": "…"
@@ -1589,14 +1482,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    php-lsp                        "
-        },
-        {
-          "dim": true,
-          "text": "35k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1605,14 +1491,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    clangd-lsp                     "
-        },
-        {
-          "dim": true,
-          "text": "32k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1621,14 +1500,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    claude-security                "
-        },
-        {
-          "dim": true,
-          "text": "23k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1637,14 +1509,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    laravel-boost                  "
-        },
-        {
-          "dim": true,
-          "text": "23k"
-        },
-        {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -1832,7 +1697,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "            detector: 50 of 200 ch… "
+          "text": "            detector: 205 of 205 c… "
         },
         {
           "dim": true,
@@ -1848,7 +1713,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "            cache: 194 B            "
+          "text": "            cache: 181 B            "
         },
         {
           "dim": true,

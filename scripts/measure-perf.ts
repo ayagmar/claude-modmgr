@@ -62,7 +62,7 @@ for (const size of [3_545, 10_000]) {
       measure(() => {
         const text = typed[i % typed.length] ?? ''
         i += 1
-        windowOf(matchAll(index, { text, kind, sort: 'installs' }, kindOf), undefined)
+        windowOf(matchAll(index, { text, sort: 'installs', ...(kind === 'mods' ? { only: 'mod' as const } : {}) }, kindOf), undefined)
       }, 90),
     )
   }

@@ -44,13 +44,13 @@ describe('onSessionStart', () => {
 
   it('applies stored preferences on a fresh session only', async () => {
     const stored = {
-      prefs: { v: 1, data: { tab: 'health', sort: 'installs', kind: 'all', firstRunDone: true } },
+      prefs: { v: 1, data: { tab: 'health', sort: 'installs', firstRunDone: true } },
     }
     const w = world({ store: stored })
     fixtureCli(w.process)
     await onSessionStart(runtimeFor(w))
     await w.clock.advance(0)
-    expect(w.state.values.view).toMatchObject({ tab: 'health', sort: 'installs', kind: 'all' })
+    expect(w.state.values.view).toMatchObject({ tab: 'health', sort: 'installs' })
 
     // A reloaded module keeps the view it finds.
     const again = world({ store: stored })

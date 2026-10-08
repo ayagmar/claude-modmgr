@@ -353,9 +353,9 @@ describe('store schema', () => {
         (data: unknown) => ({ ...(data as object), sort: 'installs' }),
       ],
     }
-    const opened = openKey('prefs', envelope({ kind: 'all' }, 1), migrations, 3)
+    const opened = openKey('prefs', envelope({}, 1), migrations, 3)
     expect(opened).toEqual({
-      data: { tab: 'dev', sort: 'installs', kind: 'all', firstRunDone: false },
+      data: { tab: 'dev', sort: 'installs', firstRunDone: false },
       note: 'migrated',
     })
     expect(openKey('prefs', envelope({}, 1), {}, 2).note).toBe('malformed')

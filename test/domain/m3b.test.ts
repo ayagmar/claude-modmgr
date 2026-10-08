@@ -161,7 +161,7 @@ describe('capsHistory in the store', () => {
   it('is written at version 2 and reads version 1 forward', () => {
     expect(KEY_VERSIONS.capsHistory).toBe(2)
     expect(envelopeOf('capsHistory', {})).toEqual({ v: 2, data: {} })
-    expect(envelopeOf('prefs', openKey('prefs', undefined).data).v).toBe(2)
+    expect(envelopeOf('prefs', openKey('prefs', undefined).data).v).toBe(1)
     const old = openKey('capsHistory', envelope({ a: { version: '1', notable: ['x'] } }, 1))
     expect(old).toEqual({ data: { a: { version: '1', notable: ['x'] } }, note: 'migrated' })
   })

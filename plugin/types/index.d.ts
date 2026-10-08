@@ -125,9 +125,8 @@ export type View = {
   stack: Overlay[]
   /** Installed's filter. */
   query: string
-  /** Discover's search, its kind filter and sort. */
+  /** Discover's search and sort. */
   search: string
-  kind: 'mods' | 'hooks' | 'all'
   sort: 'installs' | 'name' | 'marketplace'
   /** The catalogue entry Discover has selected. */
   found?: PluginId

@@ -173,13 +173,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   if (top === undefined && discover) {
     if (itemKeys && !readOnly && found !== undefined)
       add({ action: 'install', label: 'install', onPress: () => v.act.install() })
-    // Each says what pressing it does next.
-    add({
-      action: 'kind',
-      label:
-        view.kind === 'mods' ? 'with hooks' : view.kind === 'hooks' ? 'all plugins' : 'mods only',
-      onPress: () => v.act.cycleKind(),
-    })
+    // It says what pressing it does next.
     add({
       action: 'sort',
       label: `sort by ${nextSort(view.sort)}`,
@@ -286,6 +280,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       window,
       focusId: found?.id,
       networkOff: degraded.network,
+      checking: detect.running,
       twoLine,
     })
     pager =
@@ -479,11 +474,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           .join(' · ')
       : discover
         ? [
-            page.total === 0
-              ? ''
-              : page.matched < page.total
-                ? `${page.matched.toLocaleString('en-US')} of ${count(page.total, 'plugin', 'plugins')}`
-                : count(page.total, 'plugin', 'plugins'),
+            view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,
             detectLine(detect) ?? '',
           ]
             .filter(part => part !== '')
@@ -504,9 +495,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             key={FILTER_KEY}
             placeholder={
               discover
-                ? page.total === 0
-                  ? 'Search the catalogue'
-                  : `Search ${count(page.total, 'plugin', 'plugins')}`
+                ? detect.found === 0
+                  ? 'Search mods'
+                  : `Search ${count(detect.found, 'mod', 'mods')}`
                 : `Filter ${count(mods.length, 'mod', 'mods')}`
             }
             value={discover ? view.search : view.query}
@@ -556,7 +547,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         {showList && pager !== undefined ? (
           <Box flexDirection="row" columnGap={2} flexShrink={0}>
             <Text dimColor>{pager}</Text>
-            {top === undefined && split
+            {top === undefined
               ? KeyButton(v, {
                   action: 'page.first',
                   on: surface,
@@ -565,7 +556,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
                   onPress: () => v.act.edge('first'),
                 })
               : null}
-            {top === undefined && split
+            {top === undefined
               ? KeyButton(v, {
                   action: 'page.last',
                   on: surface,

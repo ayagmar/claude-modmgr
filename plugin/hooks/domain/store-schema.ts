@@ -11,7 +11,6 @@ import type { Analysis } from './mods.ts'
 export type Prefs = {
   readonly tab: Tab
   readonly sort: View['sort']
-  readonly kind: View['kind']
   readonly firstRunDone: boolean
 }
 
@@ -86,8 +85,7 @@ export const STORE_KEYS: readonly StoreKey[] = [
  * it alone instead of rewriting it without the new fields.
  */
 export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
-  // 2: Discover lists every plugin by default; an old `mods` (the old default) reads as `all`.
-  prefs: 2,
+  prefs: 1,
   detect: 1,
   validate: 1,
   // 2: records gained `added` and `since` (M3b, the capability diff).
@@ -109,7 +107,6 @@ export const HARD_BUDGET = 3 * MiB
 export const DEFAULT_PREFS: Prefs = {
   tab: 'installed',
   sort: 'name',
-  kind: 'all',
   firstRunDone: false,
 }
 
@@ -127,7 +124,6 @@ export const emptyStore = (): StoreData => ({
 
 const TABS: readonly string[] = ['installed', 'discover', 'dev', 'health']
 const SORTS: readonly string[] = ['installs', 'name', 'marketplace']
-const KINDS: readonly string[] = ['mods', 'hooks', 'all']
 const CATALOG_KINDS: readonly string[] = ['mod', 'hooks', 'plain', 'unknown']
 const JOB_KINDS: readonly string[] = [
   'install',
@@ -162,7 +158,6 @@ export const readPrefs = (value: unknown): Prefs => {
   return {
     tab: oneOf(TABS, value.tab, DEFAULT_PREFS.tab),
     sort: oneOf(SORTS, value.sort, DEFAULT_PREFS.sort),
-    kind: oneOf(KINDS, value.kind, DEFAULT_PREFS.kind),
     firstRunDone: value.firstRunDone === true,
   }
 }
@@ -304,8 +299,6 @@ export const MIGRATIONS: Migrations = {
   // 1 → 2: a version-1 record (`{ version, notable }`) is a version-2 record
   // with nothing added since; the reader checks each field either way.
   capsHistory: [data => data],
-  // 1 → 2: `mods` was the default nobody chose, so it becomes the new default.
-  prefs: [data => (isRecord(data) && data.kind === 'mods' ? { ...data, kind: 'all' } : data)],
 }
 
 export type Opened<K extends StoreKey> = {

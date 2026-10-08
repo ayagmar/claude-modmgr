@@ -26,16 +26,15 @@ const setup = async (
 }
 
 describe('preferences', () => {
-  it('remembers the tab, sort and kind for the next session', async () => {
+  it('remembers the tab and sort for the next session', async () => {
     const { w, rt, act } = await setup({ prefs: { v: 1, data: { firstRunDone: true } } })
     await background(rt, { fresh: true })
     await act.tab('discover')
     await act.cycleSort()
-    await act.cycleKind()
     await rt.store.flush()
     expect(w.store.data.get('prefs')).toEqual({
-      v: 2,
-      data: { tab: 'discover', sort: 'marketplace', kind: 'mods', firstRunDone: true },
+      v: 1,
+      data: { tab: 'discover', sort: 'marketplace', firstRunDone: true },
     })
     // The next session opens where this one was.
     const next = await setup(Object.fromEntries(w.store.data))
@@ -43,7 +42,6 @@ describe('preferences', () => {
     expect(next.w.state.values.view).toMatchObject({
       tab: 'discover',
       sort: 'marketplace',
-      kind: 'mods',
     })
   })
 })

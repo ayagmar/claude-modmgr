@@ -17,7 +17,7 @@ import {
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { fixtureCli } from './cli-world.ts'
+import { fixtureCli, markMods } from './cli-world.ts'
 import { type FakeProcess, out, world } from './fakes.ts'
 
 const SDK = 'agent-sdk-dev@claude-plugins-official'
@@ -107,7 +107,7 @@ describe('inspections (R-M4-1, R-M4-5)', () => {
   })
 
   it('a read that failed is said, and r tries again', async () => {
-    const { w, catalog } = await catalogWorld()
+    const { w, store, catalog } = await catalogWorld()
     w.process.when(['validate'], argv =>
       argv.at(-1) === SDK_DIR ? out('', 1, 'the manifest is malformed') : undefined,
     )
@@ -118,10 +118,11 @@ describe('inspections (R-M4-1, R-M4-5)', () => {
       uninspected: true,
       unreadable: failed,
     })
-    w.state.values.view = { ...w.state.values.view, kind: 'mods' }
+    // Discover lists mods only: not one yet, it isn't drawn.
     await catalog.show()
-    expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)?.unread).toBeUndefined()
-    w.state.values.view = { ...w.state.values.view, kind: 'all', found: SDK }
+    expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)).toBeUndefined()
+    markMods(store, catalog, [SDK])
+    w.state.values.view = { ...w.state.values.view, found: SDK }
     await catalog.show()
     expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)).toMatchObject({
       local: true,
@@ -161,8 +162,8 @@ describe('idle-only by turn id (R-M4-2)', () => {
 
 describe('the catalogue window (R-M4-3)', () => {
   it('a window computed from a replaced view is dropped', async () => {
-    const { w, catalog } = await catalogWorld()
-    w.state.values.view = { ...w.state.values.view, kind: 'all' }
+    const { w, store, catalog } = await catalogWorld()
+    markMods(store, catalog)
     const read = w.state.read
     let held: (() => void) | undefined
     let hold = false

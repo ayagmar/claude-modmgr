@@ -475,7 +475,6 @@ test('the job log shows a running test’s output and offers to cancel it', asyn
         layout: 'stacked',
         stack: ['jobs'],
         query: '',
-        kind: 'mods',
         sort: 'name',
         page: 0,
         staged: {},

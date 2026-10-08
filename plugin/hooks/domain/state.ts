@@ -42,7 +42,7 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   detect: 'detect/2',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/6',
+  view: 'view/7',
   review: 'review/3',
   attention: 'attention/2',
   degraded: 'degraded/1',
@@ -55,7 +55,6 @@ export const INITIAL_VIEW: View = {
   stack: [],
   query: '',
   search: '',
-  kind: 'all',
   sort: 'name',
   staged: {},
 }

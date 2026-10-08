@@ -27,7 +27,6 @@ export const GLYPH = {
   update: '↑',
   problem: '▲',
   notable: '◆',
-  hooks: '◇',
   ok: '✓',
   failed: '✗',
   locked: '⊘',
