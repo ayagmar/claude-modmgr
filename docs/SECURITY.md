@@ -73,10 +73,23 @@ entry's pinned commit, at most 600 a session, only while no turn runs), without 
 checked and JSON shape-checked. They are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
 empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
 files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
-part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
+part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads
+plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`) and lists folders (`$.fs.list`) where mods under
+development live: this session's mods folder (under `CLAUDE_CONFIG_DIR`, or `~/.claude` from `HOME`, the only reason
+modmgr reads those two variables), where the session runs, and a folder a failure notice named. It never writes a
+file: `p` (share) shows the marketplace file to write and copies the install line. `v` and `t` run `claude plugin
+validate` and `claude plugin test` on a dev mod's folder, which runs that mod's own tests: the person's code, on
+their key press. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
 files and fetches, its own capability list (as modmgr would show it) carries "Can read your conversation or files and
 send data out": what it reads is plugin manifests, and what it fetches is the same manifests by URL; nothing it reads
 is sent.
+
+**Notices.** modmgr hooks `session.append` for notices only (`door: 'notice'`, the dim lines the model never reads),
+to count a hot-reloaded plugin's failures for Dev (F20, F57). The hook calls `next` first and returns the row the
+session stored, unchanged; its `.catch` passes through. The validator still reports it as a gating hook (any
+`session.append` hook is one), and a capability list built from event names, modmgr's own included, places it under
+"what the model sees": that is the event's reach, not what this hook does with it. `scripts/validate-plugin.ts` allows
+this gate with exactly that matcher and no other.
 
 **No telemetry.** modmgr never calls `$.telemetry`; `node scripts/validate-plugin.ts` fails the build if it does.
 

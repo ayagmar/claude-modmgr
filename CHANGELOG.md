@@ -21,3 +21,7 @@ All notable changes to this project are documented here. The format follows
   budget). Local entries show what they can do before install. Install (`i`) through a review with a scope picker;
   a marketplace-declared install command is shown verbatim with its sha256 and accepted only from that review. Add
   a marketplace (`m`).
+- Dev (`3`): the mods this session runs from a folder you edit (`--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`, this
+  session's mods folder, your skills folder, folder marketplaces), with `v` validate (strict), `t` test (streamed into
+  the job log, `q` cancels), `l` reload, `c` copy the path, `p` share (the install line and the marketplace file it
+  needs), and the failures the session reports while it hot-reloads one.
