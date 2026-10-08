@@ -9,6 +9,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.1.0] - 2026-10-08
 
+Install with `/plugin install modmgr --marketplace ayagmar/claude-mods` (the marketplace `ayagmar`).
+
 ### Added
 - Repository scaffold: tooling, CI, vendored Claude Code types, an empty `/mods` command.
 - `/mods` opens a dialog: installed mods with their state and notable capabilities, a detail of what each one can
