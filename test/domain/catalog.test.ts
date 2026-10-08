@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   buildIndex,
   type CatalogKind,
-  clampPage,
   formatCount,
-  pageLabel,
-  search,
+  matchAll,
   tokens,
+  windowOf,
 } from '../../plugin/hooks/domain/catalog.ts'
 import { type CatalogEntry, parseAvailable } from '../../plugin/hooks/domain/cli-results.ts'
 import { hasHiddenCharacters } from '../../plugin/hooks/domain/sanitize.ts'
@@ -48,7 +47,7 @@ describe('buildIndex', () => {
   })
 })
 
-describe('search', () => {
+describe('matching', () => {
   const index = buildIndex([
     entry('turn-band@official', { description: 'Shows last-turn duration', installs: 1500 }),
     entry('redactor@community', { description: 'Redacts secrets' }),
@@ -62,65 +61,50 @@ describe('search', () => {
     'docs@official': 'plain',
   }
   const kindOf = (id: string): CatalogKind => kinds[id] ?? 'unknown'
+  const rows = (text: string, kind: 'mods' | 'hooks' | 'all', sort: 'name' | 'installs' = 'name') =>
+    windowOf(matchAll(index, { text, kind, sort }, kindOf), undefined).rows
 
   it('filters by kind', () => {
-    const query = { text: '', sort: 'name', page: 0 } as const
-    expect(search(index, { ...query, kind: 'mods' }, kindOf).matched).toBe(2)
-    expect(search(index, { ...query, kind: 'hooks' }, kindOf).matched).toBe(3)
-    expect(search(index, { ...query, kind: 'all' }, kindOf).matched).toBe(4)
+    expect(matchAll(index, { text: '', kind: 'mods', sort: 'name' }, kindOf)).toHaveLength(2)
+    expect(matchAll(index, { text: '', kind: 'hooks', sort: 'name' }, kindOf)).toHaveLength(3)
+    expect(matchAll(index, { text: '', kind: 'all', sort: 'name' }, kindOf)).toHaveLength(4)
   })
 
   it('matches every word anywhere in name, description, marketplace or id', () => {
-    const result = search(
-      index,
-      { text: '  SECRETS  community ', kind: 'all', sort: 'name', page: 0 },
-      kindOf,
-    )
-    expect(result.rows.map(row => row.id)).toEqual(['redactor@community'])
-    expect(result.rows[0]).toMatchObject({
+    const found = rows('  SECRETS  community ', 'all')
+    expect(found.map(row => row.id)).toEqual(['redactor@community'])
+    expect(found[0]).toMatchObject({
       kind: 'mod',
       blurb: 'Redacts secrets',
       marketplace: 'community',
     })
-    expect(
-      search(index, { text: 'nothing-matches', kind: 'all', sort: 'name', page: 0 }, kindOf)
-        .matched,
-    ).toBe(0)
+    expect(rows('nothing-matches', 'all')).toEqual([])
   })
 
   it('carries installs only when known', () => {
-    const rows = search(index, { text: '', kind: 'mods', sort: 'installs', page: 0 }, kindOf).rows
-    expect(rows[0]).toMatchObject({ id: 'turn-band@official', installs: 1500 })
-    expect(rows[1]).not.toHaveProperty('installs')
-  })
-
-  it('pages and clamps', () => {
-    const query = { text: '', kind: 'all', sort: 'name', pageSize: 3 } as const
-    const second = search(index, { ...query, page: 1 }, kindOf)
-    expect(second).toMatchObject({ page: 1, pages: 2, matched: 4, total: 4 })
-    expect(second.rows).toHaveLength(1)
-    expect(search(index, { ...query, page: 99 }, kindOf).page).toBe(1)
-    expect(search(index, { ...query, page: -2 }, kindOf).page).toBe(0)
+    const found = rows('', 'mods', 'installs')
+    expect(found[0]).toMatchObject({ id: 'turn-band@official', installs: 1500 })
+    expect(found[1]).not.toHaveProperty('installs')
   })
 
   it('works on the real catalogue', () => {
-    const result = search(
+    const matched = matchAll(
       buildIndex(real),
-      { text: 'git', kind: 'all', sort: 'installs', page: 0 },
+      { text: 'git', kind: 'all', sort: 'installs' },
       allKinds,
     )
-    expect(result.matched).toBeGreaterThan(0)
-    expect(result.rows.length).toBeLessThanOrEqual(50)
+    expect(matched.length).toBeGreaterThan(0)
+    expect(windowOf(matched, undefined).rows.length).toBeLessThanOrEqual(50)
   })
 
   it('sanitises hostile catalogue text', () => {
     const hostile = buildIndex(syntheticCatalog)
-    const rows = search(
-      hostile,
-      { text: '', kind: 'all', sort: 'name', page: 0, pageSize: 100 },
-      allKinds,
+    const found = windowOf(
+      matchAll(hostile, { text: '', kind: 'all', sort: 'name' }, allKinds),
+      undefined,
+      100,
     ).rows
-    for (const row of rows) {
+    for (const row of found) {
       expect(hasHiddenCharacters(row.name)).toBe(false)
       expect(hasHiddenCharacters(row.blurb)).toBe(false)
       expect(Array.from(row.name).length).toBeLessThanOrEqual(64)
@@ -143,14 +127,4 @@ describe('helpers', () => {
     [3_456_789, '3.4M'],
     [2_000_000, '2M'],
   ])('formatCount(%d) = %s', (count, text) => expect(formatCount(count)).toBe(text))
-  it('labels pages', () => {
-    expect(pageLabel({ page: 1, matched: 312 }, 20)).toBe('21–40 of 312')
-    expect(pageLabel({ page: 0, matched: 0 })).toBe('0 of 0')
-    expect(pageLabel({ page: 6, matched: 312 })).toBe('301–312 of 312')
-  })
-  it('clamps pages', () => {
-    expect(clampPage(Number.NaN, 3)).toBe(0)
-    expect(clampPage(2.7, 3)).toBe(2)
-    expect(clampPage(5, 0)).toBe(0)
-  })
 })

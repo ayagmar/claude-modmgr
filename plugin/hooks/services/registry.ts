@@ -31,6 +31,7 @@ import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
 import { mapLimit } from './pool.ts'
 import type { StoreService } from './store.ts'
+import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export const VALIDATE_CONCURRENCY = 3
 
@@ -45,10 +46,17 @@ export type RefreshSummary = {
 }
 
 export type Registry = {
-  /** One refresh at a time; a call during one queues exactly one more. */
-  refresh(): Promise<Result<RefreshSummary>>
+  /**
+   * One refresh at a time; a call during one queues exactly one more. With
+   * `via`, a command hook's own ports run the CLI and the refresh runs apart:
+   * its `$` calls don't meter the hook's 10 s budget, waiting on another
+   * refresh would (F59, review R-M6-3).
+   */
+  refresh(via?: CliPorts): Promise<Result<RefreshSummary>>
   /** Shows a mod's detail (`undefined` clears it). */
   select(id: string | undefined): Promise<void>
+  /** A mod's detail from the last refresh, without showing it (`/mods info`). */
+  detail(id: string): ModDetail | undefined
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
   /**
@@ -84,22 +92,27 @@ export const createRegistry = (
   ports: RegistryPorts,
   store: StoreService,
   debug: (text: string) => void = () => {},
+  timing: Timing = NO_TIMING,
 ): Registry => {
   let entries = new Map<string, InstalledEntry>()
   let loaded = false
   let running: Promise<Result<RefreshSummary>> | undefined
   let again = false
 
-  const analyse = async (entry: InstalledEntry, now: number): Promise<Analysis | undefined> => {
+  const analyse = async (
+    cli: CliPorts,
+    entry: InstalledEntry,
+    now: number,
+  ): Promise<Analysis | undefined> => {
     const root = rootOf(entry)
     if (root === undefined) return undefined
-    const report = await validateRoot(ports, root)
+    const report = await validateRoot(cli, root)
     if (!report.ok) {
       debug(`modmgr: validate ${entry.id} failed: ${report.error.message}`)
       return undefined
     }
     if (!report.value.hasModule) return analysisOf(report.value, undefined, now)
-    const details = await detailsOf(ports, entry.id)
+    const details = await detailsOf(cli, entry.id)
     return analysisOf(report.value, details.ok ? details.value : undefined, now)
   }
 
@@ -133,9 +146,9 @@ export const createRegistry = (
     }))
   }
 
-  const once = async (): Promise<Result<RefreshSummary>> => {
+  const once = async (cli: CliPorts): Promise<Result<RefreshSummary>> => {
     await ports.state.update('sync', sync => ({ ...sync, refreshing: true }))
-    const listed = await listInstalled(ports, { dataSize: true })
+    const listed = await listInstalled(cli, { dataSize: true })
     const now = await ports.clock.now()
     if (!listed.ok) {
       const { kind, message } = listed.error
@@ -152,7 +165,7 @@ export const createRegistry = (
       const key = analysisKey(entry)
       return key !== undefined && cache[key] === undefined
     })
-    const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(entry, now))
+    const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(cli, entry, now))
 
     let validate = store.get('validate')
     for (const [index, entry] of misses.entries()) {
@@ -209,23 +222,28 @@ export const createRegistry = (
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
   }
 
+  const attempt = async (cli: CliPorts): Promise<Result<RefreshSummary>> => {
+    try {
+      return await timed(timing, 'installed list refresh', () => once(cli))
+    } catch (error) {
+      // A state write refused (or another host error): report it, never throw.
+      debug(`modmgr: refresh failed: ${String(error)}`)
+      return fail('unavailable', 'the installed list could not be refreshed')
+    }
+  }
+
   const loop = async (): Promise<Result<RefreshSummary>> => {
     let result: Result<RefreshSummary>
     do {
       again = false
-      try {
-        result = await once()
-      } catch (error) {
-        // A state write refused (or another host error): report it, never throw.
-        debug(`modmgr: refresh failed: ${String(error)}`)
-        result = fail('unavailable', 'the installed list could not be refreshed')
-      }
+      result = await attempt(ports)
     } while (again)
     return result
   }
 
   return {
-    refresh() {
+    refresh(via) {
+      if (via !== undefined) return attempt(via)
       if (running !== undefined) {
         again = true
         return running
@@ -239,6 +257,7 @@ export const createRegistry = (
       await ports.state.update('detail', () => detailOf(id))
     },
     entry: id => entries.get(id),
+    detail: id => detailOf(id) ?? undefined,
     facts(id) {
       const found = analysisFor(id)
       if (found === undefined) {

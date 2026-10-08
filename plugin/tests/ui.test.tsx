@@ -531,3 +531,24 @@ const MODS_BARE = {
   origin: { kind: 'composer' },
   presentation: { isFullscreen: false, columns: 80 },
 } as const
+
+test('the first session opens on a word of welcome, once', async ($, on) => {
+  const h = host(on, { store: { prefs: { v: 1, data: { firstRunDone: false } } } })
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const ui = await $.ui.mount({
+    plugin: 'modmgr',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'modmgr',
+    props: PANE(),
+  })
+  expect(await ui.find({ type: 'Text', text: 'modmgr: mods for Claude Code' })).toBeDefined()
+  await ui.press({ key: 'act:start' })
+  await ui.redraw()
+  expect(await ui.find({ key: 'act:start' })).toBeUndefined()
+  expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeDefined()
+  // Said once: the next session doesn't (the store remembers).
+  await h.clock.advance(3000)
+  expect(h.stored('prefs')).toMatchObject({ data: { firstRunDone: true } })
+})

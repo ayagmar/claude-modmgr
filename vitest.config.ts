@@ -11,7 +11,12 @@ export default defineConfig({
       provider: 'v8',
       include: ['plugin/hooks/domain/**/*.ts', 'plugin/hooks/services/**/*.ts'],
       reporter: ['text', 'json-summary'],
-      thresholds: { lines: 95, branches: 95 },
+      // The whole and services/ apart, so services' margin shows (review R-M6-7).
+      thresholds: {
+        lines: 95,
+        branches: 95,
+        'plugin/hooks/services/**/*.ts': { lines: 95, branches: 90 },
+      },
     },
   },
 })

@@ -56,6 +56,13 @@ Code's acceptance check is exactly what modmgr must not do). Project and local s
 project root as the working directory, and the review screen says when a change edits `.claude/settings.json` in your
 repository.
 
+**Text commands.** `/mods install | remove | update | enable | disable | apply` change nothing without `--yes`;
+without it they print the CLI lines they would run. With it they run the same checked jobs as the dialog (the runner's
+own `runJob`), record them in the job log and the history, and never reload. A declared install command is printed whole with its sha256 and runs only when `--accept-command <that sha>`
+is given (the CLI binds the acceptance to that command, F25); modmgr never passes `-y`. `apply <file>` reads the file
+you name (a relative path is under the session's directory, an absolute one is read as given; at most 4 MiB, 100
+entries) and accepts only plugin ids and scopes. A write is refused while another job is running.
+
 **Settings.** modmgr never writes a settings file. Every change goes through `claude plugin …`, which owns those files.
 
 **No `plugin.register` hook.** modmgr doesn't judge or refuse other plugins in v1. (A hook there would make every

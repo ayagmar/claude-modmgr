@@ -11,6 +11,7 @@ import { loggedFailures } from '../domain/health.ts'
 import type { Ports } from '../ports.ts'
 import type { Registry } from './registry.ts'
 import type { StoreService } from './store.ts'
+import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export type HealthPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'clock' | 'session'>
 
@@ -32,6 +33,7 @@ export const createHealth = (
     readonly config: Config
     readonly trafficOff: () => Promise<boolean>
     readonly debug?: (text: string) => void
+    readonly timing?: Timing
   },
 ): Health => {
   const debug = deps.debug ?? (() => {})
@@ -119,7 +121,7 @@ export const createHealth = (
         do {
           again = false
           try {
-            await once()
+            await timed(deps.timing ?? NO_TIMING, 'health facts', once)
           } catch (error) {
             debug(`modmgr: health refresh failed: ${String(error)}`)
           }

@@ -29,6 +29,7 @@ export type StoreService = {
   get<K extends StoreKey>(key: K): StoreData[K]
   /** Replaces a key's data in memory and schedules a batched write. */
   set<K extends StoreKey>(key: K, data: StoreData[K]): void
+  /** Replaces a key's data with what `change` makes of it; the same value back writes nothing. */
   update<K extends StoreKey>(key: K, change: (data: StoreData[K]) => StoreData[K]): void
   /** Writes every changed key now. */
   flush(): Promise<Result<void>>
@@ -148,7 +149,11 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
     },
     get: key => data[key],
     set,
-    update: (key, change) => set(key, change(data[key])),
+    // A change that returns what it was given writes nothing (each write rewrites the file, F16).
+    update: (key, change) => {
+      const next = change(data[key])
+      if (next !== data[key]) set(key, next)
+    },
     flush,
     clearCaches() {
       const empty = emptyStore()

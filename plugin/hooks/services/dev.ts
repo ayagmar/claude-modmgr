@@ -24,6 +24,7 @@ import {
 import { splitPluginId } from '../domain/ids.ts'
 import type { Ports } from '../ports.ts'
 import type { Registry } from './registry.ts'
+import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export type DevPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'session' | 'command' | 'clock'>
 
@@ -46,6 +47,7 @@ export const createDev = (
   ports: DevPorts,
   registry: Pick<Registry, 'isLoaded' | 'refresh' | 'listed'>,
   debug: (text: string) => void = () => {},
+  timing: Timing = NO_TIMING,
 ): Dev => {
   let running: Promise<void> | undefined
   let again = false
@@ -146,7 +148,7 @@ export const createDev = (
     do {
       again = false
       try {
-        await once()
+        await timed(timing, 'dev refresh', once)
       } catch (error) {
         debug(`modmgr: dev refresh failed: ${String(error)}`)
         await ports.state.update('dev', dev => ({ ...dev, loading: false })).catch(() => undefined)
