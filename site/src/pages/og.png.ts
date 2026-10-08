@@ -9,7 +9,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
   <text x="80" y="250" font-family="Inter, DejaVu Sans, sans-serif" font-size="64" font-weight="700" fill="#1d2421">Every mod in your Claude Code,</text>
   <text x="80" y="330" font-family="Inter, DejaVu Sans, sans-serif" font-size="64" font-weight="700" fill="#1d2421">and what it can do.</text>
   <rect x="80" y="400" width="1040" height="120" rx="14" fill="#151a18"/>
-  <text x="120" y="472" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="34" fill="#d9ded6">/plugin install modmgr --marketplace ayagmar/claude-modmgr</text>
+  <text x="120" y="472" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="34" fill="#d9ded6">/plugin install modmgr --marketplace ayagmar/claude-mods</text>
 </svg>`
 
 export const GET: APIRoute = async () => {

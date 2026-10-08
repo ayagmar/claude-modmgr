@@ -8,25 +8,15 @@ const readJson = (path: string): unknown => JSON.parse(readFileSync(join(root, p
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-describe('manifests', () => {
+// The marketplace is ayagmar/claude-mods: this repository holds the plugin only.
+describe('the manifest', () => {
   const plugin = readJson('plugin/.claude-plugin/plugin.json')
-  const marketplace = readJson('.claude-plugin/marketplace.json')
 
-  it('name the plugin modmgr in the marketplace modmgr', () => {
+  it('names the plugin modmgr (its tags are modmgr--v<version>)', () => {
     expect(isRecord(plugin) && plugin.name).toBe('modmgr')
-    expect(isRecord(marketplace) && marketplace.name).toBe('modmgr')
   })
 
-  it('agree on the version (claude plugin tag needs it)', () => {
-    if (!isRecord(plugin) || !isRecord(marketplace) || !Array.isArray(marketplace.plugins)) {
-      throw new Error('unexpected manifest shape')
-    }
-    const entry: unknown = marketplace.plugins.find(p => isRecord(p) && p.name === 'modmgr')
-    expect(isRecord(entry) && entry.source).toBe('./plugin')
-    expect(isRecord(entry) && entry.version).toBe(plugin.version)
-  })
-
-  it('declare the userConfig fields the README documents', () => {
+  it('declares the userConfig fields the README documents', () => {
     const config = isRecord(plugin) ? plugin.userConfig : undefined
     expect(isRecord(config) && Object.keys(config).sort()).toEqual([
       'debugTimings',

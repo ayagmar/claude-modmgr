@@ -63,9 +63,6 @@ jobs:
       - name: Validate the plugin (strict, with modmgr's expected verdicts)
         run: node scripts/validate-plugin.ts
 
-      - name: Validate the marketplace
-        run: claude plugin validate .
-
       - name: Plugin tests (wiring, dispatch rules and UI)
         run: claude plugin test plugin
 
