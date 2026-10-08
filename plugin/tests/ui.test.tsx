@@ -278,7 +278,6 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
   }))
   const h = host(on, { state: { mods: rows, sync: { refreshing: false, at: 1, skipped: 0 } } })
   for (const surface of SURFACES) {
-    const started = Date.now()
     const ui = await $.ui.mount({
       plugin: 'modmgr',
       surface,
@@ -286,11 +285,8 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
       requestId: 'modmgr',
       props: PANE(64, 20),
     })
-    const paint = Date.now() - started
-    // The budget for the first paint is 50 ms (measured 2026-10-07: 37 ms on the
-    // terminal, the module's first draw, and 3 ms on desktop). The bound only
-    // catches a gross regression: a GitHub runner's first paint took 229 ms.
-    expect(paint).toBeLessThan(500)
+    // Not timed: a mount here includes loading the module, and a shared runner's
+    // clock swings from 229 to 623 ms. docs/PERF.md has the draw budget, measured live.
     // A row in the window is drawn whole (its line); every other one stays a
     // hidden Button, so the ring's stops are the same whatever the window shows.
     const lines = async () =>
