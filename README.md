@@ -65,9 +65,9 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                                                       j: jobs  h: keys  esc back
 ```
 
-**Discover** searches every marketplace you have added, mods first. The official catalogues' mods are known at once
-from an index modmgr's CI rebuilds daily; anything else is checked a little at a time while you work, what you're
-looking at first. Installing goes through a review that says what will run and where; a command a marketplace declares is
+**Discover** lists the mods in every marketplace you have added. The official catalogues' mods are known at once
+from an index modmgr's CI rebuilds daily; anything else is checked while you work, search matches first. Installing
+goes through a review that says what will run and where; a command a marketplace declares is
 shown whole, with its sha256, and runs only when you confirm that exact command.
 
 ```

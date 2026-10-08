@@ -7,13 +7,6 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed
-- Discover lists every plugin, mods first, instead of mods only (`k` still narrows to mods or command hooks); a
-  remembered "mods only" from the old default reads as every plugin.
-- The official catalogues' mods are known at once from a catalogue index CI rebuilds daily
-  (`.github/workflows/index.yml`, `scripts/build-index.ts`); the detector probes only what the index didn't give,
-  the entries Discover shows first.
-
 ## [0.1.0] - 2026-10-08
 
 ### Added
@@ -25,9 +18,11 @@ All notable changes to this project are documented here. The format follows
   through a review; undo (`z`) reverses the last batch, reinstalling through a review. After an update, what a mod
   can newly do shows on its row, its detail, the band, the status line and the pane's title until its detail is
   opened.
-- Discover (`2`): every marketplace's catalogue, searchable and sortable, with a detector that finds which entries
-  are mods (local entries read on disk, GitHub entries at their pinned commit, idle-only and within a request
-  budget). Local entries show what they can do before install. Install (`i`) through a review with a scope picker;
+- Discover (`2`): the mods in every marketplace you have added, searchable and sortable. The official catalogues'
+  mods are known at once from a catalogue index CI rebuilds daily (`.github/workflows/index.yml`,
+  `scripts/build-index.ts`); the detector checks the rest (local entries on disk, GitHub entries at their pinned
+  commit, search matches first, idle-only and within a request budget). Local entries show what they can do before
+  install. A command-source entry can't be checked before install: `/mods install` takes it. Install (`i`) through a review with a scope picker;
   a marketplace-declared install command is shown verbatim with its sha256 and accepted only from that review. Add
   a marketplace (`m`).
 - Dev (`3`): the mods this session runs from a folder you edit (`--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`, this
@@ -42,7 +37,9 @@ All notable changes to this project are documented here. The format follows
   version get `↑`. The status line under the prompt says one thing at a time.
 - `/mods` as text for scripts and `-p` runs: `list`, `info`, `doctor [--json]`, `export`, and `install`, `remove`,
   `update`, `enable`, `disable`, `apply <file>`, which need `--yes` and say how to apply what they changed.
-- A welcome on the first run; the tab, sort and filter kind are remembered between sessions.
+- The dialog fills its room with the keys of the moment in a footer pinned to the bottom; from 80 columns the
+  selected entry's detail sits beside the list with its own keys, and a docked dialog asks for 96 columns.
+- A welcome on the first run; the tab and sort are remembered between sessions.
 - `debugTimings` writes how long each step took to the debug log; `docs/PERF.md` has the measurements.
 - A landing page (`site/`): the install line, the dialog as it draws, what modmgr calls out, the keys, and answers
   about network use and safety.
