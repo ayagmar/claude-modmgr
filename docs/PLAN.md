@@ -972,3 +972,29 @@ Pushes and GitHub actions still need the person's go-ahead.
   its own lines always); degraded: a missing CLI makes every tab and every text write read-only with the reason,
   network off limits Discover to local catalogues and turns update checks off (Health says why), a refused
   declared-command acceptance offers the terminal command (C4).
+
+**C17. The landing page (M7, applied 2026-10-08).**
+- **Stack and versions** (checked on npm 2026-10-08): `astro` stays 7.3.6 (7.3.7 is under pnpm's one-day minimum
+  release age), `@astrojs/sitemap` 3.7.4, `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono` 5.3.0
+  (self-hosted, split by `unicode-range`, so a visit loads only the subsets it draws), `sharp` 0.35.5 (already
+  Astro's) to draw the OG image at build (`site/src/pages/og.png.ts`, from an SVG: no image checked in). No client
+  framework; two small inline scripts (copy, theme toggle) whose buttons stay hidden without script.
+- **The demo can't drift (R23)**: `test/demo/demo.test.ts` draws five frames (Installed with an update that added a
+  capability, that mod's detail, Discover, an install review, Health) with the real `ui/Pane.tsx` over the fixture
+  world through the real actions, renders the tree to styled text (`test/demo/render.ts`, enough of Ink's layout for
+  modmgr's views), and fails unless `site/src/data/demo.ts` matches (`pnpm demo` writes it). It is a vitest file, not
+  `scripts/render-demo.ts`: the plugin's TSX needs a compile step, which vitest has. The Discover frame shows entries
+  not yet checked (`?`), as a first visit does: claiming which real catalogue entries are mods would mislead.
+- **Design**: the hero is the dialog itself beside the install line; the frames switch on a press (a radio group, no
+  script), not on a timer (PLAN §8 said "cycling": nothing on the page moves unless asked, which also settles reduced
+  motion). Sage paper, ink and a pine accent; Claude Code's own theme colours inside the terminal; light and dark from
+  the system or the toggle. The keymap table is generated from `domain/keymap.ts`, the notable list from
+  `domain/capabilities.ts`, the minimum version from `domain/version.ts`.
+- **Quality bar**: Lighthouse 100 for performance, accessibility, best practices and SEO (local, Chromium 1243);
+  `index.html` 44 KB (11 KB gzipped) and 0.3 KB of other assets, fonts aside; works without script; no horizontal
+  scroll at 320 px (the terminal scrolls inside itself); sitemap and robots; focus-visible; landmarks. CI runs
+  `scripts/check-site.ts` (internal links resolve, a first visit under 100 KB) and Lighthouse CI
+  (`@lhci/cli` 0.15.1, the build served under `/modmgr/`, every category at 1). Not done: an external link checker
+  (the page links only to the repository).
+- **Deploy**: `.github/workflows/pages.yml` builds and deploys to GitHub Pages from `main`. It runs only once the
+  repository is pushed and Pages is enabled, which waits for the person's go-ahead.
