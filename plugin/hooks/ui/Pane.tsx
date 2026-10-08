@@ -1,6 +1,7 @@
 // The `/mods` dialog: the tabs and a line about the tab, the search field, the
 // tab's list (with the detail beside it from SPLIT_MIN_COLUMNS body columns),
-// the overlay on top, and a footer with the main keys of the moment. It fills
+// the overlay on top, a line under the list for what is staged and the pager,
+// and a footer with the main keys of the moment. It fills
 // `scroll.bodyRows`: the list is windowed and a taller overlay is clipped (the
 // detail draws compactly), so the header and footer never scroll away.
 // Everything drawn comes from `$.state`.
@@ -9,7 +10,7 @@ import type { RenderElement, UiPressArgument } from 'claude-code'
 import type { Overlay, View } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
 import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
-import { healthItemsOf, problemCount } from '../domain/health.ts'
+import { healthItemsOf, healthLines, problemCount } from '../domain/health.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
@@ -115,7 +116,10 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const status = batchLineOf(queue, attention.lastReload !== undefined)
   const terminal = v.surface === 'terminal'
   const listColumns = layout === 'split' ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
-  const showList = layout === 'split' || top === undefined
+  // Help, the job log and the welcome are about the whole dialog: they take the
+  // whole body (beside the list, the welcome's key would lose the ring to a row).
+  const wide = top === 'help' || top === 'jobs' || top === 'welcome'
+  const showList = (layout === 'split' && !wide) || top === undefined
 
   // Installed: rows, the selection, what is staged.
   const rows = filterRows(mods, view.query)
@@ -252,26 +256,32 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     2 +
     (warning === undefined ? 0 : 1) +
     (fieldShown ? (boxedField ? 3 : 1) : 0) +
-    (showStaged ? 1 : 0) +
     (view.notice === undefined ? 0 : 1) +
     (status === undefined ? 0 : 1) +
     1 +
     footerRows
-  const listRows = Math.max(3, frame.bodyRows - chrome)
+  // Under the list, one line holds what is staged and the pager. The pager's
+  // keys come after the field in the Tab ring: drawn above it, their coming
+  // and going as the search narrows moved the ring off the field.
+  const fullRows = health
+    ? items.length + new Set(items.map(each => each.group)).size
+    : dev
+      ? devState.rows.length
+      : discover
+        ? page.matched * 2
+        : rows.length
+  const paging = showList && fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
+  const underList = showStaged || paging
+  const listRows = Math.max(3, frame.bodyRows - chrome - (underList ? 1 : 0))
 
   // The list, windowed around the selection, and its pager.
   let list: RenderElement
   let pager: string | undefined
   if (health) {
-    const window = windowAround(
-      items.length,
-      item === undefined ? 0 : items.indexOf(item),
-      listRows,
-    )
-    pager = pagerLabel(window, items.length)
-    list = HealthList(v, items, {
+    const shown = healthLines(items, item === undefined ? 0 : items.indexOf(item), listRows)
+    pager = pagerLabel(shown.items, items.length)
+    list = HealthList(v, shown.lines, {
       columns: listColumns,
-      window,
       focusKey: item?.key,
       stacked: !split,
     })
@@ -288,10 +298,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       beside: split,
     })
   } else if (discover) {
-    // Stacked, each entry takes two rows: its name, then what it says it does.
-    const twoLine = !split
+    // Each entry takes two rows: its name, then what it says it does.
     const at = found === undefined ? 0 : page.rows.indexOf(found)
-    const window = windowAround(page.rows.length, at, twoLine ? Math.floor(listRows / 2) : listRows)
+    const window = windowAround(page.rows.length, at, Math.floor(listRows / 2))
     list = FoundList(v, page, {
       view,
       columns: listColumns,
@@ -299,7 +308,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       focusId: found?.id,
       networkOff: degraded.network,
       checking: detect.running,
-      twoLine,
+      twoLine: true,
+      beside: split,
     })
     pager =
       page.matched > window.end - window.start
@@ -372,11 +382,14 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     readOnly,
     rows: listRows,
   }
+  // Beside the list: what the list, the divider and their gaps leave.
+  const detailColumns = split ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns
+  const sized = { readOnly, rows: listRows, columns: detailColumns }
   const detailView = () =>
     discover
-      ? FoundDetail(v, found, { readOnly })
+      ? FoundDetail(v, found, sized)
       : dev
-        ? DevDetail(v, devRow, { ...devHow, readOnly })
+        ? DevDetail(v, devRow, { ...devHow, ...sized })
         : health
           ? HealthItemDetail(v, item)
           : Detail(v, detailHow)
@@ -391,15 +404,15 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           : which === 'share'
             ? shareRows(devState.share, frame.bodyColumns)
             : which === 'welcome'
-              ? welcomeRows
+              ? welcomeRows(frame.bodyColumns)
               : which === 'detail'
                 ? discover
-                  ? foundDetailRows(found)
+                  ? foundDetailRows(v, found, sized)
                   : dev
-                    ? devDetailRows(devRow, devHow, frame.bodyColumns)
+                    ? devDetailRows(v, devRow, { ...devHow, ...sized })
                     : health
                       ? healthDetailRows(item, frame.bodyColumns)
-                      : detailRows(detailHow)
+                      : detailRows(v, detailHow)
                 : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
@@ -413,8 +426,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       </Box>
     )
 
-  // Help and the job log are about the whole dialog: they take the whole body.
-  const wide = top === 'help' || top === 'jobs'
   const body =
     split && !wide ? (
       // Clipped to the list's rows, so the header and footer stay in view; the
@@ -550,35 +561,10 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             : null}
         </Box>
       </Box>
-      <Box flexDirection="row" justifyContent="space-between" columnGap={2} height={1}>
-        <Box flexShrink={1} overflow="hidden">
-          <Text dimColor wrap="truncate-end">
-            {meta}
-          </Text>
-        </Box>
-        {showList && pager !== undefined ? (
-          <Box flexDirection="row" columnGap={2} flexShrink={0}>
-            <Text dimColor>{pager}</Text>
-            {top === undefined
-              ? KeyButton(v, {
-                  action: 'page.first',
-                  on: surface,
-                  label: 'first',
-                  dim: true,
-                  onPress: () => v.act.edge('first'),
-                })
-              : null}
-            {top === undefined
-              ? KeyButton(v, {
-                  action: 'page.last',
-                  on: surface,
-                  label: 'last',
-                  dim: true,
-                  onPress: () => v.act.edge('last'),
-                })
-              : null}
-          </Box>
-        ) : null}
+      <Box height={1} overflow="hidden">
+        <Text dimColor wrap="truncate-end">
+          {meta}
+        </Text>
       </Box>
       {warning === undefined ? null : (
         <Text color={TONE.warn} wrap="truncate-end">
@@ -595,17 +581,46 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       <Box flexDirection="column" flexGrow={1}>
         {body}
       </Box>
-      {showStaged ? (
-        <Box flexDirection="row" gap={2}>
-          <Text color={TONE.warn}>
-            {staged} staged {staged === 1 ? 'change' : 'changes'}
-          </Text>
-          {KeyButton(v, {
-            action: 'apply',
-            on: 'installed',
-            label: 'review and apply',
-            onPress: () => v.act.apply(),
-          })}
+      {underList ? (
+        <Box flexDirection="row" justifyContent="space-between" columnGap={2} height={1}>
+          <Box flexDirection="row" gap={2} flexShrink={1} overflow="hidden">
+            {showStaged ? (
+              <Text color={TONE.warn}>
+                {staged} staged {staged === 1 ? 'change' : 'changes'}
+              </Text>
+            ) : null}
+            {showStaged
+              ? KeyButton(v, {
+                  action: 'apply',
+                  on: 'installed',
+                  label: 'review and apply',
+                  onPress: () => v.act.apply(),
+                })
+              : null}
+          </Box>
+          {paging && pager !== undefined ? (
+            <Box flexDirection="row" columnGap={2} flexShrink={0}>
+              <Text dimColor>{pager}</Text>
+              {top === undefined
+                ? KeyButton(v, {
+                    action: 'page.first',
+                    on: surface,
+                    label: 'first',
+                    dim: true,
+                    onPress: () => v.act.edge('first'),
+                  })
+                : null}
+              {top === undefined
+                ? KeyButton(v, {
+                    action: 'page.last',
+                    on: surface,
+                    label: 'last',
+                    dim: true,
+                    onPress: () => v.act.edge('last'),
+                  })
+                : null}
+            </Box>
+          ) : null}
         </Box>
       ) : null}
       {view.notice === undefined ? null : (

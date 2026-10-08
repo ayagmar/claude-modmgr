@@ -313,6 +313,47 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
   }
 })
 
+test('typing in the filter keeps the keys before it, so the ring stays on the field', async ($, on) => {
+  const rows = Array.from({ length: 60 }, (_, i) => ({
+    id: `mod-${String(i).padStart(2, '0')}@m`,
+    name: `mod-${String(i).padStart(2, '0')}`,
+    version: '1.0.0',
+    origin: 'marketplace',
+    scope: 'user',
+    enabled: true,
+    toggleable: true,
+    notableCount: 0,
+    problems: 0,
+    mixed: false,
+  }))
+  const h = host(on, { state: { mods: rows, sync: { refreshing: false, at: 1, skipped: 0 } } })
+  const ui = await $.ui.mount({
+    plugin: 'modmgr',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'modmgr',
+    props: PANE(96, 20),
+  })
+  // The terminal's ring walks the keys in the order drawn, by position: a key
+  // drawn before the field as the rows narrow moves the ring off it.
+  const before = async () => {
+    const keys = (await ui.findAll({}))
+      .filter(found => found.type === 'Button' || found.type === 'Input')
+      .map(found => found.key)
+    return keys.slice(0, keys.indexOf('filter'))
+  }
+  const paging = await before()
+  expect(await ui.find({ type: 'Text', text: /^1–\d+ of 60$/ })).toBeDefined()
+  const keys = (await ui.findAll({})).map(found => found.key)
+  expect(keys.indexOf('act:page.first')).toBeGreaterThan(keys.indexOf('filter'))
+  await ui.input({ key: 'filter', text: 'mod-59', kind: 'change' })
+  await ui.redraw()
+  expect(await ui.find({ type: 'Text', text: /of 60$/ })).toBeUndefined()
+  expect(await before()).toEqual(paging)
+  expect(h.read('view')).toMatchObject({ query: 'mod-59' })
+  await ui.unmount()
+})
+
 test('the band says a reload waits for the turn, and hides once dismissed', async ($, on) => {
   const h = host(on, {
     state: {

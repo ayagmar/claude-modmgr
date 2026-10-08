@@ -140,6 +140,9 @@ const reviewLines = (
     },
   ]
   const push = (el: RenderElement, text: string) => lines.push({ el, text })
+  // A blank row between the keys, what changes, what it means, and what runs.
+  const gap = () => push(<Text> </Text>, '')
+  gap()
   const scoped = review.targets[0]?.scope
   // The scope is chosen here; a declared command's sha is bound to the
   // install it was shown for, so that review keeps its scope.
@@ -181,6 +184,7 @@ const reviewLines = (
       `x ${verb.padEnd(9)} ${name(target.id)} ${meta}`,
     )
   }
+  gap()
   const say = (text: string, tone?: string) =>
     push(tone === undefined ? <Text>{text}</Text> : <Text color={tone}>{text}</Text>, text)
   if (review.notable.length > 0) {
@@ -285,6 +289,7 @@ const reviewLines = (
     say('Changes .claude/settings.json in this repository.', TONE.warn)
   }
   if (review.action !== 'marketplace') say('Takes effect after the reload modmgr runs.')
+  gap()
   push(<Text dimColor>Runs</Text>, 'Runs')
   for (const spec of specsOf(review)) {
     const line = commandLine(spec)
@@ -348,26 +353,40 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
   )
 }
 
-/** What the first session's dialog says first. */
-const WELCOME = [
-  'See what each mod can do before it runs.',
-  'Find mods across your marketplaces.',
-  'Toggle, update and remove them safely, with undo.',
+/** What the first session's dialog says first: what modmgr is, then each tab. */
+const WELCOME_INTRO =
+  'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, and changes them safely, with undo.'
+const WELCOME_TABS = [
+  ['1', 'Installed', 'what you have: toggle, update and remove'],
+  ['2', 'Discover', 'the mods your marketplaces offer'],
+  ['3', 'Dev', 'the mods you are writing: validate, test, share'],
+  ['4', 'Health', 'what needs you, each with a fix'],
 ] as const
 
-/** The rows the welcome draws: its heading, the three lines, its key. */
-export const welcomeRows = 2 + WELCOME.length
+/** The rows the welcome draws at `columns`: heading, intro, the tabs, its key, blank rows between. */
+export const welcomeRows = (columns: number): number =>
+  1 + 1 + wrappedRows([WELCOME_INTRO], columns) + 1 + WELCOME_TABS.length + 1 + 1
 
 export const Welcome = (v: ViewPorts): RenderElement => {
   const { Box, Button, Text } = v.el
   return (
     <Box flexDirection="column">
       {Heading(v, 'modmgr: mods for Claude Code')}
-      {WELCOME.map(line => (
-        <Text key={line}>
-          {GLYPH.notable} {line}
-        </Text>
+      <Text> </Text>
+      <Text>{WELCOME_INTRO}</Text>
+      <Text> </Text>
+      {WELCOME_TABS.map(([key, tab, what]) => (
+        <Box key={`welcome:${tab}`} flexDirection="row" gap={1}>
+          <Text color={TONE.accent}>{key}</Text>
+          <Box width={10} flexShrink={0}>
+            <Text bold>{tab}</Text>
+          </Box>
+          <Text dimColor wrap="truncate-end">
+            {what}
+          </Text>
+        </Box>
       ))}
+      <Text> </Text>
       {/* Pushed at start-up, not by a press: the ring starts here by itself. */}
       <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
     </Box>
@@ -378,19 +397,37 @@ export const Welcome = (v: ViewPorts): RenderElement => {
 const HELP_COLUMN = 36
 const HELP_NOTE = 'Changes are staged with e and applied together with s; z undoes the last batch.'
 
-/** How many columns of keys fit across `columns`. */
-const helpColumns = (columns: number): number =>
-  Math.max(1, Math.floor((columns + 2) / (HELP_COLUMN + 2)))
+type HelpRow = { readonly key: string; readonly label: string }
 
-/** The rows help draws at `columns`: its heading, the keys in columns, the closing note. */
+/** Help's two groups: the keys that move (the engine's and the tabs'), then the actions. */
+const helpGroups = (
+  surfaces: readonly KeySurface[],
+  hidden: ReadonlySet<string>,
+): { readonly move: HelpRow[]; readonly act: HelpRow[] } => {
+  const rows = helpFor(surfaces, hidden)
+  const acts = (row: HelpRow) => /^[a-z]$/.test(row.key)
+  return { move: rows.filter(row => !acts(row)), act: rows.filter(acts) }
+}
+
+/** The groups sit side by side when two columns fit. */
+const helpSideBySide = (columns: number): boolean => columns >= 2 * HELP_COLUMN + 2
+/** The staging note concerns Installed alone. */
+const helpNote = (surfaces: readonly KeySurface[]): string | undefined =>
+  surfaces.includes('installed') ? HELP_NOTE : undefined
+
+/** The rows help draws at `columns`: its heading, the groups, the note, blank rows between. */
 export const helpRows = (
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string>,
   columns: number,
-): number =>
-  1 +
-  Math.ceil(helpFor(surfaces, hidden).length / helpColumns(columns)) +
-  wrappedRows([HELP_NOTE], columns)
+): number => {
+  const { move, act } = helpGroups(surfaces, hidden)
+  const note = helpNote(surfaces)
+  const groups = helpSideBySide(columns)
+    ? 1 + Math.max(move.length, act.length)
+    : 2 + move.length + 1 + act.length
+  return 2 + groups + (note === undefined ? 0 : 1 + wrappedRows([note], columns))
+}
 
 export const Help = (
   v: ViewPorts,
@@ -399,27 +436,33 @@ export const Help = (
   columns: number,
 ): RenderElement => {
   const { Box, Text } = v.el
-  const rows = helpFor(surfaces, hidden)
-  const across = helpColumns(columns)
-  const down = Math.ceil(rows.length / across)
+  const { move, act } = helpGroups(surfaces, hidden)
+  const note = helpNote(surfaces)
+  const group = (title: string, rows: readonly HelpRow[]) => (
+    <Box key={`keys:${title}`} flexDirection="column" width={HELP_COLUMN} flexShrink={0}>
+      <Text bold>{title}</Text>
+      {rows.map(row => (
+        <Box flexDirection="row" gap={1}>
+          <Box width={7} flexShrink={0}>
+            <Text color={TONE.accent}>{row.key}</Text>
+          </Box>
+          <Text wrap="truncate-end">{row.label}</Text>
+        </Box>
+      ))}
+    </Box>
+  )
+  const side = helpSideBySide(columns)
   return (
     <Box flexDirection="column">
       {Heading(v, 'Keys')}
-      <Box flexDirection="row" columnGap={2}>
-        {Array.from({ length: across }, (_, column) => (
-          <Box key={`keys:${column}`} flexDirection="column" width={HELP_COLUMN} flexShrink={0}>
-            {rows.slice(column * down, (column + 1) * down).map(row => (
-              <Box flexDirection="row" gap={1}>
-                <Box width={7} flexShrink={0}>
-                  <Text color={TONE.accent}>{row.key}</Text>
-                </Box>
-                <Text wrap="truncate-end">{row.label}</Text>
-              </Box>
-            ))}
-          </Box>
-        ))}
+      <Text> </Text>
+      <Box flexDirection={side ? 'row' : 'column'} columnGap={2}>
+        {group('Move', move)}
+        {side ? null : <Text> </Text>}
+        {group('Actions', act)}
       </Box>
-      <Text dimColor>{HELP_NOTE}</Text>
+      {note === undefined ? null : <Text> </Text>}
+      {note === undefined ? null : <Text dimColor>{note}</Text>}
     </Box>
   )
 }

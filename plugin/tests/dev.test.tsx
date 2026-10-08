@@ -59,13 +59,13 @@ for (const surface of SURFACES) {
 
     await ui.press({ key: `dev:${TURN_BAND}` })
     await ui.redraw()
-    expect(await ui.find({ type: 'Text', text: 'Not validated yet (v).' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'not run yet (v)' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: TURN_BAND })).toBeDefined()
     await ui.press({ key: 'act:validate' })
     await settle(h)
     await ui.redraw()
     expect(h.argvs).toContain(`plugin validate --json --strict ${TURN_BAND}`)
-    expect(await ui.find({ type: 'Text', text: 'Validate: ✓ valid' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '✓ valid' })).toBeDefined()
     // Validating needs no reload.
     expect(h.reloads()).toBe(0)
     await ui.unmount()

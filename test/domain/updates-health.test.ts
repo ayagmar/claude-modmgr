@@ -6,8 +6,10 @@ import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
 import {
   agoLabel,
   type HealthInput,
+  type HealthItem,
   healthItemsOf,
   healthKey,
+  healthLines,
   healthOfKey,
   loadStates,
   loggedFailures,
@@ -320,6 +322,52 @@ describe('Health’s items', () => {
       redactor: 'session.append (Error)',
     })
     expect(loggedFailures('')).toEqual({})
+  })
+})
+
+describe('Health’s list rows', () => {
+  const item = (group: string, key: string): HealthItem => ({
+    key,
+    group,
+    tone: 'info',
+    text: key,
+  })
+  const items = [
+    item('a', 'a1'),
+    item('a', 'a2'),
+    item('b', 'b1'),
+    item('modmgr', 'm1'),
+    item('modmgr', 'm2'),
+    item('modmgr', 'm3'),
+  ]
+  const shown = (lines: ReturnType<typeof healthLines>['lines']) =>
+    lines.map(line => (line.kind === 'group' ? `[${line.group}]` : line.item.key))
+
+  it('names each group on a row of its own above its items', () => {
+    const all = healthLines(items, 0, 20)
+    expect(shown(all.lines)).toEqual(['[a]', 'a1', 'a2', '[b]', 'b1', '[modmgr]', 'm1', 'm2', 'm3'])
+    expect(all.items).toEqual({ start: 0, end: 6 })
+  })
+
+  it('names the group again when the window starts inside it, and keeps the selection', () => {
+    const end = healthLines(items, 5, 4)
+    expect(shown(end.lines)).toEqual(['[modmgr]', 'm1', 'm2', 'm3'])
+    expect(end.items).toEqual({ start: 3, end: 6 })
+    const inside = healthLines(items, 1, 3)
+    expect(shown(inside.lines)).toContain('a2')
+    expect(inside.lines[0]).toEqual({ kind: 'group', group: 'a' })
+    expect(inside.lines.length).toBeLessThanOrEqual(3)
+  })
+
+  it('never ends on a group with none of its items shown', () => {
+    for (let at = 0; at < items.length; at += 1) {
+      for (const rows of [2, 3, 4, 5]) {
+        const { lines } = healthLines(items, at, rows)
+        expect(lines.at(-1)?.kind).toBe('item')
+        expect(lines.length).toBeLessThanOrEqual(rows)
+        expect(shown(lines)).toContain(items[at]?.key)
+      }
+    }
   })
 })
 
