@@ -14,7 +14,7 @@
     "typecheck": "tsc -p plugin --noEmit && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "validate": "node scripts/validate-plugin.ts && CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin validate .",
+    "validate": "node scripts/validate-plugin.ts",
     "test:plugin": "CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin test plugin",
     "explanations": "node scripts/gen-explanations.ts",
     "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin",

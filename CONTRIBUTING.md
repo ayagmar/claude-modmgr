@@ -30,7 +30,7 @@ Run before every push; CI runs the same steps.
 pnpm biome ci .
 pnpm tsc -p plugin --noEmit && pnpm tsc -p tsconfig.json --noEmit
 pnpm vitest run --coverage   # domain + services, ≥ 95 % lines and branches
-pnpm validate                # validate --strict with modmgr's expected verdicts, then the marketplace
+pnpm validate                # validate --strict with modmgr's expected verdicts
 pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on surfaces
 ```
 
@@ -79,10 +79,11 @@ pnpm --filter modmgr-site dev
 ## Releasing
 
 1. Move `CHANGELOG.md`'s `[Unreleased]` entries under `## [x.y.z] - <date>`.
-2. Set the same `version` in `plugin/.claude-plugin/plugin.json` and the marketplace entry in
-   `.claude-plugin/marketplace.json` (a test checks they agree), and commit.
+2. Set the `version` in `plugin/.claude-plugin/plugin.json`, and commit.
 3. `claude plugin tag plugin --dry-run`, then `claude plugin tag plugin --push`: the tag is `modmgr--v<version>`.
 4. The tag runs `.github/workflows/release.yml`: the gate again, then a GitHub release with that CHANGELOG section.
+5. In the marketplace, [ayagmar/claude-mods](https://github.com/ayagmar/claude-mods), set modmgr's `ref` to the new
+   tag: installs and updates follow it, never `main`.
 
 The repository protects `main` and `modmgr--v*` tags with a ruleset that GitHub Actions can't bypass, so a workflow's
 token can push only where it is meant to (the index workflow to `catalog-index`).
