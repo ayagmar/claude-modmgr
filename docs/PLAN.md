@@ -882,6 +882,12 @@ Pushes and GitHub actions still need the person's go-ahead.
   it.
 - **Shape:** `view` gained `health` (the selection; additive), the store `updates` key, the `health` state key.
   `Actions.fix(key)` runs a fix; the actions object is named so a fix can call the others.
+- **Found in the live check** (inline at 120 and 64 columns, an isolated config with the official marketplace): an
+  item's label wrapped onto several rows, breaking the one-row-per-item window (now clipped to a row; the split shows
+  it whole), and a detector that hadn't run read "0 of 0 checked" (now "not run yet; it starts when Discover opens").
+  The first timed check ran a minute after start-up and "check now" answered. A local folder or bare repository can
+  only be a folder marketplace (no updates by design) and a git source needs a network host, so update detection
+  end to end is proven in vitest over the CLI's real output shapes, not live.
 - **Tests:** `test/domain/m5b.test.ts` (detection rules, due times, the store key, Health's items with seeded problems
   and modmgr's own, the debug log's lines, the one-clause status line), `test/services/m5b.test.ts` (the first check
   after a minute and the next a period later, idle-only with a subagent, both off switches, re-armed by a reloaded

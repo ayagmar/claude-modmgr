@@ -269,6 +269,12 @@ describe('Health’s items (PLAN §2.5)', () => {
       'detector: 120 of 3,545 checked, 3 mods found, 560 requests left this session',
     )
     expect(texts({})).toContain('cache: 2 KB')
+    const fresh = healthItemsOf(
+      input({ detect: { checked: 0, total: 0, found: 0, running: false } }),
+    )
+    expect(fresh.map(item => item.text)).toContain(
+      'detector: not run yet; it starts when Discover opens',
+    )
     // A reload already queued is not owed.
     const queued = healthItemsOf(
       input({

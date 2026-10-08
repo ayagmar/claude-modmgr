@@ -221,9 +221,12 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   own({
     key: 'own:detector',
     tone: 'info',
-    text: facts.detector.remote
-      ? `detector: ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${detect.found} mods found, ${left} requests left this session`
-      : `detector: local catalogues only (${facts.detector.why ?? 'remote checks are off'}); ${detect.found} mods found`,
+    text:
+      detect.total === 0
+        ? 'detector: not run yet; it starts when Discover opens'
+        : facts.detector.remote
+          ? `detector: ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${detect.found} mods found, ${left} requests left this session`
+          : `detector: local catalogues only (${facts.detector.why ?? 'remote checks are off'}); ${detect.found} mods found`,
   })
   if (!facts.cache.full) {
     own({

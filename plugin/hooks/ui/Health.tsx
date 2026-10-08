@@ -33,7 +33,8 @@ export const HealthLine = (
           {how.first ? item.group : ''}
         </Text>
       </Box>
-      <Box width={text} flexShrink={1} overflow="hidden">
+      {/* One row per item (the window counts them): the split's detail has the whole text. */}
+      <Box width={text} height={1} flexShrink={1} overflow="hidden">
         <Button
           key={healthKey(item.key)}
           plain
