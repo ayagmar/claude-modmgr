@@ -97,6 +97,7 @@ describe('the catalogue', () => {
     expect(w.state.values.view.search).toBe('aws')
     expect(w.state.values.catalogPage.rows.map(row => row.id)).toContain(AWS)
     await act.filter('')
+    await act.cycleSort() // installs → name
     await act.cycleSort() // name → marketplace
     expect(w.state.values.view.sort).toBe('marketplace')
     await act.edge('last')

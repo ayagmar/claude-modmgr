@@ -194,6 +194,13 @@ export const foundOfKey = (key: string | undefined): string | undefined =>
 export const foundRow = (view: View, page: CatalogPage): CatalogRow | undefined =>
   page.rows.find(row => row.id === view.found) ?? page.rows[0]
 
+/** What the sort key says: installs, then stars for community mods. */
+export const SORT_LABEL: Readonly<Record<View['sort'], string>> = {
+  installs: 'popularity',
+  name: 'name',
+  marketplace: 'source',
+}
+
 /** The next sort (`o`): installs → name → marketplace. */
 export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'

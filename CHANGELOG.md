@@ -14,6 +14,10 @@ All notable changes to this project are documented here. The format follows
   shown before you install it. One whose repository has a marketplace installs from it, the review saying the
   marketplace is added to your user settings first; one without offers its link (`c`).
 
+### Changed
+- Discover sorts by popularity by default (installs for your marketplaces' entries, then stars for community mods);
+  the sort key says "popularity", "name" or "source".
+
 ## [0.1.1] - 2026-10-08
 
 ### Fixed

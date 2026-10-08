@@ -34,14 +34,14 @@ describe('preferences', () => {
     await rt.store.flush()
     expect(w.store.data.get('prefs')).toEqual({
       v: 1,
-      data: { tab: 'discover', sort: 'marketplace', firstRunDone: true },
+      data: { tab: 'discover', sort: 'name', firstRunDone: true },
     })
     // The next session opens where this one was.
     const next = await setup(Object.fromEntries(w.store.data))
     await background(next.rt, { fresh: true })
     expect(next.w.state.values.view).toMatchObject({
       tab: 'discover',
-      sort: 'marketplace',
+      sort: 'name',
     })
   })
 })

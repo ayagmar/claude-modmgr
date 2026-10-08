@@ -36,7 +36,7 @@ describe('store.load', () => {
     await first
     expect(store.get('prefs')).toEqual({
       tab: 'installed',
-      sort: 'name',
+      sort: 'installs',
       firstRunDone: false,
     })
     expect(store.bytes()).toBeGreaterThan(0)

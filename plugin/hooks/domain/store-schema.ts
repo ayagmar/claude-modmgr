@@ -106,7 +106,7 @@ export const HARD_BUDGET = 3 * MiB
 
 export const DEFAULT_PREFS: Prefs = {
   tab: 'installed',
-  sort: 'name',
+  sort: 'installs',
   firstRunDone: false,
 }
 

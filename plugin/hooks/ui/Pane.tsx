@@ -9,7 +9,13 @@
 import type { RenderElement, UiPressArgument } from 'claude-code'
 import type { Overlay, View } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
-import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
+import {
+  awaitingAcceptance,
+  detectLine,
+  foundRow,
+  nextSort,
+  SORT_LABEL,
+} from '../domain/discover.ts'
 import { healthItemsOf, healthLines, problemCount } from '../domain/health.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
@@ -194,7 +200,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     // It says what pressing it does next.
     add({
       action: 'sort',
-      label: `sort by ${nextSort(view.sort)}`,
+      label: `sort by ${SORT_LABEL[nextSort(view.sort)]}`,
       onPress: () => v.act.cycleSort(),
     })
     if (!readOnly)

@@ -130,7 +130,7 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
     5 enabled                          │
     updates checked never, every 6 ho… │
     detector: 5 mods found; 205 of 20… │
-    cache: 181 B                       │
+    cache: 185 B                       │
     A hook that fails is logged only … │
                                        │
                                        │

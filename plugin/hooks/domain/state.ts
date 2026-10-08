@@ -55,7 +55,7 @@ export const INITIAL_VIEW: View = {
   stack: [],
   query: '',
   search: '',
-  sort: 'name',
+  sort: 'installs',
   staged: {},
 }
 

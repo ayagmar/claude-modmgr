@@ -368,7 +368,7 @@ const WELCOME_INTRO =
   'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, and changes them safely, with undo.'
 const WELCOME_TABS = [
   ['1', 'Installed', 'what you have: toggle, update and remove'],
-  ['2', 'Discover', 'the mods your marketplaces offer'],
+  ['2', 'Discover', 'mods from your marketplaces and all of GitHub'],
   ['3', 'Dev', 'the mods you are writing: validate, test, share'],
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const
