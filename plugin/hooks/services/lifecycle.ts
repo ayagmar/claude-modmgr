@@ -6,9 +6,10 @@
 // timer. It runs again when modmgr's own module reloads (F31), so every step is
 // idempotent.
 
-import { takeOver } from '../domain/jobs.ts'
+import { RELOADED_WITH_MODMGR, takeOver, tookOverReload } from '../domain/jobs.ts'
 import { readPrefs } from '../domain/store-schema.ts'
 import { probeAndRecord } from './capability-probe.ts'
+import { echoLine } from './job-runner.ts'
 import type { Runtime } from './runtime.ts'
 
 export const MODS_DESCRIPTION = 'Discover, inspect, toggle and update mods'
@@ -18,10 +19,19 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
   await ports.command.registerMods()
   const now = await ports.clock.now()
   let fresh = false
+  let reloaded = false
   await ports.state.update('queue', queue => {
     fresh = queue.owner === ''
-    return takeOver(queue, rt.owner, now)
+    const next = takeOver(queue, rt.owner, now)
+    reloaded = tookOverReload(queue, next)
+    return next
   })
+  // The reload that restarted this module applied what the batch changed (F54).
+  if (reloaded) {
+    await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
+    // Said for a while, as the runner's own echo is (review R-M4-4).
+    await echoLine(ports, RELOADED_WITH_MODMGR)
+  }
   ports.clock.after(0, () => {
     void background(rt, { fresh })
   })
@@ -51,8 +61,36 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     if (!probe.process) {
       await rt.registry.refresh()
       rt.runner.kick()
+      // A reloaded modmgr with Discover showing reads its catalogue again (module memory).
+      if ((await ports.state.read('view')).tab === 'discover') {
+        await rt.catalog.load()
+        await rt.catalog.show()
+        rt.detector.start()
+      }
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)
   }
+}
+
+/**
+ * The turns running now, by id (review R-M4-2): a subagent's run raises no
+ * `turn.start` and its `turn.complete` carries `agentId` (d.ts TurnCompleteFields),
+ * so only the main loop's own start and end count. The detector probes, and
+ * M5b's scheduler fetches, only while none runs (PLAN §2.3, idle-only).
+ */
+export const onTurnStart = (rt: Runtime | undefined, turnId: string): void => {
+  if (rt === undefined) return
+  rt.turns.add(turnId)
+  rt.detector.setBusy(true)
+}
+
+export const onTurnEnd = (
+  rt: Runtime | undefined,
+  turnId: string,
+  agentId: string | undefined,
+): void => {
+  if (rt === undefined || agentId !== undefined) return
+  rt.turns.delete(turnId)
+  rt.detector.setBusy(rt.turns.size > 0)
 }

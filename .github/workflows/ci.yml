@@ -14,7 +14,7 @@ concurrency:
 
 env:
   # The Claude Code build modmgr is pinned to (vendor/claude-code-types/<version>).
-  CLAUDE_CODE_VERSION: 2.1.292
+  CLAUDE_CODE_VERSION: 2.1.293
   # No telemetry or non-essential traffic from the CLI in CI.
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
   DISABLE_AUTOUPDATER: '1'

@@ -61,6 +61,15 @@ export type CatalogRow = {
   installs?: number
   kind: CatalogKind
   blurb: string
+  version?: string
+  /** Where it comes from, in a few words. */
+  source: string
+  /** What it can do, when modmgr read it before installing (a local source); notable ids. */
+  notable?: string[]
+  /** Its files are on disk (a folder in its marketplace): modmgr can read it before installing. */
+  local?: boolean
+  /** A local entry modmgr couldn't read: why (`r` tries again). */
+  unread?: string
 }
 
 export type JobKind =
@@ -92,18 +101,34 @@ export type Job = {
   unchanged?: boolean
   /** A remove: whether the CLI said it kept the mod's data folder (`keptData`), when it said. */
   keptData?: boolean
+  /**
+   * An install or update stopped on a marketplace-declared command (F25): what
+   * the CLI showed, for the review that accepts it. Untrusted text.
+   */
+  shown?: {
+    kind: 'command_source' | 'entry_helper'
+    command: string
+    sha256: string
+    /** The command was longer than modmgr keeps: it can't be shown whole, so not accepted here. */
+    truncated?: boolean
+  }
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
-export type Overlay = 'detail' | 'review' | 'help' | 'jobs'
+export type Overlay = 'detail' | 'review' | 'help' | 'jobs' | 'marketplace'
 
 export type View = {
   tab: Tab
   selected?: PluginId
   stack: Overlay[]
+  /** Installed's filter. */
   query: string
+  /** Discover's search, its kind filter and sort. */
+  search: string
   kind: 'mods' | 'hooks' | 'all'
   sort: 'installs' | 'name' | 'marketplace'
+  /** The catalogue entry Discover has selected. */
+  found?: PluginId
   /** Staged toggles: what each mod will be after apply. */
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
@@ -128,12 +153,12 @@ export type ReviewTarget = {
  * or removes something passes through one (PLAN §5.1).
  */
 export type ReviewRequest = {
-  action: 'toggle' | 'update' | 'remove' | 'undo' | 'install'
+  action: 'toggle' | 'update' | 'remove' | 'undo' | 'install' | 'marketplace'
   targets: ReviewTarget[]
   /** Notable capabilities of what turns on or comes back, as lines. */
   notable: string[]
-  declaredCommand?: { text: string; sha256: string }
-  headersHelper?: { text: string; sha256: string }
+  declaredCommand?: { text: string; sha256: string; truncated?: boolean }
+  headersHelper?: { text: string; sha256: string; truncated?: boolean }
   changesRepoFile: boolean
   /** The other parts of what turns off or is removed: skills, agents, MCP servers. */
   parts?: { skills: number; agents: number; mcp: number }
@@ -145,6 +170,12 @@ export type ReviewRequest = {
   dataBytes?: number
   /** An undo: the batch it undoes; confirm queues it only while that is still the batch to undo. */
   undoes?: string
+  /** An install: modmgr couldn't see what it can do before it's installed (a remote source). */
+  uninspected?: boolean
+  /** An install of a local entry modmgr tried to read and couldn't: why. */
+  unreadable?: string
+  /** A marketplace to add (`claude plugin marketplace add <source>`). */
+  source?: string
 }
 
 export type Attention = {
@@ -182,7 +213,18 @@ export type Sync = {
   skipped: number
 }
 
-export type CatalogPage = { rows: CatalogRow[]; total: number; matched: number; loading: boolean }
+/**
+ * The part of the catalogue Discover draws (R11): at most a window of rows
+ * around the selection, `offset` the first one's place among the `matched`.
+ */
+export type CatalogPage = {
+  rows: CatalogRow[]
+  total: number
+  matched: number
+  offset: number
+  loading: boolean
+  error?: string
+}
 export type DetectProgress = { checked: number; total: number; found: number; running: boolean }
 
 declare module 'claude-code' {

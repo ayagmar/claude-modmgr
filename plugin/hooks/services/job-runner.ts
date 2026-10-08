@@ -26,6 +26,7 @@ import {
   prune,
   reloadIsUseful,
   reloadReadyAt,
+  SHOWN_MAX,
 } from '../domain/jobs.ts'
 import type { ModmgrError } from '../domain/result.ts'
 import { sanitize, tailLines } from '../domain/sanitize.ts'
@@ -55,6 +56,8 @@ export type RunnerOptions = {
   readonly isInstalled?: (id: string) => Promise<boolean>
   /** After a drain in which a CLI write finished: refresh the installed list. */
   readonly onSettled?: () => Promise<unknown>
+  /** After each job finishes, with its final state (a marketplace job reloads the catalogue). */
+  readonly onFinished?: (job: Job) => void
   readonly debug?: (text: string) => void
 }
 
@@ -71,6 +74,9 @@ export type Runner = {
 
 type Outcome = { finish: Finish; tail: string[] }
 
+/** A job whose module lost the queue mid-run: nothing about it is written (review R-M4-13). */
+const ABANDONED: Outcome = { finish: { cancelled: true }, tail: [] }
+
 const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = []): Outcome => ({
   finish: {
     ok: false,
@@ -79,6 +85,26 @@ const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = [
   tail,
 })
 const succeeded = (tail: string[]): Outcome => ({ finish: { ok: true }, tail })
+
+/**
+ * Says `line` in the band (and the pane's batch line) for RELOAD_ECHO_MS, then
+ * lets it go, unless another line replaced it meanwhile (C8).
+ */
+export const echoLine = async (
+  ports: Pick<Ports, 'state' | 'clock'>,
+  line: string,
+): Promise<void> => {
+  await ports.state.update('attention', attention => ({ ...attention, lastReload: line }))
+  ports.clock.after(RELOAD_ECHO_MS, () => {
+    void ports.state
+      .update('attention', attention => {
+        if (attention.lastReload !== line) return attention
+        const { lastReload: _done, ...rest } = attention
+        return rest
+      })
+      .catch(() => undefined)
+  })
+}
 
 /** Queues a batch on the queue atom: what a press handler does before `kick()`. */
 export const enqueue = async (
@@ -125,42 +151,21 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     store.update('history', history => [...history, entry])
   }
 
-  /** Says `line` in the band (and the pane's batch line) for a while (C8), then lets it go. */
-  const echo = async (line: string): Promise<void> => {
-    await ports.state.update('attention', attention => ({ ...attention, lastReload: line }))
-    ports.clock.after(RELOAD_ECHO_MS, () => {
-      void ports.state
-        .update('attention', attention => {
-          if (attention.lastReload !== line) return attention
-          const { lastReload: _done, ...rest } = attention
-          return rest
-        })
-        .catch(() => undefined)
-    })
-  }
+  const echo = (line: string): Promise<void> => echoLine(ports, line)
 
   const reload = async (): Promise<Outcome> => {
     try {
       const text = await ports.command.reloadPlugins()
       // Always something to echo: the status line's "applied" shows while it does.
       const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'
-      await ports.state.update('attention', attention => ({
-        ...attention,
-        reloadPending: false,
-        lastReload: line,
-      }))
-      // The band echoes the CLI's line for a while (C8), then lets it go.
-      ports.clock.after(RELOAD_ECHO_MS, () => {
-        void ports.state
-          .update('attention', attention => {
-            if (attention.lastReload !== line) return attention
-            const { lastReload: _done, ...rest } = attention
-            return rest
-          })
-          .catch(() => undefined)
-      })
+      await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
+      await echo(line)
       return succeeded([line])
     } catch (error) {
+      // A reload that restarted modmgr rejects in the old module: the new one owns
+      // the queue and has settled this reload (F54), so say nothing more.
+      const queue = await ports.state.read('queue').catch(() => undefined)
+      if (queue !== undefined && queue.owner !== owner) return ABANDONED
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
       return failed({ kind: 'rejected', message: String(error) }, [
         'Run /reload-plugins yourself, or restart Claude Code, to apply the changes.',
@@ -260,15 +265,26 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
     if (result.value.status === 'needs-acceptance') {
       const { shown, changed } = result.value
-      return failed(
+      const stopped = failed(
         {
           kind: 'conflict',
           message: changed
             ? 'the declared command changed since it was reviewed'
-            : 'this install runs a declared command that needs review first',
+            : `this ${job.kind} runs a declared command that needs review first`,
         },
         [sanitize(shown.command, { max: 300 })],
       )
+      // Kept as the CLI showed it (capped); the review draws it sanitised and verbatim.
+      const cut = shown.command.length > SHOWN_MAX
+      const kept = {
+        kind: shown.kind,
+        command: shown.command.slice(0, SHOWN_MAX),
+        sha256: shown.sha256,
+        ...(cut ? { truncated: true } : {}),
+      }
+      return 'error' in stopped.finish
+        ? { ...stopped, finish: { ...stopped.finish, shown: kept } }
+        : stopped
     }
     const done = result.value
     // An update the CLI found current changed nothing, like an enable of an enabled mod.
@@ -318,11 +334,14 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       } catch (error) {
         outcome = failed({ kind: 'unavailable', message: String(error) })
       }
+      if (outcome === ABANDONED) return wrote
       const endedAt = await ports.clock.now()
       await writeQueue(jobs =>
         prune(finish(appendTail(jobs, next.id, outcome.tail), next.id, endedAt, outcome.finish)),
       )
       record(next, endedAt, outcome)
+      const finished = (await ports.state.read('queue')).jobs.find(job => job.id === next.id)
+      if (finished !== undefined) options.onFinished?.(finished)
       if (NEEDS_RELOAD.has(next.kind)) {
         wrote = true
         if ('ok' in outcome.finish && outcome.finish.ok && outcome.finish.unchanged !== true) {

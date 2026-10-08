@@ -98,6 +98,17 @@ export interface UiPort {
   status(text: string | undefined): void
 }
 
+/** The network, through the host. Used only for the detector's raw.githubusercontent.com probes (PLAN §7). */
+export interface HttpPort {
+  /** A GET of `url`: its status and body (the whole body is read, F16's cousin: checked after). */
+  get(url: string): Promise<{ readonly status: number; readonly text: string }>
+}
+
+/** Reads a file's text (rejects when missing or over 4 MiB). Used only for local catalogue sources. */
+export interface FsPort {
+  read(path: string): Promise<string>
+}
+
 export type Ports = {
   process: ProcessPort
   state: StatePort
@@ -107,4 +118,6 @@ export type Ports = {
   session: SessionPort
   command: CommandPort
   ui: UiPort
+  http: HttpPort
+  fs: FsPort
 }

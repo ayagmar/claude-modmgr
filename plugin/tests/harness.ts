@@ -27,13 +27,17 @@ export type HostOptions = {
   placePanes?: boolean
   /** Whether the person holds an open pane's keys (the Esc cascade reads it). */
   paneFocused?: boolean
+  /** `$.http.fetch` answers by URL (200 with the text); others are 404. */
+  web?: Readonly<Record<string, string>>
+  /** `$.fs.read` answers by path; others are missing. */
+  files?: Readonly<Record<string, string>>
 }
 
 const fromFixtures = (args: readonly string[]): CliAnswer => {
   const [first, second] = args
   if (first === '--version') return { stdout: '2.1.292 (Claude Code)\n' }
   if (first !== 'plugin') return { throws: `unexpected command ${args.join(' ')}` }
-  if (second === 'list') return RUNS.list
+  if (second === 'list') return args.includes('--available') ? RUNS['list-available'] : RUNS.list
   if (second === 'validate') {
     const folder = args.at(-1)?.split('/').at(-1) ?? ''
     const run = (RUNS as Record<string, CliAnswer>)[`validate-${folder}`]
@@ -55,7 +59,11 @@ const fromFixtures = (args: readonly string[]): CliAnswer => {
   }
   if (second === 'install') return RUNS['install-quiet-bash']
   if (second === 'update') return RUNS['update-bumped']
-  if (second === 'marketplace') return RUNS['marketplace-update-ok']
+  if (second === 'marketplace') {
+    if (args[2] === 'list') return RUNS['marketplace-list']
+    if (args[2] === 'add') return RUNS['marketplace-add-ok']
+    return RUNS['marketplace-update-ok']
+  }
   return { throws: `unexpected command ${args.join(' ')}` }
 }
 
@@ -146,6 +154,24 @@ export const host = (on: On, options: HostOptions = {}) => {
     statuses.push(e.text)
     return { value: undefined }
   })
+  // The detector's probes: nothing is found unless a test says so.
+  const fetched: string[] = []
+  on('http.fetch', (_$, e) => {
+    fetched.push(e.url)
+    const text = options.web?.[e.url]
+    return {
+      value: {
+        status: text === undefined ? 404 : 200,
+        ok: text !== undefined,
+        headers: {},
+        text: text ?? '',
+      },
+    }
+  })
+  on('fs.read', (_$, e) => {
+    const text = options.files?.[e.path]
+    return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
+  })
   on('ui.copy', (_$, e) => {
     copies.push(e.text)
     return { value: { isCopied: true as const } }
@@ -190,6 +216,8 @@ export const host = (on: On, options: HostOptions = {}) => {
     copies,
     /** Each status line modmgr set (undefined clears it). */
     statuses,
+    /** Each URL the detector fetched. */
+    fetched,
     /** Opens the pane as the engine records it (what `$.ui.panes()` lists). */
     showPane: (focused = true) => {
       panes = [{ id: 'modmgr', title: 'mods', isShown: true, isFocused: focused, isPlaced: true }]

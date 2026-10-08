@@ -9,6 +9,8 @@ import { tailLines } from './sanitize.ts'
 export type { Job, JobKind, JobQueue, JobState }
 
 export const JOBS_CAP = 50
+/** The longest declared command modmgr keeps to show; a longer one is accepted in a terminal. */
+export const SHOWN_MAX = 4000
 export const TAIL_LINES = 20
 /**
  * How long after a batch's last CLI settings write its reload may start: a
@@ -106,7 +108,12 @@ export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
 
 export type Finish =
   | { readonly ok: true; readonly unchanged?: boolean; readonly keptData?: boolean }
-  | { readonly ok: false; readonly error: { readonly kind: string; readonly message: string } }
+  | {
+      readonly ok: false
+      readonly error: { readonly kind: string; readonly message: string }
+      /** What a declared command the job stopped on showed (F25), for the review that accepts it. */
+      readonly shown?: Job['shown']
+    }
   | { readonly cancelled: true }
 
 export const finish = (jobs: readonly Job[], id: string, now: number, how: Finish): Job[] =>
@@ -122,7 +129,8 @@ export const finish = (jobs: readonly Job[], id: string, now: number, how: Finis
         ...(how.keptData === undefined ? {} : { keptData: how.keptData }),
       }
     }
-    return { ...job, state: 'failed', endedAt: now, error: how.error }
+    const failed: Job = { ...job, state: 'failed', endedAt: now, error: how.error }
+    return how.shown === undefined ? failed : { ...failed, shown: how.shown }
   })
 
 /** Appends streamed output, sanitised, keeping the last TAIL_LINES lines. */
@@ -266,13 +274,40 @@ export const reloadReadyAt = (jobs: readonly Job[]): number => {
   return last === undefined ? 0 : last + RELOAD_SETTLE_MS
 }
 
+/** What a reload job says when the reload restarted modmgr with it (F54). */
+export const RELOADED_WITH_MODMGR = 'Plugins reloaded, modmgr with them'
+
 /**
  * A module takes the queue over at `session.start`: a job another module left
- * running can't be finished by this one (F31), so it becomes `interrupted`.
- * The same owner taking over again changes nothing.
+ * running can't be finished by this one (F31), so it becomes `interrupted`;
+ * but a reload left running is what restarted this module (a reload re-runs
+ * modmgr when its files changed or a plugin that hooks `plugin.register`
+ * joined, F19, F54), so it is done. The same owner taking over again changes
+ * nothing.
  */
 export const takeOver = (queue: JobQueue, owner: string, now: number): JobQueue =>
-  queue.owner === owner ? queue : { owner, jobs: interruptRunning(queue.jobs, now) }
+  queue.owner === owner
+    ? queue
+    : {
+        owner,
+        jobs: interruptRunning(
+          queue.jobs.map(job =>
+            job.kind === 'reload' && job.state === 'running'
+              ? { ...job, state: 'ok', endedAt: now, tail: [...job.tail, RELOADED_WITH_MODMGR] }
+              : job,
+          ),
+          now,
+        ),
+      }
+
+/** Whether taking over completed a reload the previous module had running. */
+export const tookOverReload = (before: JobQueue, after: JobQueue): boolean =>
+  before.jobs.some(
+    job =>
+      job.kind === 'reload' &&
+      job.state === 'running' &&
+      after.jobs.some(next => next.id === job.id && next.state === 'ok'),
+  )
 
 /**
  * Starts job `id` for `owner` if it still owns the queue and the job is still

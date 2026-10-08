@@ -1,6 +1,6 @@
 // The mod detector (PLAN §2.3, R14): turns a catalogue entry's source into a
 // probe plan, and the fetched files into a kind. Fetching, budgets and caching
-// live in services/detector-runner.ts; every decision lives here.
+// live in services/detector.ts; every decision lives here.
 
 import type { CatalogKind } from '../../types/index.d.ts'
 import type { CatalogEntry } from './cli-results.ts'
@@ -129,6 +129,10 @@ export const kindOfHooksJson = (value: unknown): CatalogKind => {
   return 'unknown'
 }
 
+/**
+ * A 200 whose body is too long or isn't JSON reads `unknown` and is cached at
+ * that commit: the same files at the same commit would answer the same.
+ */
 export const afterHooksJson = (file: FetchedFile, plan: { base: string }): ProbeStep => {
   const retry = retryable(file.status)
   if (retry) return retry
@@ -155,7 +159,10 @@ export const afterManifest = (file: FetchedFile, plan: { base: string }): ProbeS
   if (typeof path !== 'string') return { done: 'hooks' }
   const segments = safeSegments(path)
   if (segments === undefined || segments.length === 0) return { done: 'hooks' }
-  return { fetch: `${plan.base}${segments.join('/')}`, stage: 'followed' }
+  // A URL keeps the segments encoded; a folder on disk reads them as written.
+  const local = !plan.base.startsWith(RAW_ORIGIN)
+  const joined = (local ? segments.map(decodeURIComponent) : segments).join('/')
+  return { fetch: `${plan.base}${joined}`, stage: 'followed' }
 }
 
 export const afterFollowed = (file: FetchedFile): ProbeStep => {
@@ -166,6 +173,24 @@ export const afterFollowed = (file: FetchedFile): ProbeStep => {
   return { done: kind === 'unknown' ? 'hooks' : kind }
 }
 
-/** Exponential backoff with a cap: 2 s, 4 s, 8 s … 5 min. */
+/** Exponential backoff with a cap: attempt 1 waits 4 s, then 8 s, 16 s … 5 min. */
 export const backoffMs = (attempt: number): number =>
   Math.min(300_000, 2000 * 2 ** Math.max(0, Math.min(attempt, 20)))
+
+/**
+ * What a cached kind is good for: the pinned commit of a remote source, or the
+ * version of a local one (its marketplace folder or clone moves with it). A
+ * cached `[key, kind]` whose key no longer matches is probed again.
+ */
+export const probeKey = (plan: ProbePlan, version: string | undefined): string | undefined =>
+  plan.kind === 'remote' ? plan.sha : plan.kind === 'local' ? `local:${version ?? '?'}` : undefined
+
+/**
+ * A local plan's folder: its marketplace's folder joined with the checked
+ * relative path, ending in `/` like a remote base. Undefined without a root.
+ */
+export const localBase = (root: string | undefined, path: string): string | undefined => {
+  if (root === undefined || !root.startsWith('/')) return undefined
+  const head = root.replace(/\/+$/, '')
+  return path === '' ? `${head}/` : `${head}/${path}/`
+}

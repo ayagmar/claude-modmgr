@@ -12,12 +12,15 @@ import {
   update,
 } from 'claude-code'
 import { parseConfig } from './domain/config.ts'
+import { foundOfKey } from './domain/discover.ts'
 import { INITIAL, type ModmgrState, type StateKey } from './domain/state.ts'
 import { rowOfKey } from './domain/view.ts'
 import type {
   ClockPort,
   CommandPort,
   EnvPort,
+  FsPort,
+  HttpPort,
   Ports,
   ProcessPort,
   SessionPort,
@@ -27,7 +30,7 @@ import type {
 } from './ports.ts'
 import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
-import { MODS_DESCRIPTION, onSessionStart } from './services/lifecycle.ts'
+import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
@@ -40,16 +43,16 @@ const DETAIL = atom({ plugin: 'modmgr', key: 'detail' } as const, INITIAL.detail
   shape: 'detail/2',
 })
 const CATALOG_PAGE = atom({ plugin: 'modmgr', key: 'catalogPage' } as const, INITIAL.catalogPage, {
-  shape: 'catalogPage/1',
+  shape: 'catalogPage/2',
 })
 const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect, {
   shape: 'detect/1',
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/3' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/4' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
-  shape: 'review/2',
+  shape: 'review/3',
 })
 const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.attention, {
   shape: 'attention/2',
@@ -154,6 +157,21 @@ function uiPorts($: EngineInterface): UiPort {
   }
 }
 
+function httpPorts($: EngineInterface): HttpPort {
+  return {
+    get: async url => {
+      const response = await $.http.fetch(url)
+      return { status: response.status, text: response.text }
+    },
+  }
+}
+
+function fsPorts($: EngineInterface): FsPort {
+  return {
+    read: path => $.fs.read(path),
+  }
+}
+
 function portsOf($: EngineInterface): Ports {
   return {
     process: processPorts($),
@@ -164,6 +182,8 @@ function portsOf($: EngineInterface): Ports {
     session: sessionPorts($),
     command: commandPorts($),
     ui: uiPorts($),
+    http: httpPorts($),
+    fs: fsPorts($),
   }
 }
 
@@ -174,9 +194,17 @@ function actionsOf($: EngineInterface): Actions {
 /** What a view draws with: the surface's elements, state reads (which subscribe), the actions. */
 function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
   const table = $.ui.resolve(e)
+  // Mobile draws no Input or Select (d.ts Elements), though a table may carry
+  // them (the test kit's does, drawing them as nothing): ask the surface first.
   const el: El =
-    'Input' in table
-      ? { Box: table.Box, Text: table.Text, Button: table.Button, Input: table.Input }
+    e.surface !== 'mobile' && 'Input' in table
+      ? {
+          Box: table.Box,
+          Text: table.Text,
+          Button: table.Button,
+          Input: table.Input,
+          Select: table.Select,
+        }
       : { Box: table.Box, Text: table.Text, Button: table.Button }
   return { el, surface: e.surface, read: statePorts($).read, act: actionsOf($) }
 }
@@ -199,6 +227,20 @@ export const register: Register = (on, options) => {
     runtime ??= createRuntime(portsOf($), config, newOwnerId())
     await onSessionStart(runtime)
     return next(e)
+  }).catch((_$, e, next) => next(e))
+
+  // Observed only: the detector probes while no turn runs (PLAN §2.3).
+  on('turn.start', async (_$, e, next) => {
+    onTurnStart(runtime, e.turnId)
+    return next(e)
+  }).catch((_$, e, next) => next(e))
+
+  on('turn.complete', async (_$, e, next) => {
+    try {
+      return await next(e)
+    } finally {
+      onTurnEnd(runtime, e.turnId, e.agentId)
+    }
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'mods' }, ($, e) =>
@@ -227,8 +269,11 @@ export const register: Register = (on, options) => {
   // The ring landing on a row makes it the selection (the window and the split follow).
   on('ui.focus', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
     const moved = await next(e)
+    if (moved.deny !== undefined) return moved
     const id = rowOfKey(e.element)
-    if (id !== undefined && moved.deny === undefined) await actionsOf($).focusRow(id)
+    const found = foundOfKey(e.element)
+    if (id !== undefined) await actionsOf($).focusRow(id)
+    else if (found !== undefined) await actionsOf($).focusFound(found)
     return moved
   }).catch((_$, e, next) => next(e))
 

@@ -148,6 +148,15 @@ describe('probe steps', () => {
     expect(afterManifest(manifest({ hooks: ['./a.json'] }), base)).toMatchObject({
       stage: 'followed',
     })
+    expect(afterManifest(manifest({ hooks: './hooks dir/h.json' }), base)).toEqual({
+      fetch: `${base.base}hooks%20dir/h.json`,
+      stage: 'followed',
+    })
+    // A local plugin's folder is read as written, not URL-encoded (review R-M4-12).
+    expect(afterManifest(manifest({ hooks: './hooks dir/h.json' }), { base: '/mkt/p/' })).toEqual({
+      fetch: '/mkt/p/hooks dir/h.json',
+      stage: 'followed',
+    })
     expect(afterManifest(manifest({ hooks: '../escape.json' }), base)).toEqual({ done: 'hooks' })
     expect(afterManifest(manifest({ hooks: 7 }), base)).toEqual({ done: 'hooks' })
     expect(afterManifest(manifest('str'), base)).toEqual({ done: 'unknown' })

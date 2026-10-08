@@ -1,11 +1,12 @@
-// The `/mods` dialog (PLAN §5.2): a header, the Installed list (with the
-// detail beside it from SPLIT_MIN_COLUMNS body columns), the overlay on top,
-// and a footer of the keys that apply now. Sized to `scroll.bodyRows`: the list
-// is windowed and a taller overlay is clipped (the detail draws compactly), so
+// The `/mods` dialog (PLAN §5.2): the tabs, the tab's list (with the detail
+// beside it from SPLIT_MIN_COLUMNS body columns), the overlay on top, and a
+// footer of the keys that apply now. Sized to `scroll.bodyRows`: the list is
+// windowed and a taller overlay is clipped (the detail draws compactly), so
 // the header and footer never scroll away. Everything drawn comes from `$.state`.
 
 import type { RenderElement } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
+import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
@@ -22,9 +23,18 @@ import {
   windowAround,
 } from '../domain/view.ts'
 import { Detail, detailRows } from './Detail.tsx'
+import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
 import { List } from './Installed.tsx'
 import { GLYPH, KeyButton, TONE, type ViewPorts } from './kit.tsx'
-import { Help, helpRows, Jobs, Review, reviewRows } from './overlays.tsx'
+import {
+  Help,
+  helpRows,
+  Jobs,
+  MarketplaceForm,
+  marketplaceRows,
+  Review,
+  reviewRows,
+} from './overlays.tsx'
 
 export type PaneFrame = {
   readonly bodyColumns: number
@@ -33,33 +43,33 @@ export type PaneFrame = {
 }
 
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
-const NOT_YET: ReadonlySet<string> = new Set([
-  'tab.installed',
-  'tab.discover',
-  'tab.dev',
-  'tab.health',
-  'sort',
-])
+const NOT_YET: ReadonlySet<string> = new Set(['tab.dev', 'tab.health'])
 
-const OVERLAY_SURFACE: Readonly<Record<Overlay, KeySurface>> = {
-  detail: 'detail',
-  review: 'review',
-  help: 'installed',
-  jobs: 'jobs',
+/** A footer key: what it does, where its hotkey is bound, what it says. */
+type Key = {
+  readonly action: string
+  readonly on: KeySurface
+  readonly label: string
+  readonly onPress: () => void
 }
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
-  const [view, mods, detail, queue, review, sync, degraded, attention] = await Promise.all([
-    v.read('view'),
-    v.read('mods'),
-    v.read('detail'),
-    v.read('queue'),
-    v.read('review'),
-    v.read('sync'),
-    v.read('degraded'),
-    v.read('attention'),
-  ])
+  const [view, mods, detail, queue, review, sync, degraded, attention, page, detect] =
+    await Promise.all([
+      v.read('view'),
+      v.read('mods'),
+      v.read('detail'),
+      v.read('queue'),
+      v.read('review'),
+      v.read('sync'),
+      v.read('degraded'),
+      v.read('attention'),
+      v.read('catalogPage'),
+      v.read('detect'),
+    ])
   const { Box, Button, Text, Input } = v.el
+  const discover = view.tab === 'discover'
+  const surface: KeySurface = discover ? 'discover' : 'installed'
   const layout = layoutFor(frame.bodyColumns)
   // A review overlay whose review was just taken (confirm) is already gone: the
   // tree drawn in between must be the final one, or the focus ring set on a row
@@ -67,42 +77,42 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const stack = review === null ? view.stack.filter(item => item !== 'review') : view.stack
   const top = stack.at(-1)
   const readOnly = degraded.process
-  // Only a missing CLI concerns Installed; network use matters to Discover and updates.
-  const warning = degraded.process ? degraded.reason : undefined
+  // A missing CLI concerns both tabs; network use only Discover.
+  const warning = degraded.process
+    ? degraded.reason
+    : discover && degraded.network
+      ? 'Network use is off: only local catalogues are checked for mods.'
+      : undefined
+  const status = batchLineOf(queue, attention.lastReload !== undefined)
+  const terminal = v.surface === 'terminal'
+  const listColumns = layout === 'split' ? Math.floor(frame.bodyColumns * 0.45) : frame.bodyColumns
+  const showList = layout === 'split' || top === undefined
+
+  // Installed: rows, the selection, what is staged.
   const rows = filterRows(mods, view.query)
   const selected = selectedRow(view, mods)
   const changing = stagedIds(view, mods)
   const staged = changing.size
-  const showStaged = staged > 0 && !readOnly && top !== 'review'
-  const status = batchLineOf(queue, attention.lastReload !== undefined)
-  const terminal = v.surface === 'terminal'
-  const on = mods.filter(row => row.enabled).length
-  const listColumns = layout === 'split' ? Math.floor(frame.bodyColumns * 0.45) : frame.bodyColumns
-  const showList = layout === 'split' || top === undefined
-  const showFilter = Input !== undefined && showList && mods.length > 0
+  const showStaged = !discover && staged > 0 && !readOnly && top !== 'review'
+  // Discover: the window of rows `$.state` holds, and the selection in it.
+  const found = foundRow(view, page)
+
+  const fieldShown = discover
+    ? Input !== undefined && showList && (page.total > 0 || view.search !== '')
+    : Input !== undefined && showList && mods.length > 0
+  const stopped = readOnly ? undefined : awaitingAcceptance(queue.jobs)
 
   // The footer's keys: only what applies to what is shown (a key drawn is a
   // key that works; help lists the rest).
-  type Key = {
-    readonly action: string
-    readonly on: KeySurface
-    readonly label: string
-    readonly onPress: () => void
-  }
   const footer: Key[] = []
-  if (top === undefined) {
+  if (top === undefined && !discover) {
     const updatable = readOnly ? 0 : mods.filter(row => whyNoUpdate(row) === undefined).length
     if (!readOnly && selected !== undefined) {
-      footer.push({
-        action: 'toggle',
-        on: 'installed',
-        label: 'toggle',
-        onPress: () => v.act.toggle(),
-      })
+      footer.push({ action: 'toggle', on: surface, label: 'toggle', onPress: () => v.act.toggle() })
       if (whyNoUpdate(selected) === undefined) {
         footer.push({
           action: 'update',
-          on: 'installed',
+          on: surface,
           label: 'update',
           onPress: () => v.act.update(),
         })
@@ -110,7 +120,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       if (whyNoRemove(selected) === undefined) {
         footer.push({
           action: 'remove',
-          on: 'installed',
+          on: surface,
           label: 'remove',
           onPress: () => v.act.remove(),
         })
@@ -119,30 +129,72 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     if (updatable > 1) {
       footer.push({
         action: 'update-all',
-        on: 'installed',
+        on: surface,
         label: 'update all',
         onPress: () => v.act.updateAll(),
       })
     }
     if (!readOnly) {
-      footer.push({ action: 'undo', on: 'installed', label: 'undo', onPress: () => v.act.undo() })
+      footer.push({ action: 'undo', on: surface, label: 'undo', onPress: () => v.act.undo() })
+    }
+  }
+  if (top === undefined && discover) {
+    if (!readOnly && found !== undefined) {
+      footer.push({
+        action: 'install',
+        on: surface,
+        label: 'install',
+        onPress: () => v.act.install(),
+      })
+    }
+    // Each says what pressing it does next.
+    footer.push({
+      action: 'kind',
+      on: surface,
+      label:
+        view.kind === 'mods' ? 'with hooks' : view.kind === 'hooks' ? 'all plugins' : 'mods only',
+      onPress: () => v.act.cycleKind(),
+    })
+    footer.push({
+      action: 'sort',
+      on: surface,
+      label: `sort by ${nextSort(view.sort)}`,
+      onPress: () => v.act.cycleSort(),
+    })
+    if (!readOnly) {
+      footer.push({
+        action: 'marketplace-add',
+        on: surface,
+        label: 'add marketplace',
+        onPress: () => v.act.addMarketplace(),
+      })
+    }
+  }
+  if (top === undefined) {
+    if (stopped !== undefined) {
+      footer.push({
+        action: 'accept',
+        on: surface,
+        label: 'review the command',
+        onPress: () => v.act.acceptShown(),
+      })
     }
     footer.push({
       action: 'refresh',
-      on: 'installed',
+      on: surface,
       label: 'refresh',
       onPress: () => v.act.refresh(),
     })
-    if (showFilter) {
+    if (fieldShown) {
       footer.push({
         action: 'filter',
-        on: 'installed',
-        label: 'filter',
+        on: surface,
+        label: discover ? 'search' : 'filter',
         onPress: () => v.act.focusFilter(),
       })
     }
   }
-  if (top !== 'review') {
+  if (top !== 'review' && top !== 'marketplace') {
     footer.push({ action: 'jobs', on: 'pane', label: 'jobs', onPress: () => v.act.overlay('jobs') })
     footer.push({ action: 'help', on: 'pane', label: 'help', onPress: () => v.act.overlay('help') })
   }
@@ -163,53 +215,74 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const chrome =
     1 +
     (warning === undefined ? 0 : 1) +
-    (showFilter ? 1 : 0) +
+    (fieldShown ? 1 : 0) +
     1 +
     (showStaged ? 1 : 0) +
     (view.notice === undefined ? 0 : 1) +
     (status === undefined ? 0 : 1) +
     footerRows
   const listRows = Math.max(3, frame.bodyRows - chrome)
-  const window = windowAround(
-    rows.length,
-    selected === undefined ? 0 : rows.indexOf(selected),
-    listRows,
-  )
-  const pager = pagerLabel(window, rows.length)
 
-  const list = List(v, rows, {
-    view,
-    staged: changing,
-    columns: listColumns,
-    window,
-    focusId: selected?.id,
-    loading: sync.at === undefined && sync.error === undefined,
-    total: mods.length,
-  })
+  // The list, windowed around the selection, and its pager.
+  let list: RenderElement
+  let pager: string | undefined
+  if (discover) {
+    const at = found === undefined ? 0 : page.rows.indexOf(found)
+    const window = windowAround(page.rows.length, at, listRows)
+    list = FoundList(v, page, {
+      view,
+      columns: listColumns,
+      window,
+      focusId: found?.id,
+      networkOff: degraded.network,
+    })
+    pager =
+      page.matched > window.end - window.start
+        ? pagerLabel(
+            { start: page.offset + window.start, end: page.offset + window.end },
+            page.matched,
+          )
+        : undefined
+  } else {
+    const window = windowAround(
+      rows.length,
+      selected === undefined ? 0 : rows.indexOf(selected),
+      listRows,
+    )
+    pager = pagerLabel(window, rows.length)
+    list = List(v, rows, {
+      view,
+      staged: changing,
+      columns: listColumns,
+      window,
+      focusId: selected?.id,
+      loading: sync.at === undefined && sync.error === undefined,
+      total: mods.length,
+    })
+  }
 
   const under = stack.at(-2)
-  const helpSurfaces: KeySurface[] = [
-    'pane',
-    under === undefined ? 'installed' : OVERLAY_SURFACE[under],
-  ]
+  const surfaceOf = (overlay: Overlay | undefined): KeySurface =>
+    overlay === undefined
+      ? surface
+      : overlay === 'detail'
+        ? discover
+          ? 'discover-detail'
+          : 'detail'
+        : overlay === 'review'
+          ? 'review'
+          : overlay === 'jobs'
+            ? 'jobs'
+            : surface
+  const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
+  const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
-    if (which === 'review' && review !== null) return Review(v, review, mods)
+    if (which === 'review' && review !== null) return Review(v, review, mods, { refused })
     if (which === 'help') return Help(v, helpSurfaces, NOT_YET)
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
+    if (which === 'marketplace') return MarketplaceForm(v)
     return null
   }
-  /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
-  const overlayRows = (
-    which: Overlay | undefined,
-    how: Parameters<typeof detailRows>[0],
-  ): number =>
-    which === 'review' && review !== null
-      ? reviewRows(v, review, mods, frame.bodyColumns)
-      : which === 'help'
-        ? helpRows(helpSurfaces, NOT_YET)
-        : which === 'detail'
-          ? detailRows(how)
-          : 0
 
   const detailHow = (actions: boolean) => ({
     row: selected,
@@ -220,7 +293,21 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     readOnly,
     rows: listRows,
   })
-  const detailOf = (actions: boolean) => Detail(v, detailHow(actions))
+  const detailOf = (actions: boolean) =>
+    discover ? FoundDetail(v, found, { actions, readOnly }) : Detail(v, detailHow(actions))
+  /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
+  const overlayRows = (which: Overlay | undefined): number =>
+    which === 'review' && review !== null
+      ? reviewRows(v, review, mods, frame.bodyColumns, { refused })
+      : which === 'help'
+        ? helpRows(helpSurfaces, NOT_YET)
+        : which === 'marketplace'
+          ? marketplaceRows
+          : which === 'detail'
+            ? discover
+              ? foundDetailRows(found, true)
+              : detailRows(detailHow(true))
+            : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (
@@ -252,29 +339,52 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     ) : top === undefined ? (
       list
     ) : top === 'detail' ? (
-      clipped(detailOf(true), overlayRows(top, detailHow(true)))
+      clipped(detailOf(true), overlayRows(top))
     ) : (
-      clipped(overlay(top) ?? list, overlayRows(top, detailHow(true)))
+      clipped(overlay(top) ?? list, overlayRows(top))
     )
 
   const keys = footer.map(key =>
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress }),
   )
+  const on = mods.filter(row => row.enabled).length
+  // Tabs keep their width (F48: children shrink by default); the counts give way.
+  const tabKey = (tab: 'installed' | 'discover', label: string) => (
+    <Box flexDirection="row" flexShrink={0}>
+      {KeyButton(v, {
+        action: `tab.${tab}`,
+        on: 'pane',
+        label,
+        ...(view.tab === tab ? {} : { dim: true }),
+        onPress: () => v.act.tab(tab),
+      })}
+    </Box>
+  )
+  const meta = discover
+    ? [
+        page.total === 0 ? '' : `${page.matched.toLocaleString('en-US')} shown`,
+        detectLine(detect) ?? '',
+      ]
+        .filter(part => part !== '')
+        .join(' · ')
+    : `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} · ${on} on`
+  const stale = discover ? page.loading : sync.refreshing
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
-        <Box flexDirection="row" gap={1}>
-          <Text bold color={TONE.accent}>
-            Installed
-          </Text>
-          <Text dimColor>
-            {mods.length} {mods.length === 1 ? 'mod' : 'mods'} · {on} on
-          </Text>
+        <Box flexDirection="row" columnGap={2} flexShrink={1}>
+          {tabKey('installed', 'Installed')}
+          {tabKey('discover', 'Discover')}
+          <Box flexShrink={1} height={1} overflow="hidden">
+            <Text dimColor wrap="truncate-end">
+              {meta}
+            </Text>
+          </Box>
         </Box>
-        {sync.refreshing ? (
+        {stale ? (
           <Text dimColor>{GLYPH.stale}</Text>
-        ) : sync.error !== undefined ? (
+        ) : !discover && sync.error !== undefined ? (
           <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh (r)</Text>
         ) : null}
       </Box>
@@ -283,11 +393,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {sanitize(warning, { max: 300 })}
         </Text>
       )}
-      {showFilter && Input !== undefined ? (
+      {fieldShown && Input !== undefined ? (
         <Input
           key={FILTER_KEY}
-          placeholder="filter by name"
-          value={view.query}
+          placeholder={discover ? 'search the catalogue' : 'filter by name'}
+          value={discover ? view.search : view.query}
           onInput={value => v.act.filter(value)}
           onSubmit={value => v.act.filter(value)}
         />
@@ -298,14 +408,14 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           <Text dimColor>{pager}</Text>
           {KeyButton(v, {
             action: 'page.first',
-            on: 'installed',
+            on: surface,
             label: 'first',
             dim: true,
             onPress: () => v.act.edge('first'),
           })}
           {KeyButton(v, {
             action: 'page.last',
-            on: 'installed',
+            on: surface,
             label: 'last',
             dim: true,
             onPress: () => v.act.edge('last'),

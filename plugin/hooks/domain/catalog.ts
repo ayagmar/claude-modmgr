@@ -88,6 +88,50 @@ const KIND_ALLOWED: Readonly<Record<KindFilter, ReadonlySet<CatalogKind>>> = {
 export const clampPage = (page: number, pages: number): number =>
   Math.min(Math.max(0, Math.floor(Number.isFinite(page) ? page : 0)), Math.max(0, pages - 1))
 
+/** One matched entry, with the kind the filter saw. */
+export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
+
+/**
+ * Every entry the query matches, in its sort's order: one pass over a
+ * pre-sorted list (PLAN §6: under 16 ms over 3.5k entries).
+ */
+export const matchAll = (
+  index: CatalogIndex,
+  query: Pick<CatalogQuery, 'text' | 'kind' | 'sort'>,
+  kindOf: (id: string) => CatalogKind,
+): Match[] => {
+  const words = tokens(query.text)
+  const allowed = KIND_ALLOWED[query.kind]
+  const matched: Match[] = []
+  for (const item of index.order[query.sort]) {
+    const kind = kindOf(item.entry.id)
+    if (!allowed.has(kind)) continue
+    if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })
+  }
+  return matched
+}
+
+/**
+ * The rows `$.state` holds (R11): at most `size` matches around the one
+ * selected (the first when it isn't matched), and where they start.
+ */
+export const windowOf = (
+  matched: readonly Match[],
+  selected: string | undefined,
+  size = PAGE_SIZE,
+): { readonly rows: CatalogRow[]; readonly offset: number } => {
+  const at = Math.max(
+    0,
+    matched.findIndex(match => match.item.entry.id === selected),
+  )
+  const half = Math.floor(size / 2)
+  const offset = Math.max(0, Math.min(at - half, matched.length - size))
+  return {
+    rows: matched.slice(offset, offset + size).map(({ item, kind }) => toRow(item, kind)),
+    offset,
+  }
+}
+
 export const search = (
   index: CatalogIndex,
   query: CatalogQuery,
@@ -110,6 +154,25 @@ export const search = (
   return { rows, total: index.size, matched: matched.length, page, pages }
 }
 
+/** Where an entry comes from, in a few words (the detail's "from" line). */
+export const sourceLabel = (entry: Pick<CatalogEntry, 'source'>): string => {
+  const source = entry.source
+  switch (source.kind) {
+    case 'relative':
+      return 'its marketplace folder'
+    case 'github':
+      return `github.com/${sanitize(source.repo, { max: 80 })}`
+    case 'url':
+      return sanitize(source.url.replace(/^https:\/\//, '').replace(/\.git$/, ''), { max: 80 })
+    case 'git-subdir':
+      return `${sanitize(source.url.replace(/^https:\/\//, '').replace(/\.git$/, ''), { max: 60 })} ${sanitize(source.path, { max: 60 })}`
+    case 'command':
+      return 'a command its marketplace runs'
+    default:
+      return 'another source'
+  }
+}
+
 const toRow = (item: Indexed, kind: CatalogKind): CatalogRow => {
   const row: CatalogRow = {
     id: item.entry.id,
@@ -117,8 +180,15 @@ const toRow = (item: Indexed, kind: CatalogKind): CatalogRow => {
     marketplace: sanitize(item.entry.marketplace, { max: NAME_MAX }),
     kind,
     blurb: item.blurb,
+    source: sourceLabel(item.entry),
   }
-  return item.entry.installs === undefined ? row : { ...row, installs: item.entry.installs }
+  return {
+    ...row,
+    ...(item.entry.installs === undefined ? {} : { installs: item.entry.installs }),
+    ...(item.entry.version === undefined
+      ? {}
+      : { version: sanitize(item.entry.version, { max: 20 }) }),
+  }
 }
 
 /** `1.5k`, `12k`, `3.4M`: install counts in a fixed narrow column. */

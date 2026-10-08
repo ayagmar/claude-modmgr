@@ -29,6 +29,10 @@ export const PICK = [
   'update-bumped',
   'update-current',
   'marketplace-update-ok',
+  'list-available',
+  'marketplace-list',
+  'marketplace-add-ok',
+  'install-command-refused',
 ] as const
 
 export const generate = (): string => {

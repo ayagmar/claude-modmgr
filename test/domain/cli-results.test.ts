@@ -314,11 +314,13 @@ describe('parseMarketplaces', () => {
       name: 'claude-plugins-official',
       source: 'github',
       location: 'anthropics/claude-plugins-official',
+      installLocation: '/tmp/modmgr-fixtures/config/plugins/marketplaces/claude-plugins-official',
     })
     expect(items).toContainEqual({
       name: 'fixtures',
       source: 'directory',
       location: '/tmp/modmgr-fixtures/mkt',
+      installLocation: '/tmp/modmgr-fixtures/mkt',
     })
   })
   it('skips malformed rows and rejects a non-array', () => {

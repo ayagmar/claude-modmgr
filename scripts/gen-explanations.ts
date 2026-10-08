@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const VERSION = '2.1.292'
+const VERSION = '2.1.293'
 const root = join(import.meta.dirname, '..')
 const dts = join(root, 'vendor', 'claude-code-types', VERSION, 'claude-code.d.ts')
 const out = join(root, 'plugin', 'hooks', 'domain', 'explanations.ts')

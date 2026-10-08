@@ -31,6 +31,16 @@ the trust dialog (both would otherwise write to the real `~/.claude.json`):
     echo '{"hasCompletedOnboarding":true,"projects":{"'$PWD'":{"hasTrustDialogAccepted":true}}}' > $CLAUDE_CONFIG_DIR/.claude.json
     PROBE_OUT=/tmp/probe.log claude --plugin-dir ./docs/spikes/probe
 
+## Version check: 2.1.292 → 2.1.293 (M5a)
+
+`claude --version` was 2.1.293. `scripts/update-types.sh` vendored its `claude-code.d.ts` under
+`vendor/claude-code-types/2.1.293/` (the d.ts only; 2.1.292's `reference.md` and examples stay the prose reference).
+The API diff is **additive**: `$.tool.register` hands on a `RegisteredToolSpec` with an optional `isDeferred` (a
+registered tool can ask to sit in the prompt's tool list rather than behind ToolSearch), and `claude-code/testing`
+gained `mock.session(on)`, which records the rows appended to the session (`appended()`), a plugin's
+`$.session.append` included. The rest of the diff is the built-in tools' part. modmgr uses none of the changed
+APIs at run time, so its minimum stays 2.1.292; the tooling, the explanations and CI now pin 2.1.293.
+
 ## Version check: 2.1.291 → 2.1.292 (M0)
 
 `claude --version` was 2.1.292. The new build's `claude-code.d.ts`, `reference.md` and examples are vendored under

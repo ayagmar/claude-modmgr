@@ -369,16 +369,27 @@ export const undoReview = (
 
 /** The jobs a confirmed review queues (the batch's reload is added by `enqueue`). */
 export const specsOf = (review: ReviewRequest): JobSpec[] => {
+  if (review.action === 'marketplace') {
+    return review.source === undefined
+      ? []
+      : [{ kind: 'marketplace-add', args: { source: review.source } }]
+  }
   const refresh: JobSpec[] = (review.marketplaces ?? []).map(name => ({
     kind: 'marketplace-update',
     target: name,
   }))
+  // The sha of the command shown: the CLI runs it only while it still matches (F25).
+  const accepted = (review.declaredCommand ?? review.headersHelper)?.sha256
   const ops = review.targets.map((target): JobSpec => {
     const scope = cliScope(target.scope)
     const scoped = scope === undefined ? {} : { scope }
     const kind = target.op
     const args: Job['args'] =
-      kind === 'remove' ? { ...scoped, keepData: review.keepData !== false } : scoped
+      kind === 'remove'
+        ? { ...scoped, keepData: review.keepData !== false }
+        : (kind === 'install' || kind === 'update') && accepted !== undefined
+          ? { ...scoped, acceptSha: accepted }
+          : scoped
     return Object.keys(args).length === 0
       ? { kind, target: target.id }
       : { kind, target: target.id, args }
@@ -470,7 +481,11 @@ export type Escape =
 export const escapeStep = (view: View, paneFocused: boolean): Escape => {
   if (!paneFocused) return { kind: 'close' }
   if (view.stack.length > 0) return { kind: 'pop', view: popOverlay(view) }
-  if (view.query !== '') return { kind: 'clear-query', view: { ...view, query: '' } }
+  // The field of the tab shown: Installed's filter, or Discover's search.
+  if (view.tab === 'discover' && view.search !== '')
+    return { kind: 'clear-query', view: { ...view, search: '' } }
+  if (view.tab !== 'discover' && view.query !== '')
+    return { kind: 'clear-query', view: { ...view, query: '' } }
   return { kind: 'close' }
 }
 
