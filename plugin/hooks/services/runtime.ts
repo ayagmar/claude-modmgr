@@ -11,6 +11,7 @@ import type { Ports, StatePort } from '../ports.ts'
 import { type Catalog, createCatalog } from './catalog.ts'
 import { createIndexSync } from './catalog-index.ts'
 import { type Chrome, createChrome } from './chrome.ts'
+import { createCommunity } from './community.ts'
 import { createDetector, DETECT_BUDGET, type Detector } from './detector.ts'
 import { createDev, type Dev } from './dev.ts'
 import { createHealth, type Health } from './health.ts'
@@ -85,15 +86,17 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
   }
   const store = createStore(ports, { debug })
   const registry = createRegistry(ports, store, debug, timing)
-  const catalog = createCatalog(ports, store, debug, timing)
   const trafficIsOff = async (): Promise<boolean> =>
     trafficOff(await ports.env.nonessentialTraffic().catch(() => undefined))
+  const remoteAllowed = async (): Promise<boolean> => config.detectRemote && !(await trafficIsOff())
+  const community = createCommunity(ports, { allowed: remoteAllowed, debug })
+  const catalog = createCatalog(ports, store, debug, timing, community)
   const detector = createDetector(ports, {
     store,
     catalog,
     index: createIndexSync(ports, { store, debug }),
     debug,
-    remoteAllowed: async () => config.detectRemote && !(await trafficIsOff()),
+    remoteAllowed,
   })
   /** A marketplace or an install changes what the catalogue lists. */
   const recatalog = (): void => {

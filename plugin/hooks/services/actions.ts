@@ -9,6 +9,7 @@ import { type DevRunKind, devKey, devRowOf, lastRun } from '../domain/dev.ts'
 import {
   acceptReview,
   awaitingAcceptance,
+  communityInstallReview,
   foundKey,
   foundRow,
   installReview,
@@ -666,6 +667,16 @@ export const createActions = (
       await rt.catalog.load()
       const [view, page] = await Promise.all([state.read('view'), state.read('catalogPage')])
       const found = id ?? foundRow(view, page)?.id
+      const mod = found === undefined ? undefined : rt.catalog.mod(found)
+      if (mod !== undefined) {
+        const review = communityInstallReview(mod, 'user')
+        if (review === undefined) {
+          await notice(`No marketplace lists ${mod.name}: c copies its link`)
+          return
+        }
+        await openReview(review)
+        return
+      }
       const entry = found === undefined ? undefined : rt.catalog.entry(found)
       if (entry === undefined) {
         await notice(

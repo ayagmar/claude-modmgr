@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Discover lists mods published anywhere on public GitHub, not only those in your marketplaces: about 2,700 today,
+  from a community index CI rebuilds daily (GitHub code and repository search, the candidate list of
+  awesome-claude-code-mods, each repository cloned and checked with `claude plugin validate`). What a mod can do is
+  shown before you install it. One whose repository has a marketplace installs from it, the review saying the
+  marketplace is added to your user settings first; one without offers its link (`c`).
+
 ## [0.1.1] - 2026-10-08
 
 ### Fixed

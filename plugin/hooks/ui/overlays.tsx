@@ -227,6 +227,16 @@ const reviewLines = (
     else say(`Deletes its data (${bytesLabel(review.dataBytes)}) for good.`, TONE.bad)
     say('Undo (z) reinstalls it from its marketplace.')
   }
+  if (review.action === 'install' && review.source !== undefined) {
+    const source = sanitize(review.source, { max: 120 })
+    say(`From the marketplace at github.com/${source}:`)
+    say('the install adds it to your user settings first')
+    say('(a clone; adding runs no plugin code).')
+    if (review.indexedAt !== undefined) {
+      say(`What it can do was read at ${review.indexedAt.slice(0, 7)}; modmgr`)
+      say('reads the installed version again.')
+    }
+  }
   if (review.action === 'install' && review.uninspected === true && declared === undefined) {
     if (review.unreadable !== undefined) {
       // A local entry it tried to read and couldn't: not the same as a remote one.

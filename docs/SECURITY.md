@@ -34,6 +34,11 @@ reload, or to stop launching it.
   spells, and refuses the forms that would hide one (`$` passed across files, stored, or used as a value). Read the
   list as what the validated code says it does, not as a proof of what it can't do, and only for that version.
   Updated code is re-validated; a dev folder edited without a version bump is re-validated when you press `v` in Dev.
+- **A community mod comes from a repository you haven't chosen.** Discover lists mods from the community index
+  (below) beside your marketplaces' entries, each with its repository. Installing one runs `claude plugin install
+  <plugin> --marketplace owner/repo`, which adds that repository's marketplace to your user settings first; the review
+  says so, names the repository, and shows what the index read in it at the commit it validated. Once added, that
+  marketplace is a root of trust like any other you added.
 - **Mods loaded by your launch command** (`--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`) load before any installed plugin
   and can't be toggled from inside a session. modmgr shows how they were loaded and how to stop loading them.
 
@@ -74,19 +79,28 @@ isolates, and zero-width characters are removed, and lengths are capped. The tex
 `Markdown`, so a link or image in a description stays inert. The source tree itself is checked for raw control, bidi
 and zero-width characters (`test/layering.test.ts`).
 
-**Network and files.** modmgr makes no network requests of its own except the mod detector's reads of
+**Network and files.** modmgr makes no network requests of its own except Discover's reads of
 `https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/claude-modmgr`, branch `catalog-index`, `v1.json`, at
-most every 12 hours) and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned
-commit (at most 600 a session, only while no turn runs), without credentials, each asked for by byte range (64 KiB a
-file, 2 MiB the index, so a server that honours it sends no more) and its JSON shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
+most every 12 hours), the community index (same branch, `mods-v1.json`, once a session and then at most every 12
+hours), and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned commit (at
+most 600 a session, only while no turn runs), without credentials, each asked for by byte range (64 KiB a file, 2 MiB
+the catalogue index, 4 MiB the community index, so a server that honours it sends no more) and its JSON
+shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
 carries nothing about the person's catalogues or mods. The index only classifies remote entries: a kind is taken
 only when the index's key is the entry's own pinned commit, never `unknown` (the detector checks again), never for a
 local entry (read on disk instead); a malformed file is refused whole, and installing still goes through the review
 of what the entry can do. A wrong or hostile index can at worst mislabel an entry's kind, so Discover shows or hides
-it as a mod, until an index built later corrects it or the entry's commit moves. `MODMGR_INDEX_URL` (an http(s)
-address, for trying an index before it is published) reads the index from there instead, at every catalogue read.
-The index is built by a scheduled workflow whose job that fetches catalogue files holds no write token; a second job,
-running no third-party code, publishes the file. These reads are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
+it as a mod, until an index built later corrects it or the entry's commit moves. The community index lists mods
+found across public GitHub: each one's repository, folder, name, description, stars, the commit validated, and the
+events, calls and variable names `claude plugin validate` reported there; it is kept in memory, never in the store, and
+a malformed file is refused whole. A wrong or hostile community index can at worst list something that isn't a mod,
+or misstate what a mod can do before it is installed (the review says the facts are the index's, at a commit);
+installing still asks first, and modmgr reads the installed version itself. `MODMGR_INDEX_URL` (an http(s) address,
+for trying an index before it is published) reads the catalogue index from there instead, and the community index
+from `mods-v1.json` beside it, at every catalogue read. Both are built by a scheduled workflow. Its job that fetches
+catalogue files and clones candidate repositories holds a token that can only read (it searches GitHub with it);
+git and the CLI never see the token, symbolic links are checked out as plain files, and no mod code runs (validate
+reads source). A second job, running no third-party code, publishes the files. These reads are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
 empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
 files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads

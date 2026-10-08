@@ -41,9 +41,9 @@ describe('buildIndex', () => {
       entry('a@m3'),
       entry('c@m1', { installs: 500 }),
     ])
-    expect(index.order.installs.map(item => item.entry.id)).toEqual(['c@m1', 'b@m2', 'a@m3'])
-    expect(index.order.name.map(item => item.entry.id)).toEqual(['a@m3', 'b@m2', 'c@m1'])
-    expect(index.order.marketplace.map(item => item.entry.id)).toEqual(['c@m1', 'b@m2', 'a@m3'])
+    expect(index.order.installs.map(item => item.id)).toEqual(['c@m1', 'b@m2', 'a@m3'])
+    expect(index.order.name.map(item => item.id)).toEqual(['a@m3', 'b@m2', 'c@m1'])
+    expect(index.order.marketplace.map(item => item.id)).toEqual(['c@m1', 'b@m2', 'a@m3'])
   })
 })
 

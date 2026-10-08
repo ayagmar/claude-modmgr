@@ -1,8 +1,9 @@
 // The Discover catalogue: `list --json --available` read
-// into an index in module memory, never into `$.state` or `$.store`. `$.state`
+// into an index in module memory, never into `$.state` or `$.store`, with the
+// community index's mods none of the person's marketplaces lists. `$.state`
 // gets the window of rows around Discover's selection and the counts. Kinds
 // come from the detector's cache (the store's `detect` key), checked against
-// each entry's pinned commit or version.
+// each entry's pinned commit or version; a community mod is a mod.
 
 import type { CatalogKind } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
@@ -16,6 +17,7 @@ import {
   windowOf,
 } from '../domain/catalog.ts'
 import { type CatalogEntry, parseAvailable, parseMarketplaces } from '../domain/cli-results.ts'
+import type { CommunityMod } from '../domain/community.ts'
 import { localBase, planProbe, probeKey } from '../domain/detector.ts'
 import type { Inspection, Unread } from '../domain/discover.ts'
 import { parseAbsolutePath } from '../domain/ids.ts'
@@ -25,6 +27,7 @@ import { fail, ok, type Result } from '../domain/result.ts'
 import { CAPS } from '../domain/store-schema.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, validateRoot } from './cli.ts'
+import type { Community } from './community.ts'
 import type { StoreService } from './store.ts'
 import { NO_TIMING, type Timing, timed } from './timing.ts'
 
@@ -44,6 +47,8 @@ export type Catalog = {
   invalidate(): void
   isLoaded(): boolean
   entry(id: string): CatalogEntry | undefined
+  /** The community mod Discover lists under `id`. */
+  mod(id: string): CommunityMod | undefined
   /** Every entry, most installed first (the detector's order). */
   entries(): readonly CatalogEntry[]
   /** A marketplace's folder on disk (a clone, or the folder itself). */
@@ -82,6 +87,7 @@ export const createCatalog = (
   store: Pick<StoreService, 'get' | 'update'>,
   debug: (text: string) => void = () => {},
   timing: Timing = NO_TIMING,
+  community?: Pick<Community, 'read'>,
 ): Catalog => {
   let index: CatalogIndex | undefined
   let roots = new Map<string, string>()
@@ -147,10 +153,11 @@ export const createCatalog = (
 
   const read = async (): Promise<Result<void>> => {
     await ports.state.update('catalogPage', page => ({ ...page, loading: true }))
-    // Two reads that don't depend on each other, side by side (about 0.5 s and 0.3 s).
-    const [run, listed] = await Promise.all([
+    // Reads that don't depend on each other, side by side (about 0.5 s, 0.3 s and one request).
+    const [run, listed, mods] = await Promise.all([
       runCli(ports, { op: 'available' }),
       runCli(ports, { op: 'marketplaces' }),
+      community?.read().catch(() => undefined),
     ])
     const parsed = run.ok ? parseAvailable(run.value) : run
     if (!parsed.ok) {
@@ -171,7 +178,8 @@ export const createCatalog = (
     } else {
       debug(`modmgr: marketplace list failed: ${marketplaces.error.message}`)
     }
-    index = buildIndex(parsed.value.available.items)
+    const installed = new Set<string>(parsed.value.installed.items.map(item => item.id))
+    index = buildIndex(parsed.value.available.items, mods?.mods ?? [], { installed })
     memo = undefined
     searched = undefined
     loadedAt = await ports.clock.now()
@@ -196,7 +204,11 @@ export const createCatalog = (
       }
     }
     const window = windowOf(memo.matched, view.found, PAGE_SIZE)
-    shown = { ids: window.rows.map(row => row.id), text: view.search, sort: view.sort }
+    shown = {
+      ids: window.rows.flatMap(row => (row.community === undefined ? [row.id] : [])),
+      text: view.search,
+      sort: view.sort,
+    }
     const { offset } = window
     // A row modmgr read before installing says what it can do (the detail, the review).
     const rows = window.rows.map(row => {
@@ -235,14 +247,18 @@ export const createCatalog = (
     show,
     edge(which) {
       const matched = memo?.matched ?? []
-      return (which === 'first' ? matched[0] : matched.at(-1))?.item.entry.id
+      return (which === 'first' ? matched[0] : matched.at(-1))?.item.id
     },
     invalidate() {
       kindsVersion += 1
     },
     isLoaded: () => index !== undefined,
     entry: id => index?.byId.get(id)?.entry,
-    entries: () => (index === undefined ? [] : index.order.installs.map(item => item.entry)),
+    mod: id => index?.byId.get(id)?.mod,
+    entries: () =>
+      index === undefined
+        ? []
+        : index.order.installs.flatMap(item => (item.entry === undefined ? [] : [item.entry])),
     rootOf: marketplace => roots.get(marketplace),
     folderOf,
     kindOf,
@@ -251,7 +267,9 @@ export const createCatalog = (
       const key = `${shown.text}\u0000${shown.sort}`
       if (searched?.key !== key) {
         const all = matchAll(index, { text: shown.text, sort: shown.sort }, () => 'unknown')
-        searched = { key, ids: all.slice(0, PRIORITY_MAX).map(match => match.item.entry.id) }
+        // Community mods aren't checked: the index says what they are.
+        const entries = all.filter(match => match.item.entry !== undefined)
+        searched = { key, ids: entries.slice(0, PRIORITY_MAX).map(match => match.item.id) }
       }
       return [...shown.ids, ...searched.ids]
     },

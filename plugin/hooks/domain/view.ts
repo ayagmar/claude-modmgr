@@ -393,12 +393,17 @@ export const specsOf = (review: ReviewRequest): JobSpec[] => {
     const scope = cliScope(target.scope)
     const scoped = scope === undefined ? {} : { scope }
     const kind = target.op
+    // An install from a marketplace not added yet names its source.
+    const from =
+      review.action === 'install' && kind === 'install' && review.source !== undefined
+        ? { source: review.source }
+        : {}
     const args: Job['args'] =
       kind === 'remove'
         ? { ...scoped, keepData: review.keepData !== false }
         : (kind === 'install' || kind === 'update') && accepted !== undefined
-          ? { ...scoped, acceptSha: accepted }
-          : scoped
+          ? { ...scoped, ...from, acceptSha: accepted }
+          : { ...scoped, ...from }
     return Object.keys(args).length === 0
       ? { kind, target: target.id }
       : { kind, target: target.id, args }

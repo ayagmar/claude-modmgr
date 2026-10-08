@@ -3,6 +3,11 @@
 // install, declared-command and marketplace flows through the review.
 import { describe, expect, it } from 'vitest'
 import { PAGE_SIZE } from '../../plugin/hooks/domain/catalog.ts'
+import {
+  COMMUNITY_URL,
+  type CommunityMod,
+  communityText,
+} from '../../plugin/hooks/domain/community.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createCatalog } from '../../plugin/hooks/services/catalog.ts'
@@ -20,6 +25,19 @@ const SDK = 'agent-sdk-dev@claude-plugins-official'
 const OFFICIAL = '/tmp/modmgr-fixtures/config/plugins/marketplaces/claude-plugins-official'
 const CMD = 'cmdmod@cmdmkt'
 const MODS_JSON = '{"modules":["./register.ts"]}'
+const COMMUNITY_MOD: CommunityMod = {
+  repo: 'alice/band',
+  path: '',
+  commit: 'a'.repeat(40),
+  name: 'band',
+  description: 'A band above the prompt.',
+  stars: 3,
+  pushed: 1,
+  check: 'passed',
+  events: ['ui.render'],
+  calls: ['http.fetch', 'session.messages'],
+  envReads: [],
+}
 
 /** The catalogue a session reads: `list --available` and `marketplace list`. */
 const catalogCli = (process: FakeProcess): FakeProcess =>
@@ -266,6 +284,31 @@ describe('installing', () => {
     expect(w.process.calls.filter(call => call.argv.includes('--available'))).toHaveLength(2)
     await act.undo()
     expect(w.state.values.view.notice).toBe('Undoing the last batch (1)')
+  })
+
+  it('installs a community mod from the marketplace in its repository, adding it first', async () => {
+    const mods = [
+      { ...COMMUNITY_MOD, market: { name: 'band-mods', plugin: 'band' } },
+      { ...COMMUNITY_MOD, repo: 'bob/meter', name: 'meter' },
+    ]
+    const { w, act, drain, argvs } = await setup(world =>
+      world.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, mods) }),
+    )
+    await act.tab('discover')
+    await act.install('github.com/bob/meter')
+    expect(w.state.values.review).toBeNull()
+    expect(w.state.values.view.notice).toBe('No marketplace lists meter: c copies its link')
+    await act.install('github.com/alice/band')
+    expect(w.state.values.review).toMatchObject({
+      action: 'install',
+      targets: [{ id: 'band@band-mods', op: 'install', scope: 'user' }],
+      notable: ['band: Can read your conversation or files and send data out'],
+      source: 'alice/band',
+    })
+    await act.confirm()
+    await drain()
+    expect(argvs()).toContain('install band --marketplace alice/band --scope user --json')
+    expect(w.command.reloads).toBe(1)
   })
 
   it('a declared command stops the install; v shows it verbatim; y accepts that very command', async () => {
