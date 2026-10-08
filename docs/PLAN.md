@@ -83,6 +83,7 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F56 | `list --json` gives an `installPath` for `<name>@inline` (`CLAUDE_CODE_PLUGIN_DIRS`, scope `session`) and `<name>@skills-dir` entries: the folder the session runs. `$.command.list()` names a command's plugin by its bare name, a `--plugin-dir` one (`modmgr`) and a built-in one (`cc-plugin-diff`) alike, so a plugin that registered a command but isn't listed is a `--plugin-dir` mod only once its folder is found. | M5a, isolated config, live debug log |
 | F57 | While a session hot-reloads a watched folder, a plugin's failure reaches `session.append` as a `door: 'notice'` row whose one text block reads `<name>: <what>`, naming the module's file: `broken: reload failed, the previous version stays loaded: <folder>/hooks/register.ts, compiled line 3 …`; a plugin's reload line arrives the same way (`modmgr: reloaded (8 hooks: …)`). A module that fails at **start-up** says so before modmgr has loaded (not observable), and the same failure is said once per load and reason (saving again with the same error says nothing new). The validator reports any `session.append` hook as a gating hook, matcher or not. | M5a, live debug log, `plugin/tests/m5a.test.tsx` |
 | F58 | There is no `claude plugin outdated` and no dry run (`update` installs). `update --json` decides by **version string**, and the string is the **plugin's own `plugin.json` version when it has one**, the marketplace file's declaration only when it doesn't: declaring `2.0.12` for a plugin whose `plugin.json` says `2.0.11` gets "already at the latest version (2.0.11)" (live, Fable review R-M5-2); `pyright-lsp`, with no `plugin.json`, updated 1.0.0 → 1.0.1 from the declaration. A plugin with no version of its own is named by a **12-hex commit prefix** (a relative source in a cloned marketplace: the clone's commit; a pinned one: its `sha`). `marketplace update` doesn't change an installed plugin's reported version. Marketplace files rarely declare `version` (14 of 315 entries in the official one, a 190 KB file); `list --available` derives one for 3,070 of 3,544 but leaves installed plugins out (F10). The installed commit (`gitCommitSha`) is only in the CLI's own `installed_plugins.json`. | M5b, isolated config, Fable review |
+| F59 | A hook has a **10 s budget** per dispatch (d.ts `HookBudget.ms`), and its awaited `$` calls don't run it down ("as through no other `$` call", d.ts `clock.sleep`); waiting on anything else does. A `/mods … --yes` that waited on the runtime's queue failed closed at 10.2 s in a `-p` run although its job ended in under a second; run on the hook's own `$.process`, the same write answers. A `-p` run prints a command's text prefixed `<plugin>: ` (S12), so `/mods export`'s JSON reads after that prefix. | M6, live debug log |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -912,3 +913,43 @@ Pushes and GitHub actions still need the person's go-ahead.
   keeps Enter-runs-the-fix. `failureOf` takes a folder (spaces allowed) only from "reload failed" and "did not load".
   The registry pins a selection only without a filter. Chain notes still take `list --json` order as load order (F3
   was observed on `enabledPlugins`, not on the list; a suspicion) and can't see `--plugin-dir` mods.
+
+**C16. Text commands, first run and performance (M6, applied 2026-10-08).**
+- **`/mods` as text** (`domain/command-args.ts`, `domain/command-text.ts`, `services/commands.ts`): `list`, `info <id>`,
+  `doctor [--json]`, `export`, `install <id> [--scope s] [--accept-command <sha256>]`, `remove <id> [--wipe-data]`,
+  `update [<id>]`, `enable <id>`, `disable <id>`, `apply <file>`, `help`; bare `/mods` still opens the dialog (and
+  lists where no pane is placed). Every id, scope and sha is checked by `domain/ids.ts` before it becomes a job. A
+  write without `--yes` says the CLI lines it would run (exit 1); with it, the jobs run one after another on the
+  command hook's own ports through the runner's `runJob` (F59), with **no reload** (F29), and are recorded like the
+  dialog's (job log, history), then the answer says how each ended and "Run
+  /reload-plugins (or restart Claude Code) to apply." A declared command stops the install and is printed whole with
+  its sha256 and `add --accept-command <sha>` (too long to show: "install it in a terminal"); never `-y`. `doctor`
+  is Health's items (`healthItemsOf`, so the two can't disagree), as lines or `--json`, exit 1 when something is wrong.
+  `export` is `{ mods: [{ id, scope, version }] }` for CLI-installed mods; `apply` reads a file of that shape (at most
+  100), installs what is missing and enables what is off. Exit codes: 0 done, 1 refused or failed (or a dry run), 2
+  usage. A subcommand reads the installed list itself (on the runtime's ports, never the hook's) when start-up hasn't,
+  and says when it can't ("Couldn't read your plugins: …"). `/mods` registers an `argumentHint`.
+- **First run**: the first session ever opens the dialog on a `welcome` overlay (the three lines of PLAN §5.3 and
+  `enter: start`, autofocused), said once (`prefs.firstRunDone`). `view` went to `/6` (`Overlay` gained `welcome`).
+  **Preferences were never written** (found in M6): the tab, sort and kind are now saved on change and read at the
+  next session's start. `store.update` writes nothing when the change returns its input.
+- **Surfaces**: PLAN §5.2's "Mobile: read-only" is dropped. The CLI runs on the session's machine whatever surface
+  presses, every write passes the same review, and S11/F32 showed `$.process` on hosted surfaces; mobile only lacks
+  the fields (`Input`, `Select`), which C13's fix handles. Read-only stays for a missing CLI (`degraded.process`), on
+  every surface and for the text writes.
+- **Performance**: `docs/PERF.md` records every §6 budget measured (live with `userConfig.debugTimings`, which now
+  writes `modmgr: timing …` debug lines from `services/timing.ts`, and `scripts/measure-perf.ts` for the pure parts).
+  To meet them: the catalogue's two CLI reads run side by side (1.8 s → 0.6 s), and `session.start` registers `/mods`
+  and takes the queue over side by side (8.9 ms → 4.8 ms). Dead code from M4's switch to windows went
+  (`search`, `clampPage`, `pageLabel`); the benchmark measures what a keystroke runs (`matchAll` + `windowOf`).
+- **Tests**: `test/services/commands.test.ts` (parser, read-only answers, dry runs, writes, refusals, a declared
+  command, apply, the CLI missing), `test/services/m6.test.ts` (prefs, the welcome once, timings, the no-op update),
+  `plugin/tests/services.test.ts` (subcommands through `command.run`, a write that waits and never reloads, `doctor
+  --json`), `plugin/tests/ui.test.tsx` (the welcome).
+- **Found live** (headless `-p` and inline at 64 and ~106 body columns): a text write that waited on the runtime's
+  queue failed at the hook's 10 s budget (F59), so writes run on the command hook's own ports through the runner's
+  `runJob` (one implementation: the dialog's runner calls the same function) and are recorded on the queue as a
+  finished batch, in the history, with `reloadPending` and the runtime's `jobFinished` (catalogue, analyses,
+  updates), as the runner records its own; the network-off note no longer prefixes every answer (only a missing CLI
+  does); a `-p` session no longer spends the first-run welcome (it waits for a session that draws). The welcome
+  draws stacked at 64 and beside the list in the split, the ring on `enter: start`.

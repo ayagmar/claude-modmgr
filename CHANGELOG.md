@@ -31,3 +31,7 @@ All notable changes to this project are documented here. The format follows
 - Update checks every `updateCheckHours` (default 6, `0` turns them off; off under
   `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`), while no turn runs: marketplaces are refreshed and mods with a newer
   version get `↑`. The status line under the prompt says one thing at a time.
+- `/mods` as text for scripts and `-p` runs: `list`, `info`, `doctor [--json]`, `export`, and `install`, `remove`,
+  `update`, `enable`, `disable`, `apply <file>`, which need `--yes` and say how to apply what they changed.
+- A welcome on the first run; the tab, sort and filter kind are remembered between sessions.
+- `debugTimings` writes how long each step took to the debug log; `docs/PERF.md` has the measurements.
