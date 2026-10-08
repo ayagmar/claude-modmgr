@@ -260,6 +260,22 @@ describe('failures the session reports (F20)', () => {
     expect(Object.keys(w.state.values.dev.failures)).toEqual(['broken2'])
   })
 
+  it('keeps the selection when a failing folder joins above it (found live)', async () => {
+    const { w, rt, act } = await setup(w => {
+      w.fs.files.set(`${broken}/.claude-plugin/plugin.json`, '{"name":"aaa"}')
+      // No mods folder: modmgr (--plugin-dir) is the first row.
+      w.fs.dirs.clear()
+    })
+    await act.tab('dev')
+    const shown = w.state.values.dev.rows[0]?.key
+    expect(shown).toBe(`${REPO}/plugin`)
+    expect(w.state.values.view.dev).toBe(shown)
+    onNotice(rt, notice(`aaa: hooks module did not load: ${broken}/hooks/register.ts`))
+    await w.clock.advance(0)
+    expect(w.state.values.dev.rows[0]?.name).toBe('aaa')
+    expect(w.state.values.view.dev).toBe(shown)
+  })
+
   it('keeps the newest failing plugins only', async () => {
     const { w, rt } = await setup()
     for (let i = 0; i <= FAILURES_KEPT; i += 1) {

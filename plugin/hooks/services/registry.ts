@@ -23,7 +23,7 @@ import {
 } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
 import { CAPS } from '../domain/store-schema.ts'
-import type { ReviewFacts } from '../domain/view.ts'
+import { type ReviewFacts, selectedRow } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
 import { mapLimit } from './pool.ts'
@@ -182,6 +182,13 @@ export const createRegistry = (
 
     const mods = sortRows(rows).map(withNews)
     const skipped = listed.value.skipped + unread
+    const before = await ports.state.read('mods')
+    // The row shown selected stays so when a new one sorts above it (found live in Dev).
+    await ports.state.update('view', view => {
+      if (view.selected !== undefined) return view
+      const shown = selectedRow(view, before)?.id
+      return shown === undefined ? view : { ...view, selected: shown }
+    })
     await ports.state.update('mods', () => mods)
     await ports.state.update('detail', detail => detailOf(detail?.id))
     await writeNews(mods)

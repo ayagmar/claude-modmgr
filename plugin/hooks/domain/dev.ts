@@ -228,6 +228,20 @@ export const devRowOf = (
   rows: readonly DevRow[],
 ): DevRow | undefined => rows.find(row => row.key === selected) ?? rows[0]
 
+/**
+ * The selection once rows change: the row shown selected before, while it is
+ * still listed, so a row that joins at the top (a failing folder) never takes
+ * the selection from under the focus ring (found live).
+ */
+export const keptSelection = (
+  selected: string | undefined,
+  before: readonly DevRow[],
+  after: readonly DevRow[],
+): string | undefined => {
+  const shown = devRowOf(selected, before)?.key
+  return after.some(row => row.key === shown) ? shown : after[0]?.key
+}
+
 // ---- what ran ----------------------------------------------------------------
 
 export type DevRunKind = 'validate' | 'test'

@@ -12,6 +12,7 @@ import {
   githubRepoOf,
   isInside,
   joinPath,
+  keptSelection,
   lastRun,
   manifestOf,
   marketplaceFolderOf,
@@ -121,6 +122,15 @@ describe('dev rows', () => {
     expect(devOfKey(devKey('/a/b'))).toBe('/a/b')
     expect(devOfKey('row:x')).toBeUndefined()
     expect(devOfKey(undefined)).toBeUndefined()
+  })
+
+  it('keeps the selection when a row joins above it', () => {
+    const rows = (...keys: string[]) => keys.map(key => ({ key }) as DevRow)
+    expect(keptSelection(undefined, rows('/b', '/c'), rows('/a', '/b', '/c'))).toBe('/b')
+    expect(keptSelection('/c', rows('/b', '/c'), rows('/a', '/b', '/c'))).toBe('/c')
+    expect(keptSelection('/c', rows('/b', '/c'), rows('/a', '/b'))).toBe('/a')
+    expect(keptSelection(undefined, [], rows('/a'))).toBe('/a')
+    expect(keptSelection('/x', rows('/x'), [])).toBeUndefined()
   })
 
   it('says how an edit applies and how to stop loading it', () => {

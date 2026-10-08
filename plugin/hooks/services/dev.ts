@@ -13,6 +13,7 @@ import {
   githubRepoOf,
   isInside,
   joinPath,
+  keptSelection,
   manifestOf,
   marketplaceFolderOf,
   recordFailure,
@@ -128,6 +129,14 @@ export const createDev = (
     }
     const rows = devRowsOf({ listed, commandPlugins, sessionFolder: found, located })
     const now = await ports.clock.now()
+    const before = (await ports.state.read('dev')).rows
+    await ports.state.update('view', view => {
+      const dev = keptSelection(view.dev, before, rows)
+      if (dev === view.dev) return view
+      if (dev !== undefined) return { ...view, dev }
+      const { dev: _gone, ...rest } = view
+      return rest
+    })
     await ports.state.update('dev', dev => ({ ...dev, rows, loading: false, at: now }))
   }
 
