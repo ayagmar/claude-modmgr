@@ -1,4 +1,4 @@
-// Health (PLAN §2.5, C15): what needs the person's attention, grouped by mod,
+// Health: what needs the person's attention, grouped by mod,
 // each with a one-press fix where one exists, then modmgr's own state (the
 // installed list's refresh, a reload owed, the detector, the cache, the update
 // checks). Built from `$.state` alone, so it is drawn, never fetched.
@@ -204,7 +204,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   const counts = loadStates(input.mods)
   if (counts !== undefined) own({ key: 'own:load', tone: 'info', text: counts })
   const updates = facts.updates
-  // Said once the facts are in (the first frame has none: "every 0 hours", review R-M5-9).
+  // Said once the facts are in (the first frame has none, and would say "every 0 hours").
   if (facts.at !== undefined)
     own({
       key: 'own:updates',
@@ -299,7 +299,7 @@ export const problemCount = (items: readonly HealthItem[]): number =>
 
 /**
  * The last `hook failed closed: <plugin>: errorKind=… (<event>; …)` line per
- * plugin in a debug log (F35: the engine logs the error's length, not its text).
+ * plugin in a debug log (the engine logs the error's length, not its text).
  */
 export const loggedFailures = (log: string): Record<string, string> => {
   const found: Record<string, string> = {}

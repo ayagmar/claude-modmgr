@@ -158,8 +158,8 @@ and asks before anything new runs. [docs/SECURITY.md](docs/SECURITY.md) says wha
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/PLAN.md](docs/PLAN.md) (the design and every change made while
-building it) and [docs/PERF.md](docs/PERF.md). The landing page is in `site/` (`pnpm site`).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/PERF.md](docs/PERF.md). The landing page is in `site/`
+(`pnpm site`).
 
 ## License
 

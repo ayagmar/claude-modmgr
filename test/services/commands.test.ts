@@ -1,4 +1,4 @@
-// `/mods` as text (PLAN §2.7, C16) over fake ports and the fixture CLI: the
+// `/mods` as text over fake ports and the fixture CLI: the
 // parser, the read-only answers, and writes that wait for their jobs.
 import { describe, expect, it } from 'vitest'
 import { parseModsArgs, USAGE } from '../../plugin/hooks/domain/command-args.ts'
@@ -73,7 +73,7 @@ describe('the arguments', () => {
     expect(error('install tb@m --accept-command abc')).toMatch(/sha256/)
     expect(error('install tb@m --scope')).toBe('--scope needs a value')
     expect(error('remove tb@m --force')).toBe('unknown option --force')
-    // A flag a subcommand doesn't read is refused, never dropped (review R-M6-4).
+    // A flag a subcommand doesn't read is refused, never dropped.
     expect(error('enable tb@m --scope local')).toBe("--scope doesn't apply to enable")
     expect(error('remove tb@m --accept-command x')).toBe("--accept-command doesn't apply to remove")
     expect(error('install tb@m --wipe-data')).toBe("--wipe-data doesn't apply to install")
@@ -144,7 +144,7 @@ describe('/mods as text', () => {
     expect(done.text).toBe(
       '✓ disable turn-band@fixtures: Successfully disabled plugin: turn-band@fixtures\nRun /reload-plugins (or restart Claude Code) to apply.',
     )
-    // No reload from a command (F29).
+    // No reload from a command (it would reject there).
     expect(w.state.values.queue.jobs.some(job => job.kind === 'reload')).toBe(false)
     expect(w.state.values.attention.reloadPending).toBe(true)
   })
@@ -158,7 +158,7 @@ describe('/mods as text', () => {
       text: 'nosuch@x is not an installed mod.',
       exitCode: 1,
     })
-    // Folder-marketplace mods don't update through the CLI (F51).
+    // Folder-marketplace mods don't update through the CLI (they run from their folder).
     expect((await run('update turn-band@fixtures --yes')).text).toMatch(
       /runs from its marketplace folder/,
     )

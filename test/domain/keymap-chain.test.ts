@@ -12,11 +12,11 @@ import {
 } from '../../plugin/hooks/domain/keymap.ts'
 
 describe('keymap', () => {
-  it('has no collisions in any set of surfaces mounted together (R17)', () => {
+  it('has no collisions in any set of surfaces mounted together', () => {
     expect(collisions()).toEqual([])
   })
 
-  it('obeys F12: one digit or lowercase letter, letters only on the band', () => {
+  it('has hotkeys of one digit or lowercase letter, letters only on the band', () => {
     expect(invalidHotkeys()).toEqual([])
   })
 

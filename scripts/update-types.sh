@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Vendors the installed Claude Code's API declarations under
-# vendor/claude-code-types/<version>/ (PLAN §9). The engine lays them beside a
+# vendor/claude-code-types/<version>/. The engine lays them beside a
 # --plugin-dir mod at load, so this loads a throwaway mod once, headless, with a
 # throwaway config dir, and copies what was laid.
 #

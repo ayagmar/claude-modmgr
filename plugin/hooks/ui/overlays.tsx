@@ -1,4 +1,4 @@
-// The overlays the pane stacks over a view (PLAN §5.3): the review of a
+// The overlays the pane stacks over a view: the review of a
 // batch, help generated from the keymap, and the job log.
 
 import type { RenderElement } from 'claude-code'
@@ -39,7 +39,7 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
     case 'undo':
       return 'Undo the last batch'
     case 'install':
-      // From an untrusted catalogue: the marketplace beside the name (PLAN §7, R-M4-7).
+      // From an untrusted catalogue: the marketplace beside the name.
       return only === undefined
         ? 'Install'
         : `Install ${name(only.id)} from ${sanitize(marketplaceOf(only.id), { max: 40 })}`
@@ -57,10 +57,10 @@ type Line = { readonly el: RenderElement; readonly text: string }
  * The review's lines (Pane clips a taller review to the body). The keys come
  * right under the heading, so a clipped review keeps them.
  */
-/** What the review knows beyond the request: Claude Code refused an acceptance from here (C4). */
+/** What the review knows beyond the request: Claude Code refused an acceptance from here. */
 export type ReviewHow = { readonly refused: boolean }
 
-/** The terminal command a person runs to accept a declared command themselves (C4). */
+/** The terminal command a person runs to accept a declared command themselves. */
 const terminalCommand = (review: ReviewRequest): string | undefined => {
   const target = review.targets[0]
   if (target === undefined) return undefined
@@ -78,7 +78,7 @@ const reviewLines = (
   const { Box, Text, Select } = v.el
   const declared = review.declaredCommand ?? review.headersHelper
   // Claude Code refuses an acceptance from this session: confirm would be refused again.
-  // Refused from this session (C4), or too long to show whole (R-M4-8): accepted
+  // Refused from this session, or too long to show whole: accepted
   // in a terminal, never here.
   const blocked = declared !== undefined && (how.refused || declared.truncated === true)
   const terminal = blocked ? terminalCommand(review) : undefined
@@ -88,7 +88,7 @@ const reviewLines = (
   const removing = review.action === 'remove'
   const keepData = review.keepData !== false
   const heading = headingOf(review, name)
-  // What `y` does is said on `y` itself once the data goes too (review R-M3b-5).
+  // What `y` does is said on `y` itself once the data goes too.
   const confirmLabel =
     removing && !keepData
       ? 'remove and wipe its data'
@@ -141,7 +141,7 @@ const reviewLines = (
   ]
   const push = (el: RenderElement, text: string) => lines.push({ el, text })
   const scoped = review.targets[0]?.scope
-  // The scope is chosen here (PLAN §2.3); a declared command's sha is bound to the
+  // The scope is chosen here; a declared command's sha is bound to the
   // install it was shown for, so that review keeps its scope.
   const scopeLabel = SCOPE_LABEL[isInstallScope(scoped) ? scoped : 'user']
   if (review.action === 'install' && declared === undefined && Select !== undefined) {
@@ -212,7 +212,7 @@ const reviewLines = (
     if (marketplaces.length > 0) {
       say(`Refreshes ${marketplaces.map(m => sanitize(m, { max: 40 })).join(', ')} first.`)
     }
-    // modmgr hasn't checked that a newer version exists (detection is M5b's).
+    // The review doesn't say whether a newer version exists: an update finds out.
     say('If a newer version exists, its code runs')
     say('after the reload; modmgr shows what is new.')
     say("An update can't be undone.", TONE.warn)
@@ -225,7 +225,7 @@ const reviewLines = (
   }
   if (review.action === 'install' && review.uninspected === true && declared === undefined) {
     if (review.unreadable !== undefined) {
-      // A local entry it tried to read and couldn't: not the same as a remote one (R-M4-5).
+      // A local entry it tried to read and couldn't: not the same as a remote one.
       say("modmgr couldn't read what it can do before", TONE.warn)
       say(`installing: ${sanitize(review.unreadable, { max: 160 })}`, TONE.warn)
       say('Its detail says what it can do once installed.')
@@ -241,7 +241,7 @@ const reviewLines = (
         : 'Its marketplace fetches the archive with this command:',
       TONE.warn,
     )
-    // Line for line, wrapped, never cut (PLAN §7); what sanitising removed is said.
+    // Line for line, wrapped, never cut; what sanitising removed is said.
     for (const line of sanitize(declared.text, { max: SHOWN_MAX, multiline: true }).split('\n')) {
       push(<Text bold>{`  ${line}`}</Text>, `  ${line}`)
     }
@@ -273,7 +273,7 @@ const reviewLines = (
   )
   if (reinstalls.length > 0) {
     say("Reinstalls the marketplace's current version.")
-    // Only what the CLI said about the data (R-M3b-6); nothing when it said nothing.
+    // Only what the CLI said about the data; nothing when it said nothing.
     for (const target of reinstalls) {
       if (target.keptData === true) say(`${name(target.id)}: its data was kept.`)
       if (target.keptData === false) say(`${name(target.id)}: its data went with it.`)
@@ -348,7 +348,7 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
   )
 }
 
-/** What the first session's dialog says first (PLAN §5.3). */
+/** What the first session's dialog says first. */
 const WELCOME = [
   'See what each mod can do before it runs.',
   'Find mods across your marketplaces.',
@@ -444,7 +444,7 @@ const JOB_TONE: Readonly<Record<Job['state'], string>> = {
 
 /**
  * The newest jobs first, each with its error, and the running or failed one's
- * output tail under it, in as many lines as `rows` allows (review R-M3a-8).
+ * output tail under it, in as many lines as `rows` allows.
  */
 export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderElement => {
   const { Box, Text } = v.el
@@ -474,7 +474,7 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
         </Text>,
       )
     }
-    // A job that found nothing to do says so in its tail (R-M3b-1).
+    // A job that found nothing to do says so in its tail.
     if (job.state === 'running' || job.state === 'failed' || job.unchanged === true) {
       for (const line of job.tail.slice(-5)) {
         own.push(

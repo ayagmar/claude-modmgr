@@ -1,5 +1,5 @@
-// The ports services and views take in place of `$` (C2). Types only: every
-// builder lives in register.tsx, the one file that spells `$` (F36). Each noun
+// The ports services and views take in place of `$`. Types only: every
+// builder lives in register.tsx, the one file that spells `$`. Each noun
 // is its own interface, so a service asks for `Pick<Ports, 'process' | 'state'>`
 // and a test fakes only those nouns.
 
@@ -24,7 +24,7 @@ export type { ModmgrState, StateKey }
 
 /**
  * How a child runs. There is deliberately no `env`: children inherit the
- * session's environment untouched (C4: never strip `CLAUDECODE`).
+ * session's environment untouched (never strip `CLAUDECODE` to slip past a refusal).
  */
 export type RunInit = { readonly cwd?: string; readonly timeoutMs?: number }
 
@@ -49,7 +49,7 @@ export interface StatePort {
 
 export interface StorePort {
   get(key: string): Promise<unknown>
-  /** Rejects past 4 MiB of JSON in all (F16). */
+  /** Rejects past 4 MiB of JSON in all. */
   set(key: string, value: unknown): Promise<void>
   delete(key: string): Promise<void>
   keys(): Promise<string[]>
@@ -86,10 +86,10 @@ export interface SessionPort {
 export interface CommandPort {
   /**
    * Registers `/mods`. Spelled in register.tsx with a literal name, which keeps
-   * the `/mods` hook "answering its own command" rather than a gate (C1).
+   * the `/mods` hook "answering its own command" rather than a gate.
    */
   registerMods(): Promise<void>
-  /** `/reload-plugins`; rejects inside a hook the turn waits on (F29). Resolves the CLI's line. */
+  /** `/reload-plugins`; rejects inside a hook the turn waits on. Resolves the CLI's line. */
   reloadPlugins(): Promise<string | undefined>
   list(): Promise<readonly CommandInfo[]>
 }
@@ -98,7 +98,7 @@ export interface UiPort {
   /** One line to the debug log (`--debug`), never the transcript. */
   debug(text: string): void
   panes(): Promise<readonly UiPane[]>
-  /** Opens modmgr's pane, or retitles it and sets its manners anew when open (F22). */
+  /** Opens modmgr's pane, or retitles it and sets its manners anew when open. */
   open(args: PaneOpen): Promise<UiOpenResult>
   close(id: string): Promise<void>
   /** Moves the pane's focus ring onto an element it drew (rejects or denies when it can't). */
@@ -108,9 +108,9 @@ export interface UiPort {
   status(text: string | undefined): void
 }
 
-/** The network, through the host. Used only for the detector's raw.githubusercontent.com probes (PLAN §7). */
+/** The network, through the host. Used only for raw.githubusercontent.com: the catalogue index and the detector's probes. */
 export interface HttpPort {
-  /** A GET of `url`: its status and body (the whole body is read, F16's cousin: checked after). */
+  /** A GET of `url`: its status and body (the whole body is read, so its size is checked after). */
   get(url: string): Promise<{ readonly status: number; readonly text: string }>
 }
 

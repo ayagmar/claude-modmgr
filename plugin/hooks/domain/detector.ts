@@ -1,4 +1,4 @@
-// The mod detector (PLAN §2.3, R14): turns a catalogue entry's source into a
+// The mod detector: turns a catalogue entry's source into a
 // probe plan, and the fetched files into a kind. Fetching, budgets and caching
 // live in services/detector.ts; every decision lives here.
 

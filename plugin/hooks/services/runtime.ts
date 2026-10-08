@@ -1,4 +1,4 @@
-// The long-lived services of one module instance (C2, review M4): built once
+// The long-lived services of one module instance: built once
 // at its first `session.start`, on that dispatch's ports, and kept in
 // register.tsx's module scope. A reload of modmgr builds a new one; the old
 // one's in-flight work finishes on its own and then stops (it no longer owns
@@ -40,14 +40,14 @@ export type Runtime = {
   readonly updater: Updater
   /** Health's facts beyond the other keys. */
   readonly health: Health
-  /** Says how long a step took, with `debugTimings` on (M6, `docs/PERF.md`). */
+  /** Says how long a step took, with `debugTimings` on (`docs/PERF.md`). */
   readonly timing: Timing
-  /** After a job ends (the runner's, or a text write's, C16): catalogue, analyses, updates. */
+  /** After a job ends (the runner's, or a text write's): catalogue, analyses, updates. */
   jobFinished(job: Job): void
   /**
    * What a tab needs read when it is shown (a press, an open, a reloaded module
    * with it showing): Discover's catalogue and the detector, Dev's folders,
-   * Health's facts. Never at a fresh start (review R-M6-2).
+   * Health's facts. Never at a fresh start.
    */
   showTab(tab: Tab): Promise<void>
   /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
@@ -105,12 +105,12 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     const lists = ['install', 'remove', 'marketplace-add', 'marketplace-update']
     if (job.state === 'ok' && lists.includes(job.kind)) recatalog()
     // A folder validated anew: Installed reads what it can do again (it may have changed
-    // without a new version, C14).
+    // without a new version).
     const path = job.args?.path
     if (job.kind === 'validate' && path !== undefined && registry.forget(path)) {
       void registry.refresh()
     }
-    // A refreshed marketplace says what can update (PLAN §2.6).
+    // A refreshed marketplace says what can update.
     if (job.kind === 'marketplace-update' && job.state === 'ok') void updater.check()
     // The CLI found it current: what a check guessed goes, before the refresh that follows.
     if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
@@ -172,7 +172,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     jobFinished,
     async showTab(tab) {
       if (tab === 'discover') {
-        // Read at the first visit, then at most every few hours (PLAN §2.3).
+        // Read at the first visit, then at most every few hours.
         await catalog.load()
         await catalog.show()
         detector.start()

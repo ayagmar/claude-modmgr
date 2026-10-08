@@ -1,5 +1,5 @@
-// Runs `claude …` through the process port and hands back parsed results
-// (PLAN §3, C4). Argv comes only from domain/argv.ts; parsing only from
+// Runs `claude …` through the process port and hands back parsed results.
+// Argv comes only from domain/argv.ts; parsing only from
 // domain/cli-results.ts and domain/validate-report.ts. Nothing here throws:
 // a child that can't start or overran its timeout is an `Err`.
 
@@ -34,7 +34,7 @@ const messageOf = (error: unknown): string =>
 
 /**
  * The working directory for every run: the session's project root, so
- * `project`/`local` scope and `projectEnabled` mean this repository (R22).
+ * `project`/`local` scope and `projectEnabled` mean this repository.
  */
 const cwdOf = async (ports: Pick<Ports, 'session'>): Promise<string | undefined> => {
   try {

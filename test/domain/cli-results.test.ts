@@ -23,7 +23,7 @@ const errKind = (result: { ok: boolean; error?: { kind: string } }): string | un
   result.ok ? undefined : result.error?.kind
 
 describe('lastJsonObject', () => {
-  it('takes the last JSON object line after human lines (F26)', () => {
+  it('takes the last JSON object line after human lines', () => {
     const line = lastJsonObject(runs['install-command-refused'].stdout)
     expect(line?.failureCode).toBe('command_source_refused')
   })
@@ -97,7 +97,7 @@ describe('parseOpResult on real captures', () => {
     })
   })
 
-  it('needs acceptance for a declared command (F25)', () => {
+  it('needs acceptance for a declared command', () => {
     const outcome = okValue(parseOpResult(runs['install-command-refused']))
     expect(outcome.status).toBe('needs-acceptance')
     if (outcome.status !== 'needs-acceptance') return
@@ -116,7 +116,7 @@ describe('parseOpResult on real captures', () => {
     expect(outcome).toMatchObject({ status: 'needs-acceptance', changed: true })
   })
 
-  it('treats a matched sha that still failed as rejected (F27)', () => {
+  it('treats a matched sha that still failed as rejected', () => {
     const stdout = runs['install-command-wrong-sha'].stdout.replace(
       '"acceptCommandMatched":false',
       '"acceptCommandMatched":true',
@@ -124,7 +124,7 @@ describe('parseOpResult on real captures', () => {
     expect(errKind(parseOpResult(run(stdout, 1)))).toBe('rejected')
   })
 
-  it('treats "ignored inside a Claude Code session" as rejected (F27)', () => {
+  it('treats "ignored inside a Claude Code session" as rejected', () => {
     const stdout = `--accept-command is ignored inside a Claude Code session: run this in your own terminal\n${runs['install-command-refused'].stdout}`
     expect(errKind(parseOpResult(run(stdout, 1)))).toBe('rejected')
   })
@@ -213,7 +213,7 @@ describe('parseInstalledList', () => {
     expect(items.find(item => item.id === 'redactor@fixtures')?.enabled).toBe(false)
   })
 
-  it('reads dataDirSize and session-scoped inline dirs (F33, F34)', () => {
+  it('reads dataDirSize and session-scoped inline dirs', () => {
     const entry = parseInstalledEntry({
       id: 'env-b@inline',
       version: '0.0.1',

@@ -14,7 +14,7 @@
   (`scripts/capture-fixtures.sh` regenerates them from the real CLI), and `fixture-mods/`, a small marketplace of mods.
 - `vendor/claude-code-types/<version>/`: the Claude Code API declarations modmgr is built against.
 - `site/`: the landing page (Astro, static). Its demo frames (`site/src/data/demo.ts`) are drawn by `ui/Pane.tsx`.
-- `docs/`: plan, spikes, reviews, security and performance notes.
+- `docs/`: security and performance notes.
 
 ## Setup
 

@@ -1,9 +1,9 @@
-// The installed mods (PLAN §2.1, §4): `list --json`, then `validate --json`
+// The installed mods: `list --json`, then `validate --json`
 // (and `details` for mods) for every `root@version` the store hasn't seen,
 // three at a time. Writes the rows to `$.state` `mods`, the selected mod's
-// detail to `detail`, and the refresh's outcome to `sync` (the `↻` marker, C8).
+// detail to `detail`, and the refresh's outcome to `sync` (the `↻` marker).
 // Each refresh also records what every mod can do at its version, so a
-// version change that adds notable capabilities is shown (PLAN §2.2).
+// version change that adds notable capabilities is shown.
 
 import type { ModDetail, ModRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
@@ -50,7 +50,7 @@ export type Registry = {
    * One refresh at a time; a call during one queues exactly one more. With
    * `via`, a command hook's own ports run the CLI and the refresh runs apart:
    * its `$` calls don't meter the hook's 10 s budget, waiting on another
-   * refresh would (F59, review R-M6-3).
+   * refresh would.
    */
   refresh(via?: CliPorts): Promise<Result<RefreshSummary>>
   /** Shows a mod's detail (`undefined` clears it). */
@@ -78,7 +78,7 @@ export type Registry = {
    * listed sources.
    */
   listed(): Listed[]
-  /** The listed mods in load order (F3) with the events they hook: Health's hook-order notes. */
+  /** The listed mods in load order (`enabledPlugins` key order) with the events they hook: Health's hook-order notes. */
   chainMods(): ChainMod[]
   /**
    * Forgets the analyses of `root` (any version), so the next refresh reads it
@@ -194,7 +194,7 @@ export const createRegistry = (
       const { notable } = capabilitiesOf(analysis)
       sightings.push({ id: entry.id, version: runningVersion(entry) ?? '?', notable })
     }
-    // Written only when something was analysed: each `$.store.set` rewrites the file (F16).
+    // Written only when something was analysed: each `$.store.set` rewrites the file.
     // Installed entries are touched in that write, so a cache hit can't be evicted before them.
     if (fresh.some(Boolean)) store.set('validate', validate)
     const history = recordCaps(store.get('capsHistory'), sightings)
@@ -207,7 +207,7 @@ export const createRegistry = (
     const [before, view] = await Promise.all([ports.state.read('mods'), ports.state.read('view')])
     // The row shown selected stays so when a new one sorts above it (found live in Dev);
     // written only when it moves, since a view write redraws the pane.
-    // Not under a filter: the first row it shows isn't what the person picked (review R-M5-10).
+    // Not under a filter: the first row it shows isn't what the person picked.
     const shown =
       view.selected === undefined && view.query === '' ? selectedRow(view, before)?.id : undefined
     if (shown !== undefined) {

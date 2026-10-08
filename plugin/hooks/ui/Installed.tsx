@@ -35,7 +35,7 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   if (row.problems > 0) flags.push({ text: `${GLYPH.problem}${row.problems}`, color: TONE.bad })
   if (row.notableCount > 0)
     flags.push({ text: `${GLYPH.notable}${row.notableCount}`, color: TONE.accent })
-  // An update added notable capabilities the person hasn't seen (PLAN §2.2).
+  // An update added notable capabilities the person hasn't seen.
   if (row.capsNew !== undefined) flags.push({ text: 'new', color: TONE.warn })
   return flags
 }
@@ -51,7 +51,7 @@ export const Row = (
   },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
-  // Only an entry that still changes the row is drawn (review R-M3a-3).
+  // Only an entry that still changes the row is drawn.
   const staged = how.staged.has(row.id) ? how.view.staged[row.id] : undefined
   const cols = rowColumns(how.columns)
   const name = sanitize(row.name, { max: cols.name })
@@ -82,7 +82,7 @@ export const Row = (
           </Text>
         </Box>
       ) : null}
-      {/* One line, cut at the frame in the worst case (review R-M3a-7). */}
+      {/* One line, cut at the frame in the worst case. */}
       <Box flexDirection="row" gap={1} flexShrink={1} height={1} overflow="hidden">
         {staged === undefined ? null : <Text color={TONE.warn}>→ {staged ? 'on' : 'off'}</Text>}
         {flagsOf(row).map(flag =>

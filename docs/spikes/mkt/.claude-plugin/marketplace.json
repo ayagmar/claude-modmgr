@@ -1,4 +1,0 @@
-{"name":"spikemkt","owner":{"name":"spike"},"plugins":[
-{"name":"zzz-gate","source":"./zzz-gate","description":"g"},
-{"name":"aaa-mod","source":"./aaa-mod","description":"a"},
-{"name":"mmm-mod","source":"./mmm-mod","description":"m"}]}

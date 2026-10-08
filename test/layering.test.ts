@@ -1,12 +1,13 @@
-// The layering rules (PLAN §3 with C2), checked over every import in plugin/:
+// The layering rules, checked over every import in plugin/:
 // - domain/ imports only domain/ (and the state contract's types);
 // - services/ imports domain/, services/ and contract types;
 // - ui/ imports domain/, ui/ and services' types only;
-// - only hooks/register.tsx spells `$.` (F36: `$` can't cross a file);
+// - only hooks/register.tsx spells `$.` (the validator refuses `$` across an import);
 // - hooks/ports.ts is types only, and services/ and ui/ import it as types;
-// - no `.catch` handler touches `$` (on re-entry its `$` calls reject, review M2);
+// - no `.catch` handler touches `$` (on re-entry its `$` calls reject);
 // - only register.tsx imports values from 'claude-code' (atom, read, update);
-// - every function in register.tsx that takes `$` is declared at the top level (F40);
+// - every function in register.tsx that takes `$` is declared at the top level
+//   (the validator refuses one declared inside `register()`);
 // - ui/ never names the process, store, env or command ports;
 // - ui/ takes hotkeys only from domain/keymap.ts and colours only from the theme keys.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -70,14 +71,14 @@ describe('layering', () => {
     .filter(file => relative(hooks, file).startsWith('ui/'))
     .map(file => ({ file: relative(root, file), code: readFileSync(file, 'utf8') }))
 
-  it('ui spells no hotkey of its own: they come from domain/keymap.ts (R17)', () => {
+  it('ui spells no hotkey of its own: they come from domain/keymap.ts', () => {
     const literal = uiSources.filter(({ code }) =>
       /hotkey\s*[=:]\s*["'{]\s*['"]?[0-9a-z]['"]/.test(code),
     )
     expect(literal.map(({ file }) => file)).toEqual([])
   })
 
-  it('ui colours only through the theme keys (F13, PLAN §5.6)', () => {
+  it('ui colours only through the theme keys', () => {
     const literal = uiSources.filter(({ code }) => /(color|Color)\s*=\s*["'{]\s*['"]/.test(code))
     expect(literal.map(({ file }) => file)).toEqual([])
     const kit = uiSources.find(({ file }) => file.endsWith('ui/kit.tsx'))?.code ?? ''
@@ -118,14 +119,14 @@ describe('layering', () => {
     ).toEqual([])
   })
 
-  it('nothing in plugin/ imports a package (PLAN §9)', () => {
+  it('nothing in plugin/ imports a package', () => {
     const packages = imports.filter(
       imp => !imp.specifier.startsWith('.') && imp.specifier !== 'claude-code',
     )
     expect(packages.map(imp => `${relative(root, imp.from)} → ${imp.specifier}`)).toEqual([])
   })
 
-  it('only hooks/register.tsx spells $ (C2, F36)', () => {
+  it('only hooks/register.tsx spells $', () => {
     const spelling = files.filter(file => {
       if (relative(hooks, file) === 'register.tsx') return false
       const code = readFileSync(file, 'utf8')
@@ -153,7 +154,7 @@ describe('layering', () => {
     expect(valued.map(imp => relative(root, imp.from))).toEqual([])
   })
 
-  it('register.tsx declares every $-taking function at the top level (F40)', () => {
+  it('register.tsx declares every $-taking function at the top level', () => {
     const source = readFileSync(join(hooks, 'register.tsx'), 'utf8')
     const builders = [...source.matchAll(/^([ \t]*)function\s+(\w+)\s*\(\s*\$/gm)]
     expect(builders.length).toBeGreaterThan(0)
@@ -175,7 +176,7 @@ describe('layering', () => {
     expect(source).not.toMatch(/^\s*export\s+(const|let|function|class)\b/m)
   })
 
-  it('no .catch handler references $ (review M2)', () => {
+  it('no .catch handler references $', () => {
     const register = join(hooks, 'register.tsx')
     const source = readFileSync(register, 'utf8')
     const handlers = [

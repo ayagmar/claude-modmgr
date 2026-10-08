@@ -143,7 +143,7 @@ describe('rows and the window', () => {
   it('resolves the selected row through the filter, for the drawing and the actions alike', () => {
     const all = [row('alpha'), row('beta'), row('gamma')]
     expect(selectedRow(view({ selected: 'gamma@m' }), all)?.name).toBe('gamma')
-    // A selection the filter hides is not acted on: the first row shown is (review R-M3a-1).
+    // A selection the filter hides is not acted on: the first row shown is.
     expect(selectedRow(view({ selected: 'gamma@m', query: 'be' }), all)?.name).toBe('beta')
     expect(selectedRow(view({ selected: 'gone@m' }), all)?.name).toBe('alpha')
     expect(selectedRow(view({ query: 'zzz' }), all)).toBeUndefined()
@@ -281,7 +281,7 @@ describe('overlays and Esc', () => {
     expect(escapeStep(view(), true)).toEqual({ kind: 'close' })
   })
 
-  it('closes at once from the prompt (review M10)', () => {
+  it('closes at once from the prompt', () => {
     expect(escapeStep(view({ stack: ['review'], query: 'x' }), false)).toEqual({ kind: 'close' })
   })
 

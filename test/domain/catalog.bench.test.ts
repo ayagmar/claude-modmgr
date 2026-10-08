@@ -1,5 +1,5 @@
-// PLAN §6: a filter keystroke over the catalogue computes in < 16 ms. Measured
-// at today's size (3.5k) and at 10k for growth (§11). The budget is asserted on
+// A filter keystroke over the catalogue computes in < 16 ms. Measured
+// at today's size (3.5k) and at 10k for growth. The budget is asserted on
 // the median of several runs, with headroom for slow CI machines.
 import { describe, expect, it } from 'vitest'
 import {

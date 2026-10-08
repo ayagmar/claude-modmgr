@@ -1,7 +1,8 @@
-// Parses every `claude plugin … --json` answer modmgr reads (F8, F10, F25–F27,
-// F33, F34) into typed values. Shapes come from real captures in
+// Parses every `claude plugin … --json` answer modmgr reads into typed
+// values. Shapes come from real captures in
 // test/domain/fixtures/cli-runs.ts. Unknown fields are ignored; an entry that
-// fails its shape check is skipped and counted, never fatal (PLAN §11).
+// fails its shape check is skipped and counted, never fatal: the CLI's output
+// changes between releases.
 
 import {
   type AbsolutePath,
@@ -20,7 +21,7 @@ import { sanitize } from './sanitize.ts'
 /** What a service hands in: one finished `claude plugin …` process. */
 export type CliRun = { readonly exitCode: number; readonly stdout: string; readonly stderr: string }
 
-/** `scope: "session"` marks a `CLAUDE_CODE_PLUGIN_DIRS` folder (`<name>@inline`, F34). */
+/** `scope: "session"` marks a `CLAUDE_CODE_PLUGIN_DIRS` folder (`<name>@inline`). */
 export type InstalledScope = Scope | 'session'
 
 export type InstalledEntry = {
@@ -29,14 +30,14 @@ export type InstalledEntry = {
   readonly scope: InstalledScope
   readonly enabled: boolean
   readonly installPath?: AbsolutePath
-  /** Folder-marketplace plugins are read from this folder (F10). */
+  /** Folder-marketplace plugins are read from this folder. */
   readonly readFromFolder?: AbsolutePath
   readonly folderVersion?: string
   readonly installedAt?: string
   readonly lastUpdated?: string
   readonly projectEnabled?: boolean
   readonly projectPath?: AbsolutePath
-  /** From `--data-size`, present only when the data folder exists (F33). */
+  /** From `--data-size`, present only when the data folder exists. */
   readonly dataBytes?: number
 }
 
@@ -92,7 +93,7 @@ export type OpDone = {
   readonly keptData?: boolean
 }
 
-/** A declared command must be accepted first (F25); `changed` when a given sha no longer matched. */
+/** A declared command must be accepted first; `changed` when a given sha no longer matched. */
 export type OpNeedsAcceptance = {
   readonly status: 'needs-acceptance'
   readonly shown: ShownCommand
@@ -122,7 +123,7 @@ export type Details = {
 const MESSAGE_MAX = 500
 const IGNORED_IN_SESSION = /--accept-command is ignored inside a Claude Code session/
 
-/** The last stdout line that parses as a JSON object (human lines may precede it, F26). */
+/** The last stdout line that parses as a JSON object (human lines may precede it). */
 export const lastJsonObject = (stdout: string): JsonRecord | undefined => {
   const lines = stdout.split('\n')
   for (let i = lines.length - 1; i >= 0; i -= 1) {
@@ -248,7 +249,7 @@ export const parseCatalogEntry = (value: unknown): CatalogEntry | undefined => {
   })
 }
 
-/** `claude plugin list --json --available`: `available` excludes installed plugins (F10). */
+/** `claude plugin list --json --available`: `available` excludes installed plugins. */
 export const parseAvailable = (
   run: CliRun,
 ): Result<{ installed: Parsed<InstalledEntry>; available: Parsed<CatalogEntry> }> => {
@@ -317,11 +318,12 @@ export const parseShownCommand = (value: unknown): ShownCommand | undefined => {
 
 /**
  * One result line of `install | update | uninstall | enable | disable |
- * marketplace add | marketplace update … --json` (F8, F25–F27).
+ * marketplace add | marketplace update … --json`.
  */
 export const parseOpResult = (run: CliRun): Result<OpOutcome> => {
   const line = lastJsonObject(run.stdout)
-  // Said with or without a result line: the acceptance was refused here (C4, F27).
+  // Said with or without a result line: the acceptance was refused here (the
+  // CLI refuses it when its environment carries CLAUDECODE).
   if (IGNORED_IN_SESSION.test(run.stdout) || IGNORED_IN_SESSION.test(run.stderr)) {
     const code = line === undefined ? undefined : str(line, 'failureCode')
     return fail('rejected', 'Claude Code ignored the acceptance from here', code)
@@ -378,7 +380,7 @@ const count = (text: string, label: string): number => {
 
 /**
  * `claude plugin details <id>` (text only). It reports "Hooks (0)" for a mod
- * (F9), so modmgr reads only the other counts and the token cost from it.
+ * (it doesn't count function hooks), so modmgr reads only the other counts and the token cost from it.
  */
 export const parseDetails = (run: CliRun): Result<Details> => {
   if (run.exitCode !== 0) return noJson(run)

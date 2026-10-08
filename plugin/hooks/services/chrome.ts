@@ -1,4 +1,4 @@
-// What modmgr shows outside the dialog besides the band (PLAN §2.6, §5.4):
+// What modmgr shows outside the dialog besides the band:
 // the status line under the prompt and the pane's title. Both come from the
 // same summary the band draws (domain/view.ts `summaryOf`), so the three never
 // disagree. The runtime's state writes to `attention`, `queue` and `mods`
@@ -40,7 +40,7 @@ export const createChrome = (
       ports.ui.status(status)
       shown = status
     }
-    // A retitle is an open: it sets the manners anew (F22), so it re-sends
+    // A retitle is an open: it sets the manners anew, so it re-sends
     // them (toasts held only while nothing runs) and never asks for the keys;
     // and only for a pane already drawn, which an unasked open would not place.
     const title = titleOf(summary)
@@ -48,7 +48,7 @@ export const createChrome = (
     if (pane?.isPlaced === true && pane.title !== title) {
       const hold = holdsToasts(queue, view)
       const opened = await ports.ui.open(paneOpen({ focus: false, hold, mods: mods.length, title }))
-      // F53 says a placed pane stays placed; if the engine ever disagrees, say so (R-M3b-7).
+      // A placed pane stays placed when retitled; if the engine ever disagrees, say so.
       if (!opened.isPlaced) debug(`modmgr: retitle left the pane unplaced: ${opened.reason}`)
     }
   }

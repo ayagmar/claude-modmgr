@@ -1,4 +1,4 @@
-// The update scheduler (PLAN §2.6, C15): every `updateCheckHours` (from the
+// The update scheduler: every `updateCheckHours` (from the
 // store's last check, so across sessions too), while no turn runs and traffic
 // is allowed, it queues `claude plugin marketplace update <name>` for each
 // marketplace an installed mod comes from (the queue serialises it with other
@@ -32,13 +32,13 @@ export const FIRST_CHECK_DELAY_MS = 60_000
 export const BUSY_RETRY_MS = 60_000
 
 export type Updater = {
-  /** Schedules the next check from the last one's time (again after a reload, F31). */
+  /** Schedules the next check from the last one's time (again after a reload of modmgr). */
   arm(): Promise<void>
   /** Queues the marketplace refreshes now, when allowed; the scheduled tick and Health's "check now". */
   run(): Promise<'queued' | 'busy' | 'off' | 'nothing'>
   /** Reads the marketplaces' files and records what can update (no network). */
   check(): Promise<void>
-  /** Forgets what a check found for `id`: the CLI found it up to date (review R-M5-2). */
+  /** Forgets what a check found for `id`: the CLI found it up to date. */
   forget(id: string): void
   dispose(): void
 }
@@ -63,7 +63,7 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
   let checking: Promise<void> | undefined
   let again = false
 
-  /** The marketplaces installed mods come from (a folder marketplace has no updates, F51). */
+  /** The marketplaces installed mods come from (a folder marketplace has no updates: it runs from its folder). */
   const marketplacesOfMods = (): string[] => {
     const names = deps.registry
       .listed()
@@ -81,7 +81,7 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     })
   }
 
-  /** Checks off for this module: no timer at all, not one that finds them off (review R-M5-1). */
+  /** Checks off for this module: no timer at all, not one that finds them off. */
   const isOff = async (): Promise<boolean> => deps.hours <= 0 || (await deps.trafficOff())
 
   const tick = async (): Promise<void> => {
@@ -96,7 +96,7 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
   const run = async (): Promise<'queued' | 'busy' | 'off' | 'nothing'> => {
     if (await isOff()) return 'off'
     if (deps.turns.size > 0) return 'busy'
-    // A reload under way or waiting goes first: a refresh would hold the queue (review R-M5-10).
+    // A reload under way or waiting goes first: a refresh would hold the queue.
     const { jobs } = await ports.state.read('queue')
     if (jobs.some(job => job.kind === 'reload' && isActive(job))) return 'busy'
     if (!deps.registry.isLoaded()) await deps.registry.refresh()
@@ -106,10 +106,10 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     const specs: JobSpec[] = marketplacesOfMods().flatMap(name =>
       parseMarketplaceName(name).ok ? [{ kind: 'marketplace-update', target: name }] : [],
     )
-    // The next one is a period from now, whoever asked (the timer or "check now", review R-M5-3).
+    // The next one is a period from now, whoever asked (the timer or "check now").
     await arm()
     if (specs.length === 0) return 'nothing'
-    // One refresh at a time: none waiting or running (review R-M5-3).
+    // One refresh at a time: none waiting or running.
     const queued = await enqueue(
       ports,
       { id: deps.newJobId(), specs, reload: false },
@@ -146,7 +146,7 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
       debug('modmgr: update check could not list the marketplaces')
       return
     }
-    // Mods only: a row shows nothing else (review R-M5-10).
+    // Mods only: a row shows nothing else.
     const installed = deps.registry
       .listed()
       .filter(({ mod }) => mod === true)

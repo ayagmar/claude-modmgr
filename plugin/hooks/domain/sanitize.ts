@@ -1,5 +1,5 @@
 // Untrusted text (catalogue names and descriptions, CLI messages, test output)
-// is cleaned before it is drawn (PLAN §7, R18): no terminal escapes, no C0/C1
+// is cleaned before it is drawn: no terminal escapes, no C0/C1
 // controls, no bidi overrides that could spoof another plugin's name.
 
 // CSI, OSC (BEL- or ST-terminated) and other two-byte ESC sequences.

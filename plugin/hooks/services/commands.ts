@@ -1,9 +1,9 @@
-// `/mods` (PLAN §2.7, C16): the bare command opens the dialog (PLAN §5.2); the
+// `/mods`: the bare command opens the dialog; the
 // subcommands answer as text, for a script, a `-p` run or a session that
 // places no panes. A write asks for `--yes`, then runs its jobs here, on this
 // hook's own ports, through the runner's own `runJob` (the same checks and
 // declared-command handling), and records them on the queue and in the history.
-// It never reloads (F29: a reload asked from a command hook rejects); it ends
+// It never reloads (a reload asked from a command hook rejects); it ends
 // with how to apply what changed.
 
 import type { Job, ModRow } from '../../types/index.d.ts'
@@ -74,13 +74,15 @@ export const modsCommand = async (
   const command = parsed.value
   if (command.kind === 'help') return { text: USAGE }
   if (command.kind === 'open' && (await openDialog(ports))) {
-    // A restored tab is read when the dialog shows it (review R-M6-2); not awaited (F59).
+    // A restored tab is read when the dialog shows it; not awaited (waiting on
+    // anything but its own `$` calls runs down the hook's 10 s budget).
     if (rt !== undefined) void rt.showTab((await ports.state.read('view')).tab)
     return {}
   }
   if (rt === undefined)
     return { text: 'modmgr is still starting; try again in a moment.', exitCode: 1 }
-  // Read when start-up hasn't yet, its CLI on this hook's own ports (F59, review R-M6-3).
+  // Read when start-up hasn't yet, its CLI on this hook's own ports (their `$`
+  // calls don't run down the hook's 10 s budget).
   if (!rt.registry.isLoaded()) await rt.registry.refresh(ports)
   const [mods, sync, degraded] = await Promise.all([
     ports.state.read('mods'),
@@ -225,9 +227,9 @@ const stepSpec = (step: ApplyStep): JobSpec =>
  * Runs `specs` as one batch on the queue, like the dialog's: refused while a
  * job is queued or running or another module owns the queue; otherwise each
  * job is `running` on the queue while it runs (the runner sees it and waits, a
- * queued reload waits behind it, review R-M6-1), finished and the next started
+ * queued reload waits behind it), finished and the next started
  * in one write. The CLI runs on this command hook's own ports, whose `$` calls
- * its 10 s budget doesn't run through (F59). No reload (F29).
+ * its 10 s budget doesn't run through. No reload (it would reject in a command hook).
  */
 const runWrites = async (
   ports: CommandPorts,
@@ -263,7 +265,7 @@ const runWrites = async (
     let owned = false
     await ports.state.update('queue', queue => {
       owned = queue.owner === rt.owner
-      // A newer module took the queue over mid-write (F39): it has settled this batch.
+      // A newer module took the queue over mid-write: it has settled this batch.
       if (!owned) return queue
       const finished = finish(
         appendTail(queue.jobs, job.id, outcome.tail),
@@ -285,7 +287,7 @@ const runWrites = async (
   ) {
     await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
   }
-  // A -p run exits with the answer: the history is written before it (review R-M6-6).
+  // A -p run exits with the answer: the history is written before it.
   await rt.store.flush()
   for (const job of jobs) rt.jobFinished(job)
   rt.chrome.schedule()

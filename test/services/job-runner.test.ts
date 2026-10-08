@@ -47,7 +47,7 @@ const runAll = async (w: ReturnType<typeof world>, runner: ReturnType<typeof set
 }
 
 describe('a toggle batch', () => {
-  it('runs serially, then reloads once, 1.5 s after the last write (F38)', async () => {
+  it('runs serially, then reloads once, 1.5 s after the last write', async () => {
     const { w, runner, ids, settled } = setup()
     await enqueue(
       w.ports,
@@ -89,7 +89,7 @@ describe('a toggle batch', () => {
     expect(w.process.calls.every(call => call.init?.cwd === '/repo')).toBe(true)
   })
 
-  it('writes the reload job running before asking for the reload (review M5)', async () => {
+  it('writes the reload job running before asking for the reload', async () => {
     const { w, runner, ids } = setup()
     let seen: string | undefined
     w.command.reloadAnswer = async () => {
@@ -105,7 +105,7 @@ describe('a toggle batch', () => {
     expect(seen).toBe('running')
   })
 
-  it('reports a refused reload and keeps the reload pending (S8)', async () => {
+  it('reports a refused reload and keeps the reload pending', async () => {
     const { w, runner, ids } = setup()
     w.command.reloadAnswer = async () => {
       throw new Error('called from a command.run hook')
@@ -187,7 +187,7 @@ describe('job outcomes', () => {
     expect(w.process.calls).toEqual([])
   })
 
-  it('refuses to toggle a plugin list --json does not show (C4)', async () => {
+  it('refuses to toggle a plugin list --json does not show', async () => {
     const { w, job } = await one(
       { kind: 'enable', target: 'nosuch@fixtures' },
       { installed: ['turn-band@fixtures'] },
@@ -254,7 +254,7 @@ describe('job outcomes', () => {
     expect(s.w.process.calls[0]?.argv).not.toContain('-y')
   })
 
-  it('marks acceptance degraded when Claude Code refuses it from here (C4, C8)', async () => {
+  it('marks acceptance degraded when Claude Code refuses it from here', async () => {
     const s = setup()
     s.w.process.when(['install'], {
       stdout: '{"command":"install","outcome":"failed","message":"x"}\n',
@@ -461,7 +461,7 @@ describe('cancelling and ownership', () => {
     expect(states(w)).toEqual(['disable:failed', 'enable:cancelled', 'reload:cancelled'])
   })
 
-  it('stops claiming once a newer module took the queue over (F39)', async () => {
+  it('stops claiming once a newer module took the queue over', async () => {
     const { w, runner, ids } = setup()
     w.process.when(['disable'], { throws: 'slow', afterMs: 100 })
     await enqueue(

@@ -1,4 +1,4 @@
-// The Discover catalogue (PLAN §2.3, R11): an index kept in module memory,
+// The Discover catalogue: an index kept in module memory,
 // never in `$.state` or `$.store`. Sort orders are computed once at build time,
 // so a keystroke costs one filter pass over a pre-sorted list and no sort.
 
@@ -84,7 +84,7 @@ export const matchAll = (
 }
 
 /**
- * The rows `$.state` holds (R11): at most `size` matches around the one
+ * The rows `$.state` holds (never the whole catalogue): at most `size` matches around the one
  * selected (the first when it isn't matched), and where they start.
  */
 export const windowOf = (

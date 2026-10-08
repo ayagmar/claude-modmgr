@@ -1,4 +1,4 @@
-// Bounded concurrency for background work (validate runs, PLAN §6).
+// Bounded concurrency for background work (validate runs).
 
 /** Runs `work` over `items`, at most `limit` at once; results keep the items' order. */
 export const mapLimit = async <T, R>(

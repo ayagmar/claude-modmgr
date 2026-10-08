@@ -1,4 +1,4 @@
-// A mod's detail (PLAN §5.3, §2.2): what it is, where it comes from, whether
+// A mod's detail: what it is, where it comes from, whether
 // it can be toggled here, its notable capabilities, everything it hooks and
 // calls grouped by reach, and its other parts. Pushed by Enter (stacked), or
 // beside the list (split). The action keys sit under the title, so a body
@@ -24,7 +24,7 @@ export type DetailHow = {
   /** Draw the action keys (the overlay is on top), not just the facts (a split's preview). */
   readonly actions: boolean
   readonly readOnly: boolean
-  /** Rows the body has: past them the reach groups draw one line each (review R-M3a-8). */
+  /** Rows the body has: past them the reach groups draw one line each. */
   readonly rows: number
 }
 
@@ -32,7 +32,7 @@ const groupsOf = (detail: ModDetail | null) =>
   detail?.caps === undefined ? [] : groupByReach(detail.caps)
 const notableFor = (detail: ModDetail | null) =>
   detail?.caps === undefined ? [] : notableOf(detail.caps)
-/** The notable items its last update added (PLAN §2.2), drawn apart from the rest. */
+/** The notable items its last update added, drawn apart from the rest. */
 const newFor = (detail: ModDetail | null) => {
   const added = detail?.capsNew?.added ?? []
   return notableFor(detail).filter(item => added.includes(item.id))

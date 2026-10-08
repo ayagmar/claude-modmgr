@@ -1,4 +1,4 @@
-// What modmgr keeps in `$.store` across sessions (PLAN §4), as pure data:
+// What modmgr keeps in `$.store` across sessions, as pure data:
 // each key is an envelope `{ v, data }`, checked on read (the file is the
 // person's to edit, and an older or newer modmgr may have written it), migrated
 // forward, capped, and held under a size budget. services/store.ts does the I/O.
@@ -18,7 +18,7 @@ export type Prefs = {
 export type DetectEntry = readonly [sha: string, kind: CatalogKind]
 
 /**
- * A mod's notable capabilities at the version modmgr last saw (PLAN §2.2).
+ * A mod's notable capabilities at the version modmgr last saw.
  * `added` and `since` are what a version change added and the version it came
  * from, kept until the person opens the mod's detail; both or neither.
  */
@@ -42,7 +42,7 @@ export type HistoryEntry = {
 /** An update a check found: the version it was found for, and the one available. */
 export type FoundUpdate = { readonly from: string; readonly to: string }
 
-/** The update scheduler's last check, and what it found (PLAN §2.6). */
+/** The update scheduler's last check, and what it found. */
 export type Updates = {
   readonly at?: number
   readonly found: Readonly<Record<string, FoundUpdate>>
@@ -88,7 +88,7 @@ export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
   prefs: 1,
   detect: 1,
   validate: 1,
-  // 2: records gained `added` and `since` (M3b, the capability diff).
+  // 2: records gained `added` and `since` (the capability diff).
   capsHistory: 2,
   history: 1,
   updates: 1,
@@ -101,7 +101,7 @@ const KiB = 1024
 const MiB = 1024 * KiB
 /** Steady-state budget: past it, the caches give up their oldest entries. */
 export const SOFT_BUDGET = 1 * MiB
-/** Past this even after eviction, a write is refused as `store-full`. The engine's own limit is 4 MiB (F16). */
+/** Past this even after eviction, a write is refused as `store-full`. The engine's own limit is 4 MiB. */
 export const HARD_BUDGET = 3 * MiB
 
 export const DEFAULT_PREFS: Prefs = {
@@ -343,7 +343,7 @@ export const envelope = (data: unknown, version = 1): Envelope => ({
 
 // ---- caps and budget -----------------------------------------------------
 
-/** Applies the per-key caps (PLAN §4). */
+/** Applies the per-key caps. */
 const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   prefs: data => data,
   detect: data => lruTrim(data, CAPS.detect),

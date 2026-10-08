@@ -1,4 +1,4 @@
-// The mod detector (PLAN §2.3, R14): finds which catalogue entries are mods
+// The mod detector: finds which catalogue entries are mods
 // without installing them. A remote entry is probed at its pinned commit on
 // raw.githubusercontent.com; a local one (a folder inside its marketplace's
 // clone or folder) is read from disk. Decisions are domain/detector.ts's; this
@@ -29,11 +29,12 @@ import type { StoreService } from './store.ts'
 
 export const DETECT_CONCURRENCY = 6
 /**
- * Network requests per session, about (PLAN §2.3: ≈ 50 s of idle probing, F28):
+ * Network requests per session, about (≈ 50 s of idle probing: an entry takes
+ * about 0.5 s and usually two requests, about 12 entries a second at six workers):
  * six workers check it before each entry, so the last few may overshoot by five.
  */
 export const DETECT_BUDGET = 600
-/** Results gathered before one cache write (each store write rewrites the file, F16). */
+/** Results gathered before one cache write (each store write rewrites the file). */
 export const DETECT_FLUSH = 50
 /** Tries of one entry after its first 429/403/5xx before it waits for the next session. */
 export const DETECT_RETRIES = 3
@@ -73,7 +74,7 @@ export const createDetector = (
   let busy = false
   let disposed = false
   let running: Promise<void> | undefined
-  // Asked to start while running: go again over what the catalogue lists then (R-M4-6).
+  // Asked to start while running: go again over what the catalogue lists then.
   let restart = false
   let pausedUntil = 0
   let waiters: Array<() => void> = []
@@ -95,7 +96,7 @@ export const createDetector = (
     let checked = 0
     let found = 0
     // Only entries that can be checked count: a command source or an unpinned
-    // repository never can, so "checked n/total" can reach its total (R-M4-6).
+    // repository never can, so "checked n/total" can reach its total.
     let total = 0
     for (const entry of entries) {
       const key = probeKey(planProbe(entry), entry.version)

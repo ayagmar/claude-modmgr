@@ -1,4 +1,4 @@
-// Dev (PLAN §2.4, C6, C14): which mods this session runs from a folder the
+// Dev: which mods this session runs from a folder the
 // person works in, how each is loaded, what its last validate and test said,
 // what the session reported while hot-reloading it, and how to share it.
 // services/dev.ts gathers the inputs; every decision lives here.
@@ -17,7 +17,7 @@ export const devKey = (key: string): string => `${DEV_PREFIX}${key}`
 export const devOfKey = (key: string | undefined): string | undefined =>
   key?.startsWith(DEV_PREFIX) === true ? key.slice(DEV_PREFIX.length) : undefined
 
-/** The order Dev lists its sections in (PLAN §5.3). */
+/** The order Dev lists its sections in. */
 export const DEV_SECTIONS: readonly DevHow[] = [
   'session-folder',
   'plugin-dir',
@@ -44,13 +44,13 @@ export const SECTION_LABEL: Readonly<Record<DevHow, string>> = {
   'folder-marketplace': 'Folder marketplaces',
 }
 
-/** How an edit to its files reaches this session (PLAN §5.1: every action says when). */
+/** How an edit to its files reaches this session (every action says when it applies). */
 export const appliesOf = (how: DevHow): string =>
   how === 'folder-marketplace'
     ? 'Its folder is read again at the next plugin reload (l).'
     : 'Saving a file there reloads it in this session.'
 
-/** How to stop loading it, where the CLI can't (F17); undefined when Installed toggles it. */
+/** How to stop loading it, where the CLI can't; undefined when Installed toggles it. */
 export const stopLoadingOf = (row: DevRow): string | undefined => {
   switch (row.how) {
     case 'session-folder':
@@ -94,7 +94,7 @@ const bareName = (plugin: string): string => {
 
 /**
  * The plugins this session runs that the CLI doesn't list, whose folder to
- * look for: what `--plugin-dir` loaded (F34, C6; the flag isn't inherited by a
+ * look for: what `--plugin-dir` loaded (the flag isn't inherited by a
  * child). A plugin that registered a command, or one the session reported
  * failing. Built-in plugins register commands too (`cc-plugin-diff`, found
  * live), so a name becomes a row only once its folder is found.
@@ -296,22 +296,25 @@ export const testMark = (job: Job | undefined): RunMark | undefined => {
 // ---- what the session reported --------------------------------------------------
 
 const NOTICE = /^([a-z0-9][a-z0-9._-]{0,63})(?:@[a-z0-9][a-z0-9._-]{0,63})?: ([\s\S]+)$/
-/** The words the engine's notices use for a hook or module that didn't work (F20). */
+/** The words the engine's notices use for a hook or module that didn't work. */
 const FAILURE = /\b(?:fail(?:s|ed)?|refused|skipped|threw|not loaded|did not load|errors?)\b/i
 
 /**
  * The plugin folder a hooks file's path names (`: <folder>/hooks/<file>`), the
- * folder allowed to hold spaces (review R-M5-7).
+ * folder allowed to hold spaces.
  */
 const HOOKS_FILE = /:\s(\/.+?)\/hooks\/[^\s/:`'"]+/
-/** The notices that name a module's file, as F57 saw them: only these say where a plugin is. */
+/**
+ * The notices that name a module's file (`broken: reload failed, the previous
+ * version stays loaded: <folder>/hooks/register.ts, …`): only these say where a plugin is.
+ */
 const NAMES_FOLDER = /\b(?:reload failed|did not load)\b/
 
 export type Failure = { readonly name: string; readonly reason: string; readonly folder?: string }
 
 /**
  * A session notice that says a plugin's hook or module failed:
- * `<plugin>: <what happened>` (reference §Drawing; F20), with the plugin's
+ * `<plugin>: <what happened>` (the engine's reference, §Drawing), with the plugin's
  * folder when the notice names a file of its hooks (a module that didn't
  * load or reload does). Undefined for any other notice (a reload's line, a
  * command's output).
@@ -348,7 +351,7 @@ export const recordFailure = (
   }
 }
 
-// ---- sharing (reference §Sharing a mod) ----------------------------------------
+// ---- sharing (the engine's reference, §Sharing a mod) --------------------------
 
 /** `owner/repo` of a GitHub remote (https, ssh or scp form), or undefined. */
 export const githubRepoOf = (remote: string | null | undefined): string | undefined => {

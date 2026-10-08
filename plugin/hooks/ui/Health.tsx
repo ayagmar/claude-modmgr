@@ -23,7 +23,7 @@ export const HealthLine = (
     readonly columns: number
     readonly focus: boolean
     readonly first: boolean
-    /** Stacked: Enter opens the item whole (its row is clipped, review R-M5-5); split: runs its fix. */
+    /** Stacked: Enter opens the item whole (its row is clipped); split: runs its fix. */
     readonly stacked: boolean
   },
 ): RenderElement => {

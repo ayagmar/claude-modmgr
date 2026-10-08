@@ -1,4 +1,4 @@
-// Fake ports for service tests (C2): each noun in memory, with the knobs a
+// Fake ports for service tests: each noun in memory, with the knobs a
 // test needs (a clock that moves only when told, a store with the engine's
 // 4 MiB limit, a scripted CLI). Shapes follow plugin/hooks/ports.ts.
 
@@ -126,7 +126,7 @@ export class FakeState implements StatePort {
 export class FakeStore implements StorePort {
   data = new Map<string, unknown>()
   sets: string[] = []
-  /** The engine's limit (F16). */
+  /** The engine's limit. */
   limit = 4 * 1024 * 1024
   failGets = false
 
@@ -364,7 +364,7 @@ export class FakeUi implements UiPort {
     return this.undrawn.has(key) ? { deny: 'not drawn' } : {}
   }
 
-  /** Esc hands the keys back to the prompt before `ui.close` reaches the plugin (F45). */
+  /** Esc hands the keys back to the prompt before `ui.close` reaches the plugin. */
   keysToPrompt(): void {
     this.shown = this.shown.map(pane => ({ ...pane, isFocused: false }))
   }

@@ -1,4 +1,4 @@
-// Dev (PLAN §2.4, §5.3): the mods this session runs from a folder the person
+// Dev: the mods this session runs from a folder the person
 // edits, their last validate and test, and the failures the session reported
 // while hot-reloading them; a row's detail, and how to share it. Rows are
 // plain Buttons keyed `dev:<key>` (Enter opens the detail). Names, paths,
@@ -268,7 +268,7 @@ export const shareRows = (share: DevShare | undefined, columns: number): number 
   share === undefined ? 1 : wrappedRows(shareText(share), columns) + 1
 
 /**
- * How to share a dev mod (`p`, reference §Sharing a mod): the one install line
+ * How to share a dev mod (`p`, the engine's reference, §Sharing a mod): the one install line
  * another person types, copied with `c`, and what is missing for it to work.
  * Nothing is written: the marketplace file is shown, not created.
  */

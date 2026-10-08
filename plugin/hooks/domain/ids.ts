@@ -1,4 +1,4 @@
-// Validation of everything that reaches a process argv (PLAN §7). Values are
+// Validation of everything that reaches a process argv. Values are
 // branded once validated, so services can only build argv from checked input.
 
 import { fail, ok, type Result } from './result.ts'

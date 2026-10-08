@@ -7,6 +7,6 @@ export default defineConfig({
   integrations: [sitemap()],
   // Small inline styles stay inline; the page ships no client framework.
   build: { inlineStylesheets: 'always' },
-  // The keymap and the demo frames come from the plugin and the tests (PLAN §8, R23).
+  // The keymap and the demo frames come from the plugin and the tests.
   vite: { server: { fs: { allow: ['..'] } } },
 })

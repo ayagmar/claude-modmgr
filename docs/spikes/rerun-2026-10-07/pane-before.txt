@@ -1,2 +1,0 @@
-│ probe pane drawn by gen=4uailj starts=1 cols=104 rows=8                                                  │
-│ probe pane drawn by gen=tmiv49 starts=2 cols=104 rows=8                                                  │

@@ -1,5 +1,5 @@
 // `claude plugin validate --strict --json plugin`, plus the verdicts modmgr
-// relies on (PLAN §7, C1): no errors or warnings, `/mods` answers its own
+// relies on: no errors or warnings, `/mods` answers its own
 // command (it is not a gate), no gate beyond its own pane's, no plugin.register hook, no telemetry, no
 // environment writes. Runs with a throwaway CLAUDE_CONFIG_DIR.
 //
@@ -52,11 +52,11 @@ check(
 )
 check(
   notes.some(note => note.endsWith('answers its own command: command.run{command=mods}')),
-  '/mods is no longer "answering its own command" (C1): is the registration literal still in register.tsx?',
+  '/mods is no longer "answering its own command": is the registration literal still in register.tsx?',
 )
 // The only gates modmgr may hold are on its own pane: the Esc cascade keeps it
 // open (ui.close) and the focus ring is observed (ui.focus); and the session's
-// notices, observed for Dev's failures (C14: it returns what `next` stored, so
+// notices, observed for Dev's failures (it returns what `next` stored, so
 // it changes no row, and notices are rows the model never reads). Each has a .catch.
 const OWN_GATES = [
   'gating hook with .catch: ui.focus{component=Pane, requestId=modmgr}',
@@ -70,11 +70,11 @@ check(
 )
 check(
   !notes.some(note => / hooks: .*plugin\.register/.test(note)),
-  'modmgr hooks plugin.register (PLAN §7: none in v1)',
+  'modmgr hooks plugin.register (it must gate no other plugin)',
 )
 check(
   !notes.some(note => / calls: .*\$\.telemetry\./.test(note)),
-  'modmgr calls $.telemetry (PLAN §7: no telemetry)',
+  'modmgr calls $.telemetry (it sends no telemetry)',
 )
 check(
   notes.some(note => / env writes: nothing$/.test(note)),

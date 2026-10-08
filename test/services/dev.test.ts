@@ -1,4 +1,4 @@
-// M5a over fake ports: Dev's sources (folder-marketplace, inline and
+// Dev over fake ports: its sources (folder-marketplace, inline and
 // skills-dir installs, this session's mods folder, `--plugin-dir` plugins
 // found where the session runs or through a failure), validate and test as
 // jobs, the failures the session reports, sharing, and the actions around them.
@@ -16,7 +16,7 @@ const MKT = '/tmp/modmgr-fixtures/mkt'
 const REPO = '/home/me/modmgr'
 const SESSION = '/cfg/dev-mods/session-1'
 
-/** The fixture list, plus a `CLAUDE_CODE_PLUGIN_DIRS` folder (F34). */
+/** The fixture list, plus a `CLAUDE_CODE_PLUGIN_DIRS` folder. */
 const devCli = (process: FakeProcess): FakeProcess =>
   fixtureCli(process).when(['list', '--json'], () => {
     const list = JSON.parse(runs.list.stdout) as Array<Record<string, unknown>>
@@ -239,7 +239,7 @@ describe('validate and test (v, t)', () => {
   })
 })
 
-describe('failures the session reports (F20)', () => {
+describe('failures the session reports', () => {
   const broken = '/dev/broken2'
   const notice = (text: string) => [{ type: 'text', text }]
 

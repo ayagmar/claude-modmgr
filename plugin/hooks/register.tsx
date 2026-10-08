@@ -1,7 +1,9 @@
-// The only file that spells `$` (C2, F36). It builds ports from `$` in
-// top-level builders, one per noun (F40), registers each event once (F37), and
+// The only file that spells `$` (the validator refuses `$` passed across an
+// import). It builds ports from `$` in top-level builders, one per noun (a
+// `$`-taking builder inside `register()` is refused), registers each event
+// once (a module may hook an event only once without a matcher), and
 // delegates to services. `.catch` handlers never touch `$`: on re-entry their
-// `$` calls reject (review M2), so they pass through or answer plainly.
+// `$` calls reject, so they pass through or answer plainly.
 
 import {
   atom,
@@ -45,7 +47,7 @@ import type { El, ViewPorts } from './ui/kit.tsx'
 import { drawPane } from './ui/Pane.tsx'
 
 // One atom per key, its plugin and key spelled as literals (the validator lists
-// them) and a shape tag that changes with the key's type (C3; domain/state.ts).
+// them) and a shape tag that changes with the key's type (domain/state.ts).
 const MODS = atom({ plugin: 'modmgr', key: 'mods' } as const, INITIAL.mods, { shape: 'mods/2' })
 const DETAIL = atom({ plugin: 'modmgr', key: 'detail' } as const, INITIAL.detail, {
   shape: 'detail/2',
@@ -239,13 +241,13 @@ function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
 }
 
 // This module instance's services, built at its first `session.start` and
-// gone with the module (a reload of modmgr builds the next one, F31).
+// gone with the module (a reload of modmgr builds the next one).
 let runtime: Runtime | undefined
 
 // Whether modmgr's pane held the terminal's keys when last drawn. Esc hands
-// the keys back to the prompt before it raises `ui.close` (F45), so the close
+// the keys back to the prompt before it raises `ui.close`, so the close
 // hook can't ask `$.ui.panes()` alone; the draw just before it knows, and the
-// pane redraws when the keys leave it (F49). Module memory: a reload of modmgr
+// pane redraws when the keys leave it. Module memory: a reload of modmgr
 // starts it false, and the first Esc then closes.
 let paneHadKeys = false
 
@@ -260,7 +262,7 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch((_$, e, next) => next(e))
 
-  // Observed only: the detector probes while no turn runs (PLAN §2.3).
+  // Observed only: the detector probes while no turn runs.
   on('turn.start', async (_$, e, next) => {
     onTurnStart(runtime, e.turnId)
     return next(e)
@@ -274,7 +276,7 @@ export const register: Register = (on, options) => {
     }
   }).catch((_$, e, next) => next(e))
 
-  // Observed only: what the session says when a hot-reloaded plugin fails (Dev, F20).
+  // Observed only: what the session says when a hot-reloaded plugin fails (Dev).
   on('session.append', { door: 'notice' }, async (_$, e, next) => {
     const stored = await next(e)
     onNotice(runtime, e.message.content)
@@ -308,7 +310,7 @@ export const register: Register = (on, options) => {
       bodyRows: e.props.scroll.bodyRows,
       isFocused: e.props.isFocused,
     })
-    // The label is built only when timings are on (review R-M6-9).
+    // The label is built only when timings are on.
     if (config.debugTimings) {
       runtime?.timing(`pane draw (${e.surface}, ${e.props.bodyColumns} columns)`, started)
     }
@@ -341,7 +343,7 @@ export const register: Register = (on, options) => {
     return moved
   }).catch((_$, e, next) => next(e))
 
-  // Esc pops an overlay, then clears the filter, then closes (PLAN §5.2).
+  // Esc pops an overlay, then clears the filter, then closes.
   on('ui.close', { id: 'modmgr' }, async ($, e, next) =>
     e.origin.kind !== 'unload' && (await actionsOf($).closing(e.origin.kind, paneHadKeys))
       ? { value: undefined }

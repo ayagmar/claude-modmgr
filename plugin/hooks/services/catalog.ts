@@ -1,4 +1,4 @@
-// The Discover catalogue (PLAN §2.3, R2, R11): `list --json --available` read
+// The Discover catalogue: `list --json --available` read
 // into an index in module memory, never into `$.state` or `$.store`. `$.state`
 // gets the window of rows around Discover's selection and the counts. Kinds
 // come from the detector's cache (the store's `detect` key), checked against
@@ -28,7 +28,7 @@ import { type CliPorts, runCli, validateRoot } from './cli.ts'
 import type { StoreService } from './store.ts'
 import { NO_TIMING, type Timing, timed } from './timing.ts'
 
-/** How long a loaded catalogue is used before Discover reads it again (PLAN §2.3). */
+/** How long a loaded catalogue is used before Discover reads it again. */
 export const CATALOG_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 export type CatalogPorts = CliPorts & Pick<Ports, 'state'>
@@ -66,7 +66,7 @@ export type Catalog = {
   inspect(id: string): Promise<Inspection | Unread | undefined>
 }
 
-/** Validations of catalogue entries at once (PLAN §6: cache misses, three concurrent). */
+/** Validations of catalogue entries at once (cache misses, three concurrent). */
 export const INSPECT_CONCURRENCY = 3
 
 /** Search matches the detector checks ahead of the rest. */
@@ -109,7 +109,7 @@ export const createCatalog = (
     if (next === undefined) slots += 1
     else next()
   }
-  // A window computed from a view another show() has since replaced is dropped (R-M4-3).
+  // A window computed from a view another show() has since replaced is dropped.
   let generation = 0
 
   const kindOf = (id: string): CatalogKind => {
@@ -147,7 +147,7 @@ export const createCatalog = (
 
   const read = async (): Promise<Result<void>> => {
     await ports.state.update('catalogPage', page => ({ ...page, loading: true }))
-    // Two reads that don't depend on each other, side by side (M6: about 0.5 s and 0.3 s).
+    // Two reads that don't depend on each other, side by side (about 0.5 s and 0.3 s).
     const [run, listed] = await Promise.all([
       runCli(ports, { op: 'available' }),
       runCli(ports, { op: 'marketplaces' }),
