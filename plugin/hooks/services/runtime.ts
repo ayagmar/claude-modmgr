@@ -10,6 +10,7 @@ import type { Ports, StatePort } from '../ports.ts'
 import { type Catalog, createCatalog } from './catalog.ts'
 import { type Chrome, createChrome } from './chrome.ts'
 import { createDetector, type Detector } from './detector.ts'
+import { createDev, type Dev } from './dev.ts'
 import { createRunner, type Runner } from './job-runner.ts'
 import { createRegistry, type Registry } from './registry.ts'
 import { createStore, type StoreService } from './store.ts'
@@ -28,6 +29,8 @@ export type Runtime = {
   readonly catalog: Catalog
   /** Finds which catalogue entries are mods, while no turn runs. */
   readonly detector: Detector
+  /** Dev's mods under development and their failures. */
+  readonly dev: Dev
   /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
   readonly turns: Set<string>
   /** Job ids unique across modules: the owner, then a counter. */
@@ -89,9 +92,16 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     onFinished: job => {
       const lists = ['install', 'remove', 'marketplace-add', 'marketplace-update']
       if (job.state === 'ok' && lists.includes(job.kind)) recatalog()
+      // A folder validated anew: Installed reads what it can do again (it may have changed
+      // without a new version, C14).
+      const path = job.args?.path
+      if (job.kind === 'validate' && path !== undefined && registry.forget(path)) {
+        void registry.refresh()
+      }
     },
     debug,
   })
+  const dev = createDev(ports, registry, debug)
   let counter = 0
   return {
     owner,
@@ -103,6 +113,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     chrome,
     catalog,
     detector,
+    dev,
     turns: new Set(),
     newJobId() {
       counter += 1

@@ -62,11 +62,13 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
       await rt.registry.refresh()
       rt.runner.kick()
       // A reloaded modmgr with Discover showing reads its catalogue again (module memory).
-      if ((await ports.state.read('view')).tab === 'discover') {
+      const { tab } = await ports.state.read('view')
+      if (tab === 'discover') {
         await rt.catalog.load()
         await rt.catalog.show()
         rt.detector.start()
       }
+      if (tab === 'dev') await rt.dev.refresh()
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)
@@ -93,4 +95,21 @@ export const onTurnEnd = (
   if (rt === undefined || agentId !== undefined) return
   rt.turns.delete(turnId)
   rt.detector.setBusy(rt.turns.size > 0)
+}
+
+/**
+ * A notice the session appended (`session.append`, door `notice`): while it
+ * hot-reloads a folder, the engine says there when a plugin's hook or module
+ * failed (F20). Dev counts them; nothing is answered or changed.
+ */
+export const onNotice = (
+  rt: Runtime | undefined,
+  content: readonly { readonly type: string; readonly [field: string]: unknown }[],
+): void => {
+  if (rt === undefined) return
+  for (const block of content) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      void rt.dev.notice(block.text).catch(() => undefined)
+    }
+  }
 }

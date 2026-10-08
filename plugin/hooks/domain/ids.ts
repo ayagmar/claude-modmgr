@@ -31,6 +31,10 @@ export const parsePluginId = (value: unknown): Result<PluginId> =>
     ? ok(value as PluginId)
     : fail('invalid', `not a plugin id: ${describe(value)}`)
 
+/** A plugin's or marketplace's name, as ids spell them. */
+export const isPluginName = (value: unknown): value is string =>
+  typeof value === 'string' && MARKETPLACE.test(value)
+
 export const parseMarketplaceName = (value: unknown): Result<MarketplaceName> =>
   typeof value === 'string' && MARKETPLACE.test(value)
     ? ok(value as MarketplaceName)

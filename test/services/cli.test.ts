@@ -25,8 +25,10 @@ describe('runCli', () => {
 
   it('runs without a cwd when the root is unknown', async () => {
     const w = world()
-    w.ports.session = fakeSession(async () => {
-      throw new Error('no root')
+    w.ports.session = fakeSession({
+      root: async () => {
+        throw new Error('no root')
+      },
     })
     w.process.when(['list'], out('[]'))
     await runCli(w.ports, { op: 'list' })

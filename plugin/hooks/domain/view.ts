@@ -431,6 +431,10 @@ export const bytesLabel = (n: number): string =>
       ? `${Math.round(n / 1024)} KB`
       : `${(n / 1048576).toFixed(1)} MB`
 
+/** Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's height). */
+export const wrappedRows = (texts: readonly string[], columns: number): number =>
+  texts.reduce((sum, text) => sum + Math.max(1, Math.ceil(text.length / Math.max(1, columns))), 0)
+
 /**
  * Rows a wrapping row of items takes at `columns` (the footer's keys, laid
  * out with `columnGap`): each line fills until the next item would overflow.
@@ -484,7 +488,7 @@ export const escapeStep = (view: View, paneFocused: boolean): Escape => {
   // The field of the tab shown: Installed's filter, or Discover's search.
   if (view.tab === 'discover' && view.search !== '')
     return { kind: 'clear-query', view: { ...view, search: '' } }
-  if (view.tab !== 'discover' && view.query !== '')
+  if (view.tab === 'installed' && view.query !== '')
     return { kind: 'clear-query', view: { ...view, query: '' } }
   return { kind: 'close' }
 }

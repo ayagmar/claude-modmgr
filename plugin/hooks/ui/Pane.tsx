@@ -6,6 +6,7 @@
 
 import type { RenderElement } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
+import { devRowOf } from '../domain/dev.ts'
 import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
@@ -23,6 +24,7 @@ import {
   windowAround,
 } from '../domain/view.ts'
 import { Detail, detailRows } from './Detail.tsx'
+import { DevDetail, DevList, devDetailRows, Share, shareRows } from './Dev.tsx'
 import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
 import { List } from './Installed.tsx'
 import { GLYPH, KeyButton, TONE, type ViewPorts } from './kit.tsx'
@@ -43,7 +45,7 @@ export type PaneFrame = {
 }
 
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
-const NOT_YET: ReadonlySet<string> = new Set(['tab.dev', 'tab.health'])
+const NOT_YET: ReadonlySet<string> = new Set(['tab.health'])
 
 /** A footer key: what it does, where its hotkey is bound, what it says. */
 type Key = {
@@ -54,7 +56,7 @@ type Key = {
 }
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
-  const [view, mods, detail, queue, review, sync, degraded, attention, page, detect] =
+  const [view, mods, detail, queue, review, sync, degraded, attention, page, detect, devState] =
     await Promise.all([
       v.read('view'),
       v.read('mods'),
@@ -66,10 +68,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       v.read('attention'),
       v.read('catalogPage'),
       v.read('detect'),
+      v.read('dev'),
     ])
   const { Box, Button, Text, Input } = v.el
   const discover = view.tab === 'discover'
-  const surface: KeySurface = discover ? 'discover' : 'installed'
+  const dev = view.tab === 'dev'
+  const installed = !discover && !dev
+  const surface: KeySurface = discover ? 'discover' : dev ? 'dev' : 'installed'
   const layout = layoutFor(frame.bodyColumns)
   // A review overlay whose review was just taken (confirm) is already gone: the
   // tree drawn in between must be the final one, or the focus ring set on a row
@@ -93,19 +98,22 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const selected = selectedRow(view, mods)
   const changing = stagedIds(view, mods)
   const staged = changing.size
-  const showStaged = !discover && staged > 0 && !readOnly && top !== 'review'
+  const showStaged = installed && staged > 0 && !readOnly && top !== 'review'
   // Discover: the window of rows `$.state` holds, and the selection in it.
   const found = foundRow(view, page)
+  // Dev: its rows, and what validate, test and the session said of them.
+  const devRow = devRowOf(view.dev, devState.rows)
+  const devHow = { jobs: queue.jobs, failures: devState.failures }
 
   const fieldShown = discover
     ? Input !== undefined && showList && (page.total > 0 || view.search !== '')
-    : Input !== undefined && showList && mods.length > 0
+    : Input !== undefined && showList && installed && mods.length > 0
   const stopped = readOnly ? undefined : awaitingAcceptance(queue.jobs)
 
   // The footer's keys: only what applies to what is shown (a key drawn is a
   // key that works; help lists the rest).
   const footer: Key[] = []
-  if (top === undefined && !discover) {
+  if (top === undefined && installed) {
     const updatable = readOnly ? 0 : mods.filter(row => whyNoUpdate(row) === undefined).length
     if (!readOnly && selected !== undefined) {
       footer.push({ action: 'toggle', on: surface, label: 'toggle', onPress: () => v.act.toggle() })
@@ -170,8 +178,36 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       })
     }
   }
+  if (top === undefined && dev && !readOnly) {
+    if (devRow !== undefined) {
+      footer.push({
+        action: 'validate',
+        on: surface,
+        label: 'validate',
+        onPress: () => v.act.devRun('validate'),
+      })
+      footer.push({
+        action: 'test',
+        on: surface,
+        label: 'test',
+        onPress: () => v.act.devRun('test'),
+      })
+      footer.push({ action: 'share', on: surface, label: 'share', onPress: () => v.act.share() })
+    }
+    footer.push({ action: 'reload', on: surface, label: 'reload', onPress: () => v.act.reload() })
+  }
+  if (top === undefined && dev && devRow !== undefined) {
+    const path = devRow.path
+    footer.push({
+      action: 'copy',
+      on: surface,
+      label: 'copy path',
+      onPress: () => v.act.copy(path),
+    })
+  }
   if (top === undefined) {
-    if (stopped !== undefined) {
+    // `v` is Dev's validate: a waiting command is reviewed from Installed or Discover.
+    if (stopped !== undefined && !dev) {
       footer.push({
         action: 'accept',
         on: surface,
@@ -226,7 +262,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // The list, windowed around the selection, and its pager.
   let list: RenderElement
   let pager: string | undefined
-  if (discover) {
+  if (dev) {
+    const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)
+    const window = windowAround(devState.rows.length, at, listRows)
+    pager = pagerLabel(window, devState.rows.length)
+    list = DevList(v, devState.rows, {
+      ...devHow,
+      columns: listColumns,
+      window,
+      focusKey: devRow?.key,
+      loading: devState.loading && devState.at === undefined,
+    })
+  } else if (discover) {
     const at = found === undefined ? 0 : page.rows.indexOf(found)
     const window = windowAround(page.rows.length, at, listRows)
     list = FoundList(v, page, {
@@ -268,12 +315,16 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       : overlay === 'detail'
         ? discover
           ? 'discover-detail'
-          : 'detail'
-        : overlay === 'review'
-          ? 'review'
-          : overlay === 'jobs'
-            ? 'jobs'
-            : surface
+          : dev
+            ? 'dev-detail'
+            : 'detail'
+        : overlay === 'share'
+          ? 'share'
+          : overlay === 'review'
+            ? 'review'
+            : overlay === 'jobs'
+              ? 'jobs'
+              : surface
   const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
   const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
@@ -281,6 +332,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     if (which === 'help') return Help(v, helpSurfaces, NOT_YET)
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     if (which === 'marketplace') return MarketplaceForm(v)
+    if (which === 'share') return Share(v, devState.share)
     return null
   }
 
@@ -294,7 +346,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     rows: listRows,
   })
   const detailOf = (actions: boolean) =>
-    discover ? FoundDetail(v, found, { actions, readOnly }) : Detail(v, detailHow(actions))
+    discover
+      ? FoundDetail(v, found, { actions, readOnly })
+      : dev
+        ? DevDetail(v, devRow, { ...devHow, actions, readOnly })
+        : Detail(v, detailHow(actions))
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
     which === 'review' && review !== null
@@ -303,11 +359,15 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? helpRows(helpSurfaces, NOT_YET)
         : which === 'marketplace'
           ? marketplaceRows
-          : which === 'detail'
-            ? discover
-              ? foundDetailRows(found, true)
-              : detailRows(detailHow(true))
-            : 0
+          : which === 'share'
+            ? shareRows(devState.share, frame.bodyColumns)
+            : which === 'detail'
+              ? discover
+                ? foundDetailRows(found, true)
+                : dev
+                  ? devDetailRows(devRow, devHow, true, frame.bodyColumns)
+                  : detailRows(detailHow(true))
+              : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (
@@ -349,7 +409,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   )
   const on = mods.filter(row => row.enabled).length
   // Tabs keep their width (F48: children shrink by default); the counts give way.
-  const tabKey = (tab: 'installed' | 'discover', label: string) => (
+  const tabKey = (tab: 'installed' | 'discover' | 'dev', label: string) => (
     <Box flexDirection="row" flexShrink={0}>
       {KeyButton(v, {
         action: `tab.${tab}`,
@@ -360,15 +420,23 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       })}
     </Box>
   )
-  const meta = discover
+  const failing = devState.rows.filter(row => devState.failures[row.name] !== undefined).length
+  const meta = dev
     ? [
-        page.total === 0 ? '' : `${page.matched.toLocaleString('en-US')} shown`,
-        detectLine(detect) ?? '',
+        `${devState.rows.length} ${devState.rows.length === 1 ? 'mod' : 'mods'} under development`,
+        failing === 0 ? '' : `${failing} failing`,
       ]
         .filter(part => part !== '')
         .join(' · ')
-    : `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} · ${on} on`
-  const stale = discover ? page.loading : sync.refreshing
+    : discover
+      ? [
+          page.total === 0 ? '' : `${page.matched.toLocaleString('en-US')} shown`,
+          detectLine(detect) ?? '',
+        ]
+          .filter(part => part !== '')
+          .join(' · ')
+      : `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} · ${on} on`
+  const stale = discover ? page.loading : dev ? devState.loading : sync.refreshing
 
   return (
     <Box flexDirection="column">
@@ -376,6 +444,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         <Box flexDirection="row" columnGap={2} flexShrink={1}>
           {tabKey('installed', 'Installed')}
           {tabKey('discover', 'Discover')}
+          {tabKey('dev', 'Dev')}
           <Box flexShrink={1} height={1} overflow="hidden">
             <Text dimColor wrap="truncate-end">
               {meta}
@@ -384,7 +453,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         </Box>
         {stale ? (
           <Text dimColor>{GLYPH.stale}</Text>
-        ) : !discover && sync.error !== undefined ? (
+        ) : installed && sync.error !== undefined ? (
           <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh (r)</Text>
         ) : null}
       </Box>

@@ -3,7 +3,7 @@
 // answers state (with versions and `ifVersion`), the session, commands, logs
 // and a fake `claude` CLI that replies from captured output (fixtures.ts).
 
-import type { On, PaneOpenArgs, UiPane } from 'claude-code'
+import type { CommandInfo, On, PaneOpenArgs, SessionRepo, UiPane } from 'claude-code'
 import { mock } from 'claude-code/testing'
 import { SHAPES } from '../hooks/domain/state.ts'
 import { RUNS } from './fixtures.ts'
@@ -31,6 +31,12 @@ export type HostOptions = {
   web?: Readonly<Record<string, string>>
   /** `$.fs.read` answers by path; others are missing. */
   files?: Readonly<Record<string, string>>
+  /** `$.fs.list` answers by directory (entries are folders, or files when named `*.md`). */
+  dirs?: Readonly<Record<string, readonly string[]>>
+  /** What `$.command.list()` answers. */
+  commands?: readonly CommandInfo[]
+  /** What `$.session.repo()` answers. */
+  repo?: SessionRepo
 }
 
 const fromFixtures = (args: readonly string[]): CliAnswer => {
@@ -123,6 +129,10 @@ export const host = (on: On, options: HostOptions = {}) => {
     return { value: undefined }
   })
   on('session.root', () => ({ value: '/repo' }))
+  on('session.cwd', () => ({ value: '/repo' }))
+  on('session.id', () => ({ value: 'session-1' }))
+  on('session.repo', () => ({ value: options.repo ?? null }))
+  on('command.list', () => ({ value: [...(options.commands ?? [])] }))
   on('ui.open', (_$, e) => {
     opens.push(e)
     if (options.placePanes === false) {
@@ -171,6 +181,19 @@ export const host = (on: On, options: HostOptions = {}) => {
   on('fs.read', (_$, e) => {
     const text = options.files?.[e.path]
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
+  })
+  on('fs.list', (_$, e) => {
+    const names = e.path === undefined ? undefined : options.dirs?.[e.path]
+    if (names === undefined) return { deny: `ENOENT: ${e.path ?? ''}` }
+    return {
+      value: names.map(name => ({
+        name,
+        kind: name.endsWith('.md') ? ('file' as const) : ('dir' as const),
+        size: 0,
+        mtimeMs: 0,
+        isLink: false,
+      })),
+    }
   })
   on('ui.copy', (_$, e) => {
     copies.push(e.text)

@@ -252,9 +252,18 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
         ],
         20,
       )
-      return report.value.success && errors.length === 0
-        ? succeeded(tail)
-        : failed({ kind: 'cli-failed', message: `${errors.length} validate errors` }, tail)
+      const counts = { errors: errors.length, warnings: warnings.length }
+      if (report.value.success && errors.length === 0) {
+        return { finish: { ok: true, report: counts }, tail }
+      }
+      const message =
+        errors.length === 0
+          ? 'validate did not pass'
+          : `${errors.length} validate ${errors.length === 1 ? 'error' : 'errors'}`
+      const stopped = failed({ kind: 'cli-failed', message }, tail)
+      return 'error' in stopped.finish
+        ? { ...stopped, finish: { ...stopped.finish, report: counts } }
+        : stopped
     }
     const result = await runOp(ports, command.value)
     if (!result.ok) {

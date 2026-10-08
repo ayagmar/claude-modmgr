@@ -99,6 +99,8 @@ export type Job = {
   error?: { kind: string; message: string }
   /** It succeeded without changing anything (already so, already up to date): no reload owed. */
   unchanged?: boolean
+  /** A validate: what it found (the tail lists them). */
+  report?: { errors: number; warnings: number }
   /** A remove: whether the CLI said it kept the mod's data folder (`keptData`), when it said. */
   keptData?: boolean
   /**
@@ -115,7 +117,7 @@ export type Job = {
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
-export type Overlay = 'detail' | 'review' | 'help' | 'jobs' | 'marketplace'
+export type Overlay = 'detail' | 'review' | 'help' | 'jobs' | 'marketplace' | 'share'
 
 export type View = {
   tab: Tab
@@ -129,6 +131,8 @@ export type View = {
   sort: 'installs' | 'name' | 'marketplace'
   /** The catalogue entry Discover has selected. */
   found?: PluginId
+  /** The dev mod Dev has selected (its `DevRow.key`). */
+  dev?: string
   /** Staged toggles: what each mod will be after apply. */
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
@@ -227,6 +231,63 @@ export type CatalogPage = {
 }
 export type DetectProgress = { checked: number; total: number; found: number; running: boolean }
 
+/**
+ * How a mod under development is loaded (PLAN §2.4, C6, C14): from this
+ * session's mods folder, a `--plugin-dir` (found through its commands), a
+ * `CLAUDE_CODE_PLUGIN_DIRS` folder, the skills folder, or a folder marketplace.
+ */
+export type DevHow =
+  | 'session-folder'
+  | 'plugin-dir'
+  | 'env-dir'
+  | 'skills-dir'
+  | 'folder-marketplace'
+
+export type DevRow = {
+  /** Stable: its folder. */
+  key: string
+  name: string
+  how: DevHow
+  /** Its plugin id when the CLI lists it (`name@inline`, `name@skills-dir`, `name@<marketplace>`). */
+  id?: PluginId
+  /** Its folder, absolute. */
+  path: string
+  version?: string
+  enabled?: boolean
+}
+
+/** A plugin's failures the session reported while hot-reloading it (F20). */
+export type DevFailures = {
+  count: number
+  lastReason: string
+  lastAt: number
+  /** Its folder, when a notice named a file of its hooks. */
+  folder?: string
+}
+
+/** How to share a dev mod (`p`, reference §Sharing a mod), for the share overlay. */
+export type DevShare = {
+  /** The row it is for. */
+  key: string
+  name: string
+  /** `/plugin install <mod> --marketplace <owner>/<repo>`. */
+  line: string
+  /** `line` names a real repository. */
+  complete: boolean
+  /** The marketplace file to write, when none lists the mod. */
+  snippet?: string
+  notes: string[]
+}
+
+export type DevState = {
+  rows: DevRow[]
+  /** By plugin name, as the session's notices name it. */
+  failures: Record<string, DevFailures>
+  loading: boolean
+  at?: number
+  share?: DevShare
+}
+
 declare module 'claude-code' {
   interface PluginState {
     modmgr: {
@@ -240,6 +301,7 @@ declare module 'claude-code' {
       review: Shaped<ReviewRequest | null>
       attention: Shaped<Attention>
       degraded: Shaped<Degraded>
+      dev: Shaped<DevState>
     }
   }
 }

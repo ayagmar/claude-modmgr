@@ -14,6 +14,7 @@ import {
   nameOf,
   partsLabel,
   specsOf,
+  wrappedRows,
 } from '../domain/view.ts'
 import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 
@@ -308,9 +309,9 @@ export const reviewRows = (
   columns: number,
   how: ReviewHow = { refused: false },
 ): number =>
-  reviewLines(v, review, rows, how).reduce(
-    (sum, line) => sum + Math.max(1, Math.ceil(line.text.length / Math.max(1, columns))),
-    0,
+  wrappedRows(
+    reviewLines(v, review, rows, how).map(line => line.text),
+    columns,
   )
 
 export const Review = (

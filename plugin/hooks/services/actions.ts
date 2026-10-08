@@ -4,7 +4,8 @@
 // Every action catches its own failure: a press must never throw into the host.
 
 import type { RenderSurface } from 'claude-code'
-import type { ReviewRequest, Tab, View } from '../../types/index.d.ts'
+import type { DevRow, ReviewRequest, Tab, View } from '../../types/index.d.ts'
+import { type DevRunKind, devKey, devRowOf, lastRun } from '../domain/dev.ts'
 import {
   acceptReview,
   awaitingAcceptance,
@@ -18,7 +19,14 @@ import {
   nextSort,
   withScope,
 } from '../domain/discover.ts'
-import { enqueueReload, prune, stillUndoes, undoNeedsReview, undoPlan } from '../domain/jobs.ts'
+import {
+  enqueueReload,
+  isActive,
+  prune,
+  stillUndoes,
+  undoNeedsReview,
+  undoPlan,
+} from '../domain/jobs.ts'
 import {
   closedView,
   escapeStep,
@@ -57,7 +65,7 @@ export type ActionPorts = Pick<Ports, 'state' | 'ui'>
 /** The parts of the module's runtime an action reaches; absent before the first `session.start`. */
 export type ActionRuntime = Pick<
   Runtime,
-  'registry' | 'runner' | 'newJobId' | 'chrome' | 'catalog' | 'detector'
+  'registry' | 'runner' | 'newJobId' | 'chrome' | 'catalog' | 'detector' | 'dev'
 >
 
 export type Actions = {
@@ -121,6 +129,14 @@ export type Actions = {
   /** Hides the band's current line. */
   dismiss(line: string): Promise<void>
   cancelJob(id: string): Promise<void>
+  /** The ring landed on a Dev row: it becomes Dev's selection (the split's detail follows). */
+  focusDev(key: string): Promise<void>
+  /** Enter on a Dev row: its detail. */
+  openDev(key: string): Promise<void>
+  /** `v` / `t` on Dev: validates (`--strict`) or tests the selected dev mod, or `key`. */
+  devRun(kind: DevRunKind, key?: string): Promise<void>
+  /** `p` on Dev: how to share the selected dev mod, or `key`. */
+  share(key?: string): Promise<void>
   /**
    * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
    * open. `hadKeys` is whether the pane held the keys when it was last drawn
@@ -232,6 +248,11 @@ export const createActions = (
       if (found !== undefined) await ringTo(foundKey(found.id))
       return
     }
+    if (view.tab === 'dev') {
+      const row = devRowOf(view.dev, (await state.read('dev')).rows)
+      if (row !== undefined) await ringTo(devKey(row.key))
+      return
+    }
     const row = selectedRow(view, mods)
     if (row !== undefined) await ringTo(rowKey(row.id))
   }
@@ -254,6 +275,8 @@ export const createActions = (
     if (top === 'review') return ringTo('act:cancel')
     if (top === 'marketplace') return ringTo(MARKETPLACE_KEY)
     if (top === 'detail' && view.tab === 'discover') return ringTo('act:install', 'act:copy')
+    if (top === 'detail' && view.tab === 'dev') return ringTo('act:validate', 'act:copy')
+    if (top === 'share') return ringTo('act:copy')
     if (top === 'detail') return ringTo('act:toggle', 'act:copy')
     return ringTo(top === 'help' ? 'act:help' : 'act:jobs')
   }
@@ -267,6 +290,12 @@ export const createActions = (
     await state.update('review', () => review)
     await setView(current => pushOverlay(quiet(current), 'review'))
     await ringToOverlay()
+  }
+
+  /** The Dev row an action names, or the selected one. */
+  const devRowFor = async (key: string | undefined): Promise<DevRow | undefined> => {
+    const [view, dev] = await Promise.all([state.read('view'), state.read('dev')])
+    return key === undefined ? devRowOf(view.dev, dev.rows) : dev.rows.find(row => row.key === key)
   }
 
   /** The row an action names, or the selected one. */
@@ -286,6 +315,8 @@ export const createActions = (
         await rt.catalog.show()
         rt.detector.start()
       }
+      // What a session loads from folders changes with its commands and reloads: read on each visit.
+      if (tab === 'dev') await rt?.dev.refresh()
       await ringToSelection()
     }),
 
@@ -448,7 +479,13 @@ export const createActions = (
 
     refresh: safely('refresh', async () => {
       if (rt === undefined) return
-      if ((await state.read('view')).tab === 'discover') {
+      const { tab } = await state.read('view')
+      if (tab === 'dev') {
+        await rt.registry.refresh()
+        await rt.dev.refresh()
+        return
+      }
+      if (tab === 'discover') {
         await rt.catalog.load({ force: true })
         rt.detector.start()
         return
@@ -492,7 +529,16 @@ export const createActions = (
     }),
 
     edge: safely('edge', async which => {
-      if ((await state.read('view')).tab === 'discover') {
+      const { tab } = await state.read('view')
+      if (tab === 'dev') {
+        const { rows } = await state.read('dev')
+        const row = which === 'first' ? rows[0] : rows.at(-1)
+        if (row === undefined) return
+        await setView(current => ({ ...quiet(current), dev: row.key }))
+        await ui.focus(PANE_ID, devKey(row.key)).catch(() => undefined)
+        return
+      }
+      if (tab === 'discover') {
         await rt?.catalog.load()
         const id = rt?.catalog.edge(which)
         if (id === undefined) return
@@ -610,6 +656,44 @@ export const createActions = (
 
     cancelJob: safely('cancel job', async id => {
       await rt?.runner.cancel(id)
+    }),
+
+    focusDev: safely('focus dev', async key => {
+      const view = await state.read('view')
+      if (view.dev === key) return
+      await setView(current => ({ ...quiet(current), dev: key }))
+    }),
+
+    openDev: safely('open dev', async key => {
+      await setView(view => pushOverlay({ ...quiet(view), dev: key }, 'detail'))
+      await ringToOverlay()
+    }),
+
+    devRun: safely('dev run', async (kind, key) => {
+      const row = await devRowFor(key)
+      if (row === undefined) return
+      const { path } = row
+      // One validate (or test) of a folder at a time: a second press says so.
+      const running = lastRun((await state.read('queue')).jobs, kind, path)
+      if (running !== undefined && isActive(running)) {
+        await notice(
+          `${row.name}: ${kind === 'test' ? 'its tests are' : 'it is being validated'} already`,
+        )
+        return
+      }
+      await queueBatch(
+        [{ kind, target: row.id ?? row.name, args: { path } }],
+        queue =>
+          !queue.jobs.some(job => isActive(job) && job.kind === kind && job.args?.path === path),
+      )
+    }),
+
+    share: safely('share', async key => {
+      const row = await devRowFor(key)
+      if (row === undefined || rt === undefined) return
+      if ((await rt.dev.share(row.key)) === undefined) return
+      await setView(view => pushOverlay({ ...quiet(view), dev: row.key }, 'share'))
+      await ringToOverlay()
     }),
 
     async closing(origin, hadKeys) {

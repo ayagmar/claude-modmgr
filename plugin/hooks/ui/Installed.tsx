@@ -116,7 +116,7 @@ export const List = (
     const line = how.loading
       ? 'Reading your plugins…'
       : how.total === 0
-        ? 'No mods installed. Mods are plugins with a hooks module; Discover (coming soon) finds them.'
+        ? 'No mods installed. Mods are plugins with a hooks module; Discover (2) finds them.'
         : `No mod matches "${sanitize(how.view.query, { max: 40 })}". Esc clears the filter.`
     return (
       <Box flexDirection="column">
