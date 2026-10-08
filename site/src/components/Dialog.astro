@@ -1,0 +1,383 @@
+---
+// The /mods dialog as it draws: frames rendered from ui/Pane.tsx over the
+// fixture world (test/demo), in a window, one step of an install at a time.
+// The steps are a radio group, so they switch with no script.
+import { COLUMNS, FRAMES, type Frame, type Segment } from '../data/demo.ts'
+
+// The install path: find it, review it, then its detail once installed.
+const STEPS = [
+  {
+    title: 'Discover',
+    label: 'Discover',
+    note: 'A community mod installs from the marketplace in its own repository, which the install adds to your user settings first.',
+  },
+  {
+    title: 'Review',
+    label: 'Review',
+    note: 'Installing goes through a review that says what will run and where. Nothing runs until you confirm.',
+  },
+  {
+    title: 'Detail',
+    label: 'Installed',
+    note: 'When an update adds something notable, the row and the line above your prompt say so until you have seen it.',
+  },
+].map(step => {
+  const frame = FRAMES.find(candidate => candidate.title === step.title)
+  if (frame === undefined) throw new Error(`demo.ts has no ${step.title} frame`)
+  return {
+    ...step,
+    lines: trimmed(frame.lines),
+    caption: frame.caption,
+    split: splitOf(frame.lines),
+  }
+})
+
+function textOf(line: Frame['lines'][number]): string {
+  return line.map(seg => seg.text).join('')
+}
+
+/** The frame without the empty rows the pane is padded with above its key line, all but one. */
+function trimmed(lines: Frame['lines']): Frame['lines'] {
+  const rule = lines.findIndex(line => /^─+$/.test(textOf(line).trim()))
+  let start = rule
+  while (start > 0 && /^[\s│]*$/.test(textOf(lines[start - 1] ?? []))) start -= 1
+  return rule < 0 || rule - start < 2 ? lines : [...lines.slice(0, start + 1), ...lines.slice(rule)]
+}
+
+/** The column of the divider between the list and the detail: the `│` most rows share. */
+function splitOf(lines: Frame['lines']): number {
+  const counts = new Map<number, number>()
+  for (const line of lines) {
+    const cells = Array.from(textOf(line))
+    cells.forEach((cell, at) => {
+      if (cell === '│' && at > 0 && at < cells.length - 1) counts.set(at, (counts.get(at) ?? 0) + 1)
+    })
+  }
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0
+}
+
+const classOf = (seg: Segment): string =>
+  [
+    seg.tone === undefined ? '' : `t-${seg.tone}`,
+    seg.dim === true ? 'dim' : '',
+    seg.bold === true ? 'b' : '',
+    seg.underline === true ? 'u' : '',
+    seg.ring === true ? 'ring' : '',
+  ]
+    .filter(name => name !== '')
+    .join(' ')
+
+const escapeHtml = (text: string): string =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+
+/**
+ * Symbols a monospace font may lack (◆ ● ▲ ❯ …) are drawn by a fallback font at
+ * its own width: each is held to one cell so the columns stay aligned. Box
+ * drawing (U+2500–U+257F) is in the font.
+ */
+const cells = (html: string): string =>
+  html.replace(/[^\p{ASCII}─-╿]/gu, glyph => `<span class="g">${glyph}</span>`)
+
+/** One frame as the HTML inside its <pre>: no template whitespace can slip in. */
+const screenOf = (lines: Frame['lines']): string =>
+  lines
+    .map(line =>
+      line
+        .map(seg => {
+          const name = classOf(seg)
+          const text = cells(escapeHtml(seg.text))
+          return name === '' ? text : `<span class="${name}">${text}</span>`
+        })
+        .join(''),
+    )
+    .join('\n')
+---
+
+<fieldset class="dialog" style={`--cols: ${COLUMNS}`}>
+  <legend class="vh">Show the dialog at</legend>
+  {
+    STEPS.map((_step, index) => (
+      <input class="vh" type="radio" name="step" id={`step-${index}`} checked={index === 0} />
+    ))
+  }
+  <div class="steps">
+    {
+      STEPS.map((step, index) => (
+        <label for={`step-${index}`}>
+          <span class="n">{index + 1}</span>
+          {step.label}
+        </label>
+      ))
+    }
+  </div>
+  <div class="window">
+    <div class="bar" aria-hidden="true">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span class="where">claude · /mods</span>
+    </div>
+    <div class="screens">
+      {
+        STEPS.map((step, index) => (
+          <figure class={`screen screen-${index}`}>
+            <div class="pane" data-split={step.split}>
+              <pre aria-label={`The /mods dialog: ${step.title}`} set:html={screenOf(step.lines)} />
+            </div>
+            <p class="cue">Swipe sideways for the list; the frame opens on the detail.</p>
+            <figcaption>
+              <span class="caption">{step.caption}</span>
+              {step.note}
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </div>
+</fieldset>
+
+<script is:inline>
+  // A frame wider than its window (a phone) shows the detail column first:
+  // at load, and each time a step is chosen.
+  {
+    const toDetail = () => {
+      for (const pane of document.querySelectorAll('.dialog [data-split]')) {
+        const pre = pane.querySelector('pre')
+        if (!pre || pane.scrollWidth <= pane.clientWidth || pane.scrollLeft > 0) continue
+        const cols = Number(getComputedStyle(pane).getPropertyValue('--cols'))
+        pane.scrollLeft = (pre.offsetWidth * Number(pane.dataset.split)) / cols
+      }
+    }
+    toDetail()
+    for (const input of document.querySelectorAll('.dialog input[name="step"]')) {
+      input.addEventListener('change', () => requestAnimationFrame(toDetail))
+    }
+  }
+</script>
+
+<style>
+  .dialog {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  /* A segmented control: the three steps of an install. */
+  .steps {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    margin-bottom: 1rem;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .steps label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2rem;
+    padding: 0 0.85rem 0 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    color: var(--text-2);
+    border-radius: 7px;
+    cursor: pointer;
+  }
+
+  .steps label:hover {
+    color: var(--text);
+  }
+
+  .n {
+    display: inline-grid;
+    place-items: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+  }
+
+  #step-0:checked ~ .steps [for='step-0'],
+  #step-1:checked ~ .steps [for='step-1'],
+  #step-2:checked ~ .steps [for='step-2'] {
+    color: var(--text);
+    background: var(--field);
+    box-shadow:
+      0 0 0 1px var(--line-strong),
+      0 1px 2px rgb(0 0 0 / 0.2);
+  }
+
+  #step-0:checked ~ .steps [for='step-0'] .n,
+  #step-1:checked ~ .steps [for='step-1'] .n,
+  #step-2:checked ~ .steps [for='step-2'] .n {
+    color: var(--accent-ink);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  #step-0:focus-visible ~ .steps [for='step-0'],
+  #step-1:focus-visible ~ .steps [for='step-1'],
+  #step-2:focus-visible ~ .steps [for='step-2'] {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* The window: the terminal stays dark in both themes, as it is. */
+  .window {
+    background: var(--term-bg);
+    border: 1px solid var(--term-line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: 2.25rem;
+    padding: 0 0.85rem;
+    border-bottom: 1px solid var(--term-line);
+  }
+
+  .dots {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .dots i {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #2a2f36;
+  }
+
+  .where {
+    font: 500 0.75rem var(--mono);
+    color: var(--t-subtle);
+  }
+
+  .screen {
+    display: none;
+    margin: 0;
+  }
+
+  #step-0:checked ~ .window .screen-0,
+  #step-1:checked ~ .window .screen-1,
+  #step-2:checked ~ .window .screen-2 {
+    display: block;
+  }
+
+  /* The frame's columns fill the window at any width: a cell is 0.6em in this mono. */
+  .pane {
+    container-type: inline-size;
+    padding: clamp(0.75rem, 0.5rem + 1vw, 1.5rem);
+    overflow: hidden;
+  }
+
+  pre {
+    margin: 0 auto;
+    width: fit-content;
+    font: 400 min(1.1rem, 100cqi / (var(--cols) * 0.6)) / 1.5 var(--mono);
+    color: var(--term-fg);
+  }
+
+  figcaption {
+    padding: 0.9rem clamp(0.75rem, 0.5rem + 1vw, 1.5rem);
+    font-size: 0.875rem;
+    color: var(--t-subtle);
+    border-top: 1px solid var(--term-line);
+  }
+
+  .cue {
+    display: none;
+  }
+
+  /* On a phone the frame keeps a legible size and scrolls, opening on the detail side. */
+  @media (max-width: 40rem) {
+    .pane {
+      overflow-x: auto;
+      scrollbar-color: var(--term-line) transparent;
+    }
+
+    pre {
+      font-size: 0.6rem;
+    }
+
+    .cue {
+      display: block;
+      margin: 0;
+      padding: 0 0.75rem 0.6rem;
+      font-size: 0.75rem;
+      color: var(--t-subtle);
+    }
+  }
+
+  .caption {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--term-fg);
+    font-weight: 550;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .steps label {
+      transition:
+        color 0.15s var(--ease),
+        background-color 0.15s var(--ease);
+    }
+
+    /* A step changes as a cross-fade: the frame settles, its caption follows. */
+    .screen pre {
+      animation: show 0.4s var(--ease);
+    }
+
+    .screen figcaption {
+      animation: show 0.4s var(--ease) 0.06s backwards;
+    }
+  }
+
+  @keyframes show {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  pre :global(.t-success) {
+    color: var(--t-success);
+  }
+  pre :global(.t-warning) {
+    color: var(--t-warning);
+  }
+  pre :global(.t-error) {
+    color: var(--t-error);
+  }
+  pre :global(.t-claude) {
+    color: var(--t-claude);
+  }
+  pre :global(.t-subtle),
+  pre :global(.dim) {
+    color: var(--t-subtle);
+  }
+  pre :global(.b) {
+    font-weight: 700;
+  }
+  /* One cell, the glyph centred and drawn a little smaller than a wide fallback. */
+  pre :global(.g) {
+    display: inline-flex;
+    justify-content: center;
+    width: 1ch;
+    transform: scale(0.8);
+  }
+  pre :global(.u) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  pre :global(.ring) {
+    background: var(--term-fg);
+    color: var(--term-bg);
+  }
+</style>

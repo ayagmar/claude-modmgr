@@ -53,7 +53,8 @@ scripts and `claude -p`.
 - `site/src/data/demo.ts`: five real frames (Installed, Detail, Discover, Review, Health) rendered from the dialog over
   the fixture world by `test/demo`. Generated; never edited by hand. The fixture mods (broken, quiet-bash, redactor,
   spawner, turn-band, secret-scrub…) are test fixtures, not real catalogue entries.
-- `plugin/hooks/domain/keymap.ts` (keys) and `capabilities.ts` (`notableText`) feed the page directly.
+- `plugin/hooks/domain/capabilities.ts` (`REACH_LABEL`, `notableText`) feeds the page directly, and the community index
+  (`mods-v1.json`, its count computed at build) feeds its search.
 - No users, testimonials, install counts or benchmarks exist; none may be invented.
 
 ## Product Principles

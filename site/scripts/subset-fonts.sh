@@ -32,7 +32,7 @@ cut() { # source axes unicodes output
 
 mkdir -p "$out"
 cut "$site/node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2" \
-  'wght=400:800 wdth=68:100' "$TEXT" "$out/archivo.woff2"
+  'wght=400:700 wdth=100' "$TEXT" "$out/archivo.woff2"
 cut "$site/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2" \
   'wght=400:700' "$MONO" "$out/jetbrains-mono.woff2"
 ls -l "$out"

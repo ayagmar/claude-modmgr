@@ -1,0 +1,95 @@
+---
+// One result, as the build writes the first page. scripts/store.ts builds the
+// same element in the browser (rowOf): change both together.
+import {
+  badgesOf,
+  CHECK_SHORT,
+  CHECK_TEXT,
+  dayText,
+  notablesOf,
+  reachesOf,
+} from '../lib/present.ts'
+import { installLineOf, linkOf, type Mod, shortCount } from '../lib/search.ts'
+
+type Props = { mod: Mod }
+const { mod } = Astro.props
+const notables = notablesOf(mod)
+const reaches = reachesOf(mod)
+---
+
+<li class="mod" data-copy-scope>
+  <details name="mod">
+    <summary>
+      <span class="head">
+        <span class="name">{mod.name}</span>
+        <span class="repo">{mod.repo}</span>
+        {mod.plugin === undefined && <span class="tag">Clone</span>}
+        {mod.check !== 0 && <span class="tag">{CHECK_SHORT[mod.check]}</span>}
+        <span class="badges">
+          {badgesOf(mod).map(badge => <span class="badge" title={badge.full}>{badge.short}</span>)}
+          {
+            notables.length > 0 && (
+              <span class="badge notable">
+                <svg class="i" aria-hidden="true"><use href="#i-diamond"></use></svg>
+                {notables.length} notable
+              </span>
+            )
+          }
+        </span>
+        <span class="stars">
+          <svg class="i" aria-hidden="true"><use href="#i-star"></use></svg>{shortCount(mod.stars)}<span class="vh"> stars</span>
+        </span>
+      </span>
+      <span class="desc">{mod.description}</span>
+    </summary>
+    <div class="detail">
+      <div>
+        <p class="label">What it can reach</p>
+        {
+          reaches.length > 0 ? (
+            <ul class="reach">{reaches.map(label => <li>{label}</li>)}</ul>
+          ) : (
+            <p class="quiet">Nothing that validate reports.</p>
+          )
+        }
+        {
+          notables.length > 0 && (
+            <>
+              <p class="label">Notable</p>
+              <ul class="notables">
+                {notables.map(text => (
+                  <li>
+                    <svg class="i" aria-hidden="true"><use href="#i-diamond"></use></svg>
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
+        }
+      </div>
+      <div>
+        <p class="label">{mod.plugin === undefined ? 'Load it from a clone' : 'Install'}</p>
+        <pre class="cmd"><code data-copy-text>{installLineOf(mod)}</code></pre>
+        <p class="quiet">
+          {
+            mod.plugin === undefined
+              ? `${mod.repo} has no marketplace at its root: clone it and load the folder with --plugin-dir.`
+              : `Adds the marketplace in ${mod.repo} to your user settings, then installs ${mod.plugin}.`
+          }
+        </p>
+        <p class="facts">
+          {CHECK_TEXT[mod.check]} · last push {dayText(mod.pushed)} · <a href={linkOf(mod)}>Open on GitHub</a>
+        </p>
+      </div>
+    </div>
+  </details>
+  <div class="acts">
+    <button class="btn copy js-only" type="button" data-copy aria-label={`Copy the install line for ${mod.name}`}>
+      <svg class="i" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copy</span>
+    </button>
+    <a class="btn gh" href={linkOf(mod)} aria-label={`${mod.name} on GitHub`}>
+      <svg class="i" aria-hidden="true"><use href="#i-github"></use></svg>
+    </a>
+  </div>
+</li>

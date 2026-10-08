@@ -6,6 +6,7 @@ import {
   installLineOf,
   linkOf,
   type Mod,
+  NOTABLE_BITS,
   pageLinks,
   pageOf,
   REACH_BITS,
@@ -23,7 +24,7 @@ const row = (name: string, extra: Partial<Record<keyof Mod, unknown>> = {}): Row
   (extra.stars as number) ?? 0,
   (extra.pushed as number) ?? 0,
   (extra.reach as number) ?? 0,
-  0,
+  (extra.notable as number) ?? 0,
   (extra.check as 0 | 1 | 2) ?? 0,
   (extra.plugin as string) ?? '',
 ]
@@ -33,7 +34,12 @@ const index = indexOf(
     row('meter', { stars: 5, pushed: 3, reach: REACH_BITS.display }),
     row('token-meter', { stars: 9, pushed: 1, reach: REACH_BITS.network, plugin: 'tm@alice' }),
     row('guard', { description: 'stops a meter from running', stars: 50, pushed: 2, check: 2 }),
-    row('band', { repo: 'meterworks/band', stars: 1, reach: REACH_BITS.machine }),
+    row('band', {
+      repo: 'meterworks/band',
+      stars: 1,
+      reach: REACH_BITS.machine,
+      notable: NOTABLE_BITS['runs-programs'],
+    }),
   ].map(toMod),
 )
 const names = (places: readonly number[]) => places.map(i => index.mods[i]?.name)
@@ -80,6 +86,9 @@ describe('search', () => {
     expect(
       names(search(index, { ...query, without: REACH_BITS.network | REACH_BITS.machine })),
     ).toEqual(['guard', 'meter'])
+    expect(
+      names(search(index, { ...query, withoutNotable: NOTABLE_BITS['runs-programs'] })),
+    ).toEqual(['guard', 'token-meter', 'meter'])
     expect(names(search(index, { ...query, installable: true }))).toEqual(['token-meter'])
     expect(names(search(index, { ...query, working: true }))).toEqual([
       'token-meter',

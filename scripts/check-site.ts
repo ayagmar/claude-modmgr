@@ -21,7 +21,7 @@ for (const ref of refs) {
     problems.push(`not under ${BASE}: ${ref}`)
     continue
   }
-  const path = join(dist, ref.slice(BASE.length).split('#')[0] || 'index.html')
+  const path = join(dist, ref.slice(BASE.length).split(/[?#]/)[0] || 'index.html')
   if (!existsSync(path)) problems.push(`missing: ${ref}`)
   // What a visit loads: not the pages and the sitemap it links to, and not fonts.
   else if (!/\.(woff2|html|xml)$/.test(path)) assets += statSync(path).size
