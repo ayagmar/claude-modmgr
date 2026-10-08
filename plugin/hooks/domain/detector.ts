@@ -159,7 +159,10 @@ export const afterManifest = (file: FetchedFile, plan: { base: string }): ProbeS
   if (typeof path !== 'string') return { done: 'hooks' }
   const segments = safeSegments(path)
   if (segments === undefined || segments.length === 0) return { done: 'hooks' }
-  return { fetch: `${plan.base}${segments.join('/')}`, stage: 'followed' }
+  // A URL keeps the segments encoded; a folder on disk reads them as written.
+  const local = !plan.base.startsWith(RAW_ORIGIN)
+  const joined = (local ? segments.map(decodeURIComponent) : segments).join('/')
+  return { fetch: `${plan.base}${joined}`, stage: 'followed' }
 }
 
 export const afterFollowed = (file: FetchedFile): ProbeStep => {

@@ -227,5 +227,24 @@ test('on mobile the install review says its scope (no picker there)', async ($, 
     props: PANE(64, 40),
   })
   expect(await ui.find({ key: 'scope' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'scope: user: every project' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Install aws-serverless/ })).toBeDefined()
+})
+
+test('from 100 body columns the selected entry’s detail sits beside the Discover list', async ($, on) => {
+  const h = host(on, { web: { [AWS_HOOKS]: '{"modules":["./register.ts"]}' } })
+  await $.session.start(START)
+  await h.clock.advance(1)
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface, PANE(120, 24))
+    await ui.press({ key: 'act:tab.discover' })
+    await settle(h)
+    await ui.redraw()
+    expect(await ui.find({ key: `found:${AWS}` })).toBeDefined()
+    // No Enter: the split draws the selection's detail beside the rows (review R-M4-10).
+    expect(
+      await ui.find({ type: 'Text', text: 'What it can do is read once it is installed.' }),
+    ).toBeDefined()
+    await ui.unmount()
+  }
 })

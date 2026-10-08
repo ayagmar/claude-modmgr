@@ -194,8 +194,10 @@ function actionsOf($: EngineInterface): Actions {
 /** What a view draws with: the surface's elements, state reads (which subscribe), the actions. */
 function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
   const table = $.ui.resolve(e)
+  // Mobile draws no Input or Select (d.ts Elements), though a table may carry
+  // them (the test kit's does, drawing them as nothing): ask the surface first.
   const el: El =
-    'Input' in table
+    e.surface !== 'mobile' && 'Input' in table
       ? {
           Box: table.Box,
           Text: table.Text,
