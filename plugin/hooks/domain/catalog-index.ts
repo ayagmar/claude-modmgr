@@ -15,7 +15,8 @@ import { fail, ok, type Result } from './result.ts'
 import type { DetectEntry } from './store-schema.ts'
 
 /** Where clients read it: the branch CI force-pushes, on the host the detector already probes. */
-export const INDEX_URL = 'https://raw.githubusercontent.com/ayagmar/modmgr/catalog-index/v1.json'
+export const INDEX_URL =
+  'https://raw.githubusercontent.com/ayagmar/claude-modmgr/catalog-index/v1.json'
 export const INDEX_VERSION = 1
 /** A body past this is not parsed (the official catalogues make a few hundred KB). */
 export const INDEX_MAX_BYTES = 2 * 1024 * 1024

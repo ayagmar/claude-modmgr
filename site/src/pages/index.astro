@@ -6,13 +6,13 @@ import Keymap from '../components/Keymap.astro'
 import Terminal from '../components/Terminal.astro'
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-const INSTALL = '/plugin install modmgr --marketplace ayagmar/modmgr'
+const INSTALL = '/plugin install modmgr --marketplace ayagmar/claude-modmgr'
 // A flag stays with its value when the line wraps; built as one string, since
 // whitespace from the template would show inside the <pre>.
 const INSTALL_HTML = INSTALL.split(' --')
   .map((part, index) => `<span class="keep">${index === 0 ? part : `--${part}`}</span>`)
   .join(' ')
-const REPO = 'https://github.com/ayagmar/modmgr'
+const REPO = 'https://github.com/ayagmar/claude-modmgr'
 const description =
   'modmgr finds, installs, inspects, toggles and updates the mods that run inside your Claude Code sessions, and says what each one can do before it runs.'
 const NOTABLE = [
@@ -33,13 +33,13 @@ const NOTABLE = [
     <title>modmgr: a mod manager for Claude Code</title>
     <meta name="description" content={description} />
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
-    <link rel="canonical" href="https://ayagmar.github.io/modmgr/" />
+    <link rel="canonical" href="https://ayagmar.github.io/claude-modmgr/" />
     <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="modmgr: a mod manager for Claude Code" />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content="https://ayagmar.github.io/modmgr/" />
-    <meta property="og:image" content="https://ayagmar.github.io/modmgr/og.png" />
+    <meta property="og:url" content="https://ayagmar.github.io/claude-modmgr/" />
+    <meta property="og:image" content="https://ayagmar.github.io/claude-modmgr/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#eef0ea" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121615" media="(prefers-color-scheme: dark)" />

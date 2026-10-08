@@ -75,7 +75,7 @@ isolates, and zero-width characters are removed, and lengths are capped. The tex
 and zero-width characters (`test/layering.test.ts`).
 
 **Network and files.** modmgr makes no network requests of its own except the mod detector's reads of
-`https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/modmgr`, branch `catalog-index`, `v1.json`, at
+`https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/claude-modmgr`, branch `catalog-index`, `v1.json`, at
 most every 12 hours) and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned
 commit (at most 600 a session, only while no turn runs), without credentials, each asked for by byte range (64 KiB a
 file, 2 MiB the index, so a server that honours it sends no more) and its JSON shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
@@ -132,5 +132,5 @@ that isn't already visible to plugins: the installed list, job progress, the cur
 ## Reporting a vulnerability
 
 Please report security issues privately through
-[GitHub security advisories](https://github.com/ayagmar/modmgr/security/advisories/new), not in a public issue.
+[GitHub security advisories](https://github.com/ayagmar/claude-modmgr/security/advisories/new), not in a public issue.
 Include the Claude Code version (`claude --version`), modmgr's version, and the steps to reproduce.

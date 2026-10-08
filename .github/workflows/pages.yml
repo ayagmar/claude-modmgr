@@ -1,6 +1,6 @@
 name: pages
 
-# The landing page at https://ayagmar.github.io/modmgr/, from main.
+# The landing page at https://ayagmar.github.io/claude-modmgr/, from main.
 on:
   push:
     branches: [main]

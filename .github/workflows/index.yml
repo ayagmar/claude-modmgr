@@ -21,7 +21,7 @@ jobs:
   # Runs the CLI and fetches hundreds of files from catalogue repositories: it
   # can read this repository and nothing more.
   build:
-    if: github.repository == 'ayagmar/modmgr'
+    if: github.repository == 'ayagmar/claude-modmgr'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

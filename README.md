@@ -5,7 +5,7 @@ session: they can run programs, read the conversation, change what the model see
 and what each one can do, and lets you find, install, switch off, update or remove them without leaving the session.
 
 ```
-/plugin install modmgr --marketplace ayagmar/modmgr
+/plugin install modmgr --marketplace ayagmar/claude-modmgr
 ```
 
 Then type `/mods`. Needs Claude Code 2.1.292 or newer, with the `claude` CLI on your path.
