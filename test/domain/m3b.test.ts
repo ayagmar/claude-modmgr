@@ -358,7 +358,10 @@ describe('the summary: band, status line and title agree', () => {
   it('what updates added, in all three', () => {
     const mods = [row('turn-band', { capsNew: { since: '0.3.1', added: ['runs-programs'] } })]
     const summary = summaryOf({ attention: { ...ATTENTION, updates: 2 }, queue: IDLE, mods })
-    expect(statusLineOf(summary)).toBe('2 updates · turn-band can now run programs')
+    // One clause under the prompt (C15): what an update added outranks the count.
+    expect(statusLineOf(summary)).toBe('turn-band can now run programs')
+    const { caps: _caps, ...noCaps } = summary
+    expect(statusLineOf(noCaps)).toBe('2 updates')
     expect(bandOf(summary, { isWorking: false })?.text).toBe(
       'mods · 2 updates · turn-band can now run programs',
     )

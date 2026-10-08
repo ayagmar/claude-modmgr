@@ -212,14 +212,22 @@ export const sessionFolderOf = (how: {
   readonly sessionId: string
 }): string | undefined => {
   if (!SESSION_ID.test(how.sessionId)) return undefined
+  const config = configDirOf(how.configDir, how.home)
+  return config === undefined ? undefined : joinPath(config, `dev-mods/${how.sessionId}`)
+}
+
+/** Claude Code's config dir: `CLAUDE_CONFIG_DIR`, else `~/.claude`; undefined unless absolute. */
+export const configDirOf = (
+  configDir: string | undefined,
+  home: string | undefined,
+): string | undefined => {
   const config =
-    how.configDir !== undefined && how.configDir !== ''
-      ? how.configDir
-      : how.home === undefined
+    configDir !== undefined && configDir !== ''
+      ? configDir
+      : home === undefined
         ? undefined
-        : joinPath(how.home, '.claude')
-  if (config === undefined || !config.startsWith('/')) return undefined
-  return joinPath(config, `dev-mods/${how.sessionId}`)
+        : joinPath(home, '.claude')
+  return config?.startsWith('/') === true ? config : undefined
 }
 
 /** The row Dev shows as selected and acts on: the selection when listed, else the first. */

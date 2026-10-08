@@ -14,6 +14,7 @@ import {
 import { parseConfig } from './domain/config.ts'
 import { devOfKey } from './domain/dev.ts'
 import { foundOfKey } from './domain/discover.ts'
+import { healthOfKey } from './domain/health.ts'
 import { INITIAL, type ModmgrState, type StateKey } from './domain/state.ts'
 import { rowOfKey } from './domain/view.ts'
 import type {
@@ -68,6 +69,9 @@ const DEGRADED = atom({ plugin: 'modmgr', key: 'degraded' } as const, INITIAL.de
   shape: 'degraded/1',
 })
 const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/1' })
+const HEALTH = atom({ plugin: 'modmgr', key: 'health' } as const, INITIAL.health, {
+  shape: 'health/1',
+})
 
 type Change<K extends StateKey> = (value: ModmgrState[K]) => ModmgrState[K]
 
@@ -85,6 +89,7 @@ function statePorts($: EngineInterface): StatePort {
     attention: () => read($, ATTENTION),
     degraded: () => read($, DEGRADED),
     dev: () => read($, DEV),
+    health: () => read($, HEALTH),
   }
   const writers: { [K in StateKey]: (change: Change<K>) => Promise<ModmgrState[K]> } = {
     mods: change => update($, MODS, change),
@@ -98,6 +103,7 @@ function statePorts($: EngineInterface): StatePort {
     attention: change => update($, ATTENTION, change),
     degraded: change => update($, DEGRADED, change),
     dev: change => update($, DEV, change),
+    health: change => update($, HEALTH, change),
   }
   return {
     read: key => readers[key](),
@@ -297,9 +303,11 @@ export const register: Register = (on, options) => {
     const id = rowOfKey(e.element)
     const found = foundOfKey(e.element)
     const dev = devOfKey(e.element)
+    const item = healthOfKey(e.element)
     if (id !== undefined) await actionsOf($).focusRow(id)
     else if (found !== undefined) await actionsOf($).focusFound(found)
     else if (dev !== undefined) await actionsOf($).focusDev(dev)
+    else if (item !== undefined) await actionsOf($).focusHealth(item)
     return moved
   }).catch((_$, e, next) => next(e))
 

@@ -61,6 +61,8 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     if (!probe.process) {
       await rt.registry.refresh()
       rt.runner.kick()
+      // Re-armed by every module from the stored time: a reload loses timers (F19).
+      await rt.updater.arm()
       // A reloaded modmgr with Discover showing reads its catalogue again (module memory).
       const { tab } = await ports.state.read('view')
       if (tab === 'discover') {
@@ -69,6 +71,7 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         rt.detector.start()
       }
       if (tab === 'dev') await rt.dev.refresh()
+      if (tab === 'health') await rt.health.refresh()
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

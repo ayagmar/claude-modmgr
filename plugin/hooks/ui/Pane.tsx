@@ -8,6 +8,7 @@ import type { RenderElement, UiPressArgument } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
 import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
+import { healthItemsOf, problemCount } from '../domain/health.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
@@ -26,6 +27,7 @@ import {
 import { Detail, detailRows } from './Detail.tsx'
 import { DevDetail, DevList, devDetailRows, Share, shareRows } from './Dev.tsx'
 import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
+import { HealthItemDetail, HealthList } from './Health.tsx'
 import { List } from './Installed.tsx'
 import { GLYPH, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 import {
@@ -45,7 +47,7 @@ export type PaneFrame = {
 }
 
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
-const NOT_YET: ReadonlySet<string> = new Set(['tab.health'])
+const NOT_YET: ReadonlySet<string> = new Set()
 
 /** A footer key: what it does, where its hotkey is bound, what it says. */
 type Key = {
@@ -57,25 +59,39 @@ type Key = {
 }
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
-  const [view, mods, detail, queue, review, sync, degraded, attention, page, detect, devState] =
-    await Promise.all([
-      v.read('view'),
-      v.read('mods'),
-      v.read('detail'),
-      v.read('queue'),
-      v.read('review'),
-      v.read('sync'),
-      v.read('degraded'),
-      v.read('attention'),
-      v.read('catalogPage'),
-      v.read('detect'),
-      v.read('dev'),
-    ])
+  const [
+    view,
+    mods,
+    detail,
+    queue,
+    review,
+    sync,
+    degraded,
+    attention,
+    page,
+    detect,
+    devState,
+    facts,
+  ] = await Promise.all([
+    v.read('view'),
+    v.read('mods'),
+    v.read('detail'),
+    v.read('queue'),
+    v.read('review'),
+    v.read('sync'),
+    v.read('degraded'),
+    v.read('attention'),
+    v.read('catalogPage'),
+    v.read('detect'),
+    v.read('dev'),
+    v.read('health'),
+  ])
   const { Box, Button, Text, Input } = v.el
   const discover = view.tab === 'discover'
   const dev = view.tab === 'dev'
-  const installed = !discover && !dev
-  const surface: KeySurface = discover ? 'discover' : dev ? 'dev' : 'installed'
+  const health = view.tab === 'health'
+  const installed = !discover && !dev && !health
+  const surface: KeySurface = discover ? 'discover' : dev ? 'dev' : health ? 'health' : 'installed'
   const layout = layoutFor(frame.bodyColumns)
   // A review overlay whose review was just taken (confirm) is already gone: the
   // tree drawn in between must be the final one, or the focus ring set on a row
@@ -105,6 +121,19 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // Dev: its rows, and what validate, test and the session said of them.
   const devRow = devRowOf(view.dev, devState.rows)
   const devHow = { jobs: queue.jobs, failures: devState.failures }
+  // Health: every item, from state alone, and the one selected.
+  const items = healthItemsOf({
+    mods,
+    dev: devState,
+    attention,
+    degraded,
+    sync,
+    detect,
+    queue,
+    facts,
+  })
+  const item = items.find(each => each.key === view.health) ?? items[0]
+  const problems = problemCount(items)
 
   const fieldShown = discover
     ? Input !== undefined && showList && (page.total > 0 || view.search !== '')
@@ -178,6 +207,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         onPress: () => v.act.addMarketplace(),
       })
     }
+  }
+  if (top === undefined && health && !readOnly) {
+    footer.push({ action: 'reload', on: surface, label: 'reload', onPress: () => v.act.reload() })
   }
   if (top === undefined && dev && !readOnly) {
     if (devRow !== undefined) {
@@ -263,7 +295,20 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // The list, windowed around the selection, and its pager.
   let list: RenderElement
   let pager: string | undefined
-  if (dev) {
+  if (health) {
+    const window = windowAround(
+      items.length,
+      item === undefined ? 0 : items.indexOf(item),
+      listRows,
+    )
+    pager = pagerLabel(window, items.length)
+    list = HealthList(v, items, {
+      columns: listColumns,
+      window,
+      focusKey: item?.key,
+      loading: facts.at === undefined,
+    })
+  } else if (dev) {
     const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)
     const window = windowAround(devState.rows.length, at, listRows)
     pager = pagerLabel(window, devState.rows.length)
@@ -351,7 +396,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       ? FoundDetail(v, found, { actions, readOnly })
       : dev
         ? DevDetail(v, devRow, { ...devHow, actions, readOnly })
-        : Detail(v, detailHow(actions))
+        : health
+          ? HealthItemDetail(v, item)
+          : Detail(v, detailHow(actions))
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
     which === 'review' && review !== null
@@ -410,7 +457,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   )
   const on = mods.filter(row => row.enabled).length
   // Tabs keep their width (F48: children shrink by default); the counts give way.
-  const tabKey = (tab: 'installed' | 'discover' | 'dev', label: string) => (
+  const tabKey = (tab: 'installed' | 'discover' | 'dev' | 'health', label: string) => (
     <Box flexDirection="row" flexShrink={0}>
       {KeyButton(v, {
         action: `tab.${tab}`,
@@ -422,21 +469,25 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     </Box>
   )
   const failing = devState.rows.filter(row => devState.failures[row.name] !== undefined).length
-  const meta = dev
-    ? [
-        `${devState.rows.length} ${devState.rows.length === 1 ? 'mod' : 'mods'} under development`,
-        failing === 0 ? '' : `${failing} failing`,
-      ]
-        .filter(part => part !== '')
-        .join(' · ')
-    : discover
+  const meta = health
+    ? problems === 0
+      ? 'nothing needs you'
+      : `${problems} ${problems === 1 ? 'problem' : 'problems'}`
+    : dev
       ? [
-          page.total === 0 ? '' : `${page.matched.toLocaleString('en-US')} shown`,
-          detectLine(detect) ?? '',
+          `${devState.rows.length} ${devState.rows.length === 1 ? 'mod' : 'mods'} under development`,
+          failing === 0 ? '' : `${failing} failing`,
         ]
           .filter(part => part !== '')
           .join(' · ')
-      : `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} · ${on} on`
+      : discover
+        ? [
+            page.total === 0 ? '' : `${page.matched.toLocaleString('en-US')} shown`,
+            detectLine(detect) ?? '',
+          ]
+            .filter(part => part !== '')
+            .join(' · ')
+        : `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} · ${on} on`
   const stale = discover ? page.loading : dev ? devState.loading : sync.refreshing
 
   return (
@@ -446,6 +497,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {tabKey('installed', 'Installed')}
           {tabKey('discover', 'Discover')}
           {tabKey('dev', 'Dev')}
+          {tabKey('health', problems === 0 ? 'Health' : `Health ${GLYPH.problem}${problems}`)}
           <Box flexShrink={1} height={1} overflow="hidden">
             <Text dimColor wrap="truncate-end">
               {meta}

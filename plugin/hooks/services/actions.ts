@@ -19,6 +19,7 @@ import {
   nextSort,
   withScope,
 } from '../domain/discover.ts'
+import { type HealthItem, healthItemsOf, healthKey } from '../domain/health.ts'
 import {
   enqueueReload,
   isActive,
@@ -65,8 +66,25 @@ export type ActionPorts = Pick<Ports, 'state' | 'ui'>
 /** The parts of the module's runtime an action reaches; absent before the first `session.start`. */
 export type ActionRuntime = Pick<
   Runtime,
-  'registry' | 'runner' | 'newJobId' | 'chrome' | 'catalog' | 'detector' | 'dev'
+  | 'registry'
+  | 'runner'
+  | 'newJobId'
+  | 'chrome'
+  | 'catalog'
+  | 'detector'
+  | 'dev'
+  | 'health'
+  | 'updater'
+  | 'store'
 >
+
+/** What Health's "check now" says, by what the scheduler did. */
+const CHECK_SAID: Readonly<Record<'queued' | 'busy' | 'off' | 'nothing', string>> = {
+  queued: 'Checking the marketplaces for updates…',
+  busy: 'A turn is running; check again when it ends',
+  off: 'Update checks are off',
+  nothing: 'No installed mod comes from a marketplace that updates',
+}
 
 export type Actions = {
   tab(tab: Tab): Promise<void>
@@ -137,6 +155,10 @@ export type Actions = {
   devRun(kind: DevRunKind, key?: string): Promise<void>
   /** `p` on Dev: how to share the selected dev mod, or `key`. */
   share(key?: string): Promise<void>
+  /** The ring landed on a Health item: it becomes Health's selection. */
+  focusHealth(key: string): Promise<void>
+  /** Enter on a Health item: its fix. */
+  fix(key: string): Promise<void>
   /**
    * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
    * open. `hadKeys` is whether the pane held the keys when it was last drawn
@@ -253,6 +275,12 @@ export const createActions = (
       if (row !== undefined) await ringTo(devKey(row.key))
       return
     }
+    if (view.tab === 'health') {
+      const items = await healthItems()
+      const item = items.find(each => each.key === view.health) ?? items[0]
+      if (item !== undefined) await ringTo(healthKey(item.key))
+      return
+    }
     const row = selectedRow(view, mods)
     if (row !== undefined) await ringTo(rowKey(row.id))
   }
@@ -292,6 +320,27 @@ export const createActions = (
     await ringToOverlay()
   }
 
+  /** Health's items as the pane draws them. */
+  const healthItems = async (): Promise<HealthItem[]> => {
+    const [mods, dev, attention, degraded, sync, detect, queue, facts] = await Promise.all([
+      state.read('mods'),
+      state.read('dev'),
+      state.read('attention'),
+      state.read('degraded'),
+      state.read('sync'),
+      state.read('detect'),
+      state.read('queue'),
+      state.read('health'),
+    ])
+    return healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
+  }
+
+  /** Health read again: its facts, and the dev mods its failures name. */
+  const refreshHealth = async (): Promise<void> => {
+    await rt?.dev.refresh()
+    await rt?.health.refresh()
+  }
+
   /** The Dev row an action names, or the selected one. */
   const devRowFor = async (key: string | undefined): Promise<DevRow | undefined> => {
     const [view, dev] = await Promise.all([state.read('view'), state.read('dev')])
@@ -304,7 +353,7 @@ export const createActions = (
     return id === undefined ? selectedRow(view, mods) : mods.find(item => item.id === id)
   }
 
-  return {
+  const actions: Actions = {
     tab: safely('tab', async tab => {
       // A review on the stack and in state go together (review R-M4-9).
       await dropReview()
@@ -317,6 +366,7 @@ export const createActions = (
       }
       // What a session loads from folders changes with its commands and reloads: read on each visit.
       if (tab === 'dev') await rt?.dev.refresh()
+      if (tab === 'health') await refreshHealth()
       await ringToSelection()
     }),
 
@@ -480,9 +530,10 @@ export const createActions = (
     refresh: safely('refresh', async () => {
       if (rt === undefined) return
       const { tab } = await state.read('view')
-      if (tab === 'dev') {
+      if (tab === 'dev' || tab === 'health') {
         await rt.registry.refresh()
-        await rt.dev.refresh()
+        if (tab === 'dev') await rt.dev.refresh()
+        else await refreshHealth()
         return
       }
       if (tab === 'discover') {
@@ -696,6 +747,55 @@ export const createActions = (
       await ringToOverlay()
     }),
 
+    focusHealth: safely('focus health', async key => {
+      const view = await state.read('view')
+      if (view.health === key) return
+      await setView(current => ({ ...quiet(current), health: key }))
+    }),
+
+    fix: safely('fix', async key => {
+      const item = (await healthItems()).find(each => each.key === key)
+      const fix = item?.fix
+      if (fix === undefined || rt === undefined) return
+      await setView(current => ({ ...quiet(current), health: key }))
+      switch (fix.kind) {
+        case 'open':
+          // What a mod can do, and its errors, are in its Installed detail.
+          await setView(view => ({ ...view, tab: 'installed', stack: [] }))
+          await actions.open(fix.id)
+          return
+        case 'update':
+          await actions.update(fix.id)
+          return
+        case 'validate':
+          await actions.devRun('validate', fix.key)
+          return
+        case 'copy':
+          await actions.copy(fix.text)
+          return
+        case 'reload':
+          await actions.reload()
+          return
+        case 'refresh':
+          await actions.refresh()
+          return
+        case 'clear-cache': {
+          const cleared = await rt.store.clearCaches()
+          await notice(
+            cleared.ok ? 'Cache cleared' : `Couldn't clear the cache: ${cleared.error.message}`,
+          )
+          await rt.health.refresh()
+          return
+        }
+        case 'check-updates': {
+          const outcome = await rt.updater.run()
+          await notice(CHECK_SAID[outcome])
+          await rt.health.refresh()
+          return
+        }
+      }
+    }),
+
     async closing(origin, hadKeys) {
       try {
         const stillHasKeys =
@@ -724,4 +824,5 @@ export const createActions = (
       return false
     },
   }
+  return actions
 }

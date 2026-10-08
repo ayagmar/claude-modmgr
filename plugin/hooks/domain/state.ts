@@ -8,6 +8,7 @@ import type {
   Degraded,
   DetectProgress,
   DevState,
+  HealthFacts,
   JobQueue,
   ModDetail,
   ModRow,
@@ -29,6 +30,7 @@ export type ModmgrState = {
   attention: Attention
   degraded: Degraded
   dev: DevState
+  health: HealthFacts
 }
 
 export type StateKey = keyof ModmgrState
@@ -45,6 +47,7 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   attention: 'attention/2',
   degraded: 'degraded/1',
   dev: 'dev/1',
+  health: 'health/1',
 }
 
 export const INITIAL_VIEW: View = {
@@ -69,4 +72,12 @@ export const INITIAL: Readonly<ModmgrState> = {
   attention: { updates: 0, problems: 0, reloadPending: false, capsChanged: 0 },
   degraded: { process: false, network: false, acceptCommand: false },
   dev: { rows: [], failures: {}, loading: false },
+  health: {
+    chain: [],
+    logged: {},
+    debugLog: false,
+    detector: { spent: 0, budget: 0, remote: false },
+    cache: { bytes: 0, full: false },
+    updates: { every: 0 },
+  },
 }

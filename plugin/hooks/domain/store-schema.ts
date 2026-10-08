@@ -40,12 +40,22 @@ export type HistoryEntry = {
   readonly error?: string
 }
 
+/** An update a check found: the version it was found for, and the one available. */
+export type FoundUpdate = { readonly from: string; readonly to: string }
+
+/** The update scheduler's last check, and what it found (PLAN §2.6). */
+export type Updates = {
+  readonly at?: number
+  readonly found: Readonly<Record<string, FoundUpdate>>
+}
+
 export type StoreData = {
   prefs: Prefs
   detect: Lru<DetectEntry>
   validate: Lru<Analysis>
   capsHistory: Readonly<Record<string, CapsRecord>>
   history: readonly HistoryEntry[]
+  updates: Updates
 }
 
 export type StoreKey = keyof StoreData
@@ -56,6 +66,7 @@ export const STORE_KEYS: readonly StoreKey[] = [
   'validate',
   'capsHistory',
   'history',
+  'updates',
 ]
 
 /**
@@ -70,6 +81,7 @@ export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
   // 2: records gained `added` and `since` (M3b, the capability diff).
   capsHistory: 2,
   history: 1,
+  updates: 1,
 }
 
 export const CAPS = { detect: 6000, validate: 300, history: 50 } as const
@@ -94,6 +106,7 @@ export const emptyStore = (): StoreData => ({
   validate: {},
   capsHistory: {},
   history: [],
+  updates: { found: {} },
 })
 
 // ---- shape checks --------------------------------------------------------
@@ -227,6 +240,17 @@ const readHistoryEntry = (entry: unknown): HistoryEntry | undefined => {
   }
 }
 
+const readFoundUpdate = (entry: unknown): FoundUpdate | undefined =>
+  isRecord(entry) && typeof entry.from === 'string' && typeof entry.to === 'string'
+    ? { from: entry.from, to: entry.to }
+    : undefined
+
+export const readUpdates = (value: unknown): Updates => {
+  if (!isRecord(value)) return { found: {} }
+  const found = readMap(value.found, readFoundUpdate)
+  return isCount(value.at) ? { at: value.at, found } : { found }
+}
+
 const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
   prefs: readPrefs,
   detect: value => lruTrim(readMap(value, readDetectEntry), CAPS.detect),
@@ -239,6 +263,7 @@ const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
         return read === undefined ? [] : [read]
       })
       .slice(-CAPS.history),
+  updates: readUpdates,
 }
 
 // ---- envelopes and migrations ---------------------------------------------
@@ -307,6 +332,7 @@ const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   validate: data => lruTrim(data, CAPS.validate),
   capsHistory: data => data,
   history: data => data.slice(-CAPS.history),
+  updates: data => data,
 }
 
 export const capped = <K extends StoreKey>(key: K, data: StoreData[K]): StoreData[K] =>
