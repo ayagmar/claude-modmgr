@@ -117,7 +117,7 @@ export type Job = {
 }
 
 export type Tab = 'installed' | 'discover' | 'dev' | 'health'
-export type Overlay = 'detail' | 'review' | 'help' | 'jobs' | 'marketplace' | 'share'
+export type Overlay = 'detail' | 'review' | 'help' | 'jobs' | 'marketplace' | 'share' | 'welcome'
 
 export type View = {
   tab: Tab

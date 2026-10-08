@@ -82,7 +82,8 @@ export const host = (on: On, options: HostOptions = {}) => {
     stored.set(e.key, e.value)
     return next(e)
   })
-  mock.store(on, options.store ?? {})
+  // A returning person by default: the first run's welcome is its own test.
+  mock.store(on, { prefs: RETURNING, ...options.store })
   mock.env(on, options.env ?? {})
 
   const state = new Map<string, { value: unknown; version: number }>()
@@ -131,6 +132,7 @@ export const host = (on: On, options: HostOptions = {}) => {
   on('session.root', () => ({ value: '/repo' }))
   on('session.cwd', () => ({ value: '/repo' }))
   on('session.id', () => ({ value: 'session-1' }))
+  on('session.surfaces', () => ({ value: ['terminal'] }))
   on('session.repo', () => ({ value: options.repo ?? null }))
   on('command.list', () => ({ value: [...(options.commands ?? [])] }))
   on('ui.open', (_$, e) => {
@@ -249,6 +251,12 @@ export const host = (on: On, options: HostOptions = {}) => {
 }
 
 export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } as const
+
+/** The store's prefs of someone who has opened modmgr before. */
+export const RETURNING = {
+  v: 1,
+  data: { tab: 'installed', sort: 'name', kind: 'mods', firstRunDone: true },
+} as const
 
 export const MODS = {
   command: 'mods',

@@ -58,7 +58,7 @@ const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/5' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/6' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
   shape: 'review/3',
 })
@@ -159,7 +159,12 @@ function sessionPorts($: EngineInterface): SessionPort {
 function commandPorts($: EngineInterface): CommandPort {
   return {
     registerMods: async () => {
-      await $.command.register({ name: 'mods', description: MODS_DESCRIPTION })
+      await $.command.register({
+        name: 'mods',
+        description: MODS_DESCRIPTION,
+        argumentHint:
+          '[list | info | install | remove | update | enable | disable | doctor | export | apply]',
+      })
     },
     reloadPlugins: async () => (await $.command.run({ command: 'reload-plugins' })).text,
     list: () => $.command.list(),
@@ -247,8 +252,10 @@ export const register: Register = (on, options) => {
   const config = parseConfig(options)
 
   on('session.start', async ($, e, next) => {
+    const started = performance.now()
     runtime ??= createRuntime(portsOf($), config, newOwnerId())
     await onSessionStart(runtime)
+    runtime.timing('session.start blocking', started)
     return next(e)
   }).catch((_$, e, next) => next(e))
 
@@ -274,21 +281,37 @@ export const register: Register = (on, options) => {
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'mods' }, ($, e) =>
-    modsCommand({ state: statePorts($), ui: uiPorts($) }, e.args),
+    modsCommand(
+      {
+        state: statePorts($),
+        ui: uiPorts($),
+        fs: fsPorts($),
+        clock: clockPorts($),
+        process: processPorts($),
+        session: sessionPorts($),
+      },
+      runtime,
+      e.args,
+    ),
   ).catch(() => ({ text: 'modmgr failed to answer; run with --debug for the reason.' }))
 
-  on('ui.render', { component: 'Pane', requestId: 'modmgr' }, ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: 'modmgr' }, async ($, e) => {
     // Esc closes from the terminal's keys; another surface's draw says nothing about them.
     if (e.surface === 'terminal') paneHadKeys = e.props.isFocused
-    return drawPane(viewPortsOf($, e), {
+    const started = performance.now()
+    const tree = await drawPane(viewPortsOf($, e), {
       bodyColumns: e.props.bodyColumns,
       bodyRows: e.props.scroll.bodyRows,
       isFocused: e.props.isFocused,
     })
+    runtime?.timing(`pane draw (${e.surface}, ${e.props.bodyColumns} columns)`, started)
+    return tree
   }).catch((_$, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const started = performance.now()
     const band = await drawBand(viewPortsOf($, e), e.props)
+    runtime?.timing('band draw', started)
     return band ?? next(e)
   }).catch((_$, e, next) => next(e))
 

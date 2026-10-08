@@ -308,6 +308,7 @@ export const createActions = (
     if (top === 'detail' && view.tab === 'dev') return ringTo('act:validate', 'act:copy')
     if (top === 'detail' && view.tab === 'health') return ringTo('act:fix', 'act:back')
     if (top === 'share') return ringTo('act:copy')
+    if (top === 'welcome') return ringTo('act:start')
     if (top === 'detail') return ringTo('act:toggle', 'act:copy')
     return ringTo(top === 'help' ? 'act:help' : 'act:jobs')
   }
@@ -344,6 +345,15 @@ export const createActions = (
     await rt?.health.refresh()
   }
 
+  /** The tab, sort and kind a next session opens with (the store's prefs, written in a batch). */
+  const remember = (view: View): void => {
+    rt?.store.update('prefs', prefs =>
+      prefs.tab === view.tab && prefs.sort === view.sort && prefs.kind === view.kind
+        ? prefs
+        : { ...prefs, tab: view.tab, sort: view.sort, kind: view.kind },
+    )
+  }
+
   /** The Dev row an action names, or the selected one. */
   const devRowFor = async (key: string | undefined): Promise<DevRow | undefined> => {
     const [view, dev] = await Promise.all([state.read('view'), state.read('dev')])
@@ -360,7 +370,8 @@ export const createActions = (
     tab: safely('tab', async tab => {
       // A review on the stack and in state go together (review R-M4-9).
       await dropReview()
-      await setView(view => ({ ...quiet(view), tab, stack: [] }))
+      const view = await setView(current => ({ ...quiet(current), tab, stack: [] }))
+      remember(view)
       if (tab === 'discover' && rt !== undefined) {
         // Read at the first visit, then at most every few hours (PLAN §2.3).
         await rt.catalog.load()
@@ -660,12 +671,12 @@ export const createActions = (
     }),
 
     cycleKind: safely('kind', async () => {
-      await setView(view => ({ ...quiet(view), kind: nextKind(view.kind) }))
+      remember(await setView(view => ({ ...quiet(view), kind: nextKind(view.kind) })))
       await showCatalog()
     }),
 
     cycleSort: safely('sort', async () => {
-      await setView(view => ({ ...quiet(view), sort: nextSort(view.sort) }))
+      remember(await setView(view => ({ ...quiet(view), sort: nextSort(view.sort) })))
       await showCatalog()
     }),
 

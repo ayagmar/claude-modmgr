@@ -348,6 +348,32 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
   )
 }
 
+/** What the first session's dialog says first (PLAN §5.3). */
+const WELCOME = [
+  'See what each mod can do before it runs.',
+  'Find mods across your marketplaces.',
+  'Toggle, update and remove them safely, with undo.',
+] as const
+
+/** The rows the welcome draws: its heading, the three lines, its key. */
+export const welcomeRows = 2 + WELCOME.length
+
+export const Welcome = (v: ViewPorts): RenderElement => {
+  const { Box, Button, Text } = v.el
+  return (
+    <Box flexDirection="column">
+      {Heading(v, 'modmgr: mods for Claude Code')}
+      {WELCOME.map(line => (
+        <Text key={line}>
+          {GLYPH.notable} {line}
+        </Text>
+      ))}
+      {/* Pushed at start-up, not by a press: the ring starts here by itself. */}
+      <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
+    </Box>
+  )
+}
+
 /** The rows help draws: its heading, a row per key, the closing line. */
 export const helpRows = (surfaces: readonly KeySurface[], hidden: ReadonlySet<string>): number =>
   2 + helpFor(surfaces, hidden).length

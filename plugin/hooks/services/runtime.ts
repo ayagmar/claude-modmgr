@@ -4,6 +4,7 @@
 // one's in-flight work finishes on its own and then stops (it no longer owns
 // the queue).
 
+import type { Job } from '../../types/index.d.ts'
 import { type Config, trafficOff } from '../domain/config.ts'
 import type { StateKey } from '../domain/state.ts'
 import type { Ports, StatePort } from '../ports.ts'
@@ -15,6 +16,7 @@ import { createHealth, type Health } from './health.ts'
 import { createRunner, type Runner } from './job-runner.ts'
 import { createRegistry, type Registry } from './registry.ts'
 import { createStore, type StoreService } from './store.ts'
+import { type Timing, timingOf } from './timing.ts'
 import { createUpdater, type Updater } from './updates.ts'
 
 export type Runtime = {
@@ -37,6 +39,10 @@ export type Runtime = {
   readonly updater: Updater
   /** Health's facts beyond the other keys. */
   readonly health: Health
+  /** Says how long a step took, with `debugTimings` on (M6, `docs/PERF.md`). */
+  readonly timing: Timing
+  /** After a job ends (the runner's, or a text write's, C16): catalogue, analyses, updates. */
+  jobFinished(job: Job): void
   /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
   readonly turns: Set<string>
   /** Job ids unique across modules: the owner, then a counter. */
@@ -63,6 +69,7 @@ export const observedState = (
 
 export const createRuntime = (base: Ports, config: Config, owner: string): Runtime => {
   const debug = (text: string): void => base.ui.debug(text)
+  const timing = timingOf(config.debugTimings, debug)
   const chrome = createChrome(base, debug)
   // The runtime's own writes (the runner's, the registry's) keep the status line current.
   const ports: Ports = {
@@ -70,8 +77,8 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     state: observedState(base.state, SUMMARY_KEYS, () => chrome.schedule()),
   }
   const store = createStore(ports, { debug })
-  const registry = createRegistry(ports, store, debug)
-  const catalog = createCatalog(ports, store, debug)
+  const registry = createRegistry(ports, store, debug, timing)
+  const catalog = createCatalog(ports, store, debug, timing)
   const trafficIsOff = async (): Promise<boolean> =>
     trafficOff(await ports.env.nonessentialTraffic().catch(() => undefined))
   const detector = createDetector(ports, {
@@ -85,6 +92,23 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     if (!catalog.isLoaded()) return
     void catalog.load({ force: true }).then(() => detector.start())
   }
+  /** After a job ends, the runner's or a text write's: what it changed is read again. */
+  const jobFinished = (job: Job): void => {
+    const lists = ['install', 'remove', 'marketplace-add', 'marketplace-update']
+    if (job.state === 'ok' && lists.includes(job.kind)) recatalog()
+    // A folder validated anew: Installed reads what it can do again (it may have changed
+    // without a new version, C14).
+    const path = job.args?.path
+    if (job.kind === 'validate' && path !== undefined && registry.forget(path)) {
+      void registry.refresh()
+    }
+    // A refreshed marketplace says what can update (PLAN §2.6).
+    if (job.kind === 'marketplace-update' && job.state === 'ok') void updater.check()
+    // The CLI found it current: what a check guessed goes, before the refresh that follows.
+    if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
+      updater.forget(job.target)
+    }
+  }
   const runner = createRunner(ports, {
     owner,
     store,
@@ -93,25 +117,10 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
       return registry.entry(id) !== undefined
     },
     onSettled: () => registry.refresh(),
-    onFinished: job => {
-      const lists = ['install', 'remove', 'marketplace-add', 'marketplace-update']
-      if (job.state === 'ok' && lists.includes(job.kind)) recatalog()
-      // A folder validated anew: Installed reads what it can do again (it may have changed
-      // without a new version, C14).
-      const path = job.args?.path
-      if (job.kind === 'validate' && path !== undefined && registry.forget(path)) {
-        void registry.refresh()
-      }
-      // A refreshed marketplace says what can update (PLAN §2.6).
-      if (job.kind === 'marketplace-update' && job.state === 'ok') void updater.check()
-      // The CLI found it current: what a check guessed goes, before the refresh that follows.
-      if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
-        updater.forget(job.target)
-      }
-    },
+    onFinished: job => jobFinished(job),
     debug,
   })
-  const dev = createDev(ports, registry, debug)
+  const dev = createDev(ports, registry, debug, timing)
   let counter = 0
   const newJobId = (): string => {
     counter += 1
@@ -136,6 +145,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     config,
     trafficOff: trafficIsOff,
     debug,
+    timing,
   })
   return {
     owner,
@@ -150,6 +160,8 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     dev,
     updater,
     health,
+    timing,
+    jobFinished,
     turns,
     newJobId,
     dispose() {

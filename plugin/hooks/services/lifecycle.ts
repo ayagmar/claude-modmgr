@@ -16,16 +16,19 @@ export const MODS_DESCRIPTION = 'Discover, inspect, toggle and update mods'
 
 export const onSessionStart = async (rt: Runtime): Promise<void> => {
   const { ports } = rt
-  await ports.command.registerMods()
-  const now = await ports.clock.now()
   let fresh = false
   let reloaded = false
-  await ports.state.update('queue', queue => {
-    fresh = queue.owner === ''
-    const next = takeOver(queue, rt.owner, now)
-    reloaded = tookOverReload(queue, next)
-    return next
-  })
+  // Side by side: each is a host round trip, and session.start blocks the session (PLAN §6).
+  const takeQueue = async (): Promise<void> => {
+    const now = await ports.clock.now()
+    await ports.state.update('queue', queue => {
+      fresh = queue.owner === ''
+      const next = takeOver(queue, rt.owner, now)
+      reloaded = tookOverReload(queue, next)
+      return next
+    })
+  }
+  await Promise.all([ports.command.registerMods(), takeQueue()])
   // The reload that restarted this module applied what the batch changed (F54).
   if (reloaded) {
     await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
@@ -48,12 +51,18 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     await rt.store.load()
     if (how.fresh) {
       const prefs = readPrefs(rt.store.get('prefs'))
+      // The first session that draws opens on a word of welcome, once (PLAN §5.3);
+      // a `-p` run draws nothing, so it says nothing and keeps it for later.
+      const draws = (await ports.session.surfaces().catch(() => [])).length > 0
+      const welcome = draws && !prefs.firstRunDone
       await ports.state.update('view', view => ({
         ...view,
         tab: prefs.tab,
         sort: prefs.sort,
         kind: prefs.kind,
+        ...(welcome ? { stack: ['welcome' as const] } : {}),
       }))
+      if (welcome) rt.store.update('prefs', current => ({ ...current, firstRunDone: true }))
     }
     // A reloaded module says again what the last one left on the status line.
     await rt.chrome.sync()

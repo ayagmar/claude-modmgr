@@ -31,6 +31,7 @@ import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
 import { mapLimit } from './pool.ts'
 import type { StoreService } from './store.ts'
+import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export const VALIDATE_CONCURRENCY = 3
 
@@ -49,6 +50,8 @@ export type Registry = {
   refresh(): Promise<Result<RefreshSummary>>
   /** Shows a mod's detail (`undefined` clears it). */
   select(id: string | undefined): Promise<void>
+  /** A mod's detail from the last refresh, without showing it (`/mods info`). */
+  detail(id: string): ModDetail | undefined
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
   /**
@@ -84,6 +87,7 @@ export const createRegistry = (
   ports: RegistryPorts,
   store: StoreService,
   debug: (text: string) => void = () => {},
+  timing: Timing = NO_TIMING,
 ): Registry => {
   let entries = new Map<string, InstalledEntry>()
   let loaded = false
@@ -214,7 +218,7 @@ export const createRegistry = (
     do {
       again = false
       try {
-        result = await once()
+        result = await timed(timing, 'installed list refresh', once)
       } catch (error) {
         // A state write refused (or another host error): report it, never throw.
         debug(`modmgr: refresh failed: ${String(error)}`)
@@ -239,6 +243,7 @@ export const createRegistry = (
       await ports.state.update('detail', () => detailOf(id))
     },
     entry: id => entries.get(id),
+    detail: id => detailOf(id) ?? undefined,
     facts(id) {
       const found = analysisFor(id)
       if (found === undefined) {

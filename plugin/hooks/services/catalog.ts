@@ -25,6 +25,7 @@ import { CAPS } from '../domain/store-schema.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, validateRoot } from './cli.ts'
 import type { StoreService } from './store.ts'
+import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 /** How long a loaded catalogue is used before Discover reads it again (PLAN §2.3). */
 export const CATALOG_MAX_AGE_MS = 6 * 60 * 60 * 1000
@@ -70,6 +71,7 @@ export const createCatalog = (
   ports: CatalogPorts,
   store: Pick<StoreService, 'get' | 'update'>,
   debug: (text: string) => void = () => {},
+  timing: Timing = NO_TIMING,
 ): Catalog => {
   let index: CatalogIndex | undefined
   let roots = new Map<string, string>()
@@ -132,7 +134,11 @@ export const createCatalog = (
 
   const read = async (): Promise<Result<void>> => {
     await ports.state.update('catalogPage', page => ({ ...page, loading: true }))
-    const run = await runCli(ports, { op: 'available' })
+    // Two reads that don't depend on each other, side by side (M6: about 0.5 s and 0.3 s).
+    const [run, listed] = await Promise.all([
+      runCli(ports, { op: 'available' }),
+      runCli(ports, { op: 'marketplaces' }),
+    ])
     const parsed = run.ok ? parseAvailable(run.value) : run
     if (!parsed.ok) {
       const { message } = parsed.error
@@ -142,7 +148,6 @@ export const createCatalog = (
       })
       return fail(parsed.error.kind, message)
     }
-    const listed = await runCli(ports, { op: 'marketplaces' })
     const marketplaces = listed.ok ? parseMarketplaces(listed.value) : listed
     if (marketplaces.ok) {
       roots = new Map(
@@ -160,7 +165,9 @@ export const createCatalog = (
     return ok(undefined)
   }
 
-  const show = async (): Promise<void> => {
+  const show = (): Promise<void> => timed(timing, 'catalogue window', showWindow)
+
+  const showWindow = async (): Promise<void> => {
     if (index === undefined) return
     generation += 1
     const mine = generation
@@ -204,7 +211,7 @@ export const createCatalog = (
       const fresh = loadedAt !== undefined && now - loadedAt < CATALOG_MAX_AGE_MS
       if (fresh && options.force !== true) return ok(undefined)
       if (options.force === true) failures.clear()
-      loading = read().finally(() => {
+      loading = timed(timing, 'catalogue load', read).finally(() => {
         loading = undefined
       })
       return loading

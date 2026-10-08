@@ -38,6 +38,8 @@ import {
   marketplaceRows,
   Review,
   reviewRows,
+  Welcome,
+  welcomeRows,
 } from './overlays.tsx'
 
 export type PaneFrame = {
@@ -381,6 +383,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     if (which === 'marketplace') return MarketplaceForm(v)
     if (which === 'share') return Share(v, devState.share)
+    if (which === 'welcome') return Welcome(v)
     return null
   }
 
@@ -411,15 +414,17 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           ? marketplaceRows
           : which === 'share'
             ? shareRows(devState.share, frame.bodyColumns)
-            : which === 'detail'
-              ? discover
-                ? foundDetailRows(found, true)
-                : dev
-                  ? devDetailRows(devRow, devHow, true, frame.bodyColumns)
-                  : health
-                    ? healthDetailRows(item, frame.bodyColumns)
-                    : detailRows(detailHow(true))
-              : 0
+            : which === 'welcome'
+              ? welcomeRows
+              : which === 'detail'
+                ? discover
+                  ? foundDetailRows(found, true)
+                  : dev
+                    ? devDetailRows(devRow, devHow, true, frame.bodyColumns)
+                    : health
+                      ? healthDetailRows(item, frame.bodyColumns)
+                      : detailRows(detailHow(true))
+                : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (

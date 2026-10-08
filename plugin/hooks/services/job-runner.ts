@@ -72,7 +72,7 @@ export type Runner = {
   dispose(): void
 }
 
-type Outcome = { finish: Finish; tail: string[] }
+export type Outcome = { finish: Finish; tail: string[] }
 
 /** A job whose module lost the queue mid-run: nothing about it is written (review R-M4-13). */
 const ABANDONED: Outcome = { finish: { cancelled: true }, tail: [] }
@@ -85,6 +85,108 @@ const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = [
   tail,
 })
 const succeeded = (tail: string[]): Outcome => ({ finish: { ok: true }, tail })
+
+/** What the store's history keeps of a finished job: no output (PLAN §4). */
+export const historyOf = (job: Job, endedAt: number, outcome: Outcome): HistoryEntry => ({
+  id: job.id,
+  kind: job.kind,
+  state: 'cancelled' in outcome.finish ? 'cancelled' : outcome.finish.ok ? 'ok' : 'failed',
+  endedAt,
+  ...(job.target === undefined ? {} : { target: job.target }),
+  ...('error' in outcome.finish ? { error: outcome.finish.error.message } : {}),
+})
+
+/**
+ * Runs one CLI job (not a reload, not a streamed test) on `ports` and says how
+ * it ended: the runner's for the dialog, and `/mods`'s text writes on their own
+ * hook's ports (C16: a hook's 10 s budget doesn't run through its `$` calls).
+ * `isInstalled` keeps an enable or disable to ids `list --json` shows (C4).
+ */
+export const runJob = async (
+  ports: CliPorts & Pick<Ports, 'state'>,
+  job: Job,
+  isInstalled?: (id: string) => Promise<boolean>,
+): Promise<Outcome> => {
+  const command = commandOfJob(job)
+  if (!command.ok) return failed(command.error)
+  const { op } = command.value
+  if (
+    (op === 'enable' || op === 'disable') &&
+    isInstalled !== undefined &&
+    !(await isInstalled(command.value.id))
+  ) {
+    return failed({ kind: 'invalid', message: `${command.value.id} is not installed` })
+  }
+  if (command.value.op === 'test')
+    return failed({ kind: 'invalid', message: 'a test streams: the runner runs it' })
+  if (command.value.op === 'validate') {
+    const run = await runCli(ports, command.value)
+    if (!run.ok) return failed(run.error)
+    const report = parseValidateReport(run.value)
+    if (!report.ok) return failed(report.error)
+    const { errors, warnings } = report.value
+    const tail = tailLines(
+      [
+        `${errors.length} errors, ${warnings.length} warnings`,
+        ...[...errors, ...warnings].map(issue => `${issue.path}: ${issue.message}`),
+      ],
+      20,
+    )
+    const counts = { errors: errors.length, warnings: warnings.length }
+    if (report.value.success && errors.length === 0) {
+      return { finish: { ok: true, report: counts }, tail }
+    }
+    const message =
+      errors.length === 0
+        ? 'validate did not pass'
+        : `${errors.length} validate ${errors.length === 1 ? 'error' : 'errors'}`
+    const stopped = failed({ kind: 'cli-failed', message }, tail)
+    return 'error' in stopped.finish
+      ? { ...stopped, finish: { ...stopped.finish, report: counts } }
+      : stopped
+  }
+  const result = await runOp(ports, command.value)
+  if (!result.ok) {
+    if (result.error.kind === 'rejected') {
+      await ports.state.update('degraded', degraded => ({ ...degraded, acceptCommand: true }))
+    }
+    return failed(result.error)
+  }
+  if (result.value.status === 'needs-acceptance') {
+    const { shown, changed } = result.value
+    const stopped = failed(
+      {
+        kind: 'conflict',
+        message: changed
+          ? 'the declared command changed since it was reviewed'
+          : `this ${job.kind} runs a declared command that needs review first`,
+      },
+      [sanitize(shown.command, { max: 300 })],
+    )
+    // Kept as the CLI showed it (capped); the review draws it sanitised and verbatim.
+    const cut = shown.command.length > SHOWN_MAX
+    const kept = {
+      kind: shown.kind,
+      command: shown.command.slice(0, SHOWN_MAX),
+      sha256: shown.sha256,
+      ...(cut ? { truncated: true } : {}),
+    }
+    return 'error' in stopped.finish
+      ? { ...stopped, finish: { ...stopped.finish, shown: kept } }
+      : stopped
+  }
+  const done = result.value
+  // An update the CLI found current changed nothing, like an enable of an enabled mod.
+  const current =
+    done.update !== undefined &&
+    (done.update.outcome === 'up_to_date' ||
+      (done.update.from !== undefined && done.update.from === done.update.to))
+  if (done.unchanged || current) {
+    return { finish: { ok: true, unchanged: true }, tail: [`already so: ${done.message}`] }
+  }
+  const kept = done.keptData === undefined ? {} : { keptData: done.keptData }
+  return { finish: { ok: true, ...kept }, tail: [done.message] }
+}
 
 /**
  * Says `line` in the band (and the pane's batch line) for RELOAD_ECHO_MS, then
@@ -140,15 +242,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     ports.state.update('queue', queue => ({ ...queue, jobs: change(queue.jobs) }))
 
   const record = (job: Job, endedAt: number, outcome: Outcome): void => {
-    const entry: HistoryEntry = {
-      id: job.id,
-      kind: job.kind,
-      state: 'cancelled' in outcome.finish ? 'cancelled' : outcome.finish.ok ? 'ok' : 'failed',
-      endedAt,
-      ...(job.target === undefined ? {} : { target: job.target }),
-      ...('error' in outcome.finish ? { error: outcome.finish.error.message } : {}),
-    }
-    store.update('history', history => [...history, entry])
+    store.update('history', history => [...history, historyOf(job, endedAt, outcome)])
   }
 
   const echo = (line: string): Promise<void> => echoLine(ports, line)
@@ -228,84 +322,11 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
 
   const execute = async (job: Job): Promise<Outcome> => {
     if (job.kind === 'reload') return reload()
-    const command = commandOfJob(job)
-    if (!command.ok) return failed(command.error)
-    const { op } = command.value
-    if (
-      (op === 'enable' || op === 'disable') &&
-      options.isInstalled !== undefined &&
-      !(await options.isInstalled(command.value.id))
-    ) {
-      return failed({ kind: 'invalid', message: `${command.value.id} is not installed` })
+    if (job.kind === 'test') {
+      const command = commandOfJob(job)
+      return command.ok ? test(job, argvOf(command.value)) : failed(command.error)
     }
-    if (command.value.op === 'test') return test(job, argvOf(command.value))
-    if (command.value.op === 'validate') {
-      const run = await runCli(ports, command.value)
-      if (!run.ok) return failed(run.error)
-      const report = parseValidateReport(run.value)
-      if (!report.ok) return failed(report.error)
-      const { errors, warnings } = report.value
-      const tail = tailLines(
-        [
-          `${errors.length} errors, ${warnings.length} warnings`,
-          ...[...errors, ...warnings].map(issue => `${issue.path}: ${issue.message}`),
-        ],
-        20,
-      )
-      const counts = { errors: errors.length, warnings: warnings.length }
-      if (report.value.success && errors.length === 0) {
-        return { finish: { ok: true, report: counts }, tail }
-      }
-      const message =
-        errors.length === 0
-          ? 'validate did not pass'
-          : `${errors.length} validate ${errors.length === 1 ? 'error' : 'errors'}`
-      const stopped = failed({ kind: 'cli-failed', message }, tail)
-      return 'error' in stopped.finish
-        ? { ...stopped, finish: { ...stopped.finish, report: counts } }
-        : stopped
-    }
-    const result = await runOp(ports, command.value)
-    if (!result.ok) {
-      if (result.error.kind === 'rejected') {
-        await ports.state.update('degraded', degraded => ({ ...degraded, acceptCommand: true }))
-      }
-      return failed(result.error)
-    }
-    if (result.value.status === 'needs-acceptance') {
-      const { shown, changed } = result.value
-      const stopped = failed(
-        {
-          kind: 'conflict',
-          message: changed
-            ? 'the declared command changed since it was reviewed'
-            : `this ${job.kind} runs a declared command that needs review first`,
-        },
-        [sanitize(shown.command, { max: 300 })],
-      )
-      // Kept as the CLI showed it (capped); the review draws it sanitised and verbatim.
-      const cut = shown.command.length > SHOWN_MAX
-      const kept = {
-        kind: shown.kind,
-        command: shown.command.slice(0, SHOWN_MAX),
-        sha256: shown.sha256,
-        ...(cut ? { truncated: true } : {}),
-      }
-      return 'error' in stopped.finish
-        ? { ...stopped, finish: { ...stopped.finish, shown: kept } }
-        : stopped
-    }
-    const done = result.value
-    // An update the CLI found current changed nothing, like an enable of an enabled mod.
-    const current =
-      done.update !== undefined &&
-      (done.update.outcome === 'up_to_date' ||
-        (done.update.from !== undefined && done.update.from === done.update.to))
-    if (done.unchanged || current) {
-      return { finish: { ok: true, unchanged: true }, tail: [`already so: ${done.message}`] }
-    }
-    const kept = done.keptData === undefined ? {} : { keptData: done.keptData }
-    return { finish: { ok: true, ...kept }, tail: [done.message] }
+    return runJob(ports, job, options.isInstalled)
   }
 
   /** Runs jobs until none is runnable now; true when a CLI write finished. */

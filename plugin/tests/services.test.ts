@@ -77,14 +77,14 @@ test('a refused reload fails its job and leaves the reload pending (F29)', async
   expect((h.read('attention') as { reloadPending: boolean }).reloadPending).toBe(true)
 })
 
-test('/mods never runs the CLI or a job from inside its command.run hook', async ($, on) => {
+test('/mods before start-up runs no CLI, no job and no reload from its command.run hook', async ($, on) => {
   const h = host(on, {
     state: {
       queue: { owner: 'old-module', jobs: [queued('old-1', 'disable', 'turn-band@fixtures')] },
     },
   })
   const ran = await $.command.run(MODS)
-  expect(ran.text).toBe('modmgr is reading your plugins; try again in a moment.')
+  expect(ran.text).toBe('modmgr is still starting; try again in a moment.')
   expect(h.argvs).toEqual([])
   expect(h.reloads()).toBe(0)
 })
@@ -113,8 +113,10 @@ test('a list that times out, prints malformed JSON or exits non-zero is recorded
   expect((h.read('sync') as { error: { message: string } }).error.message).toBe(
     'settings unreadable',
   )
+  // /mods list tries once more and says why it couldn't, with a failing exit.
   const ran = await $.command.run(MODS)
-  expect(ran.text).toBe('modmgr is reading your plugins; try again in a moment.')
+  expect(ran.text).toBe("Couldn't read your plugins: settings unreadable")
+  expect(ran.exitCode).toBe(1)
 })
 
 test('without a claude CLI on PATH, modmgr stays read-only and says why', async ($, on) => {
@@ -181,3 +183,41 @@ test(
     expect((h.read('queue') as Queue).jobs[0]?.state).toBe('interrupted')
   },
 )
+
+// ---- M6: /mods as text (PLAN §2.7, C16) -------------------------------------
+
+const mods = (args: string) => ({ ...MODS, args })
+
+test('/mods subcommands answer as text; a write waits for its job and never reloads', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const info = await $.command.run(mods('info turn-band@fixtures'))
+  expect(info.text?.split('\n')[0]).toBe('turn-band 0.3.1')
+  const dry = await $.command.run(mods('disable turn-band@fixtures'))
+  expect(dry.exitCode).toBe(1)
+  expect(dry.text).toContain('Add --yes to run it.')
+  // The write runs on the hook's own ports and is answered when it has ended.
+  const done = await $.command.run(mods('disable turn-band@fixtures --yes'))
+  expect(done.text).toContain('✓ disable turn-band@fixtures')
+  expect(done.text).toContain('Run /reload-plugins (or restart Claude Code) to apply.')
+  expect(h.argvs).toContain('plugin disable turn-band@fixtures --scope user --json')
+  expect(h.reloads()).toBe(0)
+  // Recorded like the dialog's jobs: the job log has it, a reload is owed.
+  expect(h.read('queue')).toMatchObject({ jobs: [{ kind: 'disable', state: 'ok' }] })
+  expect(h.read('attention')).toMatchObject({ reloadPending: true })
+  const usage = await $.command.run(mods('frob'))
+  expect(usage.exitCode).toBe(2)
+})
+
+test('/mods doctor --json reports Health’s items for a script', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const doctor = await $.command.run(mods('doctor --json'))
+  const report = JSON.parse(doctor.text ?? '') as { problems: number; items: { group: string }[] }
+  // The broken fixture's validate errors.
+  expect(report.problems).toBeGreaterThan(0)
+  expect(report.items.some(item => item.group === 'broken')).toBe(true)
+  expect(doctor.exitCode).toBe(1)
+})
