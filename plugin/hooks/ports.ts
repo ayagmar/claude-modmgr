@@ -110,8 +110,12 @@ export interface UiPort {
 
 /** The network, through the host. Used only for raw.githubusercontent.com: the catalogue index and the detector's probes. */
 export interface HttpPort {
-  /** A GET of `url`: its status and body (the whole body is read, so its size is checked after). */
-  get(url: string): Promise<{ readonly status: number; readonly text: string }>
+  /**
+   * A GET of `url` for at most `maxBytes + 1` bytes: a Range request, so a
+   * server that honours it never sends more, and a longer body is known to be
+   * too long without reading it whole. A range answered (206) reads as 200.
+   */
+  get(url: string, maxBytes: number): Promise<{ readonly status: number; readonly text: string }>
 }
 
 /** The plugin's names of a directory's entries (`$.fs.list`). */

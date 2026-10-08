@@ -77,8 +77,8 @@ and zero-width characters (`test/layering.test.ts`).
 **Network and files.** modmgr makes no network requests of its own except the mod detector's reads of
 `https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/modmgr`, branch `catalog-index`, `v1.json`, at
 most every 12 hours) and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned
-commit (at most 600 a session, only while no turn runs), without credentials, with response sizes checked and JSON
-shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
+commit (at most 600 a session, only while no turn runs), without credentials, each asked for by byte range (64 KiB a
+file, 2 MiB the index, so a server that honours it sends no more) and its JSON shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
 carries nothing about the person's catalogues or mods. The index only classifies remote entries: a kind is taken
 only when the index's key is the entry's own pinned commit, never `unknown` (the detector checks again), never for a
 local entry (read on disk instead); a malformed file is refused whole, and installing still goes through the review

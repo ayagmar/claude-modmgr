@@ -5,7 +5,13 @@
 // read again later (a marketplace added) is matched without asking again. Any
 // failure is quiet: the detector probes what the index didn't give.
 
-import { type CatalogIndexFile, fromIndex, INDEX_URL, parseIndex } from '../domain/catalog-index.ts'
+import {
+  type CatalogIndexFile,
+  fromIndex,
+  INDEX_MAX_BYTES,
+  INDEX_URL,
+  parseIndex,
+} from '../domain/catalog-index.ts'
 import type { CatalogEntry } from '../domain/cli-results.ts'
 import { lruSetMany } from '../domain/lru.ts'
 import { CAPS } from '../domain/store-schema.ts'
@@ -55,7 +61,7 @@ export const createIndexSync = (
     if (url === base && (unreachable || (last !== undefined && now - last < age))) return undefined
     let response: { readonly status: number; readonly text: string }
     try {
-      response = await ports.http.get(url)
+      response = await ports.http.get(url, INDEX_MAX_BYTES)
     } catch (error) {
       unreachable = true
       debug(`modmgr: index ${url} failed: ${String(error)}`)

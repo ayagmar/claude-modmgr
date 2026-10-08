@@ -237,12 +237,12 @@ describe('the detector restarts for what a refresh added', () => {
     })
     const get = w.http.get
     let first = true
-    w.http.get = async url => {
+    w.http.get = async (url, maxBytes) => {
       if (first) {
         first = false
         await held
       }
-      return get(url)
+      return get(url, maxBytes)
     }
     const detector = createDetector(w.ports, {
       store,

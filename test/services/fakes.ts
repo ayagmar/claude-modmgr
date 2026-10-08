@@ -387,15 +387,19 @@ export class FakeUi implements UiPort {
 }
 
 /** A network that answers by URL; unanswered URLs are 404. */
+/** Answers by URL, as a server that honours the Range request: at most `maxBytes + 1` bytes. */
 export class FakeHttp {
   gets: string[] = []
+  /** The most bytes each GET asked for. */
+  limits: number[] = []
   answers = new Map<string, { status: number; text: string } | { throws: string }>()
 
-  get = async (url: string): Promise<{ status: number; text: string }> => {
+  get = async (url: string, maxBytes: number): Promise<{ status: number; text: string }> => {
     this.gets.push(url)
+    this.limits.push(maxBytes)
     const answer = this.answers.get(url) ?? { status: 404, text: '' }
     if ('throws' in answer) throw new Error(answer.throws)
-    return answer
+    return { status: answer.status, text: answer.text.slice(0, maxBytes + 1) }
   }
 }
 

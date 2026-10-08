@@ -167,17 +167,23 @@ export const host = (on: On, options: HostOptions = {}) => {
     statuses.push(e.text)
     return { value: undefined }
   })
-  // The detector's probes: nothing is found unless a test says so.
+  // The detector's probes: nothing is found unless a test says so. Answered as
+  // raw.githubusercontent.com does a Range request: 206 and the file's start.
   const fetched: string[] = []
+  const ranges: (string | undefined)[] = []
   on('http.fetch', (_$, e) => {
     fetched.push(e.url)
+    const range = e.init?.headers?.Range
+    ranges.push(range)
     const text = options.web?.[e.url]
+    const last = Number(/^bytes=0-(\d+)$/.exec(range ?? '')?.[1] ?? Number.NaN)
+    const ranged = text !== undefined && Number.isInteger(last)
     return {
       value: {
-        status: text === undefined ? 404 : 200,
+        status: text === undefined ? 404 : ranged ? 206 : 200,
         ok: text !== undefined,
         headers: {},
-        text: text ?? '',
+        text: text === undefined ? '' : ranged ? text.slice(0, last + 1) : text,
       },
     }
   })
@@ -244,6 +250,8 @@ export const host = (on: On, options: HostOptions = {}) => {
     statuses,
     /** Each URL the detector fetched. */
     fetched,
+    /** The Range header each fetch sent. */
+    ranges,
     /** Opens the pane as the engine records it (what `$.ui.panes()` lists). */
     showPane: (focused = true) => {
       panes = [{ id: 'modmgr', title: 'mods', isShown: true, isFocused: focused, isPlaced: true }]

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { INDEX_URL, indexText } from '../../plugin/hooks/domain/catalog-index.ts'
+import { INDEX_MAX_BYTES, INDEX_URL, indexText } from '../../plugin/hooks/domain/catalog-index.ts'
 import { parseAvailable } from '../../plugin/hooks/domain/cli-results.ts'
-import { planProbe, probeKey } from '../../plugin/hooks/domain/detector.ts'
+import { MAX_BODY, planProbe, probeKey } from '../../plugin/hooks/domain/detector.ts'
 import type { DetectEntry } from '../../plugin/hooks/domain/store-schema.ts'
 import { createCatalog } from '../../plugin/hooks/services/catalog.ts'
 import {
@@ -135,6 +135,29 @@ describe('the hosted index', () => {
     const { w, store } = await setup()
     store.set('catalogIndex', { at: 0, built: 4 })
     expect(createIndexSync(w.ports, { store }).built()).toBe(4)
+  })
+})
+
+describe('sizes asked for', () => {
+  it('asks for the index and each probe by a byte range: a too-long index is refused unread past it', async () => {
+    const { w, store, catalog } = await setup()
+    const huge = `{"v":1,"at":9,"entries":{${'"x":'.repeat(INDEX_MAX_BYTES)}`
+    w.http.answers.set(INDEX_URL, { status: 200, text: huge })
+    const detector = createDetector(w.ports, {
+      store,
+      catalog,
+      index: createIndexSync(w.ports, { store }),
+      remoteAllowed: async () => true,
+      budget: 4,
+    })
+    detector.start()
+    for (let i = 0; i < 20; i += 1) await w.clock.advance(0)
+    await detector.whenIdle()
+    expect(w.http.limits[0]).toBe(INDEX_MAX_BYTES)
+    expect(store.get('catalogIndex').built).toBeUndefined()
+    // Nothing taken from it: the entries were probed, each asked for at most MAX_BODY bytes.
+    expect(detector.spent()).toBeGreaterThan(0)
+    expect(new Set(w.http.limits.slice(1))).toEqual(new Set([MAX_BODY]))
   })
 })
 

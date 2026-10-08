@@ -188,8 +188,11 @@ function uiPorts($: EngineInterface): UiPort {
 
 function httpPorts($: EngineInterface): HttpPort {
   return {
-    get: async url => {
-      const response = await $.http.fetch(url)
+    get: async (url, maxBytes) => {
+      const response = await $.http.fetch(url, { headers: { Range: `bytes=0-${maxBytes}` } })
+      // The file's start, whole when it is short; an empty file can't satisfy a range.
+      if (response.status === 206) return { status: 200, text: response.text }
+      if (response.status === 416) return { status: 200, text: '' }
       return { status: response.status, text: response.text }
     },
   }

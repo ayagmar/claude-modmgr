@@ -40,7 +40,9 @@ for (const surface of SURFACES) {
     await settle(h)
     await ui.redraw()
     expect(h.fetched).toContain(AWS_HOOKS)
-    // Every plugin by default, the mod found first.
+    // Each fetch asks for a byte range; the 206 that answers it reads as found.
+    expect(h.ranges.every(range => /^bytes=0-\d+$/.test(range ?? ''))).toBe(true)
+    // Mods only: the one found.
     const rows = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('found:'))
     expect(rows[0]?.key).toBe(`found:${AWS}`)
     expect(await ui.find({ type: 'Text', text: /\b1 mod\b/ })).toBeDefined()

@@ -132,8 +132,8 @@ export const createDetector = (
     if (remote) {
       requests += 1
       try {
-        const response = await ports.http.get(location)
-        // The body is read whole by the host; anything past the cap is not parsed.
+        const response = await ports.http.get(location, MAX_BODY)
+        // Anything past the cap is not parsed: the file is too long to be what it should.
         return response.text.length > MAX_BODY
           ? { status: response.status }
           : { status: response.status, text: response.text }
