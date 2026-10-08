@@ -235,7 +235,7 @@ One loud cloth, achromatic paper and ink, and the terminal's own black and tones
 **Body Font:** Archivo Variable at normal width (with system-ui)
 **Label/Mono Font:** JetBrains Mono Variable (with ui-monospace, SF Mono, Menlo)
 
-**Character:** One grotesque in two registers: condensed uppercase for the guide's titles, normal width for reading. Mono belongs to the specimens, install lines, code and ids. Width is set with `font-stretch`; the `wdth` values in the tokens are the same axis.
+**Character:** One grotesque in two registers: condensed uppercase for the guide's titles, normal width for reading. Mono belongs to the specimens, install lines, code and ids. Width is set with `font-stretch`; the `wdth` values in the tokens are the same axis. Both faces ship as subsets cut by `scripts/subset-fonts.sh` (Archivo: wght 400–800, wdth 68–100%, ASCII and the copy's punctuation; JetBrains Mono: wght 400–700, ASCII and the frames' arrows). A character outside them falls back to the next font in the stack, so add it to the script when the copy needs it.
 
 ### Hierarchy
 - **Display** (h1): the cover headline, uppercase, at 68% width.
