@@ -8,7 +8,7 @@
     {
       "name": "modmgr",
       "source": "./plugin",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "description": "Discover, install, inspect, toggle, update and debug Claude Code mods (function-hook plugins).",
       "category": "development"
     }

@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-08
+
 ### Added
 - Repository scaffold: tooling, CI, vendored Claude Code types, an empty `/mods` command.
 - `/mods` opens a dialog: installed mods with their state and notable capabilities, a detail of what each one can
