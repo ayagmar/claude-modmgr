@@ -18,7 +18,7 @@ plugins (four of them mods), the dialog inline at 116 body columns. Two sources:
 | Operation | Budget | Measured | Verdict |
 |---|---|---|---|
 | `session.start` blocking | < 5 ms | 4.8, 4.8, 11.2 ms over three cold starts (was 8.9 ms before registering `/mods` and taking the queue over side by side) | ≈ 5 ms, round-trip bound: three host calls two deep (`clock.now` then `state.update`, beside `command.register`); the 11.2 ms start is unexplained (not measured further) |
-| `/mods` → first paint | < 50 ms | pane draw 0.5–7.5 ms (12 state reads and Health's items included); 200 rows painted in < 50 ms in `plugin/tests/ui.test.tsx` | met |
+| `/mods` → first paint | < 50 ms | pane draw 0.5–7.5 ms (12 state reads and Health's items included); live redraws settle in 2–3 ms (Claude Code 2.1.294, 2026-10-08). The test harness's first mount of 200 rows, which also loads the module, took 76–175 ms locally both before and after every row became a ring stop, so it is not asserted | met for draws |
 | Row move / tab switch | < 16 ms | pane draw 0.5–1.2 ms per move; tab switches 0.7–4.8 ms; the pure part of a move over 200 mods 0.01 ms | met |
 | Filter keystroke over 3.5k entries | < 16 ms compute + one state write | catalogue window (match, window, one write) 2.6–6.3 ms live; match + window alone 0.16 ms (mods) / 0.30 ms (all), 0.45 / 0.89 ms at 10k | met |
 | Installed refresh | ≤ 1.5 s, background | warm 0.30–0.37 s (`list --json --data-size` alone 0.36 s); cold 1.7 s, the first ever, which validates every plugin once (three at a time) | met warm; the cold one is once per install or version |
