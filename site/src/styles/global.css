@@ -1,54 +1,65 @@
-@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/archivo/wdth.css";
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 
-/* Tokens: light by default, dark from the system or the toggle (data-theme). */
+/* Tokens: light by default, dark from the system or the toggle (data-theme).
+   Marigold is the guide's cover cloth: it owns whole bands, never body text. */
 :root {
-  --paper: #eef0ea;
-  --ink: #1d2421;
-  --muted: #59645e;
-  --rule: #c9cec5;
-  --accent: #2e6b57;
-  --accent-ink: #f4f7f2;
-  --code-bg: #e2e6dd;
-  --term-bg: #151a18;
-  --term-fg: #d9ded6;
-  --term-rule: #2d3632;
+  --paper: #f1f2ee;
+  --sheet: #fbfbf9;
+  --ink: #18191b;
+  --muted: #545a5e;
+  --rule: #cfd2cc;
+  --link: #18191b;
+  --cover: #f2b632;
+  --cover-ink: #1b1608;
+  --cover-muted: #4d3c10;
+  --cover-rule: #c99215;
+  --mark: #f2b632;
+  --mark-ink: #1b1608;
+  --code-bg: #e3e5df;
+  --term-bg: #131517;
+  --term-fg: #dadcd6;
+  --term-rule: #2b2f33;
+  --band: #131517;
   --t-success: #7cc48a;
   --t-warning: #e3b65a;
   --t-error: #ec7d74;
   --t-claude: #e5926a;
-  --t-subtle: #8f9991;
-  --sans: "Inter Variable", system-ui, sans-serif;
+  --t-subtle: #8e959a;
+  --sans: "Archivo Variable", system-ui, sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
-  --measure: 68ch;
+  --measure: 66ch;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #121615;
-    --ink: #e3e7e1;
-    --muted: #9ba49d;
-    --rule: #2c3431;
-    --accent: #86c2a8;
-    --accent-ink: #0e1211;
-    --code-bg: #1c2220;
-    --term-bg: #0b0e0d;
-    --term-rule: #232b28;
+    --paper: #141517;
+    --sheet: #1b1d20;
+    --ink: #e8e7e2;
+    --muted: #a3a7a9;
+    --rule: #2e3236;
+    --link: #e8e7e2;
+    --code-bg: #24272b;
+    --term-bg: #0c0d0f;
+    --term-rule: #2b2f33;
+    --band: #202327;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --paper: #121615;
-  --ink: #e3e7e1;
-  --muted: #9ba49d;
-  --rule: #2c3431;
-  --accent: #86c2a8;
-  --accent-ink: #0e1211;
-  --code-bg: #1c2220;
-  --term-bg: #0b0e0d;
-  --term-rule: #232b28;
+  --paper: #141517;
+  --sheet: #1b1d20;
+  --ink: #e8e7e2;
+  --muted: #a3a7a9;
+  --rule: #2e3236;
+  --link: #e8e7e2;
+  --code-bg: #24272b;
+  --term-bg: #0c0d0f;
+  --term-rule: #2b2f33;
+  --band: #202327;
   color-scheme: dark;
 }
 
@@ -68,16 +79,27 @@ body {
   background: var(--paper);
   color: var(--ink);
   font: 400 1.0625rem / 1.6 var(--sans);
-  font-feature-settings: "cv11", "ss01";
+  font-stretch: 100%;
+}
+
+::selection {
+  background: var(--cover);
+  color: var(--cover-ink);
 }
 
 a {
-  color: var(--accent);
-  text-underline-offset: 0.2em;
+  color: var(--link);
+  text-decoration-color: var(--cover);
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.22em;
+}
+
+a:hover {
+  text-decoration-thickness: 0.22em;
 }
 
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ink);
   outline-offset: 3px;
   border-radius: 2px;
 }
@@ -86,30 +108,40 @@ code,
 kbd,
 pre {
   font-family: var(--mono);
-  font-size: 0.92em;
+  font-size: 0.9em;
 }
 
 :not(pre) > code {
   background: var(--code-bg);
   padding: 0.08em 0.35em;
   border-radius: 4px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 kbd {
   display: inline-block;
-  min-width: 1.6em;
-  padding: 0.05em 0.4em;
+  min-width: 1.7em;
+  padding: 0.05em 0.45em;
   border: 1px solid var(--rule);
   border-bottom-width: 2px;
   border-radius: 5px;
   text-align: center;
-  background: var(--paper);
+  background: var(--sheet);
 }
 
 .wrap {
-  width: min(100% - 2rem, 72rem);
+  width: min(100% - 2rem, 76rem);
   margin-inline: auto;
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .skip {
@@ -120,26 +152,33 @@ kbd {
 .skip:focus {
   left: 1rem;
   top: 1rem;
-  background: var(--paper);
+  background: var(--sheet);
+  color: var(--ink);
   padding: 0.5rem 0.75rem;
-  z-index: 2;
+  z-index: 3;
 }
 
 h1,
 h2,
 h3 {
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
+/* Plate titles: the guide's narrow caps. */
 h2 {
-  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
-  margin: 0 0 1rem;
+  font-size: clamp(1.6rem, 1.1rem + 2vw, 2.6rem);
+  font-weight: 750;
+  font-stretch: 72%;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  margin: 0 0 1.25rem;
 }
 
 h3 {
-  font-size: 1.125rem;
+  font-size: 1.15rem;
+  font-weight: 700;
   margin: 0 0 0.35rem;
 }
 
@@ -150,6 +189,16 @@ dd {
 }
 
 section {
-  padding-block: clamp(3rem, 2rem + 4vw, 5.5rem);
+  padding-block: clamp(3.5rem, 2rem + 5vw, 6.5rem);
+}
+
+section + section {
   border-top: 1px solid var(--rule);
+}
+
+/* A mod id, set like a binomial. */
+.id {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  font-style: italic;
 }

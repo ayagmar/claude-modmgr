@@ -1,17 +1,12 @@
 ---
 import '../styles/global.css'
-import { notableText } from '../../../plugin/hooks/domain/capabilities.ts'
+import { notableText, REACH_LABEL, REACH_ORDER } from '../../../plugin/hooks/domain/capabilities.ts'
 import { MIN_CLAUDE_VERSION } from '../../../plugin/hooks/domain/version.ts'
+import Install from '../components/Install.astro'
 import Keymap from '../components/Keymap.astro'
 import Terminal from '../components/Terminal.astro'
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-const INSTALL = '/plugin install modmgr --marketplace ayagmar/claude-mods'
-// A flag stays with its value when the line wraps; built as one string, since
-// whitespace from the template would show inside the <pre>.
-const INSTALL_HTML = INSTALL.split(' --')
-  .map((part, index) => `<span class="keep">${index === 0 ? part : `--${part}`}</span>`)
-  .join(' ')
 const REPO = 'https://github.com/ayagmar/claude-modmgr'
 const description =
   'modmgr finds, installs, inspects, toggles and updates the mods that run inside your Claude Code sessions, and says what each one can do before it runs.'
@@ -23,6 +18,7 @@ const NOTABLE = [
   'judges-plugins',
   'starts-model-calls',
 ].map(notableText)
+const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
 ---
 
 <!doctype html>
@@ -41,8 +37,7 @@ const NOTABLE = [
     <meta property="og:url" content="https://ayagmar.github.io/claude-modmgr/" />
     <meta property="og:image" content="https://ayagmar.github.io/claude-modmgr/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#eef0ea" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#121615" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f2b632" />
     <script is:inline>
       // The toggle's choice, before paint; without script the system decides.
       try {
@@ -53,122 +48,131 @@ const NOTABLE = [
   </head>
   <body>
     <a class="skip" href="#main">Skip to the content</a>
-    <header class="wrap top">
-      <a class="mark" href={`${base}/`} aria-label="modmgr, home">modmgr</a>
-      <nav aria-label="Elsewhere">
-        <a href={REPO}>Source</a>
-        <a href={`${REPO}/blob/main/CHANGELOG.md`}>Changes</a>
-        <button class="theme" type="button" hidden aria-pressed="false">Dark theme</button>
-      </nav>
+    <header class="cover">
+      <div class="wrap top">
+        <a class="name" href={`${base}/`} aria-label="modmgr, home">modmgr</a>
+        <nav aria-label="Elsewhere">
+          <a href={REPO}>Source</a>
+          <a href={`${REPO}/blob/main/CHANGELOG.md`}>Changes</a>
+          <a href={`${REPO}/blob/main/docs/SECURITY.md`}>Security</a>
+          <button class="theme" type="button" hidden aria-pressed="false">Dark</button>
+        </nav>
+      </div>
     </header>
 
     <main id="main">
-      <div class="wrap hero">
-        <div class="pitch">
-          <h1>Every mod in your Claude&nbsp;Code, and what it can do.</h1>
+      <div class="cover hero">
+        <div class="wrap pitch">
+          <h1>Know what every mod in your Claude&nbsp;Code can do.</h1>
           <p class="lead">
             Mods are plugins that hook into a Claude Code session: they can run programs, read the
-            conversation, change what the model sees. modmgr shows you which ones you have, what
-            each one is able to do, and lets you install, switch off, update or remove them without
+            conversation and change what the model sees. modmgr lists the ones you have, says what
+            each one can do, and lets you find, install, switch off, update or remove them without
             leaving the session.
           </p>
-          <div class="install">
-            <p id="install-label">Type this at the Claude Code prompt:</p>
-            <div class="line">
-              <pre aria-labelledby="install-label"><code id="install-line" set:html={INSTALL_HTML} /></pre>
-              <button class="copy" type="button" hidden data-copy="install-line">Copy</button>
-            </div>
-            <p class="small">
-              Then <code>/mods</code>. Needs Claude Code {MIN_CLAUDE_VERSION} or newer.
+          <div class="act">
+            <Install id="install-line" label="Type this at the Claude Code prompt:" />
+            <p class="then">
+              Then <code>/mods</code>. Needs Claude Code {MIN_CLAUDE_VERSION} or newer, with the
+              <code>claude</code> CLI on your path.
             </p>
           </div>
-        </div>
-        <div class="demo">
-          <Terminal />
         </div>
       </div>
 
-      <section aria-labelledby="why">
+      <section class="plates" aria-labelledby="plates">
         <div class="wrap">
-          <h2 id="why">Why a manager for mods</h2>
-          <dl class="points">
-            <div>
-              <dt>Know what runs</dt>
-              <dd>
-                Each mod's events and calls are read from Claude Code's own validator and grouped by
-                what they reach: your machine, the network, the conversation, the model's input,
-                other plugins. The combinations worth a second look are named up front.
-              </dd>
-            </div>
-            <div>
-              <dt>Find mods where they are</dt>
-              <dd>
-                Discover lists the mods in every marketplace you have added. The official catalogues'
-                mods are known at once from an index rebuilt daily; anything else is checked while you
-                work, search matches first. A local entry is read before you install it.
-              </dd>
-            </div>
-            <div>
-              <dt>Change things without surprises</dt>
-              <dd>
-                Toggles are staged and applied together, with one plugin reload after. Anything that
-                runs new code or removes something is shown to you first, and the last batch can be
-                undone.
-              </dd>
-            </div>
-          </dl>
+          <h2 id="plates" class="vh">The dialog, plate by plate</h2>
+          <Terminal />
+          <p class="source">
+            Each plate is the real dialog, drawn by modmgr's own tests over a set of fixture mods.
+          </p>
         </div>
       </section>
 
-      <section aria-labelledby="trust">
-        <div class="wrap split">
-          <div>
-            <h2 id="trust">An update that adds power is news</h2>
+      <section aria-labelledby="marks">
+        <div class="wrap marks">
+          <div class="marks-text">
+            <h2 id="marks">The marks it calls out</h2>
             <p>
-              modmgr remembers what each mod could do at the version you had. When an update adds
-              something notable, the mod's row, the line above your prompt and the status line say
-              so, in plain words: <q>turn-band can now run programs</q>. It stays said until you open
-              that mod's detail.
+              modmgr reads each mod's hooks and calls from Claude Code's own validator,
+              <code>claude plugin validate --json</code>, and files every one under what it reaches.
+              When a combination is worth a second look, the mod's detail names it in plain words.
             </p>
-            <p>What it calls out:</p>
+            <p>
+              It also remembers what a mod could do at the version you had. When an update adds
+              something notable, the mod's row, the line above your prompt and the status line say
+              so: <q><i class="id">turn-band</i> can now run programs</q>. It stays said until you open that mod's detail.
+            </p>
+          </div>
+          <div class="key">
+            <h3>Notable</h3>
             <ul class="notable">
               {NOTABLE.map(text => <li>{text}</li>)}
             </ul>
-          </div>
-          <div class="aside">
-            <p>
-              A marketplace can declare a command that runs to fetch a plugin. modmgr shows that
-              command whole, with its sha256, and runs it only when you confirm that exact command.
-              It never answers yes for you.
-            </p>
-            <p>
-              modmgr is a lens, not a sandbox: once a mod runs, it runs with your session's power.
-              The <a href={`${REPO}/blob/main/docs/SECURITY.md`}>security notes</a> say what modmgr
-              reads, fetches and stores.
-            </p>
+            <h3>Filed under</h3>
+            <p class="reach">{REACHES.join(' · ')}</p>
           </div>
         </div>
       </section>
 
-      <section aria-labelledby="features">
-        <div class="wrap">
-          <h2 id="features">What's in /mods</h2>
-          <dl class="features">
+      <section class="limits" aria-labelledby="limits">
+        <div class="wrap side">
+          <h2 id="limits">What it can't do, and won't</h2>
+          <div>
+          <ol class="cautions">
+            <li>
+              <h3>It can't contain a mod</h3>
+              <p>
+                modmgr is a lens, not a sandbox. An enabled mod runs with your session's power, and
+                modmgr can't watch it or stop it mid-session. To stop one, disable or remove it and
+                reload.
+              </p>
+            </li>
+            <li>
+              <h3>It won't answer yes for you</h3>
+              <p>
+                A marketplace can declare a command that runs to fetch a plugin. modmgr shows that
+                command whole, with its sha256, and runs it only when you confirm that exact command.
+              </p>
+            </li>
+            <li>
+              <h3>It fetches little, and sends no telemetry</h3>
+              <p>
+                It runs only the <code>claude</code> CLI and never writes a settings file itself. Its
+                own reads, from <code>raw.githubusercontent.com</code>, are the catalogue index and a
+                catalogue entry's <code>hooks/hooks.json</code> and
+                <code>.claude-plugin/plugin.json</code>. They carry nothing about your mods.
+              </p>
+            </li>
+          </ol>
+          <p class="more">
+            <a href={`${REPO}/blob/main/docs/SECURITY.md`}>The security notes</a> say what modmgr reads,
+            fetches and stores.
+          </p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="tabs">
+        <div class="wrap side">
+          <h2 id="tabs">What's in /mods</h2>
+          <dl class="tabs">
             <div>
-              <dt>Installed</dt>
-              <dd>Every mod with its state, version and scope; its detail lists what it hooks and calls, each with one line of explanation.</dd>
+              <dt>Installed <span class="cite">Plates I, II</span></dt>
+              <dd>Every mod with its state, version and scope; its detail lists what it hooks and calls, each with one line of explanation. Changes are staged and applied together, with one plugin reload after.</dd>
             </div>
             <div>
-              <dt>Discover</dt>
-              <dd>Search and sort the catalogues of all your marketplaces; install at user, project or local scope after a review; add a marketplace.</dd>
+              <dt>Discover <span class="cite">Plates III, IV</span></dt>
+              <dd>The mods in every marketplace you have added. The official catalogues' mods are known at once from an index rebuilt daily; anything else is checked while you work, search matches first. Install at user, project or local scope after a review.</dd>
             </div>
             <div>
               <dt>Dev</dt>
-              <dd>The mods you are writing, loaded from a folder: validate, run their tests, reload, and get the one line someone else needs to install yours.</dd>
+              <dd>The mods you are writing, loaded from a folder: validate them, run their tests, reload, and get the one line someone else needs to install yours.</dd>
             </div>
             <div>
-              <dt>Health</dt>
-              <dd>What needs you, worst first: validate errors, failures while a mod reloads, updates, hook order that matters, each with a fix one key away.</dd>
+              <dt>Health <span class="cite">Plate V</span></dt>
+              <dd>What needs you, worst first: validate errors, failures while a mod reloads, updates, each with a fix one key away.</dd>
             </div>
             <div>
               <dt>Updates</dt>
@@ -176,26 +180,33 @@ const NOTABLE = [
             </div>
             <div>
               <dt>As text</dt>
-              <dd><code>/mods list</code>, <code>info</code>, <code>doctor --json</code>, <code>export</code> and writes behind <code>--yes</code>, for scripts and <code>claude -p</code>.</dd>
+              <dd><code>/mods list</code>, <code>info</code>, <code>doctor --json</code>, <code>export</code>, and writes behind <code>--yes</code>, for scripts and <code>claude -p</code>.</dd>
             </div>
           </dl>
         </div>
       </section>
 
       <section aria-labelledby="keys">
-        <div class="wrap">
+        <div class="wrap side">
           <h2 id="keys">Keys</h2>
-          <p>
-            Everything in <code>/mods</code> is a button you can click, and most have a key. Arrows and
-            Tab move, Enter opens, Esc steps back.
-          </p>
-          <Keymap />
+          <div>
+            <p>
+              Everything in <code>/mods</code> is a button you can click, and most have a key. Arrows
+              and Tab move, Enter opens, Esc steps back, <kbd>1</kbd> to <kbd>4</kbd> switch tabs, and
+              <kbd>h</kbd> lists every key inside <code>/mods</code>.
+            </p>
+            <details class="all-keys">
+              <summary>Every key, and where it works</summary>
+              <Keymap />
+            </details>
+          </div>
         </div>
       </section>
 
       <section aria-labelledby="faq">
-        <div class="wrap faq">
+        <div class="wrap side faq">
           <h2 id="faq">Questions</h2>
+          <div>
           <details>
             <summary>How is this different from <code>/plugin</code>?</summary>
             <p>
@@ -239,14 +250,21 @@ const NOTABLE = [
               line.
             </p>
           </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="cover close" aria-labelledby="install">
+        <div class="wrap">
+          <h2 id="install">Install it</h2>
+          <Install id="install-line-close" label="At the Claude Code prompt:" />
+          <p class="then">Then type <code>/mods</code>.</p>
         </div>
       </section>
     </main>
 
     <footer class="wrap foot">
-      <p>
-        modmgr is MIT-licensed. <a href={REPO}>Source and issues on GitHub</a>.
-      </p>
+      <p>modmgr is MIT-licensed. <a href={REPO}>Source and issues on GitHub</a>.</p>
     </footer>
 
     <script is:inline>
@@ -274,7 +292,7 @@ const NOTABLE = [
             : matchMedia('(prefers-color-scheme: dark)').matches
         const show = () => {
           toggle.setAttribute('aria-pressed', String(dark()))
-          toggle.textContent = dark() ? 'Light theme' : 'Dark theme'
+          toggle.textContent = dark() ? 'Light' : 'Dark'
         }
         toggle.hidden = false
         show()
@@ -291,16 +309,40 @@ const NOTABLE = [
 </html>
 
 <style>
+  /* The guide's cover cloth: a band of marigold, its own ink. */
+  .cover {
+    background: var(--cover);
+    color: var(--cover-ink);
+  }
+
+  .cover a {
+    color: var(--cover-ink);
+    text-decoration-color: var(--cover-ink);
+  }
+
+  .cover :focus-visible {
+    outline-color: var(--cover-ink);
+  }
+
+  .cover :not(pre) > code {
+    background: rgb(27 22 8 / 0.1);
+  }
+
   .top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-block: 1.25rem;
+    gap: 1rem;
+    padding-block: 1.1rem;
+    border-bottom: 1px solid var(--cover-rule);
   }
 
-  .mark {
-    font: 700 1.125rem var(--mono);
-    color: var(--ink);
+  .name {
+    font-weight: 800;
+    font-size: 1.35rem;
+    font-stretch: 72%;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
     text-decoration: none;
   }
 
@@ -308,173 +350,358 @@ const NOTABLE = [
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 0.5rem 1.25rem;
+    gap: 0.4rem 1.25rem;
     align-items: center;
     font-size: 0.95rem;
+    font-weight: 550;
   }
 
   .theme {
     font: inherit;
-    color: var(--ink);
+    color: var(--cover-ink);
     background: none;
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--cover-ink);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
     cursor: pointer;
+    transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
+  }
+
+  @media (max-width: 30rem) {
+    nav {
+      gap: 0.4rem 0.85rem;
+      font-size: 0.9rem;
+    }
+
+    .name {
+      font-size: 1.15rem;
+    }
+  }
+
+  .theme:hover {
+    background: var(--cover-ink);
+    color: var(--cover);
   }
 
   .hero {
-    display: grid;
-    /* The terminal scrolls inside itself; it never widens the page. */
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2.5rem;
-    padding-block: clamp(2rem, 1rem + 4vw, 4.5rem) clamp(3rem, 2rem + 4vw, 5rem);
+    padding-block: clamp(2.25rem, 1rem + 4vw, 4.5rem) clamp(2rem, 1rem + 2.5vw, 3rem);
   }
 
-  /* The dialog takes the whole width under the pitch: it is drawn 96 cells wide, as docked. */
+  .pitch {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem 4rem;
+  }
+
   @media (min-width: 64rem) {
     .pitch {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-      column-gap: 3.5rem;
-      align-items: end;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      align-items: start;
     }
 
     .pitch h1 {
-      grid-row: span 2;
-      align-self: start;
+      grid-column: 1 / -1;
+      margin-bottom: 1rem;
     }
   }
 
   h1 {
-    font-size: clamp(2.1rem, 1.4rem + 3vw, 3.4rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.25rem;
+    margin: 0;
+    font-size: clamp(2.6rem, 1.2rem + 4.4vw, 5.25rem);
+    font-weight: 800;
+    font-stretch: 68%;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
 
   .lead {
-    font-size: 1.15rem;
-    color: var(--muted);
-    margin: 0 0 2rem;
-  }
-
-  .install p {
-    margin: 0 0 0.5rem;
-  }
-
-  .line {
-    display: flex;
-    gap: 0.5rem;
-    align-items: stretch;
-  }
-
-  .line pre {
-    flex: 1;
-    min-width: 0;
     margin: 0;
-    padding: 0.8rem 1rem;
-    background: var(--term-bg);
-    color: var(--term-fg);
-    border-radius: 8px;
+    font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+    line-height: 1.55;
+    max-width: 38rem;
+  }
+
+  .act {
+    margin-top: 0.25rem;
+  }
+
+  .then {
+    margin: 0.75rem 0 0;
     font-size: 0.95rem;
-    /* The whole line, wrapped where it must: it is what people copy. A flag
-       stays with its value, never broken at its hyphens. */
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    color: var(--cover-muted);
   }
 
-  .line :global(.keep) {
-    white-space: nowrap;
+  /* The plates sit on the cover's lower edge, then on paper. */
+  .plates {
+    padding-top: 0;
+    background: linear-gradient(var(--cover) 0 6.5rem, transparent 6.5rem);
   }
 
-  .copy {
-    font: 600 0.95rem var(--sans);
-    color: var(--accent-ink);
-    background: var(--accent);
-    border: 0;
-    border-radius: 8px;
-    padding: 0 1rem;
-    cursor: pointer;
-  }
-
-  .small {
+  .source {
+    margin: 1.5rem 0 0;
     font-size: 0.92rem;
     color: var(--muted);
-    margin-top: 0.75rem !important;
   }
 
-  .points,
-  .features {
+  .marks {
     display: grid;
-    gap: 1.75rem 3rem;
-    margin: 0;
+    gap: 2.5rem 5rem;
   }
 
-  @media (min-width: 52rem) {
-    .points {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    .features {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .split {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-      gap: 3rem;
+  @media (min-width: 60rem) {
+    .marks {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     }
   }
 
-  dt {
-    font-weight: 650;
-    margin-bottom: 0.35rem;
+  .marks-text p {
+    font-size: 1.1rem;
   }
 
-  dd {
-    margin: 0;
+  .key {
+    align-self: start;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 1.5rem 1.6rem 1.6rem;
+  }
+
+  .key h3 {
+    font-size: 0.85rem;
+    font-weight: 750;
+    font-stretch: 85%;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--muted);
+    margin: 0 0 0.75rem;
+  }
+
+  .key h3 + ul {
+    margin-bottom: 1.75rem;
   }
 
   .notable {
-    padding-left: 1.2rem;
+    list-style: none;
     margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.55rem;
   }
 
-  .notable li::marker {
-    content: '◆  ';
-    color: var(--accent);
+  .notable li {
+    display: grid;
+    grid-template-columns: 1.1rem minmax(0, 1fr);
+    gap: 0.6rem;
+    font-weight: 550;
   }
 
-  .aside {
-    border-left: 3px solid var(--accent);
-    padding-left: 1.25rem;
-    align-self: start;
+  /* The dialog's own glyph for a notable capability. */
+  .notable li::before {
+    content: '◆';
+    color: var(--ink);
+    font-size: 0.8em;
+    line-height: 2;
   }
 
-  .aside p:first-child {
+  .reach {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+
+  /* The limits: on the plates' own black. */
+  .limits {
+    background: var(--band);
+    color: var(--term-fg);
+    --rule: var(--term-rule);
+    --muted: #a6acaf;
+    border-top: 0;
+  }
+
+  .limits + section {
+    border-top: 0;
+  }
+
+  .limits h2 {
+    color: var(--mark);
+    max-width: 18ch;
+  }
+
+  .limits a {
+    color: var(--term-fg);
+  }
+
+  .limits :focus-visible {
+    outline-color: var(--mark);
+  }
+
+  .limits :not(pre) > code {
+    background: #23272b;
+  }
+
+  /* Cautions: numbered like the plates' legends, in the margin. */
+  .cautions {
+    list-style: none;
+    counter-reset: caution;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cautions li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .cautions li {
+    counter-increment: caution;
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    column-gap: 1rem;
+    padding-block: 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .cautions li::before {
+    content: counter(caution);
+    grid-row: span 2;
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-stretch: 68%;
+    line-height: 1.1;
+    color: var(--mark);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cautions h3 {
+    font-size: 1.2rem;
+    margin: 0.2rem 0 0.4rem;
+  }
+
+  .cautions p {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .more {
+    margin: 2.5rem 0 0;
+  }
+
+  .tabs {
+    margin: 0;
+    border-top: 2px solid var(--ink);
+  }
+
+  .tabs > div {
+    display: grid;
+    gap: 0.25rem 2rem;
+    padding-block: 1.1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  @media (min-width: 48rem) {
+    .tabs > div {
+      grid-template-columns: 12rem minmax(0, 1fr);
+    }
+  }
+
+  .tabs dt {
+    font-weight: 750;
+    font-size: 1.2rem;
+    font-stretch: 78%;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .cite {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-stretch: 85%;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  .tabs dd {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  /* The back of the guide: headings in the left column, matter on the right. */
+  @media (min-width: 64rem) {
+    .side {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2.6fr);
+      gap: 0 4rem;
+      align-items: start;
+    }
+
+    .side > h2 {
+      position: sticky;
+      top: 1.5rem;
+    }
+  }
+
+  .side > div > p:first-child {
     margin-top: 0;
+  }
+
+  .all-keys {
+    margin-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+  }
+
+  .all-keys summary {
+    cursor: pointer;
+    font-weight: 650;
+    padding-block: 1rem;
   }
 
   .faq details {
     border-bottom: 1px solid var(--rule);
-    padding-block: 0.9rem;
-    max-width: var(--measure);
+  }
+
+  .faq details:first-of-type {
+    border-top: 2px solid var(--ink);
   }
 
   .faq summary {
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 650;
+    font-size: 1.1rem;
+    padding-block: 1rem;
+    list-style-position: outside;
+    margin-left: 1.1rem;
+  }
+
+  .faq summary::marker {
+    color: var(--muted);
   }
 
   .faq details p {
     color: var(--muted);
-    margin-bottom: 0.25rem;
+    margin: 0 0 1.25rem 1.1rem;
+  }
+
+  .close {
+    border-top: 0;
+  }
+
+  .close h2 {
+    font-size: clamp(2.2rem, 1.2rem + 4vw, 4.2rem);
+    font-stretch: 68%;
+    line-height: 0.95;
+    margin-bottom: 1.75rem;
   }
 
   .foot {
-    border-top: 1px solid var(--rule);
     padding-block: 2rem 3rem;
     color: var(--muted);
     font-size: 0.95rem;
+  }
+
+  .foot p {
+    margin: 0;
   }
 </style>

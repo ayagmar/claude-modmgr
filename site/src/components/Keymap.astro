@@ -54,26 +54,34 @@ const rows = BINDINGS.map(binding => ({
   table {
     border-collapse: collapse;
     width: 100%;
-    max-width: 52rem;
     font-size: 0.95rem;
   }
 
   th {
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
+    font-stretch: 85%;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.8rem;
     color: var(--muted);
-    padding: 0 1rem 0.5rem 0;
-    border-bottom: 1px solid var(--rule);
+    padding: 0 1rem 0.6rem 0;
+    border-bottom: 2px solid var(--ink);
   }
 
   td {
-    padding: 0.4rem 1rem 0.4rem 0;
+    padding: 0.5rem 1rem 0.5rem 0;
     border-bottom: 1px solid var(--rule);
     vertical-align: top;
   }
 
   td:first-child {
     white-space: nowrap;
+    width: 1%;
+  }
+
+  tbody tr:hover td {
+    background: var(--sheet);
   }
 
   .where {
