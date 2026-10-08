@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "staticDistDir": "./.lhci-root",
-      "url": ["http://localhost/modmgr/"],
+      "url": ["http://localhost/claude-modmgr/"],
       "numberOfRuns": 1,
       "settings": { "chromeFlags": "--headless --no-sandbox" }
     },
