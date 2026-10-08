@@ -301,6 +301,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       columns: listColumns,
       focusKey: item?.key,
       stacked: !split,
+      before: items.slice(0, shown.items.start),
+      after: items.slice(shown.items.end),
     })
   } else if (dev) {
     const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)

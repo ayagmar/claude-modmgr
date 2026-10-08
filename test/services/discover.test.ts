@@ -2,6 +2,7 @@
 // `$.state`, the detector's budget, idle rule, backoff and cache, and the
 // install, declared-command and marketplace flows through the review.
 import { describe, expect, it } from 'vitest'
+import { PAGE_SIZE } from '../../plugin/hooks/domain/catalog.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createCatalog } from '../../plugin/hooks/services/catalog.ts'
@@ -58,7 +59,7 @@ describe('the catalogue', () => {
     const page = w.state.values.catalogPage
     expect(page.total).toBe(201)
     expect(page.matched).toBe(mods)
-    expect(page.rows.length).toBeLessThanOrEqual(50)
+    expect(page.rows.length).toBeLessThanOrEqual(PAGE_SIZE)
     expect(page.loading).toBe(false)
     // The first visit read it; a second visit within hours does not.
     await act.tab('installed')

@@ -22,6 +22,7 @@ import { type Window, wrappedRows } from '../domain/view.ts'
 import {
   GLYPH,
   Heading,
+  HiddenRows,
   KeyButton,
   LabelRow,
   Pointer,
@@ -59,12 +60,30 @@ const marksOf = (row: DevRow, how: DevHow): RunMark[] => {
   return marks
 }
 
+/** A dev row's Button: Enter opens the detail, or moves onto it beside the list. */
+const devButton = (
+  v: ViewPorts,
+  row: DevRow,
+  how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
+): RenderElement => {
+  const { Button } = v.el
+  return (
+    <Button
+      key={devKey(row.key)}
+      plain
+      label={sanitize(row.name, { max: how.max })}
+      {...(how.focus ? { autoFocus: true as const } : {})}
+      onPress={() => (how.beside ? v.act.toDetail() : v.act.openDev(row.key))}
+    />
+  )
+}
+
 export const DevLine = (
   v: ViewPorts,
   row: DevRow,
   how: DevHow & { readonly columns: number; readonly focus: boolean; readonly beside: boolean },
 ): RenderElement => {
-  const { Box, Button, Text } = v.el
+  const { Box, Text } = v.el
   const wide = how.columns >= 60
   const name = Math.max(8, Math.min(32, how.columns - 4 - (wide ? 14 : 0) - 18))
   return (
@@ -74,13 +93,7 @@ export const DevLine = (
         {row.enabled === undefined ? ' ' : row.enabled ? GLYPH.on : GLYPH.off}
       </Text>
       <Box width={name} flexShrink={0}>
-        <Button
-          key={devKey(row.key)}
-          plain
-          label={sanitize(row.name, { max: name })}
-          {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => (how.beside ? v.act.toDetail() : v.act.openDev(row.key))}
-        />
+        {devButton(v, row, { max: name, focus: how.focus, beside: how.beside })}
       </Box>
       {wide ? (
         <Box width={13} flexShrink={0}>
@@ -130,8 +143,14 @@ export const DevList = (
       </Box>
     )
   }
+  const hidden = (shown: readonly DevRow[]) =>
+    HiddenRows(
+      v,
+      shown.map(row => devButton(v, row, { max: 64, focus: false, beside: how.beside })),
+    )
   return (
     <Box flexDirection="column">
+      {hidden(rows.slice(0, how.window.start))}
       {rows.slice(how.window.start, how.window.end).map(row =>
         DevLine(v, row, {
           jobs: how.jobs,
@@ -141,6 +160,7 @@ export const DevList = (
           beside: how.beside,
         }),
       )}
+      {hidden(rows.slice(how.window.end))}
     </Box>
   )
 }

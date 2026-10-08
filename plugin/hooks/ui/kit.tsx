@@ -78,6 +78,25 @@ export const Pointer = (v: ViewPorts, on: boolean): RenderElement => {
   return on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>
 }
 
+/**
+ * A list's rows above or below its window, as hidden Buttons. The terminal's
+ * ring keeps its place by position among a site's stops: were these rows left
+ * out, a window scrolled by the selection would slide another row under the
+ * ring. Kept, every row stays a stop in the same order, and an arrow onto a
+ * hidden one selects it, which scrolls it into view.
+ */
+export const HiddenRows = (
+  v: ViewPorts,
+  buttons: readonly RenderElement[],
+): RenderElement | null => {
+  const { Box } = v.el
+  return buttons.length === 0 ? null : (
+    <Box display="none" flexDirection="column">
+      {buttons}
+    </Box>
+  )
+}
+
 /** A dim rule across `columns`. */
 export const Rule = (v: ViewPorts, columns: number): RenderElement => {
   const { Text } = v.el

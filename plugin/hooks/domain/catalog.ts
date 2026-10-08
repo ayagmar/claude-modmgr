@@ -11,7 +11,12 @@ export type { CatalogKind, CatalogRow }
 export const SORTS = ['installs', 'name', 'marketplace'] as const
 export type CatalogSort = (typeof SORTS)[number]
 
-export const PAGE_SIZE = 50
+/**
+ * The matches `$.state` holds around the selection: with mods only, all of
+ * them, so the rows drawn (each a stop of the ring) don't move as the
+ * selection does; past it the page moves with the selection.
+ */
+export const PAGE_SIZE = 200
 const NAME_MAX = 64
 const BLURB_MAX = 140
 
