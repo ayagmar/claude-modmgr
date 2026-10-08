@@ -80,6 +80,9 @@ pnpm site                    # build site/ and check its links and weight
 pnpm --filter modmgr-site dev
 ```
 
+The page's mod search is built from the published community index (`mods-v1.json`); `MODS_INDEX=<file>` builds it
+from a local one instead (the output of `scripts/build-mods.ts`). A build that can read neither fails.
+
 ## Releasing
 
 1. Move `CHANGELOG.md`'s `[Unreleased]` entries under `## [x.y.z] - <date>`.
