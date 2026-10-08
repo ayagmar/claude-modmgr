@@ -4,7 +4,8 @@ name: index
 # classified (mod, command hooks, plain) at its pinned commit, so modmgr's
 # Discover knows their mods after one request. Built daily and force-pushed as
 # the single commit of the `catalog-index` branch, read from
-# raw.githubusercontent.com.
+# raw.githubusercontent.com. Run it by hand once a new repository has it, so the
+# index exists before anyone installs.
 on:
   schedule:
     - cron: '17 4 * * *'
