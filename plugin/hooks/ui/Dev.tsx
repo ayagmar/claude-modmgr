@@ -19,7 +19,7 @@ import {
 } from '../domain/dev.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
-import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, Heading, KeyButton, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 /** Lines of a run's output the detail shows (the job log has the rest). */
 const TAIL_SHOWN = 6
@@ -55,9 +55,10 @@ export const DevLine = (
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const wide = how.columns >= 60
-  const name = Math.max(8, Math.min(32, how.columns - 2 - (wide ? 14 : 0) - 18))
+  const name = Math.max(8, Math.min(32, how.columns - 4 - (wide ? 14 : 0) - 18))
   return (
     <Box key={`line:${row.key}`} flexDirection="row" gap={1}>
+      {Pointer(v, how.focus)}
       <Text color={row.enabled === false ? TONE.muted : TONE.ok}>
         {row.enabled === undefined ? ' ' : row.enabled ? GLYPH.on : GLYPH.off}
       </Text>

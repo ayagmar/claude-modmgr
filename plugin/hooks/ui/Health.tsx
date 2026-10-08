@@ -8,7 +8,7 @@ import type { RenderElement } from 'claude-code'
 import { type HealthItem, type HealthTone, healthKey } from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
-import { GLYPH, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone: string }>> = {
   bad: { glyph: GLYPH.problem, tone: TONE.bad },
@@ -30,9 +30,10 @@ export const HealthLine = (
   const { Box, Button, Text } = v.el
   const group = Math.max(8, Math.min(18, Math.floor(how.columns * 0.28)))
   const fix = item.fixLabel === undefined ? undefined : `→ ${item.fixLabel}`
-  const text = Math.max(10, how.columns - 2 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
+  const text = Math.max(10, how.columns - 4 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>
+      {Pointer(v, how.focus)}
       <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
       <Box width={group} flexShrink={0}>
         <Text bold={how.first} dimColor={!how.first} wrap="truncate-end">

@@ -42,7 +42,7 @@ for (const surface of SURFACES) {
     // Mods only by default: the one found.
     const rows = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('found:'))
     expect(rows.map(row => row.key)).toEqual([`found:${AWS}`])
-    expect(await ui.find({ type: 'Text', text: /mods found 1 · checked/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\b1 mod\b/ })).toBeDefined()
 
     await ui.press({ key: `found:${AWS}` })
     await ui.redraw()

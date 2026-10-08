@@ -1,55 +1,69 @@
-// Discover (PLAN §2.3, §5.3): the catalogue's rows around the selection, its
-// empty states, and an entry's detail. Rows are plain Buttons keyed `found:<id>`
+// Discover: the catalogue's rows around the selection, its empty states, and
+// an entry's detail. Rows are plain Buttons keyed `found:<id>`
 // (Enter opens the detail); every name and blurb is the catalogue's own word,
 // sanitised by the catalogue and drawn as Text.
 
 import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
-import { foundKey, inspectionLines, KIND_LABEL } from '../domain/discover.ts'
+import { foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import type { Window } from '../domain/view.ts'
-import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, Heading, KeyButton, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
-/** Cells for the kind and the install count at a row's end. */
-const TAIL = 14
+/** What an entry is, said in the detail. */
+const KIND_ABOUT: Readonly<Record<CatalogRow['kind'], string>> = {
+  mod: 'mod',
+  hooks: 'plugin with command hooks',
+  plain: 'plugin',
+  unknown: 'not checked yet',
+}
 
-const kindTone = (kind: CatalogRow['kind']): string | undefined =>
-  kind === 'mod' ? TONE.accent : undefined
+/** Cells for the install count at a row's end (`12.3k`). */
+const INSTALLS = 5
+
+/** A mod is marked; a plugin with command hooks quietly; the rest not at all. */
+const badgeOf = (v: ViewPorts, kind: CatalogRow['kind']): RenderElement => {
+  const { Text } = v.el
+  if (kind === 'mod') return <Text color={TONE.accent}>{GLYPH.notable}</Text>
+  if (kind === 'hooks') return <Text dimColor>{GLYPH.hooks}</Text>
+  return <Text> </Text>
+}
 
 export const FoundRow = (
   v: ViewPorts,
   row: CatalogRow,
-  how: { readonly columns: number; readonly focus: boolean },
+  how: { readonly columns: number; readonly focus: boolean; readonly twoLine: boolean },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
-  const wide = how.columns >= 60
-  const name = Math.max(10, Math.min(36, how.columns - 2 - TAIL - (wide ? 20 : 0)))
+  const name = Math.max(8, how.columns - 4 - 1 - INSTALLS)
+  const installs = row.installs === undefined ? '' : formatCount(row.installs)
+  const about = row.blurb === '' ? row.marketplace : row.blurb
   return (
-    <Box key={`line:${row.id}`} flexDirection="row" gap={1}>
-      <Text color={kindTone(row.kind) ?? TONE.muted}>
-        {row.kind === 'mod' ? GLYPH.notable : ' '}
-      </Text>
-      <Box width={name} flexShrink={0}>
-        <Button
-          key={foundKey(row.id)}
-          plain
-          label={sanitize(row.name, { max: name })}
-          {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => v.act.openFound(row.id)}
-        />
+    <Box key={`line:${row.id}`} flexDirection="column">
+      <Box flexDirection="row" gap={1}>
+        {Pointer(v, how.focus)}
+        {badgeOf(v, row.kind)}
+        <Box width={name} flexShrink={0}>
+          <Button
+            key={foundKey(row.id)}
+            plain
+            label={sanitize(row.name, { max: name })}
+            {...(how.focus ? { autoFocus: true as const } : {})}
+            onPress={() => v.act.openFound(row.id)}
+          />
+        </Box>
+        <Box width={INSTALLS} flexShrink={0} justifyContent="flex-end">
+          <Text dimColor>{installs}</Text>
+        </Box>
       </Box>
-      {wide ? (
-        <Box width={20} flexShrink={0}>
+      {how.twoLine ? (
+        <Box paddingLeft={4} height={1} overflow="hidden">
           <Text dimColor wrap="truncate-end">
-            {row.marketplace}
+            {sanitize(about, { max: 200 })}
           </Text>
         </Box>
       ) : null}
-      <Box width={6} flexShrink={0}>
-        <Text dimColor>{KIND_LABEL[row.kind]}</Text>
-      </Box>
-      <Text dimColor>{row.installs === undefined ? '' : formatCount(row.installs)}</Text>
     </Box>
   )
 }
@@ -65,6 +79,8 @@ export const FoundList = (
     readonly window: Window
     readonly focusId: string | undefined
     readonly networkOff: boolean
+    /** Each entry takes two rows: its name, then what it says it does. */
+    readonly twoLine: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
@@ -96,9 +112,13 @@ export const FoundList = (
   }
   return (
     <Box flexDirection="column">
-      {page.rows
-        .slice(how.window.start, how.window.end)
-        .map(row => FoundRow(v, row, { columns: how.columns, focus: row.id === how.focusId }))}
+      {page.rows.slice(how.window.start, how.window.end).map(row =>
+        FoundRow(v, row, {
+          columns: how.columns,
+          focus: row.id === how.focusId,
+          twoLine: how.twoLine,
+        }),
+      )}
     </Box>
   )
 }
@@ -133,11 +153,14 @@ export const FoundDetail = (
         <Text bold>{row.name}</Text>
         <Text dimColor>{row.version ?? ''}</Text>
       </Box>
-      <Text dimColor wrap="truncate-end">
-        {KIND_LABEL[row.kind] === '?' ? 'not checked yet' : KIND_LABEL[row.kind]} ·{' '}
-        {row.marketplace}
-        {row.installs === undefined ? '' : ` · ${formatCount(row.installs)} installs`}
-      </Text>
+      <Box flexDirection="row" gap={1} height={1} overflow="hidden">
+        {row.kind === 'mod' ? <Text color={TONE.accent}>{GLYPH.notable} mod</Text> : null}
+        <Text dimColor wrap="truncate-end">
+          {row.kind === 'mod' ? '' : `${KIND_ABOUT[row.kind]} · `}
+          {row.marketplace}
+          {row.installs === undefined ? '' : ` · ${formatCount(row.installs)} installs`}
+        </Text>
+      </Box>
       {how.actions ? (
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {how.readOnly

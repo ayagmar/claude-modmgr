@@ -229,10 +229,8 @@ test('the detail draws what is new apart, and says why a folder mod has no updat
       await ui.find({ type: 'Text', text: 'Can run programs or change files on your machine' }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Can change what the model reads' })).toBeDefined()
-    // The split's preview has no keys; the detail on top says why `u` is missing.
-    expect(
-      await ui.find({ type: 'Text', text: /runs from its marketplace folder/ }),
-    ).toBeUndefined()
+    // Beside the list the detail carries its keys, and says why `u` is missing.
+    expect(await ui.find({ type: 'Text', text: /runs from its marketplace folder/ })).toBeDefined()
     await ui.unmount()
   }
   const stacked = await mountPane($, 'terminal', PANE(64, 40))

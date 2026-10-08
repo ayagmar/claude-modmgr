@@ -94,6 +94,7 @@ describe('a fixture update shows its capability diff (M3b done criterion)', () =
         title: 'mods · 1 can do more',
         closeOnEscape: true,
         rows: 14,
+        columns: 96,
         holdToasts: true,
       },
     ])
@@ -300,7 +301,7 @@ describe('the status line and the title', () => {
     }
     await chrome.sync()
     expect(w.ui.opens).toEqual([
-      { id: 'modmgr', title: 'mods · 1 can do more', closeOnEscape: true, rows: 14 },
+      { id: 'modmgr', title: 'mods · 1 can do more', closeOnEscape: true, rows: 14, columns: 96 },
     ])
     await chrome.sync()
     expect(w.ui.opens).toHaveLength(1)

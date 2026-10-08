@@ -27,14 +27,6 @@ export const SCOPE_LABEL: Readonly<Record<InstallScope, string>> = {
   local: 'local: this repository, only you',
 }
 
-/** A catalogue row's kind in words: what the detector knows. */
-export const KIND_LABEL: Readonly<Record<CatalogRow['kind'], string>> = {
-  mod: 'mod',
-  hooks: 'hooks',
-  plain: 'plugin',
-  unknown: '?',
-}
-
 /** What modmgr could read about an entry before installing it (a local source's `validate`). */
 export type Inspection = {
   readonly notable: readonly string[]
@@ -176,7 +168,10 @@ export const nextKind = (kind: View['kind']): View['kind'] =>
 export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'
 
-/** `mods found 12 · checked 1,804/3,544`, or undefined before the detector ran. */
+/**
+ * `74 mods`, `74 mods among 1,804 of 3,544 checked`, or while it runs
+ * `12 mods so far · checking 1,804 of 3,544`; undefined before it ran.
+ */
 export const detectLine = (detect: {
   readonly checked: number
   readonly total: number
@@ -185,6 +180,8 @@ export const detectLine = (detect: {
 }): string | undefined => {
   if (detect.total === 0) return undefined
   const n = (value: number) => value.toLocaleString('en-US')
-  const line = `mods found ${n(detect.found)} · checked ${n(detect.checked)}/${n(detect.total)}`
-  return detect.running ? `${line} …` : line
+  const mods = `${n(detect.found)} ${detect.found === 1 ? 'mod' : 'mods'}`
+  if (detect.running) return `${mods} so far · checking ${n(detect.checked)} of ${n(detect.total)}`
+  if (detect.checked >= detect.total) return mods
+  return `${mods} among ${n(detect.checked)} of ${n(detect.total)} checked`
 }

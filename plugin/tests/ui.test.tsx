@@ -79,7 +79,7 @@ test('Installed lists every mod with its state, version and scope on terminal an
       'row:spawner@fixtures',
       `row:${TURN_BAND}`,
     ])
-    expect((await ui.find({ type: 'Text', text: /5 mods · 5 on/ }))?.text).toBe('5 mods · 5 on')
+    expect((await ui.find({ type: 'Text', text: /5 of 5 mods on/ }))?.text).toBe('5 of 5 mods on')
     expect(await ui.find({ key: 'filter' })).toBeDefined()
     expect(await ui.find({ key: 'act:toggle' })).toBeDefined()
     expect(await ui.find({ key: 'act:close' })).toBeDefined()
@@ -198,7 +198,7 @@ test('without the keys the footer says how to take them', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /ctrl\+x tab/ })).toBeDefined()
 })
 
-test('from 100 body columns the detail sits beside the list and follows the focus', async ($, on) => {
+test('from 80 body columns the detail sits beside the list with its keys and follows the focus', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -215,8 +215,11 @@ test('from 100 body columns the detail sits beside the list and follows the focu
     expect(await ui.find({ key: 'row:quiet-bash@fixtures' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'What it can do' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Can run programs/ })).toBeDefined()
-    // The preview draws no action keys; the detail overlay does.
-    expect(await ui.find({ key: 'act:copy' })).toBeUndefined()
+    // Its keys are the detail's: the footer doesn't draw them twice.
+    expect(await ui.find({ key: 'act:copy' })).toBeDefined()
+    expect((await ui.findAll({ type: 'Button' })).filter(b => b.key === 'act:toggle')).toHaveLength(
+      1,
+    )
     await ui.unmount()
   }
 })

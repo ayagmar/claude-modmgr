@@ -23,50 +23,62 @@ export const FRAMES: readonly Frame[] = [
     "lines": [
       [
         {
-          "text": "1: Installed  "
+          "tone": "claude",
+          "bold": true,
+          "underline": true,
+          "text": "Installed 5"
+        },
+        {
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "2: Discover"
+          "text": "Discover"
         },
         {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "3: Dev"
-        },
-        {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "4: Health ▲1"
+          "text": "Dev"
         },
         {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "5 mods · 5 on"
+          "text": "Health ▲1"
         }
       ],
       [
         {
+          "dim": true,
+          "text": "5 of 5 mods on"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "⌕ "
+        },
+        {
           "text": "› "
         },
         {
-          "text": "filter by name",
+          "text": "Filter 5 mods",
           "dim": true
         }
       ],
       [
         {
+          "text": "  "
+        },
+        {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " broken                   "
+          "text": " broken                 "
         },
         {
           "dim": true,
@@ -89,11 +101,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "  "
+        },
+        {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " quiet-bash               "
+          "text": " quiet-bash             "
         },
         {
           "dim": true,
@@ -116,11 +131,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "  "
+        },
+        {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " redactor                 "
+          "text": " redactor               "
         },
         {
           "dim": true,
@@ -143,11 +161,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "  "
+        },
+        {
           "tone": "success",
           "text": "●"
         },
         {
-          "text": " spawner                  "
+          "text": " spawner                "
         },
         {
           "dim": true,
@@ -170,6 +191,13 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": " "
+        },
+        {
           "tone": "success",
           "text": "●"
         },
@@ -181,7 +209,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "turn-band"
         },
         {
-          "text": "                "
+          "text": "              "
         },
         {
           "dim": true,
@@ -209,14 +237,20 @@ export const FRAMES: readonly Frame[] = [
           "text": "new"
         }
       ],
+      [],
+      [],
+      [],
+      [],
+      [],
       [
         {
-          "text": "e: toggle  x: remove  z: undo  r: refresh  f: filter  j: jobs"
+          "dim": true,
+          "text": "──────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "h: help  "
+          "text": "e: toggle                                   h: keys  "
         },
         {
           "dim": true,
@@ -231,32 +265,37 @@ export const FRAMES: readonly Frame[] = [
     "lines": [
       [
         {
-          "text": "1: Installed  "
+          "tone": "claude",
+          "bold": true,
+          "underline": true,
+          "text": "Installed 5"
+        },
+        {
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "2: Discover"
+          "text": "Discover"
         },
         {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "3: Dev"
-        },
-        {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "4: Health ▲1"
+          "text": "Dev"
         },
         {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "5 mods · 5 on"
+          "text": "Health ▲1"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "5 of 5 mods on"
         }
       ],
       [
@@ -354,22 +393,12 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "Display only"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "turn.complete ui.render clock.now state.set ui.t"
-        },
-        {
-          "text": "…"
+          "text": "──────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "j: jobs  h: help  "
+          "text": "                                             h: keys  "
         },
         {
           "dim": true,
@@ -385,66 +414,72 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "1: Installed"
+          "text": "Installed 5"
         },
         {
-          "text": "  2: Discover  "
+          "text": "   "
         },
         {
-          "dim": true,
-          "text": "3: Dev"
+          "tone": "claude",
+          "bold": true,
+          "underline": true,
+          "text": "Discover"
         },
         {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "4: Health ▲1"
-        },
-        {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "201 shown · "
+          "text": "Dev"
         },
         {
-          "text": "…"
+          "text": "   "
+        },
+        {
+          "dim": true,
+          "text": "Health ▲1"
         }
       ],
       [
         {
+          "dim": true,
+          "text": "201 plugins · 0 mods so far · checking 0 of 200"
+        },
+        {
+          "text": "     "
+        },
+        {
+          "dim": true,
+          "text": "1–5 of 201"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "⌕ "
+        },
+        {
           "text": "› "
         },
         {
-          "text": "search the catalogue",
+          "text": "Search 201 plugins",
           "dim": true
         }
       ],
       [
         {
-          "text": " "
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": "   "
         },
         {
           "ring": true,
           "text": "frontend-design"
         },
         {
-          "text": "            "
-        },
-        {
-          "dim": true,
-          "text": "claude-plugins-offi"
-        },
-        {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
+          "text": "                                       "
         },
         {
           "dim": true,
@@ -453,21 +488,19 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": " code-review                "
+          "text": "    "
         },
         {
           "dim": true,
-          "text": "claude-plugins-offi"
+          "text": "Create distinctive, production-grade frontend interfaces "
         },
         {
-          "text": "… "
-        },
+          "text": "…"
+        }
+      ],
+      [
         {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
+          "text": "    code-review                                           "
         },
         {
           "dim": true,
@@ -476,21 +509,19 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": " context7                   "
+          "text": "    "
         },
         {
           "dim": true,
-          "text": "claude-plugins-offi"
+          "text": "Automated code review for pull requests using multiple sp"
         },
         {
-          "text": "… "
-        },
+          "text": "…"
+        }
+      ],
+      [
         {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
+          "text": "    context7                                              "
         },
         {
           "dim": true,
@@ -499,21 +530,19 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": " security-guidance          "
+          "text": "    "
         },
         {
           "dim": true,
-          "text": "claude-plugins-offi"
+          "text": "Upstash Context7 MCP server for up-to-date documentation "
         },
         {
-          "text": "… "
-        },
+          "text": "…"
+        }
+      ],
+      [
         {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
+          "text": "    security-guidance                                     "
         },
         {
           "dim": true,
@@ -522,21 +551,19 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": " telegram                   "
+          "text": "    "
         },
         {
           "dim": true,
-          "text": "claude-plugins-offi"
+          "text": "Security review for Claude-generated code. Pattern-based "
         },
         {
-          "text": "… "
-        },
+          "text": "…"
+        }
+      ],
+      [
         {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
+          "text": "    telegram                                              "
         },
         {
           "dim": true,
@@ -545,147 +572,25 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": " plugin-dev                 "
+          "text": "    "
         },
         {
           "dim": true,
-          "text": "claude-plugins-offi"
+          "text": "Telegram messaging bridge with built-in access control. M"
         },
         {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "73k"
-        }
-      ],
-      [
-        {
-          "text": " agent-sdk-dev              "
-        },
-        {
-          "dim": true,
-          "text": "claude-plugins-offi"
-        },
-        {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "70k"
-        }
-      ],
-      [
-        {
-          "text": " gopls-lsp                  "
-        },
-        {
-          "dim": true,
-          "text": "claude-plugins-offi"
-        },
-        {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "45k"
-        }
-      ],
-      [
-        {
-          "text": " discord                    "
-        },
-        {
-          "dim": true,
-          "text": "claude-plugins-offi"
-        },
-        {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "36k"
-        }
-      ],
-      [
-        {
-          "text": " php-lsp                    "
-        },
-        {
-          "dim": true,
-          "text": "claude-plugins-offi"
-        },
-        {
-          "text": "… "
-        },
-        {
-          "dim": true,
-          "text": "?"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "35k"
+          "text": "…"
         }
       ],
       [
         {
           "dim": true,
-          "text": "1–10 of 201"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "g: first"
-        },
-        {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "b: last"
+          "text": "──────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "i: install  k: mods only  o: sort by name  m: add marketplace"
-        }
-      ],
-      [
-        {
-          "text": "r: refresh  f: search  j: jobs  h: help  "
+          "text": "i: install  k: mods only  o: sort by name   h: keys  "
         },
         {
           "dim": true,
@@ -701,31 +606,36 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "1: Installed"
+          "text": "Installed 5"
         },
         {
-          "text": "  2: Discover  "
+          "text": "   "
         },
         {
-          "dim": true,
-          "text": "3: Dev"
+          "tone": "claude",
+          "bold": true,
+          "underline": true,
+          "text": "Discover"
         },
         {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "4: Health ▲1"
-        },
-        {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "201 shown · "
+          "text": "Dev"
         },
         {
-          "text": "…"
+          "text": "   "
+        },
+        {
+          "dim": true,
+          "text": "Health ▲1"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "201 plugins · 0 mods so far · checking 0 of 200"
         }
       ],
       [
@@ -798,7 +708,18 @@ export const FRAMES: readonly Frame[] = [
           "text": "…"
         }
       ],
+      [],
+      [],
       [
+        {
+          "dim": true,
+          "text": "──────────────────────────────────────────────────────────────"
+        }
+      ],
+      [
+        {
+          "text": "                                                      "
+        },
         {
           "dim": true,
           "text": "esc back"
@@ -813,31 +734,46 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "1: Installed"
+          "text": "Installed 5"
         },
         {
-          "text": "  "
-        },
-        {
-          "dim": true,
-          "text": "2: Discover"
-        },
-        {
-          "text": "  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "3: Dev"
+          "text": "Discover"
         },
         {
-          "text": "  4: Health ▲2  "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "2 problems"
+          "text": "Dev"
+        },
+        {
+          "text": "   "
+        },
+        {
+          "tone": "claude",
+          "bold": true,
+          "underline": true,
+          "text": "Health ▲2"
         }
       ],
       [
+        {
+          "dim": true,
+          "text": "2 problems to look at"
+        }
+      ],
+      [
+        {
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": " "
+        },
         {
           "tone": "error",
           "text": "▲"
@@ -857,7 +793,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "validate finds 1 error in it"
         },
         {
-          "text": "      "
+          "text": "    "
         },
         {
           "tone": "claude",
@@ -865,6 +801,9 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
+        {
+          "text": "  "
+        },
         {
           "tone": "error",
           "text": "▲"
@@ -877,7 +816,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "redactor"
         },
         {
-          "text": "          1 failure while it reloaded; l… "
+          "text": "          1 failure while it reloaded;… "
         },
         {
           "tone": "claude",
@@ -885,6 +824,13 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
+        {
+          "text": "  "
+        },
+        {
+          "tone": "subtle",
+          "text": " "
+        },
         {
           "text": " "
         },
@@ -898,7 +844,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                   updates checked never, every … "
+          "text": "  "
+        },
+        {
+          "tone": "subtle",
+          "text": " "
+        },
+        {
+          "text": "                   updates checked never, ever… "
         },
         {
           "tone": "claude",
@@ -907,12 +860,26 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                   detector: 50 of 200 checked, 0 mods found…"
+          "text": "  "
+        },
+        {
+          "tone": "subtle",
+          "text": " "
+        },
+        {
+          "text": "                   detector: 50 of 200 checked, 0 mods fou…"
         }
       ],
       [
         {
-          "text": "                   cache: 178 B                       "
+          "text": "  "
+        },
+        {
+          "tone": "subtle",
+          "text": " "
+        },
+        {
+          "text": "                   cache: 178 B                     "
         },
         {
           "tone": "claude",
@@ -921,16 +888,33 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                   A hook that fails is logge… "
+          "text": "  "
+        },
+        {
+          "tone": "subtle",
+          "text": " "
+        },
+        {
+          "text": "                   A hook that fails is log… "
         },
         {
           "tone": "claude",
           "text": "→ copy command"
         }
       ],
+      [],
+      [],
+      [],
+      [],
       [
         {
-          "text": "l: reload  r: refresh  j: jobs  h: help  "
+          "dim": true,
+          "text": "──────────────────────────────────────────────────────────────"
+        }
+      ],
+      [
+        {
+          "text": "l: reload                                   h: keys  "
         },
         {
           "dim": true,

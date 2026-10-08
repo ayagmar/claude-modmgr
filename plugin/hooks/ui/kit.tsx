@@ -27,6 +27,7 @@ export const GLYPH = {
   update: '↑',
   problem: '▲',
   notable: '◆',
+  hooks: '◇',
   ok: '✓',
   failed: '✗',
   locked: '⊘',
@@ -69,6 +70,18 @@ export const KeyButton = (
       onPress={props.onPress}
     />
   )
+}
+
+/** The selection's mark at a row's start: drawn whether or not the pane holds the keys. */
+export const Pointer = (v: ViewPorts, on: boolean): RenderElement => {
+  const { Text } = v.el
+  return on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>
+}
+
+/** A dim rule across `columns`. */
+export const Rule = (v: ViewPorts, columns: number): RenderElement => {
+  const { Text } = v.el
+  return <Text dimColor>{'─'.repeat(Math.max(0, columns))}</Text>
 }
 
 /** A bold section heading. */

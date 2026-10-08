@@ -94,7 +94,9 @@ describe('toggle → review → confirm → reload', () => {
     expect(w.state.values.view.stack).toEqual([])
     expect(w.state.values.view.staged).toEqual({})
     // Re-opened without holding toasts while the batch runs (C8).
-    expect(w.ui.opens).toEqual([{ id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14 }])
+    expect(w.ui.opens).toEqual([
+      { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, columns: 96 },
+    ])
     expect(w.state.values.queue.jobs.map(job => `${job.kind}:${job.state}`)).toEqual([
       'disable:queued',
       'reload:queued',

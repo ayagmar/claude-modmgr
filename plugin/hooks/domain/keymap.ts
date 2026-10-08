@@ -42,7 +42,7 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'open', key: 'enter', label: 'open', on: LISTS },
   { action: 'back', key: 'esc', label: 'back · clear filter · close', on: ['pane'] },
   { action: 'jobs', hotkey: 'j', label: 'jobs', on: ['pane'] },
-  { action: 'help', hotkey: 'h', label: 'help', on: ['pane'] },
+  { action: 'help', hotkey: 'h', label: 'keys', on: ['pane'] },
   { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },
   { action: 'sort', hotkey: 'o', label: 'sort', on: ['discover'] },
   { action: 'kind', hotkey: 'k', label: 'kind', on: ['discover', 'discover-empty'] },

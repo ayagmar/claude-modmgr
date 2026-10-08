@@ -31,8 +31,8 @@ export const nameOf = (id: string): string => {
 export const PANE_ID = 'modmgr'
 export const PANE_TITLE = 'mods'
 
-/** From this many body columns the list and the detail sit side by side (PLAN §5.2). */
-export const SPLIT_MIN_COLUMNS = 100
+/** From this many body columns the list and the detail sit side by side. */
+export const SPLIT_MIN_COLUMNS = 80
 
 export type Layout = 'stacked' | 'split'
 
@@ -49,6 +49,10 @@ export const rowOfKey = (key: string | undefined): string | undefined =>
 export const layoutFor = (bodyColumns: number): Layout =>
   bodyColumns >= SPLIT_MIN_COLUMNS ? 'split' : 'stacked'
 
+/** The list's columns beside the detail: about two fifths, never cramped or sprawling. */
+export const listColumnsFor = (bodyColumns: number): number =>
+  Math.max(28, Math.min(46, Math.floor(bodyColumns * 0.4)))
+
 /** How a dialog open asks (C8): `holdToasts` only while nothing streams. */
 export type PaneOpen = {
   readonly id: string
@@ -57,6 +61,7 @@ export type PaneOpen = {
   readonly focus?: true
   readonly holdToasts?: true
   readonly rows?: number
+  readonly columns?: number
 }
 
 /**
@@ -64,6 +69,9 @@ export type PaneOpen = {
  * detail or a review is taller than a short list), never more than 24.
  */
 export const rowsFor = (mods: number): number => Math.min(24, Math.max(14, mods + 6))
+
+/** Columns a docked dialog asks for: room for the list and the detail side by side. */
+export const DOCK_COLUMNS = 96
 
 export const paneOpen = (how: {
   readonly focus: boolean
@@ -75,6 +83,7 @@ export const paneOpen = (how: {
   title: how.title ?? PANE_TITLE,
   closeOnEscape: true,
   rows: rowsFor(how.mods),
+  columns: DOCK_COLUMNS,
   ...(how.focus ? { focus: true as const } : {}),
   ...(how.hold ? { holdToasts: true as const } : {}),
 })
@@ -118,7 +127,7 @@ export const windowAround = (count: number, index: number, size: number): Window
 export const pagerLabel = (window: Window, count: number): string | undefined =>
   window.start === 0 && window.end >= count
     ? undefined
-    : `${window.start + 1}–${window.end} of ${count}`
+    : `${(window.start + 1).toLocaleString('en-US')}–${window.end.toLocaleString('en-US')} of ${count.toLocaleString('en-US')}`
 
 /** The row the selection moves to when `id` goes: the next one shown, else the one before. */
 export const neighbourOf = (

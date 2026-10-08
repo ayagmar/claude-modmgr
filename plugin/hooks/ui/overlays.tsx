@@ -374,30 +374,52 @@ export const Welcome = (v: ViewPorts): RenderElement => {
   )
 }
 
-/** The rows help draws: its heading, a row per key, the closing line. */
-export const helpRows = (surfaces: readonly KeySurface[], hidden: ReadonlySet<string>): number =>
-  2 + helpFor(surfaces, hidden).length
+/** Cells one column of keys takes: the key, then what it does. */
+const HELP_COLUMN = 36
+const HELP_NOTE = 'Changes are staged with e and applied together with s; z undoes the last batch.'
+
+/** How many columns of keys fit across `columns`. */
+const helpColumns = (columns: number): number =>
+  Math.max(1, Math.floor((columns + 2) / (HELP_COLUMN + 2)))
+
+/** The rows help draws at `columns`: its heading, the keys in columns, the closing note. */
+export const helpRows = (
+  surfaces: readonly KeySurface[],
+  hidden: ReadonlySet<string>,
+  columns: number,
+): number =>
+  1 +
+  Math.ceil(helpFor(surfaces, hidden).length / helpColumns(columns)) +
+  wrappedRows([HELP_NOTE], columns)
 
 export const Help = (
   v: ViewPorts,
   surfaces: readonly KeySurface[],
-  hidden: ReadonlySet<string> = new Set(),
+  hidden: ReadonlySet<string>,
+  columns: number,
 ): RenderElement => {
   const { Box, Text } = v.el
+  const rows = helpFor(surfaces, hidden)
+  const across = helpColumns(columns)
+  const down = Math.ceil(rows.length / across)
   return (
     <Box flexDirection="column">
       {Heading(v, 'Keys')}
-      {helpFor(surfaces, hidden).map(row => (
-        <Box flexDirection="row" gap={1}>
-          <Box width={8}>
-            <Text color={TONE.accent}>{row.key}</Text>
+      <Box flexDirection="row" columnGap={2}>
+        {Array.from({ length: across }, (_, column) => (
+          <Box key={`keys:${column}`} flexDirection="column" width={HELP_COLUMN} flexShrink={0}>
+            {rows.slice(column * down, (column + 1) * down).map(row => (
+              <Box flexDirection="row" gap={1}>
+                <Box width={7} flexShrink={0}>
+                  <Text color={TONE.accent}>{row.key}</Text>
+                </Box>
+                <Text wrap="truncate-end">{row.label}</Text>
+              </Box>
+            ))}
           </Box>
-          <Text>{row.label}</Text>
-        </Box>
-      ))}
-      <Text dimColor>
-        Changes are staged with e and applied together with s; z undoes the last batch.
-      </Text>
+        ))}
+      </Box>
+      <Text dimColor>{HELP_NOTE}</Text>
     </Box>
   )
 }
