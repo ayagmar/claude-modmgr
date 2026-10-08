@@ -2,29 +2,29 @@
 // without installing them. A remote entry is probed at its pinned commit on
 // raw.githubusercontent.com; a local one (a folder inside its marketplace's
 // clone or folder) is read from disk. Decisions are domain/detector.ts's; this
-// runs them: six at a time, at most 600 network requests per session, only
-// while no turn runs, backing off on 429/5xx, and writing the cache in batches
-// of 50. Network probes are off under CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
-// or `detectRemote: false`; local reads stay on (no network).
+// runs them: first what the hosted index knows (one request), then the rest,
+// the entries Discover shows first, six at a time, at most 600 network
+// requests per session, only while no turn runs, backing off on 429/5xx, and
+// writing the cache in batches of 50. The index and network probes are off
+// under CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC or `detectRemote: false`;
+// local reads stay on (no network).
 
 import type { CatalogKind } from '../../types/index.d.ts'
 import type { CatalogEntry } from '../domain/cli-results.ts'
 import {
-  afterFollowed,
-  afterHooksJson,
-  afterManifest,
   backoffMs,
   type FetchedFile,
   localBase,
   MAX_BODY,
-  type ProbeStep,
   planProbe,
   probeKey,
+  walkProbe,
 } from '../domain/detector.ts'
 import { lruSetMany } from '../domain/lru.ts'
 import { CAPS, type DetectEntry } from '../domain/store-schema.ts'
 import type { Ports } from '../ports.ts'
 import type { Catalog } from './catalog.ts'
+import type { IndexSync } from './catalog-index.ts'
 import type { StoreService } from './store.ts'
 
 export const DETECT_CONCURRENCY = 6
@@ -58,7 +58,9 @@ export const createDetector = (
   ports: DetectorPorts,
   deps: {
     readonly store: Pick<StoreService, 'get' | 'update'>
-    readonly catalog: Pick<Catalog, 'entries' | 'rootOf' | 'invalidate' | 'show'>
+    readonly catalog: Pick<Catalog, 'entries' | 'rootOf' | 'invalidate' | 'show' | 'priority'>
+    /** The hosted index: kinds for the official catalogues in one request, read before probing. */
+    readonly index?: Pick<IndexSync, 'sync' | 'built'>
     /** Whether network probes may run now (config and the traffic switch). */
     readonly remoteAllowed: () => Promise<boolean>
     readonly debug?: (text: string) => void
@@ -104,7 +106,14 @@ export const createDetector = (
       checked += 1
       if (cached[1] === 'mod') found += 1
     }
-    await ports.state.update('detect', () => ({ checked, total, found, running }))
+    const indexAt = deps.index?.built()
+    await ports.state.update('detect', () => ({
+      checked,
+      total,
+      found,
+      running,
+      ...(indexAt === undefined ? {} : { indexAt }),
+    }))
   }
 
   const flush = async (): Promise<void> => {
@@ -153,20 +162,12 @@ export const createDetector = (
           ? localBase(deps.catalog.rootOf(work.entry.marketplace), plan.path)
           : undefined
     if (base === undefined || (remote && !remoteOk)) return undefined
-    let step: ProbeStep = afterHooksJson(await fetchFile(`${base}hooks/hooks.json`, remote), {
+    return walkProbe(
       base,
-    })
-    for (let hops = 0; hops < 2 && 'fetch' in step; hops += 1) {
-      if (remote && requests >= budget) return undefined
-      // The followed path's segments are URL-encoded; a local read wants them as named (R-M4-12).
-      const location = remote
-        ? step.fetch
-        : base + decodeURIComponent(step.fetch.slice(base.length))
-      const file = await fetchFile(location, remote)
-      step = step.stage === 'manifest' ? afterManifest(file, { base }) : afterFollowed(file)
-    }
-    if ('retry' in step) return 'retry'
-    return 'done' in step ? step.done : 'unknown'
+      remote,
+      location => fetchFile(location, remote),
+      () => requests < budget,
+    )
   }
 
   const run = async (): Promise<void> => {
@@ -178,24 +179,55 @@ export const createDetector = (
 
   const runOnce = async (): Promise<void> => {
     const remoteOk = await deps.remoteAllowed()
+    // What the index already knows is not probed.
+    if (remoteOk && deps.index !== undefined) {
+      const merged = await deps.index.sync(deps.catalog.entries())
+      if (merged > 0) {
+        deps.catalog.invalidate()
+        await deps.catalog.show()
+      }
+    }
     const cache = deps.store.get('detect')
+    // Pending work by id, and the catalogue's order (most installed first) to fall back on.
+    const pendingWork = new Map<string, Work>()
     const queue: Work[] = []
     for (const entry of deps.catalog.entries()) {
       const plan = planProbe(entry)
       const key = probeKey(plan, entry.version)
       if (key === undefined || cache[entry.id]?.[0] === key) continue
       if (plan.kind === 'remote' && !remoteOk) continue
-      queue.push({ entry, key, attempt: 0 })
+      const work = { entry, key, attempt: 0 }
+      pendingWork.set(entry.id, work)
+      queue.push(work)
     }
-    await progress(queue.length > 0)
-    if (queue.length === 0) return
+    await progress(pendingWork.size > 0)
+    if (pendingWork.size === 0) return
+    /** What the person is looking at first, then the catalogue's order. */
+    const take = (): Work | undefined => {
+      for (const id of deps.catalog.priority()) {
+        const work = pendingWork.get(id)
+        if (work === undefined) continue
+        pendingWork.delete(id)
+        return work
+      }
+      for (let work = queue.shift(); work !== undefined; work = queue.shift()) {
+        if (pendingWork.get(work.entry.id) !== work) continue
+        pendingWork.delete(work.entry.id)
+        return work
+      }
+      return undefined
+    }
+    const putBack = (work: Work): void => {
+      pendingWork.set(work.entry.id, work)
+      queue.push(work)
+    }
     const worker = async (): Promise<void> => {
       for (;;) {
         await idle()
         const wait = pausedUntil - (await ports.clock.now())
         if (wait > 0) await sleep(wait)
         if (disposed) return
-        const work = queue.shift()
+        const work = take()
         if (work === undefined) return
         const remote = planProbe(work.entry).kind === 'remote'
         if (remote && requests >= budget) continue
@@ -203,7 +235,7 @@ export const createDetector = (
         if (kind === 'retry') {
           work.attempt += 1
           pausedUntil = (await ports.clock.now()) + backoffMs(work.attempt)
-          if (work.attempt <= DETECT_RETRIES) queue.push(work)
+          if (work.attempt <= DETECT_RETRIES) putBack(work)
           continue
         }
         if (kind === undefined) continue

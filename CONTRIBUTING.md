@@ -51,6 +51,8 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
 - `plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
 - `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site and the README; a test fails when stale).
+- The catalogue index (not in the tree): `node scripts/build-index.ts <out.json>` on a throwaway config dir;
+  `.github/workflows/index.yml` runs it daily and force-pushes it to the `catalog-index` branch.
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes

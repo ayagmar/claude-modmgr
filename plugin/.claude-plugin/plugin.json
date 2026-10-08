@@ -20,7 +20,7 @@
     "detectRemote": {
       "type": "boolean",
       "title": "Detect mods in remote catalogues",
-      "description": "Fetch hooks.json from raw.githubusercontent.com to tell which catalogue entries are mods.",
+      "description": "Fetch the daily catalogue index and entries' hooks.json from raw.githubusercontent.com to tell which catalogue entries are mods.",
       "default": true
     },
     "debugTimings": {

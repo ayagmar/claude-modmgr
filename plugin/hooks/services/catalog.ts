@@ -9,6 +9,7 @@ import { capabilitiesOf } from '../domain/capabilities.ts'
 import {
   buildIndex,
   type CatalogIndex,
+  type CatalogSort,
   type Match,
   matchAll,
   PAGE_SIZE,
@@ -51,6 +52,12 @@ export type Catalog = {
   folderOf(id: string): string | undefined
   kindOf(id: string): CatalogKind
   /**
+   * The entries the person is looking at, to check first: the rows shown, then
+   * the first PRIORITY_MAX the search matches whatever their kind (so a search
+   * under "mods only" finds the mods among entries not checked yet).
+   */
+  priority(): readonly string[]
+  /**
    * What a local entry can do, read with `validate` before installing (or why it
    * couldn't be); undefined for an entry with no files on disk. One child per
    * entry and version at a time, three at once; the answer is kept in the store's
@@ -61,6 +68,9 @@ export type Catalog = {
 
 /** Validations of catalogue entries at once (PLAN §6: cache misses, three concurrent). */
 export const INSPECT_CONCURRENCY = 3
+
+/** Search matches the detector checks ahead of the rest. */
+export const PRIORITY_MAX = 200
 
 const toInspection = (analysis: Analysis): Inspection => ({
   notable: capabilitiesOf(analysis).notable,
@@ -79,6 +89,9 @@ export const createCatalog = (
   let loading: Promise<Result<void>> | undefined
   let kindsVersion = 0
   let memo: { key: string; matched: Match[] } | undefined
+  // What the last window showed, and the search's matches whatever their kind.
+  let shown: { ids: string[]; text: string; sort: CatalogSort } | undefined
+  let searched: { key: string; ids: string[] } | undefined
   // Reads that failed this session (`r` tries again), and the ones under way.
   const failures = new Map<string, string>()
   const inflight = new Map<string, Promise<Inspection | Unread | undefined>>()
@@ -160,6 +173,7 @@ export const createCatalog = (
     }
     index = buildIndex(parsed.value.available.items)
     memo = undefined
+    searched = undefined
     loadedAt = await ports.clock.now()
     await show()
     return ok(undefined)
@@ -181,6 +195,7 @@ export const createCatalog = (
       }
     }
     const window = windowOf(memo.matched, view.found, PAGE_SIZE)
+    shown = { ids: window.rows.map(row => row.id), text: view.search, sort: view.sort }
     const { offset } = window
     // A row modmgr read before installing says what it can do (the detail, the review).
     const rows = window.rows.map(row => {
@@ -230,6 +245,19 @@ export const createCatalog = (
     rootOf: marketplace => roots.get(marketplace),
     folderOf,
     kindOf,
+    priority() {
+      if (index === undefined || shown === undefined) return []
+      const key = `${shown.text}\u0000${shown.sort}`
+      if (searched?.key !== key) {
+        const all = matchAll(
+          index,
+          { text: shown.text, kind: 'all', sort: shown.sort },
+          () => 'unknown',
+        )
+        searched = { key, ids: all.slice(0, PRIORITY_MAX).map(match => match.item.entry.id) }
+      }
+      return [...shown.ids, ...searched.ids]
+    },
     inspect(id) {
       const at = inspectKey(id)
       if (at === undefined) return Promise.resolve(undefined)

@@ -231,7 +231,14 @@ export type CatalogPage = {
   loading: boolean
   error?: string
 }
-export type DetectProgress = { checked: number; total: number; found: number; running: boolean }
+export type DetectProgress = {
+  checked: number
+  total: number
+  found: number
+  running: boolean
+  /** When the hosted index whose kinds were taken was built (ms); absent when none was read. */
+  indexAt?: number
+}
 
 /**
  * How a mod under development is loaded (PLAN §2.4, C6, C14): from this

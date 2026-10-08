@@ -168,6 +168,7 @@ test('a fixture update shows what it can newly do: row, detail, band, status lin
     title: 'mods · 1 can do more',
     closeOnEscape: true,
     rows: 14,
+    columns: 96,
     holdToasts: true,
   })
 

@@ -54,7 +54,7 @@ const CATALOG_PAGE = atom({ plugin: 'modmgr', key: 'catalogPage' } as const, INI
   shape: 'catalogPage/2',
 })
 const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect, {
-  shape: 'detect/1',
+  shape: 'detect/2',
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })

@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Discover lists every plugin, mods first, instead of mods only (`k` still narrows to mods or command hooks); a
+  remembered "mods only" from the old default reads as every plugin.
+- The official catalogues' mods are known at once from a catalogue index CI rebuilds daily
+  (`.github/workflows/index.yml`, `scripts/build-index.ts`); the detector probes only what the index didn't give,
+  the entries Discover shows first.
+
 ## [0.1.0] - 2026-10-08
 
 ### Added

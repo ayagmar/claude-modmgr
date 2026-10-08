@@ -46,7 +46,15 @@ test('bare /mods opens the dialog with focus, Esc and held toasts, and answers n
   const ran = await $.command.run({ ...MODS_BARE })
   expect(ran.text).toBeUndefined()
   expect(h.opens).toEqual([
-    { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, focus: true, holdToasts: true },
+    {
+      id: 'modmgr',
+      title: 'mods',
+      closeOnEscape: true,
+      rows: 14,
+      columns: 96,
+      focus: true,
+      holdToasts: true,
+    },
   ])
   expect(h.argvs.filter(argv => argv.includes('disable'))).toEqual([])
 })
@@ -483,7 +491,7 @@ test('the job log shows a running test’s output and offers to cancel it', asyn
   }
 })
 
-test('the split’s list drops version and scope; help sits beside the list', async ($, on) => {
+test('the split’s list drops version and scope; help takes the whole body', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -497,7 +505,7 @@ test('the split’s list drops version and scope; help sits beside the list', as
     await ui.press({ key: 'act:help' })
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: 'Keys' })).toBeDefined()
-    expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeDefined()
+    expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeUndefined()
     await ui.press({ key: 'act:help' })
     await ui.unmount()
   }

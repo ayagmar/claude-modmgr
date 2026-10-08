@@ -49,6 +49,15 @@ export type Updates = {
   readonly found: Readonly<Record<string, FoundUpdate>>
 }
 
+/**
+ * The hosted index's last check: when it was last asked for with an answer
+ * (a 200, or a 404 before it exists), and when the index it read was built.
+ */
+export type IndexCheck = {
+  readonly at?: number
+  readonly built?: number
+}
+
 export type StoreData = {
   prefs: Prefs
   detect: Lru<DetectEntry>
@@ -56,6 +65,7 @@ export type StoreData = {
   capsHistory: Readonly<Record<string, CapsRecord>>
   history: readonly HistoryEntry[]
   updates: Updates
+  catalogIndex: IndexCheck
 }
 
 export type StoreKey = keyof StoreData
@@ -67,6 +77,7 @@ export const STORE_KEYS: readonly StoreKey[] = [
   'capsHistory',
   'history',
   'updates',
+  'catalogIndex',
 ]
 
 /**
@@ -75,13 +86,15 @@ export const STORE_KEYS: readonly StoreKey[] = [
  * it alone instead of rewriting it without the new fields.
  */
 export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
-  prefs: 1,
+  // 2: Discover lists every plugin by default; an old `mods` (the old default) reads as `all`.
+  prefs: 2,
   detect: 1,
   validate: 1,
   // 2: records gained `added` and `since` (M3b, the capability diff).
   capsHistory: 2,
   history: 1,
   updates: 1,
+  catalogIndex: 1,
 }
 
 export const CAPS = { detect: 6000, validate: 300, history: 50 } as const
@@ -96,7 +109,7 @@ export const HARD_BUDGET = 3 * MiB
 export const DEFAULT_PREFS: Prefs = {
   tab: 'installed',
   sort: 'name',
-  kind: 'mods',
+  kind: 'all',
   firstRunDone: false,
 }
 
@@ -107,6 +120,7 @@ export const emptyStore = (): StoreData => ({
   capsHistory: {},
   history: [],
   updates: { found: {} },
+  catalogIndex: {},
 })
 
 // ---- shape checks --------------------------------------------------------
@@ -251,6 +265,14 @@ export const readUpdates = (value: unknown): Updates => {
   return isCount(value.at) ? { at: value.at, found } : { found }
 }
 
+export const readIndexCheck = (value: unknown): IndexCheck => {
+  if (!isRecord(value)) return {}
+  return {
+    ...(isCount(value.at) ? { at: value.at } : {}),
+    ...(isCount(value.built) ? { built: value.built } : {}),
+  }
+}
+
 const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
   prefs: readPrefs,
   detect: value => lruTrim(readMap(value, readDetectEntry), CAPS.detect),
@@ -264,6 +286,7 @@ const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
       })
       .slice(-CAPS.history),
   updates: readUpdates,
+  catalogIndex: readIndexCheck,
 }
 
 // ---- envelopes and migrations ---------------------------------------------
@@ -281,6 +304,8 @@ export const MIGRATIONS: Migrations = {
   // 1 → 2: a version-1 record (`{ version, notable }`) is a version-2 record
   // with nothing added since; the reader checks each field either way.
   capsHistory: [data => data],
+  // 1 → 2: `mods` was the default nobody chose, so it becomes the new default.
+  prefs: [data => (isRecord(data) && data.kind === 'mods' ? { ...data, kind: 'all' } : data)],
 }
 
 export type Opened<K extends StoreKey> = {
@@ -333,6 +358,7 @@ const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   capsHistory: data => data,
   history: data => data.slice(-CAPS.history),
   updates: data => data,
+  catalogIndex: data => data,
 }
 
 export const capped = <K extends StoreKey>(key: K, data: StoreData[K]): StoreData[K] =>

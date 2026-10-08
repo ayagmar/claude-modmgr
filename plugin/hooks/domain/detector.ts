@@ -173,6 +173,31 @@ export const afterFollowed = (file: FetchedFile): ProbeStep => {
   return { done: kind === 'unknown' ? 'hooks' : kind }
 }
 
+/**
+ * One entry's probe from its base: hooks.json, then the manifest and the file
+ * it names when needed. `fetchFile` does the I/O (a GET, or a read from disk);
+ * `more` says whether another request may go out (a remote budget). The
+ * detector and the index build (scripts/build-index.ts) both walk it, so the
+ * two classify alike. Undefined when the budget ran out mid-walk.
+ */
+export const walkProbe = async (
+  base: string,
+  remote: boolean,
+  fetchFile: (location: string) => Promise<FetchedFile>,
+  more: () => boolean = () => true,
+): Promise<CatalogKind | 'retry' | undefined> => {
+  let step: ProbeStep = afterHooksJson(await fetchFile(`${base}hooks/hooks.json`), { base })
+  for (let hops = 0; hops < 2 && 'fetch' in step; hops += 1) {
+    if (remote && !more()) return undefined
+    // The followed path's segments are URL-encoded; a local read wants them as named.
+    const location = remote ? step.fetch : base + decodeURIComponent(step.fetch.slice(base.length))
+    const file = await fetchFile(location)
+    step = step.stage === 'manifest' ? afterManifest(file, { base }) : afterFollowed(file)
+  }
+  if ('retry' in step) return 'retry'
+  return 'done' in step ? step.done : 'unknown'
+}
+
 /** Exponential backoff with a cap: attempt 1 waits 4 s, then 8 s, 16 s … 5 min. */
 export const backoffMs = (attempt: number): number =>
   Math.min(300_000, 2000 * 2 ** Math.max(0, Math.min(attempt, 20)))

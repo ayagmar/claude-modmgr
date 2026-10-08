@@ -1,0 +1,50 @@
+name: index
+
+# The hosted catalogue index: every entry of the official catalogues classified
+# (mod, command hooks, plain) at its pinned commit, so modmgr's Discover knows
+# their mods after one request. Built daily and force-pushed as the single
+# commit of the `catalog-index` branch, read from raw.githubusercontent.com.
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'ayagmar/modmgr'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLAUDE_CODE_VERSION: 2.1.293
+      DISABLE_AUTOUPDATER: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      # It reads the catalogues on a throwaway config and refuses to write a
+      # file when much was left unclassified or a client would refuse it.
+      - run: node scripts/build-index.ts "$RUNNER_TEMP/v1.json"
+      - name: Publish to the catalog-index branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir "$RUNNER_TEMP/publish"
+          cd "$RUNNER_TEMP/publish"
+          git init -q -b catalog-index
+          cp "$RUNNER_TEMP/v1.json" v1.json
+          git add v1.json
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "chore: catalogue index $(date -u +%F)"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" catalog-index

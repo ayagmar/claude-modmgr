@@ -254,8 +254,8 @@ export const START = { cwd: '/repo', surface: 'terminal', isInteractive: true } 
 
 /** The store's prefs of someone who has opened modmgr before. */
 export const RETURNING = {
-  v: 1,
-  data: { tab: 'installed', sort: 'name', kind: 'mods', firstRunDone: true },
+  v: 2,
+  data: { tab: 'installed', sort: 'name', kind: 'all', firstRunDone: true },
 } as const
 
 export const MODS = {

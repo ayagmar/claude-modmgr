@@ -39,9 +39,9 @@ for (const surface of SURFACES) {
     await settle(h)
     await ui.redraw()
     expect(h.fetched).toContain(AWS_HOOKS)
-    // Mods only by default: the one found.
+    // Every plugin by default, the mod found first.
     const rows = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('found:'))
-    expect(rows.map(row => row.key)).toEqual([`found:${AWS}`])
+    expect(rows[0]?.key).toBe(`found:${AWS}`)
     expect(await ui.find({ type: 'Text', text: /\b1 mod\b/ })).toBeDefined()
 
     await ui.press({ key: `found:${AWS}` })
@@ -86,10 +86,6 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
-    await ui.press({ key: 'act:kind' })
-    await ui.redraw()
-    await ui.press({ key: 'act:kind' })
-    await ui.redraw()
     await ui.input({ key: 'filter', text: 'cmdmod', kind: 'change' })
     await ui.redraw()
     await ui.press({ key: 'act:install' })
@@ -117,10 +113,13 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
-  for (const surface of SURFACES) {
+  for (const [at, surface] of SURFACES.entries()) {
     const ui = await mountPane($, surface)
     await ui.press({ key: 'act:tab.discover' })
     await settle(h)
+    await ui.redraw()
+    // Mods only (`k`, kept for the next surface): none found yet.
+    if (at === 0) await ui.press({ key: 'act:kind' })
     await ui.redraw()
     expect(
       await ui.find({ type: 'Text', text: 'No mods found in your marketplaces yet.' }),
