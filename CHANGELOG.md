@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-08
+
+### Fixed
+- In a list longer than the dialog (Discover's mods, a long Installed list, Health), moving past the first screen no
+  longer skips entries or lets the highlighted row drift away from the selection; the row's mark and its detail
+  now move with the highlight.
+
 ## [0.1.0] - 2026-10-08
 
 Install with `/plugin install modmgr --marketplace ayagmar/claude-mods` (the marketplace `ayagmar`).
