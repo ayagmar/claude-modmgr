@@ -58,8 +58,6 @@ const frames = async (): Promise<Frame[]> => {
   )
   await act.back()
   await act.tab('discover')
-  await act.cycleKind()
-  await act.cycleKind()
   setView({ sort: 'installs' })
   await rt.catalog.show()
   shown.push(await draw('Discover', 'Every marketplace, searchable, with the mods found in it.'))

@@ -37,7 +37,7 @@ describe('store.load', () => {
     expect(store.get('prefs')).toEqual({
       tab: 'installed',
       sort: 'name',
-      kind: 'mods',
+      kind: 'all',
       firstRunDone: false,
     })
     expect(store.bytes()).toBeGreaterThan(0)
@@ -46,7 +46,7 @@ describe('store.load', () => {
   it('reads envelopes, and starts a malformed or newer key empty', async () => {
     const w = world({
       store: {
-        prefs: { v: 1, data: { tab: 'dev', sort: 'installs', kind: 'all', firstRunDone: true } },
+        prefs: { v: 2, data: { tab: 'dev', sort: 'installs', kind: 'all', firstRunDone: true } },
         detect: { nope: true },
         validate: { v: 99, data: { '/a@1': analysis() } },
         history: { v: 1, data: [{ id: 'j1', kind: 'enable', state: 'ok', endedAt: 5 }, { id: 3 }] },
@@ -80,7 +80,7 @@ describe('store.load', () => {
     const store = createStore(w.ports, { debug: line => debug.push(line) })
     await store.load()
     expect(store.get('history')).toEqual([])
-    expect(debug).toHaveLength(6)
+    expect(debug).toHaveLength(7)
   })
 })
 

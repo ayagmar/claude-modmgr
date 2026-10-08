@@ -72,9 +72,12 @@ const KIND_ALLOWED: Readonly<Record<KindFilter, ReadonlySet<CatalogKind>>> = {
 /** One matched entry, with the kind the filter saw. */
 export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
 
+/** Where a kind ranks: mods first, then plugins with command hooks, then the rest. */
+const RANK: Readonly<Record<CatalogKind, number>> = { mod: 0, hooks: 1, plain: 2, unknown: 2 }
+
 /**
- * Every entry the query matches, in its sort's order: one pass over a
- * pre-sorted list (PLAN §6: under 16 ms over 3.5k entries).
+ * Every entry the query matches, mods first and each rank in its sort's order:
+ * one pass over a pre-sorted list (under 16 ms over 3.5k entries).
  */
 export const matchAll = (
   index: CatalogIndex,
@@ -83,13 +86,13 @@ export const matchAll = (
 ): Match[] => {
   const words = tokens(query.text)
   const allowed = KIND_ALLOWED[query.kind]
-  const matched: Match[] = []
+  const ranks: Match[][] = [[], [], []]
   for (const item of index.order[query.sort]) {
     const kind = kindOf(item.entry.id)
     if (!allowed.has(kind)) continue
-    if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })
+    if (words.every(word => item.haystack.includes(word))) ranks[RANK[kind]]?.push({ item, kind })
   }
-  return matched
+  return ranks.flat()
 }
 
 /**

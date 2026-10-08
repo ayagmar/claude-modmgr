@@ -48,8 +48,9 @@ Display only turn.complete ui.render clock.now state.set ui.t…
 j: jobs  h: help  esc back
 ```
 
-**Discover** searches every marketplace you have added and, a little at a time while you work, checks which entries
-are mods. Installing goes through a review that says what will run and where; a command a marketplace declares is
+**Discover** searches every marketplace you have added, mods first. The official catalogues' mods are known at once
+from an index modmgr's CI rebuilds daily; anything else is checked a little at a time while you work, what you're
+looking at first. Installing goes through a review that says what will run and where; a command a marketplace declares is
 shown whole, with its sha256, and runs only when you confirm that exact command.
 
 ```
@@ -108,7 +109,7 @@ Set them with `claude plugin configure modmgr`:
 | Option | Default | |
 |---|---|---|
 | `updateCheckHours` | 6 | Hours between update checks; 0 turns them off. |
-| `detectRemote` | on | Read catalogue entries' `hooks.json` from raw.githubusercontent.com to tell mods apart. |
+| `detectRemote` | on | Read the daily catalogue index, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to tell mods apart. |
 | `debugTimings` | off | Write how long each step took to the debug log (`--debug`). |
 
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off everything modmgr fetches. modmgr sends no telemetry.

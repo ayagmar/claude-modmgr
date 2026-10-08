@@ -9,6 +9,7 @@ import { type Config, trafficOff } from '../domain/config.ts'
 import type { StateKey } from '../domain/state.ts'
 import type { Ports, StatePort } from '../ports.ts'
 import { type Catalog, createCatalog } from './catalog.ts'
+import { createIndexSync } from './catalog-index.ts'
 import { type Chrome, createChrome } from './chrome.ts'
 import { createDetector, DETECT_BUDGET, type Detector } from './detector.ts'
 import { createDev, type Dev } from './dev.ts'
@@ -90,6 +91,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
   const detector = createDetector(ports, {
     store,
     catalog,
+    index: createIndexSync(ports, { store, debug }),
     debug,
     remoteAllowed: async () => config.detectRemote && !(await trafficIsOff()),
   })

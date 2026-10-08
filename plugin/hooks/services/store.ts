@@ -56,6 +56,7 @@ const zeroSizes = (): Record<StoreKey, number> => ({
   capsHistory: 0,
   history: 0,
   updates: 0,
+  catalogIndex: 0,
 })
 
 export const createStore = (ports: StorePorts, options: StoreOptions = {}): StoreService => {

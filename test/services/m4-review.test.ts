@@ -118,6 +118,7 @@ describe('inspections (R-M4-1, R-M4-5)', () => {
       uninspected: true,
       unreadable: failed,
     })
+    w.state.values.view = { ...w.state.values.view, kind: 'mods' }
     await catalog.show()
     expect(w.state.values.catalogPage.rows.find(row => row.id === SDK)?.unread).toBeUndefined()
     w.state.values.view = { ...w.state.values.view, kind: 'all', found: SDK }

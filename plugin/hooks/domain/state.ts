@@ -39,7 +39,7 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   mods: 'mods/2',
   detail: 'detail/2',
   catalogPage: 'catalogPage/2',
-  detect: 'detect/1',
+  detect: 'detect/2',
   queue: 'queue/1',
   sync: 'sync/1',
   view: 'view/6',
@@ -55,7 +55,7 @@ export const INITIAL_VIEW: View = {
   stack: [],
   query: '',
   search: '',
-  kind: 'mods',
+  kind: 'all',
   sort: 'name',
   staged: {},
 }

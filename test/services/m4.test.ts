@@ -51,8 +51,6 @@ describe('the catalogue', () => {
   it('opens Discover by reading it once, keeping only a window in $.state', async () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')
-    await act.cycleKind() // hooks
-    await act.cycleKind() // all
     const page = w.state.values.catalogPage
     expect(page.total).toBe(201)
     expect(page.matched).toBe(201)
@@ -71,8 +69,6 @@ describe('the catalogue', () => {
   it('searches, sorts and moves its window with the selection', async () => {
     const { w, act } = await setup()
     await act.tab('discover')
-    await act.cycleKind()
-    await act.cycleKind()
     await act.filter('aws')
     expect(w.state.values.view.search).toBe('aws')
     expect(w.state.values.catalogPage.rows.map(row => row.id)).toContain(AWS)
@@ -115,8 +111,6 @@ describe('the catalogue', () => {
       ),
     )
     await act.tab('discover')
-    await act.cycleKind()
-    await act.cycleKind()
     await act.openFound(SDK)
     expect(w.state.values.view.stack).toEqual(['detail'])
     // Read in the background (R-M4-1): the detail redraws when it lands.
@@ -245,8 +239,6 @@ describe('installing', () => {
   it('reviews, picks a scope, installs, reloads and can be undone', async () => {
     const { w, act, drain, argvs } = await setup()
     await act.tab('discover')
-    await act.cycleKind()
-    await act.cycleKind()
     await act.install(AWS)
     expect(w.state.values.review).toMatchObject({
       action: 'install',
@@ -278,8 +270,6 @@ describe('installing', () => {
       ),
     )
     await act.tab('discover')
-    await act.cycleKind()
-    await act.cycleKind()
     await act.install(CMD)
     await act.confirm()
     await drain()
@@ -371,7 +361,8 @@ describe('a local fixture mod, end to end (M4 done criterion)', () => {
     })
     await act.tab('discover')
     for (let i = 0; i < 10; i += 1) await w.clock.advance(0)
-    expect(w.state.values.catalogPage.rows.map(row => row.id)).toEqual([SPAWNER])
+    // Mods come first whatever the sort.
+    expect(w.state.values.catalogPage.rows[0]).toMatchObject({ id: SPAWNER, kind: 'mod' })
     expect(w.http.gets).not.toContain(`${MKT}/spawner/hooks/hooks.json`)
     await act.openFound(SPAWNER)
     await act.install()

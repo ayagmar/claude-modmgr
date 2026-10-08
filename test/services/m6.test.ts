@@ -34,8 +34,8 @@ describe('preferences', () => {
     await act.cycleKind()
     await rt.store.flush()
     expect(w.store.data.get('prefs')).toEqual({
-      v: 1,
-      data: { tab: 'discover', sort: 'marketplace', kind: 'hooks', firstRunDone: true },
+      v: 2,
+      data: { tab: 'discover', sort: 'marketplace', kind: 'mods', firstRunDone: true },
     })
     // The next session opens where this one was.
     const next = await setup(Object.fromEntries(w.store.data))
@@ -43,7 +43,7 @@ describe('preferences', () => {
     expect(next.w.state.values.view).toMatchObject({
       tab: 'discover',
       sort: 'marketplace',
-      kind: 'hooks',
+      kind: 'mods',
     })
   })
 })
