@@ -4,7 +4,7 @@
 // windowed and a taller overlay is clipped (the detail draws compactly), so
 // the header and footer never scroll away. Everything drawn comes from `$.state`.
 
-import type { RenderElement } from 'claude-code'
+import type { RenderElement, UiPressArgument } from 'claude-code'
 import type { Overlay } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
 import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
@@ -52,7 +52,8 @@ type Key = {
   readonly action: string
   readonly on: KeySurface
   readonly label: string
-  readonly onPress: () => void
+  /** Gets the press: a copy targets the surface it came from. */
+  readonly onPress: (press: UiPressArgument) => void
 }
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
@@ -202,7 +203,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       action: 'copy',
       on: surface,
       label: 'copy path',
-      onPress: () => v.act.copy(path),
+      onPress: press => v.act.copy(path, press.surface),
     })
   }
   if (top === undefined) {
