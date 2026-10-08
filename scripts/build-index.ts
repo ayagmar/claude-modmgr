@@ -6,7 +6,8 @@
 // way modmgr does, and fetches from raw.githubusercontent.com politely: a few
 // at a time, every request paused after a 429/403/5xx. It refuses to write a
 // file when too much was left unclassified, so a bad run can't replace a good
-// index. CI (.github/workflows/index.yml) runs it daily.
+// index. CI (.github/workflows/index.yml) runs it daily; its logic takes the
+// CLI and the network as arguments, so a test runs it on fixtures.
 //
 //   node scripts/build-index.ts <out.json>
 import { spawnSync } from 'node:child_process'
@@ -33,119 +34,146 @@ import { parsePluginId } from '../plugin/hooks/domain/ids.ts'
 import type { DetectEntry } from '../plugin/hooks/domain/store-schema.ts'
 
 /** The marketplaces the index covers: what a fresh config lists, and the official one. */
-const MARKETPLACES = ['anthropics/claude-plugins-official']
+export const MARKETPLACES = ['anthropics/claude-plugins-official']
 const CONCURRENCY = 8
 const RETRIES = 5
 const TIMEOUT_MS = 30_000
 /** Past this share of checkable entries left unclassified, nothing is written. */
-const MAX_MISSING = 0.05
+export const MAX_MISSING = 0.05
 
-const out = process.argv[2]
-if (out === undefined) {
-  console.error('usage: node scripts/build-index.ts <out.json>')
-  process.exit(2)
+export type BuildDeps = {
+  /** `claude` on a throwaway config dir. */
+  readonly cli: (args: readonly string[]) => CliRun
+  /** A GET of a catalogue file, its size limited (`fetchFile`). */
+  readonly fetch: (url: string) => Promise<FetchedFile>
+  readonly now: () => number
+  readonly sleep: (ms: number) => Promise<void>
+  readonly log: (line: string) => void
 }
 
-const config = mkdtempSync(join(tmpdir(), 'modmgr-index-'))
-const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_CONFIG_DIR: config }
-delete env.CLAUDECODE
+/** The file to publish, or why there is none. */
+export type Built = { readonly text: string } | { readonly refused: string }
 
-const cli = (args: string[]): CliRun => {
-  const run = spawnSync('claude', args, { env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  return { exitCode: run.status ?? 1, stdout: run.stdout ?? '', stderr: run.stderr ?? '' }
-}
-
-const started = Date.now()
-let entries: CatalogEntry[]
-try {
-  for (const source of MARKETPLACES) {
-    const added = cli(['plugin', 'marketplace', 'add', source])
-    if (added.exitCode !== 0) throw new Error(`marketplace add ${source}: ${added.stderr.trim()}`)
-  }
-  const available = parseAvailable(cli(['plugin', 'list', '--json', '--available']))
-  if (!available.ok) throw new Error(`list --available: ${available.error.message}`)
-  entries = available.value.available.items
-} catch (error) {
-  rmSync(config, { recursive: true, force: true })
-  throw error
-}
-
-const fetchRemote = async (url: string): Promise<FetchedFile> => {
+/** A GET for at most MAX_BODY bytes (a Range request); a range answered (206) reads as 200. */
+export const fetchFile = async (url: string): Promise<FetchedFile> => {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-    const text = await response.text()
-    return text.length > MAX_BODY ? { status: response.status } : { status: response.status, text }
+    const response = await fetch(url, {
+      headers: { Range: `bytes=0-${MAX_BODY}` },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    // An empty file can't satisfy a range (416).
+    const text = response.status === 416 ? '' : await response.text()
+    const status = response.status === 206 || response.status === 416 ? 200 : response.status
+    return text.length > MAX_BODY ? { status } : { status, text }
   } catch {
     return { status: 503 }
   }
 }
 
 type Work = { readonly entry: CatalogEntry; readonly key: string; attempt: number }
-const queue: Work[] = []
-for (const entry of entries) {
-  // The client rejects a file with an id it can't read: such an entry is left out.
-  if (!parsePluginId(entry.id).ok) continue
-  // Clients read a local entry from their own clone, for free: only remote ones are published.
-  const plan = planProbe(entry)
-  const key = probeKey(plan, entry.version)
-  if (plan.kind === 'remote' && key !== undefined) queue.push({ entry, key, attempt: 0 })
-}
-const checkable = queue.length
-const found = new Map<string, DetectEntry>()
-let pausedUntil = 0
-let requests = 0
 
-const classify = async (work: Work): Promise<CatalogKind | 'retry' | undefined> => {
-  const plan = planProbe(work.entry)
-  if (plan.kind !== 'remote') return undefined
-  return walkProbe(plan.base, true, url => {
-    requests += 1
-    return fetchRemote(url)
-  })
-}
+export const buildIndex = async (deps: BuildDeps): Promise<Built> => {
+  const started = deps.now()
+  for (const source of MARKETPLACES) {
+    const added = deps.cli(['plugin', 'marketplace', 'add', source])
+    if (added.exitCode !== 0) throw new Error(`marketplace add ${source}: ${added.stderr.trim()}`)
+  }
+  const available = parseAvailable(deps.cli(['plugin', 'list', '--json', '--available']))
+  if (!available.ok) throw new Error(`list --available: ${available.error.message}`)
+  const entries = available.value.available.items
 
-const worker = async (): Promise<void> => {
-  for (let work = queue.shift(); work !== undefined; work = queue.shift()) {
-    const wait = pausedUntil - Date.now()
-    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
-    const kind = await classify(work)
-    if (kind === 'retry') {
-      work.attempt += 1
-      pausedUntil = Date.now() + backoffMs(work.attempt)
-      if (work.attempt <= RETRIES) queue.push(work)
-      continue
+  const queue: Work[] = []
+  for (const entry of entries) {
+    // The client rejects a file with an id it can't read: such an entry is left out.
+    if (!parsePluginId(entry.id).ok) continue
+    // Clients read a local entry from their own clone, for free: only remote ones are published.
+    const plan = planProbe(entry)
+    const key = probeKey(plan, entry.version)
+    if (plan.kind === 'remote' && key !== undefined) queue.push({ entry, key, attempt: 0 })
+  }
+  const checkable = queue.length
+  const found = new Map<string, DetectEntry>()
+  let pausedUntil = 0
+  let requests = 0
+
+  const classify = async (work: Work): Promise<CatalogKind | 'retry' | undefined> => {
+    const plan = planProbe(work.entry)
+    if (plan.kind !== 'remote') return undefined
+    return walkProbe(plan.base, true, url => {
+      requests += 1
+      return deps.fetch(url)
+    })
+  }
+
+  const worker = async (): Promise<void> => {
+    for (let work = queue.shift(); work !== undefined; work = queue.shift()) {
+      const wait = pausedUntil - deps.now()
+      if (wait > 0) await deps.sleep(wait)
+      const kind = await classify(work)
+      if (kind === 'retry') {
+        work.attempt += 1
+        pausedUntil = deps.now() + backoffMs(work.attempt)
+        if (work.attempt <= RETRIES) queue.push(work)
+        continue
+      }
+      // `unknown` isn't published (clients don't take it): it counts as missing.
+      if (kind !== undefined && kind !== 'unknown') found.set(work.entry.id, [work.key, kind])
     }
-    // `unknown` isn't published (clients don't take it): it counts as missing.
-    if (kind !== undefined && kind !== 'unknown') found.set(work.entry.id, [work.key, kind])
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+
+  const missing = checkable - found.size
+  const counts: Record<string, number> = {}
+  for (const [, kind] of found.values()) counts[kind] = (counts[kind] ?? 0) + 1
+  const text = indexText(deps.now(), found)
+  deps.log(
+    [
+      `entries ${entries.length}, checkable ${checkable}, classified ${found.size}, missing ${missing}`,
+      `kinds ${JSON.stringify(counts)}`,
+      `requests ${requests}, ${((deps.now() - started) / 1000).toFixed(0)} s`,
+      `size ${text.length} B (${gzipSync(text).length} B gzipped)`,
+    ].join('\n'),
+  )
+  if (checkable === 0 || missing / checkable > MAX_MISSING) {
+    return { refused: `too much left unclassified (${missing} of ${checkable}): nothing written` }
+  }
+  // What clients would refuse is never published.
+  const check = parseIndex(text)
+  if (!check.ok) return { refused: `the index would be refused: ${check.error.message}` }
+  return { text }
+}
+
+if (import.meta.main) {
+  const out = process.argv[2]
+  if (out === undefined) {
+    console.error('usage: node scripts/build-index.ts <out.json>')
+    process.exit(2)
+  }
+  const config = mkdtempSync(join(tmpdir(), 'modmgr-index-'))
+  const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_CONFIG_DIR: config }
+  delete env.CLAUDECODE
+  try {
+    const built = await buildIndex({
+      cli: args => {
+        const run = spawnSync('claude', args, {
+          env,
+          encoding: 'utf8',
+          maxBuffer: 64 * 1024 * 1024,
+        })
+        return { exitCode: run.status ?? 1, stdout: run.stdout ?? '', stderr: run.stderr ?? '' }
+      },
+      fetch: fetchFile,
+      now: Date.now,
+      sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+      log: line => console.error(line),
+    })
+    if ('refused' in built) {
+      console.error(built.refused)
+      process.exitCode = 1
+    } else {
+      writeFileSync(out, built.text)
+    }
+  } finally {
+    rmSync(config, { recursive: true, force: true })
   }
 }
-
-try {
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker))
-} finally {
-  rmSync(config, { recursive: true, force: true })
-}
-
-const missing = checkable - found.size
-const counts: Record<string, number> = {}
-for (const [, kind] of found.values()) counts[kind] = (counts[kind] ?? 0) + 1
-const text = indexText(Date.now(), found)
-console.error(
-  [
-    `entries ${entries.length}, checkable ${checkable}, classified ${found.size}, missing ${missing}`,
-    `kinds ${JSON.stringify(counts)}`,
-    `requests ${requests}, ${((Date.now() - started) / 1000).toFixed(0)} s`,
-    `size ${text.length} B (${gzipSync(text).length} B gzipped)`,
-  ].join('\n'),
-)
-if (checkable === 0 || missing / checkable > MAX_MISSING) {
-  console.error(`too much left unclassified (${missing} of ${checkable}): nothing written`)
-  process.exit(1)
-}
-// What clients would refuse is never published.
-const check = parseIndex(text)
-if (!check.ok) {
-  console.error(`the index would be refused: ${check.error.message}`)
-  process.exit(1)
-}
-writeFileSync(out, text)
