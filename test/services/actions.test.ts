@@ -263,6 +263,17 @@ describe('Esc (ui.close from the person)', () => {
     expect(w.state.values.view.staged).toEqual({ [TURN_BAND]: false })
   })
 
+  it('from a key beside the list, brings the ring back to the row and keeps the filter', async () => {
+    const { w, act } = await setup()
+    await act.filter('turn')
+    await act.toDetail()
+    expect(w.ui.focuses.at(-1)).toBe('modmgr:act:toggle')
+    w.ui.keysToPrompt()
+    expect(await act.closing('person', true, true)).toBe(true)
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)
+    expect(w.state.values.view.query).toBe('turn')
+  })
+
   it('closes at once when the pane did not hold the keys', async () => {
     const { w, act } = await setup()
     await act.open(TURN_BAND)

@@ -170,9 +170,14 @@ export type Actions = {
    * on the terminal. Esc hands the keys back to the prompt before the hook runs
    * is raised, so the cascade answers only when the pane had them then and has them
    * no more; the close mark and ctrl+x x leave them with the pane and
-   * close. A kept pane re-takes the keys.
+   * close. A kept pane re-takes the keys. `ringAway`: the ring was on a key
+   * rather than the list or its field, so this Esc brings it back to the list.
    */
-  closing(origin: 'person' | 'plugin' | 'unload', hadKeys: boolean): Promise<boolean>
+  closing(
+    origin: 'person' | 'plugin' | 'unload',
+    hadKeys: boolean,
+    ringAway?: boolean,
+  ): Promise<boolean>
 }
 
 export const createActions = (
@@ -822,7 +827,7 @@ export const createActions = (
       }
     }),
 
-    async closing(origin, hadKeys) {
+    async closing(origin, hadKeys, ringAway = false) {
       try {
         const stillHasKeys =
           (await ui.panes()).find(pane => pane.id === PANE_ID)?.isFocused === true
@@ -832,13 +837,15 @@ export const createActions = (
         seenWelcome(before)
         if (origin === 'person' && hadKeys && !stillHasKeys) {
           const view = before
-          const step = escapeStep(view, true)
+          const step = escapeStep(view, true, ringAway)
           if (step.kind !== 'close') {
             if (step.kind === 'pop' && topOverlay(view) === 'review') await dropReview()
-            await setView(current => {
-              const now = escapeStep(current, true)
-              return now.kind === 'close' ? current : quiet(now.view)
-            })
+            if (step.kind !== 'to-list') {
+              await setView(current => {
+                const now = escapeStep(current, true, ringAway)
+                return now.kind === 'pop' || now.kind === 'clear-query' ? quiet(now.view) : current
+              })
+            }
             if (step.kind === 'clear-query') await showCatalog()
             await retake()
             await ringToOverlay()

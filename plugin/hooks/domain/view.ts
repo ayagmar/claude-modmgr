@@ -488,18 +488,21 @@ export const toggleOverlay = (view: View, overlay: Overlay): View =>
 
 export type Escape =
   | { readonly kind: 'pop'; readonly view: View }
+  | { readonly kind: 'to-list' }
   | { readonly kind: 'clear-query'; readonly view: View }
   | { readonly kind: 'close' }
 
 /**
  * What an Esc does: while the pane holds the keys it
- * pops the top overlay, then clears the filter, then closes. An Esc at the
- * prompt (the pane not focused) always closes: the person can't see what a
- * cascade would pop.
+ * pops the top overlay, then brings the ring back to the list from a key
+ * (`ringAway`: beside the list, in the footer), then clears the filter, then
+ * closes. An Esc at the prompt (the pane not focused) always closes: the
+ * person can't see what a cascade would pop.
  */
-export const escapeStep = (view: View, paneFocused: boolean): Escape => {
+export const escapeStep = (view: View, paneFocused: boolean, ringAway = false): Escape => {
   if (!paneFocused) return { kind: 'close' }
   if (view.stack.length > 0) return { kind: 'pop', view: popOverlay(view) }
+  if (ringAway) return { kind: 'to-list' }
   // The field of the tab shown: Installed's filter, or Discover's search.
   if (view.tab === 'discover' && view.search !== '')
     return { kind: 'clear-query', view: { ...view, search: '' } }
