@@ -12,6 +12,8 @@ export const SURFACES = [
   'health',
   'detail',
   'discover-detail',
+  'dev-detail',
+  'share',
   'review',
   'help',
   'jobs',
@@ -41,7 +43,7 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'back', key: 'esc', label: 'back · clear filter · close', on: ['pane'] },
   { action: 'jobs', hotkey: 'j', label: 'jobs', on: ['pane'] },
   { action: 'help', hotkey: 'h', label: 'help', on: ['pane'] },
-  { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover', 'dev'] },
+  { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },
   { action: 'sort', hotkey: 'o', label: 'sort', on: ['discover'] },
   { action: 'kind', hotkey: 'k', label: 'kind', on: ['discover', 'discover-empty'] },
   { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS },
@@ -66,15 +68,15 @@ export const BINDINGS: readonly Binding[] = [
     label: 'add a marketplace',
     on: ['discover', 'discover-empty'],
   },
-  { action: 'validate', hotkey: 'v', label: 'validate', on: ['dev'] },
-  { action: 'test', hotkey: 't', label: 'test', on: ['dev'] },
+  { action: 'validate', hotkey: 'v', label: 'validate', on: ['dev', 'dev-detail'] },
+  { action: 'test', hotkey: 't', label: 'test', on: ['dev', 'dev-detail'] },
   {
     action: 'copy',
     hotkey: 'c',
     label: 'copy id, path or command',
-    on: ['detail', 'discover-detail', 'dev', 'review'],
+    on: ['detail', 'discover-detail', 'dev', 'dev-detail', 'share', 'review'],
   },
-  { action: 'share', hotkey: 'p', label: 'share', on: ['dev'] },
+  { action: 'share', hotkey: 'p', label: 'share', on: ['dev', 'dev-detail'] },
   { action: 'reload', hotkey: 'l', label: 'reload plugins', on: ['dev', 'health', 'band'] },
   { action: 'confirm', hotkey: 'y', label: 'confirm', on: ['review'] },
   { action: 'cancel', hotkey: 'n', label: 'cancel', on: ['review'] },
@@ -87,22 +89,23 @@ export const BINDINGS: readonly Binding[] = [
 
 /**
  * Surfaces mounted together: the pane shell, one view, and the overlay on top
- * (in the split layout the list and the overlay are both drawn). The band is
- * its own site.
+ * (in the split layout the list and the overlay are both drawn). A view's
+ * detail is its own (Installed's, Discover's, Dev's); review, help and the job
+ * log go over any view. The band is its own site.
  */
 export const MOUNT_SETS: readonly (readonly KeySurface[])[] = (() => {
-  const views: KeySurface[] = ['installed', 'discover', 'discover-empty', 'dev', 'health']
-  const overlays: (KeySurface | undefined)[] = [
-    undefined,
-    'detail',
-    'discover-detail',
-    'review',
-    'help',
-    'jobs',
-  ]
+  const shared: KeySurface[] = ['review', 'help', 'jobs']
+  const own: Readonly<Record<string, readonly KeySurface[]>> = {
+    installed: ['detail'],
+    discover: ['discover-detail'],
+    'discover-empty': ['discover-detail'],
+    dev: ['dev-detail', 'share'],
+    health: [],
+  }
   const sets: KeySurface[][] = [['band']]
-  for (const view of views) {
-    for (const overlay of overlays) sets.push(['pane', view, ...(overlay ? [overlay] : [])])
+  for (const [view, overlays] of Object.entries(own) as [KeySurface, readonly KeySurface[]][]) {
+    sets.push(['pane', view])
+    for (const overlay of [...overlays, ...shared]) sets.push(['pane', view, overlay])
   }
   return sets
 })()

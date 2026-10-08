@@ -7,6 +7,7 @@ import type {
   CatalogPage,
   Degraded,
   DetectProgress,
+  DevState,
   JobQueue,
   ModDetail,
   ModRow,
@@ -27,6 +28,7 @@ export type ModmgrState = {
   review: ReviewRequest | null
   attention: Attention
   degraded: Degraded
+  dev: DevState
 }
 
 export type StateKey = keyof ModmgrState
@@ -38,10 +40,11 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   detect: 'detect/1',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/4',
+  view: 'view/5',
   review: 'review/3',
   attention: 'attention/2',
   degraded: 'degraded/1',
+  dev: 'dev/1',
 }
 
 export const INITIAL_VIEW: View = {
@@ -65,4 +68,5 @@ export const INITIAL: Readonly<ModmgrState> = {
   review: null,
   attention: { updates: 0, problems: 0, reloadPending: false, capsChanged: 0 },
   degraded: { process: false, network: false, acceptCommand: false },
+  dev: { rows: [], failures: {}, loading: false },
 }

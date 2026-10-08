@@ -147,6 +147,25 @@ describe('registry.select', () => {
     expect(registry.entry('turn-band@fixtures')?.version).toBe('0.3.1')
   })
 
+  it('keeps the row shown selected when a new one sorts above it (found live)', async () => {
+    const { w, registry } = setup()
+    // Nothing listed yet: nothing to keep.
+    w.process.when(['list'], out('[]'))
+    await registry.refresh()
+    expect(w.state.values.view.selected).toBeUndefined()
+    w.process.when(['list'], out(runs.list.stdout))
+    await registry.refresh()
+    // The first row shown (broken) was what the ring sat on; it stays the selection.
+    const { selected: _pinned, ...unpinned } = w.state.values.view
+    w.state.values.view = unpinned
+    const list = JSON.parse(runs.list.stdout) as Array<Record<string, unknown>>
+    const first = { ...list.find(entry => entry.id === 'turn-band@fixtures'), id: 'aaa@fixtures' }
+    w.process.when(['list'], out(JSON.stringify([first, ...list])))
+    await registry.refresh()
+    expect(w.state.values.mods[0]?.id).toBe('aaa@fixtures')
+    expect(w.state.values.view.selected).toBe('broken@fixtures')
+  })
+
   it('reads a skipped list entry as unread', async () => {
     const { w, registry } = setup()
     const list = JSON.parse(runs.list.stdout) as unknown[]

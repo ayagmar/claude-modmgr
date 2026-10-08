@@ -8,6 +8,7 @@ import type {
   ProcessSpawnChunk,
   ProcessSpawnResult,
   RenderSurface,
+  SessionRepo,
   SessionVersion,
   Timer,
   UiCopyResult,
@@ -20,6 +21,7 @@ import type { PaneOpen } from '../../plugin/hooks/domain/view.ts'
 import type {
   ClockPort,
   CommandPort,
+  DirEntry,
   EnvPort,
   Ports,
   ProcessPort,
@@ -289,16 +291,29 @@ export class FakeCommand implements CommandPort {
 export const fakeEnv = (vars: Record<string, string> = {}): EnvPort => ({
   pluginDirs: async () => vars.CLAUDE_CODE_PLUGIN_DIRS,
   nonessentialTraffic: async () => vars.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,
+  configDir: async () => vars.CLAUDE_CONFIG_DIR,
+  home: async () => vars.HOME,
 })
 
-export const fakeSession = (
-  root: string | (() => Promise<string>) = '/repo',
-  surfaces: RenderSurface[] = ['terminal'],
-): SessionPort => ({
-  root: typeof root === 'string' ? async () => root : root,
-  surfaces: async () => surfaces,
-  version: async (): Promise<SessionVersion> => ({ version: '2.1.292', base: '2.1.292' }),
-})
+export type SessionFacts = {
+  root?: string | (() => Promise<string>)
+  surfaces?: RenderSurface[]
+  cwd?: string
+  id?: string
+  repo?: SessionRepo | null
+}
+
+export const fakeSession = (facts: SessionFacts = {}): SessionPort => {
+  const root = facts.root ?? '/repo'
+  return {
+    root: typeof root === 'string' ? async () => root : root,
+    cwd: async () => facts.cwd ?? (typeof root === 'string' ? root : '/repo'),
+    id: async () => facts.id ?? 'session-1',
+    repo: async () => facts.repo ?? null,
+    surfaces: async () => facts.surfaces ?? ['terminal'],
+    version: async (): Promise<SessionVersion> => ({ version: '2.1.292', base: '2.1.292' }),
+  }
+}
 
 export class FakeUi implements UiPort {
   lines: string[] = []
@@ -387,12 +402,20 @@ export class FakeHttp {
 export class FakeFs {
   reads: string[] = []
   files = new Map<string, string>()
+  /** Directories by absolute path; a missing one rejects. */
+  dirs = new Map<string, DirEntry[]>()
 
   read = async (path: string): Promise<string> => {
     this.reads.push(path)
     const text = this.files.get(path)
     if (text === undefined) throw new Error(`ENOENT: ${path}`)
     return text
+  }
+
+  list = async (path: string): Promise<readonly DirEntry[]> => {
+    const entries = this.dirs.get(path)
+    if (entries === undefined) throw new Error(`ENOENT: ${path}`)
+    return entries
   }
 }
 
@@ -409,7 +432,12 @@ export type World = {
 }
 
 export const world = (
-  options: { env?: Record<string, string>; store?: Record<string, unknown>; root?: string } = {},
+  options: {
+    env?: Record<string, string>
+    store?: Record<string, unknown>
+    root?: string
+    session?: SessionFacts
+  } = {},
 ): World => {
   const clock = new FakeClock()
   const state = new FakeState()
@@ -434,7 +462,10 @@ export const world = (
       store,
       clock,
       env: fakeEnv(options.env),
-      session: fakeSession(options.root),
+      session: fakeSession({
+        ...options.session,
+        ...(options.root === undefined ? {} : { root: options.root }),
+      }),
       command,
       ui,
       http,

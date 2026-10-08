@@ -107,12 +107,18 @@ export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
   )
 
 export type Finish =
-  | { readonly ok: true; readonly unchanged?: boolean; readonly keptData?: boolean }
+  | {
+      readonly ok: true
+      readonly unchanged?: boolean
+      readonly keptData?: boolean
+      readonly report?: Job['report']
+    }
   | {
       readonly ok: false
       readonly error: { readonly kind: string; readonly message: string }
       /** What a declared command the job stopped on showed (F25), for the review that accepts it. */
       readonly shown?: Job['shown']
+      readonly report?: Job['report']
     }
   | { readonly cancelled: true }
 
@@ -127,9 +133,16 @@ export const finish = (jobs: readonly Job[], id: string, now: number, how: Finis
         endedAt: now,
         ...(how.unchanged === true ? { unchanged: true } : {}),
         ...(how.keptData === undefined ? {} : { keptData: how.keptData }),
+        ...(how.report === undefined ? {} : { report: how.report }),
       }
     }
-    const failed: Job = { ...job, state: 'failed', endedAt: now, error: how.error }
+    const failed: Job = {
+      ...job,
+      state: 'failed',
+      endedAt: now,
+      error: how.error,
+      ...(how.report === undefined ? {} : { report: how.report }),
+    }
     return how.shown === undefined ? failed : { ...failed, shown: how.shown }
   })
 

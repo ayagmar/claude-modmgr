@@ -9,6 +9,7 @@ import type { ModDetail, ModRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
 import { acknowledge, type CapsSighting, capsNewOf, recordCaps } from '../domain/caps-history.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
+import type { Listed } from '../domain/dev.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
   type Analysis,
@@ -22,7 +23,7 @@ import {
 } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
 import { CAPS } from '../domain/store-schema.ts'
-import type { ReviewFacts } from '../domain/view.ts'
+import { type ReviewFacts, selectedRow } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, detailsOf, listInstalled, validateRoot } from './cli.ts'
 import { mapLimit } from './pool.ts'
@@ -60,6 +61,18 @@ export type Registry = {
   acknowledge(id: string): Promise<void>
   /** Whether a refresh has listed the plugins yet. */
   isLoaded(): boolean
+  /**
+   * Every plugin the last refresh listed, mods or not, and whether validate
+   * found a hooks module in it (undefined when it couldn't read it): Dev's
+   * listed sources.
+   */
+  listed(): Listed[]
+  /**
+   * Forgets the analyses of `root` (any version), so the next refresh reads it
+   * again (Dev's `v`: a folder edited without a version bump keeps its key).
+   * True when there was one.
+   */
+  forget(root: string): boolean
 }
 
 export const createRegistry = (
@@ -169,6 +182,15 @@ export const createRegistry = (
 
     const mods = sortRows(rows).map(withNews)
     const skipped = listed.value.skipped + unread
+    const [before, view] = await Promise.all([ports.state.read('mods'), ports.state.read('view')])
+    // The row shown selected stays so when a new one sorts above it (found live in Dev);
+    // written only when it moves, since a view write redraws the pane.
+    const shown = view.selected === undefined ? selectedRow(view, before)?.id : undefined
+    if (shown !== undefined) {
+      await ports.state.update('view', current =>
+        current.selected === undefined ? { ...current, selected: shown } : current,
+      )
+    }
     await ports.state.update('mods', () => mods)
     await ports.state.update('detail', detail => detailOf(detail?.id))
     await writeNews(mods)
@@ -230,5 +252,22 @@ export const createRegistry = (
       await writeNews(mods)
     },
     isLoaded: () => loaded,
+    listed() {
+      const cache = store.get('validate')
+      return [...entries.values()].map(entry => {
+        const key = analysisKey(entry)
+        return { entry, mod: key === undefined ? undefined : cache[key]?.mod }
+      })
+    },
+    forget(root) {
+      const prefix = `${root.replace(/\/+$/, '')}@`
+      const cache = store.get('validate')
+      const kept = Object.fromEntries(
+        Object.entries(cache).filter(([key]) => !key.startsWith(prefix)),
+      )
+      if (Object.keys(kept).length === Object.keys(cache).length) return false
+      store.set('validate', kept)
+      return true
+    },
   }
 }

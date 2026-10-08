@@ -12,6 +12,7 @@ import {
   update,
 } from 'claude-code'
 import { parseConfig } from './domain/config.ts'
+import { devOfKey } from './domain/dev.ts'
 import { foundOfKey } from './domain/discover.ts'
 import { INITIAL, type ModmgrState, type StateKey } from './domain/state.ts'
 import { rowOfKey } from './domain/view.ts'
@@ -30,7 +31,13 @@ import type {
 } from './ports.ts'
 import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
-import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './services/lifecycle.ts'
+import {
+  MODS_DESCRIPTION,
+  onNotice,
+  onSessionStart,
+  onTurnEnd,
+  onTurnStart,
+} from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
@@ -50,7 +57,7 @@ const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/4' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/5' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
   shape: 'review/3',
 })
@@ -60,6 +67,7 @@ const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.
 const DEGRADED = atom({ plugin: 'modmgr', key: 'degraded' } as const, INITIAL.degraded, {
   shape: 'degraded/1',
 })
+const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/1' })
 
 type Change<K extends StateKey> = (value: ModmgrState[K]) => ModmgrState[K]
 
@@ -76,6 +84,7 @@ function statePorts($: EngineInterface): StatePort {
     review: () => read($, REVIEW),
     attention: () => read($, ATTENTION),
     degraded: () => read($, DEGRADED),
+    dev: () => read($, DEV),
   }
   const writers: { [K in StateKey]: (change: Change<K>) => Promise<ModmgrState[K]> } = {
     mods: change => update($, MODS, change),
@@ -88,6 +97,7 @@ function statePorts($: EngineInterface): StatePort {
     review: change => update($, REVIEW, change),
     attention: change => update($, ATTENTION, change),
     degraded: change => update($, DEGRADED, change),
+    dev: change => update($, DEV, change),
   }
   return {
     read: key => readers[key](),
@@ -124,12 +134,17 @@ function envPorts($: EngineInterface): EnvPort {
   return {
     pluginDirs: () => $.env.get('CLAUDE_CODE_PLUGIN_DIRS'),
     nonessentialTraffic: () => $.env.get('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC'),
+    configDir: () => $.env.get('CLAUDE_CONFIG_DIR'),
+    home: () => $.env.get('HOME'),
   }
 }
 
 function sessionPorts($: EngineInterface): SessionPort {
   return {
     root: () => $.session.root(),
+    cwd: () => $.session.cwd(),
+    id: () => $.session.id(),
+    repo: () => $.session.repo(),
     surfaces: () => $.session.surfaces(),
     version: () => $.session.version(),
   }
@@ -169,6 +184,8 @@ function httpPorts($: EngineInterface): HttpPort {
 function fsPorts($: EngineInterface): FsPort {
   return {
     read: path => $.fs.read(path),
+    list: async path =>
+      (await $.fs.list(path)).map(entry => ({ name: entry.name, kind: entry.kind })),
   }
 }
 
@@ -243,6 +260,13 @@ export const register: Register = (on, options) => {
     }
   }).catch((_$, e, next) => next(e))
 
+  // Observed only: what the session says when a hot-reloaded plugin fails (Dev, F20).
+  on('session.append', { door: 'notice' }, async (_$, e, next) => {
+    const stored = await next(e)
+    onNotice(runtime, e.message.content)
+    return stored
+  }).catch((_$, e, next) => next(e))
+
   on('command.run', { command: 'mods' }, ($, e) =>
     modsCommand({ state: statePorts($), ui: uiPorts($) }, e.args),
   ).catch(() => ({ text: 'modmgr failed to answer; run with --debug for the reason.' }))
@@ -272,8 +296,10 @@ export const register: Register = (on, options) => {
     if (moved.deny !== undefined) return moved
     const id = rowOfKey(e.element)
     const found = foundOfKey(e.element)
+    const dev = devOfKey(e.element)
     if (id !== undefined) await actionsOf($).focusRow(id)
     else if (found !== undefined) await actionsOf($).focusFound(found)
+    else if (dev !== undefined) await actionsOf($).focusDev(dev)
     return moved
   }).catch((_$, e, next) => next(e))
 

@@ -9,6 +9,7 @@ import type {
   ProcessSpawnChunk,
   ProcessSpawnResult,
   RenderSurface,
+  SessionRepo,
   SessionVersion,
   Timer,
   UiCopyResult,
@@ -65,10 +66,17 @@ export interface EnvPort {
   pluginDirs(): Promise<string | undefined>
   /** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`: any non-empty value turns modmgr's network use off. */
   nonessentialTraffic(): Promise<string | undefined>
+  /** `CLAUDE_CONFIG_DIR` and `HOME`: where this session's mods folder is (Dev). */
+  configDir(): Promise<string | undefined>
+  home(): Promise<string | undefined>
 }
 
 export interface SessionPort {
   root(): Promise<string>
+  cwd(): Promise<string>
+  id(): Promise<string>
+  /** The git repository the session runs in (its `origin` remote), or null. */
+  repo(): Promise<SessionRepo | null>
   surfaces(): Promise<readonly RenderSurface[]>
   version(): Promise<SessionVersion>
 }
@@ -104,9 +112,18 @@ export interface HttpPort {
   get(url: string): Promise<{ readonly status: number; readonly text: string }>
 }
 
-/** Reads a file's text (rejects when missing or over 4 MiB). Used only for local catalogue sources. */
+/** The plugin's names of a directory's entries (`$.fs.list`). */
+export type DirEntry = { readonly name: string; readonly kind: 'file' | 'dir' | 'other' }
+
+/**
+ * Reads plugin manifests and lists plugin folders: local catalogue sources
+ * (Discover) and folders of mods under development (Dev). Never writes.
+ */
 export interface FsPort {
+  /** A file's text; rejects when missing or over 4 MiB. */
   read(path: string): Promise<string>
+  /** A directory's entries; rejects when it is missing. */
+  list(path: string): Promise<readonly DirEntry[]>
 }
 
 export type Ports = {

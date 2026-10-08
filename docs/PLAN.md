@@ -19,7 +19,7 @@ A Claude Code **mod** manager: discover, install, inspect, toggle, update and de
 
 ---
 
-## 1. Verified facts (F1–F24 on 2.1.291, F25+ on 2.1.292; run on this machine)
+## 1. Verified facts (F1–F24 on 2.1.291, F25–F55 on 2.1.292, F56+ on 2.1.293; run on this machine)
 
 Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored at `vendor/claude-code-types/<version>/` (`claude-code.d.ts`, `reference.md`, `examples/`). Line numbers in F1–F24 refer to the 2.1.291 `.d.ts`; later ones to 2.1.292.
 
@@ -80,6 +80,8 @@ Spike scripts and outputs live in `docs/spikes/`. The engine types are vendored 
 | F53 | An **unasked** `ui.open` of a pane that is already placed (a retitle from a timer) keeps it placed, at 120 columns and below both floors at 64 (`ui.open modmgr modmgr (unasked, 64 columns): placed`): the 144/110-column floor is for placing a pane, not for retitling one. A pane's title is drawn only while more than one pane is open (d.ts `PaneOpenArgs.title`), so the badge is mostly seen in tabs. | M3b, live debug log |
 | F54 | Installing a mod that hooks `plugin.register` makes the batch's `/reload-plugins` reload **every** module, modmgr included (F19): the new modmgr's `session.start` finds the reload job still `running`, and the old module's `$.command.run` then rejects. The reload did apply. | M4, live debug log (`hooks modules reloaded in full: spawner hooks plugin.register and joins`) |
 | F55 | `claude plugin validate --json` reports nothing for a plugin with classic command hooks only (`contents: []`), and `claude plugin details` answers only for installed plugins: neither tells `hooks` from `plain` before install. A local entry's kind is read from its `hooks/hooks.json` and `plugin.json` on disk instead. `marketplace list --json` gives each marketplace's `installLocation` (a clone for a repository), under which relative-source entries sit. | M4, isolated config |
+| F56 | `list --json` gives an `installPath` for `<name>@inline` (`CLAUDE_CODE_PLUGIN_DIRS`, scope `session`) and `<name>@skills-dir` entries: the folder the session runs. `$.command.list()` names a command's plugin by its bare name, a `--plugin-dir` one (`modmgr`) and a built-in one (`cc-plugin-diff`) alike, so a plugin that registered a command but isn't listed is a `--plugin-dir` mod only once its folder is found. | M5a, isolated config, live debug log |
+| F57 | While a session hot-reloads a watched folder, a plugin's failure reaches `session.append` as a `door: 'notice'` row whose one text block reads `<name>: <what>`, naming the module's file: `broken: reload failed, the previous version stays loaded: <folder>/hooks/register.ts, compiled line 3 …`; a plugin's reload line arrives the same way (`modmgr: reloaded (8 hooks: …)`). A module that fails at **start-up** says so before modmgr has loaded (not observable), and the same failure is said once per load and reason (saving again with the same error says nothing new). The validator reports any `session.append` hook as a gating hook, matcher or not. | M5a, live debug log, `plugin/tests/m5a.test.tsx` |
 
 ### M0 spikes (answered 2026-10-07 on 2.1.292; write-ups in `docs/spikes/README.md`)
 
@@ -799,3 +801,45 @@ Pushes and GitHub actions still need the person's go-ahead.
   review carries its own facts (`notable`, `uninspected`, the declared command and its sha), the catalogue is read
   again only after a job or `r`, and `install` refuses an id "no longer listed", so a refresh under an open review
   changes nothing it shows or queues.
+
+**C14. Dev as built (M5a, applied 2026-10-08).**
+- **Sources** (`services/dev.ts`, decisions in `domain/dev.ts`): the listed plugins a person edits in a folder
+  (`@inline` from `CLAUDE_CODE_PLUGIN_DIRS`, `@skills-dir`, folder-marketplace installs: F56), mods or ones validate
+  couldn't read (a broken mod is what Dev is for; a plain plugin is left out); this session's mods folder,
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/dev-mods/<session id>/*` read with `$.fs.list` and each folder's `plugin.json`
+  (PLAN's `~/.claude/dev-mods/*/*` narrowed to this session's own: another session's scratch mods aren't loaded
+  here); and `--plugin-dir` plugins, found by name (a registered command, or a failure notice) and kept only once their
+  folder is found (F56: built-ins name their commands the same way): where the session runs (`cwd`, root) when its
+  manifest names them or its marketplace file lists them at a relative folder (a mod's repository is often its
+  marketplace), or the folder a failure notice named. Rows are keyed by folder, sorted by how they load then name, and
+  read on each visit to Dev, on `r` and at a reloaded modmgr's start with Dev showing; `$.state` `dev` (`/1`) holds
+  them. A `session-folder` row is marked loaded only when it registered a command.
+- **Actions.** `v` validates the folder with `--strict` and `t` tests it (streamed, `q` cancels), both as queue jobs
+  (no reload); a second press while one runs says so and queues nothing (guarded in the queue write). A row's marks
+  and the detail read the newest validate and test of its folder from the queue; a validate keeps its counts on the
+  job (`Job.report`, additive, `queue` stays `/1`), and its first findings show in the detail. A validate that ends
+  drops the registry's cached analyses of that folder (`registry.forget`) and refreshes, so Installed reads a folder
+  edited without a version bump again (C10's open point). `l` reloads, `c` copies the path, `p` opens the share
+  overlay: the install line (`/plugin install <mod> --marketplace <owner>/<repo>`, the repository from the session's
+  GitHub `origin` when the folder is inside it), and the marketplace file to write when none lists the mod (beside
+  `plugin.json`, or at the repository's root with a relative source); nothing is written. The filter is Installed's
+  alone (Esc no longer clears it from Dev).
+- **Failures** (F20, F57): a `session.append{door:'notice'}` hook, observe-only (it returns what `next` stored), feeds
+  `dev.failures` by plugin name (count, last reason, the folder when named; the newest 50 kept). A failing folder Dev
+  doesn't list yet joins it. `scripts/validate-plugin.ts` allows this third own gate, with that matcher only;
+  SECURITY.md says what the event-level capability means for modmgr's own list.
+- **Shape.** `view` went to `/5` (`dev` selection; `share` overlay); `ports` gained `FsPort.list`, `EnvPort.configDir`
+  and `home`, `SessionPort.cwd`, `id` and `repo`. Keymap surfaces `dev-detail` and `share`; `MOUNT_SETS` pairs each view
+  with its own detail and the shared overlays, not every overlay with every view. Text that wraps is counted by
+  `wrappedRows` (the review uses it too).
+- **Tests.** `test/domain/dev.test.ts`, `test/services/dev.test.ts` (sources, refused reads, validate/test as jobs, the
+  forget-and-refresh, failures, sharing, edge/open/refresh, a reloaded start), and `plugin/tests/m5a.test.tsx`
+  (terminal and desktop: rows, a validate from the detail; a notice raised through `$.session.append` counted on its
+  row; share and copy). Verified live with a broken `--plugin-dir` mod, a `CLAUDE_CODE_PLUGIN_DIRS` folder, a mod in
+  this session's mods folder and modmgr itself (located through the repository's marketplace file).
+- **Found in the live check** (inline at ~117 and ~59 body columns; fullscreen docked at ~48): a failing folder that
+  joined at the top took the selection (an unset selection means "the first row") while the ring stayed on the row it
+  was on, so `v` validated the wrong mod; the ring's `autoFocus` placement raises no `ui.focus`. A refresh now keeps the
+  row shown selected (`keptSelection` for Dev; the registry pins Installed's the same way, since an install that sorts
+  first did the same there). Dev's detail wraps its prose (path, how it loads) and cuts only output lines; row counts
+  are wrap-aware.

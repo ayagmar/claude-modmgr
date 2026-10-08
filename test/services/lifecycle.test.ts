@@ -159,7 +159,7 @@ describe('capability probe', () => {
   it('keeps acceptCommand and survives an env read that rejects', async () => {
     const w = world()
     w.ports.env = {
-      pluginDirs: async () => undefined,
+      ...w.ports.env,
       nonessentialTraffic: async () => {
         throw new Error('refused')
       },
