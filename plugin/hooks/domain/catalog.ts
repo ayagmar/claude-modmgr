@@ -56,22 +56,6 @@ export const buildIndex = (entries: readonly CatalogEntry[]): CatalogIndex => {
   }
 }
 
-export type CatalogQuery = {
-  readonly text: string
-  readonly kind: KindFilter
-  readonly sort: CatalogSort
-  readonly page: number
-  readonly pageSize?: number
-}
-
-export type CatalogPageResult = {
-  readonly rows: CatalogRow[]
-  readonly total: number
-  readonly matched: number
-  readonly page: number
-  readonly pages: number
-}
-
 /** Lowercased words of the query; every one must appear in an entry. */
 export const tokens = (text: string): string[] =>
   sanitize(text, { max: 100 })
@@ -85,9 +69,6 @@ const KIND_ALLOWED: Readonly<Record<KindFilter, ReadonlySet<CatalogKind>>> = {
   all: new Set(['mod', 'hooks', 'plain', 'unknown']),
 }
 
-export const clampPage = (page: number, pages: number): number =>
-  Math.min(Math.max(0, Math.floor(Number.isFinite(page) ? page : 0)), Math.max(0, pages - 1))
-
 /** One matched entry, with the kind the filter saw. */
 export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
 
@@ -97,7 +78,7 @@ export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
  */
 export const matchAll = (
   index: CatalogIndex,
-  query: Pick<CatalogQuery, 'text' | 'kind' | 'sort'>,
+  query: { readonly text: string; readonly kind: KindFilter; readonly sort: CatalogSort },
   kindOf: (id: string) => CatalogKind,
 ): Match[] => {
   const words = tokens(query.text)
@@ -130,28 +111,6 @@ export const windowOf = (
     rows: matched.slice(offset, offset + size).map(({ item, kind }) => toRow(item, kind)),
     offset,
   }
-}
-
-export const search = (
-  index: CatalogIndex,
-  query: CatalogQuery,
-  kindOf: (id: string) => CatalogKind,
-): CatalogPageResult => {
-  const words = tokens(query.text)
-  const allowed = KIND_ALLOWED[query.kind]
-  const size = Math.max(1, Math.floor(query.pageSize ?? PAGE_SIZE))
-  const matched: { item: Indexed; kind: CatalogKind }[] = []
-  for (const item of index.order[query.sort]) {
-    const kind = kindOf(item.entry.id)
-    if (!allowed.has(kind)) continue
-    if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })
-  }
-  const pages = Math.max(1, Math.ceil(matched.length / size))
-  const page = clampPage(query.page, pages)
-  const rows = matched
-    .slice(page * size, page * size + size)
-    .map(({ item, kind }) => toRow(item, kind))
-  return { rows, total: index.size, matched: matched.length, page, pages }
 }
 
 /** Where an entry comes from, in a few words (the detail's "from" line). */
@@ -197,15 +156,4 @@ export const formatCount = (count: number): string => {
   if (count < 10_000) return `${(Math.floor(count / 100) / 10).toFixed(1).replace(/\.0$/, '')}k`
   if (count < 1_000_000) return `${Math.floor(count / 1000)}k`
   return `${(Math.floor(count / 100_000) / 10).toFixed(1).replace(/\.0$/, '')}M`
-}
-
-/** `21–40 of 312` for the pager. */
-export const pageLabel = (
-  result: Pick<CatalogPageResult, 'page' | 'matched'>,
-  size = PAGE_SIZE,
-): string => {
-  if (result.matched === 0) return '0 of 0'
-  const first = result.page * size + 1
-  const last = Math.min(result.matched, first + size - 1)
-  return `${first}–${last} of ${result.matched}`
 }

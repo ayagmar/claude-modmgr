@@ -2,7 +2,12 @@
 // at today's size (3.5k) and at 10k for growth (§11). The budget is asserted on
 // the median of several runs, with headroom for slow CI machines.
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type CatalogKind, search } from '../../plugin/hooks/domain/catalog.ts'
+import {
+  buildIndex,
+  type CatalogKind,
+  matchAll,
+  windowOf,
+} from '../../plugin/hooks/domain/catalog.ts'
 import { generateCatalog } from './fixtures/synthetic.ts'
 
 const KEYSTROKE_BUDGET_MS = 16
@@ -27,7 +32,8 @@ describe.each([3_545, 10_000])('search over %d entries', size => {
       for (let round = 0; round < 5; round += 1) {
         for (const text of typed) {
           const start = performance.now()
-          search(index, { text, kind, sort: 'installs', page: 0 }, kindOf)
+          // What a keystroke runs: one pass, then the window `$.state` gets.
+          windowOf(matchAll(index, { text, kind, sort: 'installs' }, kindOf), undefined)
           times.push(performance.now() - start)
         }
       }
