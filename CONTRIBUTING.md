@@ -13,6 +13,7 @@
 - `test/`: vitest tests (domain, services, layering, keymap, benchmarks), fixtures as `.ts` modules
   (`scripts/capture-fixtures.sh` regenerates them from the real CLI), and `fixture-mods/`, a small marketplace of mods.
 - `vendor/claude-code-types/<version>/`: the Claude Code API declarations modmgr is built against.
+- `site/`: the landing page (Astro, static). Its demo frames (`site/src/data/demo.ts`) are drawn by `ui/Pane.tsx`.
 - `docs/`: plan, spikes, reviews, security and performance notes.
 
 ## Setup
@@ -49,6 +50,7 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 - `plugin/hooks/domain/explanations.ts`: `pnpm explanations` (from the vendored d.ts; a test fails when stale).
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
 - `plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
+- `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site and the README; a test fails when stale).
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes
@@ -57,6 +59,21 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
   check, an editor plugin) needs TypeScript 6 in its own package.
 - pnpm ≥ 11 waits a day before installing a fresh release (`minimumReleaseAge`). `pnpm-workspace.yaml` lists exact
   exceptions; prefer waiting a day over adding more.
+
+## The site
+
+```sh
+pnpm site                    # build site/ and check its links and weight
+pnpm --filter modmgr-site dev
+```
+
+## Releasing
+
+1. Move `CHANGELOG.md`'s `[Unreleased]` entries under `## [x.y.z] - <date>`.
+2. Set the same `version` in `plugin/.claude-plugin/plugin.json` and the marketplace entry in
+   `.claude-plugin/marketplace.json` (a test checks they agree), and commit.
+3. `claude plugin tag plugin --dry-run`, then `claude plugin tag plugin --push`: the tag is `modmgr--v<version>`.
+4. The tag runs `.github/workflows/release.yml`: the gate again, then a GitHub release with that CHANGELOG section.
 
 ## Rules
 

@@ -1,24 +1,127 @@
 # modmgr
 
-A mod manager for [Claude Code](https://claude.com/claude-code): discover, install, inspect, toggle, update and debug **mods**, the function-hook plugins that run inside a Claude Code session.
-
-> Status: under construction (milestones M0–M6 built: Installed, Discover, Dev, Health, text commands). Not
-> released yet.
-
-## Install
+A mod manager for [Claude Code](https://claude.com/claude-code). Mods are plugins that hook into a Claude Code
+session: they can run programs, read the conversation, change what the model sees. modmgr shows which ones you have
+and what each one can do, and lets you find, install, switch off, update or remove them without leaving the session.
 
 ```
 /plugin install modmgr --marketplace ayagmar/modmgr
 ```
 
-Requires Claude Code 2.1.292 or newer. Then type `/mods`, or `/mods help` for the text commands (`list`, `info`,
-`doctor`, `export`, and writes that need `--yes`).
+Then type `/mods`. Needs Claude Code 2.1.292 or newer, with the `claude` CLI on your path.
 
-The landing page is built from `site/` (`pnpm site`); it will live at https://ayagmar.github.io/modmgr/.
+## What you get
+
+**Installed** lists every mod with its state, version, scope and what it can do. Changes are staged and applied
+together, with one plugin reload after, and the last batch can be undone.
+
+```
+1: Installed  2: Discover  3: Dev  4: Health ▲1  5 mods · 5 on
+› filter by name
+● broken                   0.0.1      user     ▲1
+● quiet-bash               0.2.0      user     ◆1
+● redactor                 2.1.0      project  ◆3
+● spawner                  1.0.0      local    ◆2
+● turn-band                0.4.0      user     ◆2 new
+e: toggle  x: remove  z: undo  r: refresh  f: filter  j: jobs
+h: help  esc close
+```
+
+**A mod's detail** says what it hooks and calls, grouped by what that reaches (your machine, the network, the
+conversation, the model's input, other plugins), and calls out what's worth a second look. When an update adds
+something notable, it says so until you have seen it:
+
+```
+1: Installed  2: Discover  3: Dev  4: Health ▲1  5 mods · 5 on
+turn-band 0.4.0
+● on · user · fixtures
+e: disable  x: remove  c: copy id
+↑ runs from its marketplace folder: no updates
+New since 0.3.1
+◆ Can run programs or change files on your machine
+Notable
+◆ Can change what the model reads
+What it can do
+Your machine process.run
+What the model sees prompt.submit
+Display only turn.complete ui.render clock.now state.set ui.t…
+j: jobs  h: help  esc back
+```
+
+**Discover** searches every marketplace you have added and, a little at a time while you work, checks which entries
+are mods. Installing goes through a review that says what will run and where; a command a marketplace declares is
+shown whole, with its sha256, and runs only when you confirm that exact command.
+
+```
+1: Installed  2: Discover  3: Dev  4: Health ▲1  201 shown · …
+Install aws-serverless from claude-plugins-official
+y: confirm  n: cancel
+scope: user: every project ▾
+● install   aws-serverless claude-plugins-official · user
+modmgr reads what it can do once it is installed,
+and shows it in its detail then.
+Takes effect after the reload modmgr runs.
+Runs
+  claude plugin install aws-serverless@claude-plugins-officia…
+esc back
+```
+
+**Dev** lists the mods you are writing (loaded with `--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`, your skills folder or
+a folder marketplace): validate them, run their tests, reload, and get the line someone else needs to install yours.
+
+**Health** lists what needs you, worst first, each with a fix one key away:
+
+```
+1: Installed  2: Discover  3: Dev  4: Health ▲2  2 problems
+▲ broken            validate finds 1 error in it      → see it
+▲ redactor          1 failure while it reloaded; l… → validate
+ modmgr            5 enabled
+                   updates checked never, every … → check now
+                   detector: 50 of 200 checked, 0 mods found…
+                   cache: 178 B                       → clear
+                   A hook that fails is logge… → copy command
+l: reload  r: refresh  j: jobs  h: help  esc close
+```
+
+Updates are checked every few hours while no turn is running (`updateCheckHours`, 0 turns them off).
+
+## As text
+
+For scripts and `claude -p`:
+
+```
+/mods list | info <id> | doctor [--json] | export
+/mods install <id> [--scope user|project|local] [--accept-command <sha256>] --yes
+/mods remove <id> [--wipe-data] --yes
+/mods update [<id>] --yes
+/mods enable <id> --yes | disable <id> --yes
+/mods apply <file> --yes
+```
+
+Writes need `--yes` (without it they print what they would run) and never reload: run `/reload-plugins` after.
+Exit codes: 0 done, 1 refused or failed, 2 usage. Under `-p`, Claude Code prefixes the answer with `modmgr: `.
+
+## Options
+
+Set them with `claude plugin configure modmgr`:
+
+| Option | Default | |
+|---|---|---|
+| `updateCheckHours` | 6 | Hours between update checks; 0 turns them off. |
+| `detectRemote` | on | Read catalogue entries' `hooks.json` from raw.githubusercontent.com to tell mods apart. |
+| `debugTimings` | off | Write how long each step took to the debug log (`--debug`). |
+
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off everything modmgr fetches. modmgr sends no telemetry.
+
+## Safety
+
+modmgr is a lens, not a sandbox: once a mod runs, it runs with your session's power. It tells you what a mod can do
+and asks before anything new runs. [docs/SECURITY.md](docs/SECURITY.md) says what it reads, fetches and stores.
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/PLAN.md](docs/PLAN.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/PLAN.md](docs/PLAN.md) (the design and every change made while
+building it) and [docs/PERF.md](docs/PERF.md). The landing page is in `site/` (`pnpm site`).
 
 ## License
 
