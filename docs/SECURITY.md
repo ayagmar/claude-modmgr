@@ -79,10 +79,14 @@ and zero-width characters (`test/layering.test.ts`).
 most every 12 hours) and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned
 commit (at most 600 a session, only while no turn runs), without credentials, with response sizes checked and JSON
 shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
-carries nothing about the person's catalogues or mods. The index only classifies: a kind is taken for an entry only
-when the index's key (the pinned commit, or the version of a local entry) is the entry's own, a malformed file is
-refused whole, and installing still goes through the review of what the entry can do. A wrong or hostile index can
-at worst mislabel an entry's kind, which changes Discover's order and its "mods only" filter. They are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
+carries nothing about the person's catalogues or mods. The index only classifies remote entries: a kind is taken
+only when the index's key is the entry's own pinned commit, never `unknown` (the detector checks again), never for a
+local entry (read on disk instead); a malformed file is refused whole, and installing still goes through the review
+of what the entry can do. A wrong or hostile index can at worst mislabel an entry's kind, so Discover shows or hides
+it as a mod, until an index built later corrects it or the entry's commit moves. `MODMGR_INDEX_URL` (an http(s)
+address, for trying an index before it is published) reads the index from there instead, at every catalogue read.
+The index is built by a scheduled workflow whose job that fetches catalogue files holds no write token; a second job,
+running no third-party code, publishes the file. These reads are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
 empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
 files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads

@@ -1,6 +1,7 @@
 // Builds the hosted catalogue index (plugin/hooks/domain/catalog-index.ts):
-// every entry of the official catalogues, classified with the detector's own
-// decisions (planProbe, walkProbe, probeKey), written as `{ v, at, entries }`.
+// every remote entry of the official catalogues (a local one is read by each
+// client from its own clone), classified with the detector's own decisions
+// (planProbe, walkProbe, probeKey), written as `{ v, at, entries }`.
 // It reads the catalogues with the CLI on a throwaway CLAUDE_CONFIG_DIR, the
 // way modmgr does, and fetches from raw.githubusercontent.com politely: a few
 // at a time, every request paused after a 429/403/5xx. It refuses to write a
@@ -9,7 +10,7 @@
 //
 //   node scripts/build-index.ts <out.json>
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
@@ -19,12 +20,10 @@ import {
   type CatalogEntry,
   type CliRun,
   parseAvailable,
-  parseMarketplaces,
 } from '../plugin/hooks/domain/cli-results.ts'
 import {
   backoffMs,
   type FetchedFile,
-  localBase,
   MAX_BODY,
   planProbe,
   probeKey,
@@ -58,7 +57,6 @@ const cli = (args: string[]): CliRun => {
 
 const started = Date.now()
 let entries: CatalogEntry[]
-let roots: Map<string, string>
 try {
   for (const source of MARKETPLACES) {
     const added = cli(['plugin', 'marketplace', 'add', source])
@@ -66,14 +64,7 @@ try {
   }
   const available = parseAvailable(cli(['plugin', 'list', '--json', '--available']))
   if (!available.ok) throw new Error(`list --available: ${available.error.message}`)
-  const listed = parseMarketplaces(cli(['plugin', 'marketplace', 'list', '--json']))
-  if (!listed.ok) throw new Error(`marketplace list: ${listed.error.message}`)
   entries = available.value.available.items
-  roots = new Map(
-    listed.value.items.flatMap(item =>
-      item.installLocation === undefined ? [] : [[item.name, item.installLocation] as const],
-    ),
-  )
 } catch (error) {
   rmSync(config, { recursive: true, force: true })
   throw error
@@ -89,21 +80,15 @@ const fetchRemote = async (url: string): Promise<FetchedFile> => {
   }
 }
 
-const readLocal = async (path: string): Promise<FetchedFile> => {
-  try {
-    return { status: 200, text: readFileSync(path, 'utf8') }
-  } catch {
-    return { status: 404 }
-  }
-}
-
 type Work = { readonly entry: CatalogEntry; readonly key: string; attempt: number }
 const queue: Work[] = []
 for (const entry of entries) {
   // The client rejects a file with an id it can't read: such an entry is left out.
   if (!parsePluginId(entry.id).ok) continue
-  const key = probeKey(planProbe(entry), entry.version)
-  if (key !== undefined) queue.push({ entry, key, attempt: 0 })
+  // Clients read a local entry from their own clone, for free: only remote ones are published.
+  const plan = planProbe(entry)
+  const key = probeKey(plan, entry.version)
+  if (plan.kind === 'remote' && key !== undefined) queue.push({ entry, key, attempt: 0 })
 }
 const checkable = queue.length
 const found = new Map<string, DetectEntry>()
@@ -112,15 +97,11 @@ let requests = 0
 
 const classify = async (work: Work): Promise<CatalogKind | 'retry' | undefined> => {
   const plan = planProbe(work.entry)
-  if (plan.kind === 'remote') {
-    return walkProbe(plan.base, true, url => {
-      requests += 1
-      return fetchRemote(url)
-    })
-  }
-  if (plan.kind !== 'local') return undefined
-  const base = localBase(roots.get(work.entry.marketplace), plan.path)
-  return base === undefined ? undefined : walkProbe(base, false, readLocal)
+  if (plan.kind !== 'remote') return undefined
+  return walkProbe(plan.base, true, url => {
+    requests += 1
+    return fetchRemote(url)
+  })
 }
 
 const worker = async (): Promise<void> => {
@@ -134,7 +115,8 @@ const worker = async (): Promise<void> => {
       if (work.attempt <= RETRIES) queue.push(work)
       continue
     }
-    if (kind !== undefined) found.set(work.entry.id, [work.key, kind])
+    // `unknown` isn't published (clients don't take it): it counts as missing.
+    if (kind !== undefined && kind !== 'unknown') found.set(work.entry.id, [work.key, kind])
   }
 }
 

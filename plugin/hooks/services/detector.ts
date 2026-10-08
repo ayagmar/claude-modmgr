@@ -180,8 +180,10 @@ export const createDetector = (
 
   const runOnce = async (): Promise<void> => {
     const remoteOk = await deps.remoteAllowed()
-    // What the index already knows is not probed.
+    // What the index already knows is not probed. Its request waits, like a probe, while a turn runs.
     if (remoteOk && deps.index !== undefined) {
+      await idle()
+      if (disposed) return
       const merged = await deps.index.sync(deps.catalog.entries())
       if (merged > 0) {
         deps.catalog.invalidate()

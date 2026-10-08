@@ -14,6 +14,11 @@ import type { StoreService } from './store.ts'
 
 /** The index is rebuilt daily; twice a day catches a rebuild soon enough. */
 export const INDEX_MAX_AGE_MS = 12 * 60 * 60 * 1000
+/**
+ * A new module holds no index: it asks again after this, so a session started
+ * after the marketplaces moved still gets what the index knows.
+ */
+export const INDEX_NEW_MODULE_AGE_MS = 60 * 60 * 1000
 
 export type IndexSync = {
   /** Gives the index's kinds for `entries` to the detect cache; resolves to how many it gave. */
@@ -46,8 +51,8 @@ export const createIndexSync = (
     const trial = await ports.env.indexUrl().catch(() => undefined)
     const url = trial !== undefined && /^https?:\/\//.test(trial) ? trial : base
     const last = deps.store.get('catalogIndex').at
-    if (url === base && (unreachable || (last !== undefined && now - last < INDEX_MAX_AGE_MS)))
-      return undefined
+    const age = held === undefined ? INDEX_NEW_MODULE_AGE_MS : INDEX_MAX_AGE_MS
+    if (url === base && (unreachable || (last !== undefined && now - last < age))) return undefined
     let response: { readonly status: number; readonly text: string }
     try {
       response = await ports.http.get(url)
@@ -75,9 +80,13 @@ export const createIndexSync = (
 
   return {
     async sync(entries) {
-      held = (await fetchIndex()) ?? held
+      const before = deps.store.get('catalogIndex').built
+      const fetched = await fetchIndex()
+      held = fetched ?? held
       if (held === undefined) return 0
-      const given = fromIndex(entries, held, deps.store.get('detect'))
+      // A file built after the last one read corrects what that one said.
+      const newer = fetched !== undefined && (before === undefined || fetched.at > before)
+      const given = fromIndex(entries, held, deps.store.get('detect'), newer)
       if (given.length > 0) {
         deps.store.update('detect', cache => lruSetMany(cache, given, CAPS.detect))
       }

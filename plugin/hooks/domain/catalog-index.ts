@@ -63,20 +63,28 @@ export const parseIndex = (text: string): Result<CatalogIndexFile> => {
 }
 
 /**
- * The detect cache entries the index gives for `entries`: those whose index
- * key is the entry's own and that the cache doesn't already hold at that key.
+ * The detect cache entries the index gives for `entries`: a remote entry whose
+ * index key is its own pinned commit. `unknown` is not a verdict (a failed
+ * read gives it; the detector tries again), and a local entry is read from
+ * disk for free, so neither is taken. What the cache already holds at that key
+ * is kept, unless `newer`: an index built after the last one read corrects it.
  */
 export const fromIndex = (
   entries: readonly CatalogEntry[],
   index: CatalogIndexFile,
   cache: Readonly<Record<string, DetectEntry>>,
+  newer = false,
 ): [string, DetectEntry][] => {
   const out: [string, DetectEntry][] = []
   for (const entry of entries) {
     const listed = index.entries[entry.id]
-    if (listed === undefined) continue
-    const key = probeKey(planProbe(entry), entry.version)
-    if (key === undefined || listed[0] !== key || cache[entry.id]?.[0] === key) continue
+    if (listed === undefined || listed[1] === 'unknown') continue
+    const plan = planProbe(entry)
+    if (plan.kind !== 'remote') continue
+    const key = probeKey(plan, entry.version)
+    if (key === undefined || listed[0] !== key) continue
+    const cached = cache[entry.id]
+    if (cached?.[0] === key && (!newer || cached[1] === listed[1])) continue
     out.push([entry.id, listed])
   }
   return out

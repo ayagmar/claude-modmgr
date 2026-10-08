@@ -4,7 +4,11 @@ import { parseAvailable } from '../../plugin/hooks/domain/cli-results.ts'
 import { planProbe, probeKey } from '../../plugin/hooks/domain/detector.ts'
 import type { DetectEntry } from '../../plugin/hooks/domain/store-schema.ts'
 import { createCatalog } from '../../plugin/hooks/services/catalog.ts'
-import { createIndexSync, INDEX_MAX_AGE_MS } from '../../plugin/hooks/services/catalog-index.ts'
+import {
+  createIndexSync,
+  INDEX_MAX_AGE_MS,
+  INDEX_NEW_MODULE_AGE_MS,
+} from '../../plugin/hooks/services/catalog-index.ts'
 import { createDetector } from '../../plugin/hooks/services/detector.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
@@ -91,6 +95,26 @@ describe('the hosted index', () => {
     await offline.sync(other.catalog.entries())
     expect(indexGets(other.w)).toBe(1)
     expect(other.store.get('catalogIndex')).toEqual({})
+  })
+
+  it('a new module asks again after an hour; a newer index corrects what an older one said', async () => {
+    const { w, store, catalog } = await setup()
+    const wrong = remoteIndex()
+    const right = remoteIndex()
+    const [id, [key]] = [...right.entries()].find(([other]) => other !== AWS) ?? ['', ['']]
+    wrong.set(id, [key, 'plain'])
+    right.set(id, [key, 'mod'])
+    w.http.answers.set(INDEX_URL, { status: 200, text: indexText(9, wrong) })
+    await createIndexSync(w.ports, { store }).sync(catalog.entries())
+    expect(store.get('detect')[id]?.[1]).toBe('plain')
+    // The next session, within the hour: nothing asked.
+    w.http.answers.set(INDEX_URL, { status: 200, text: indexText(10, right) })
+    await createIndexSync(w.ports, { store }).sync(catalog.entries())
+    expect(indexGets(w)).toBe(1)
+    await w.clock.advance(INDEX_NEW_MODULE_AGE_MS)
+    await createIndexSync(w.ports, { store }).sync(catalog.entries())
+    expect(indexGets(w)).toBe(2)
+    expect(store.get('detect')[id]?.[1]).toBe('mod')
   })
 
   it('reads an index being tried out (MODMGR_INDEX_URL) at every sync, and only an http(s) one', async () => {

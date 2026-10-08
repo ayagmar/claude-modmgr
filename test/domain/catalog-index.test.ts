@@ -66,10 +66,11 @@ describe('fromIndex', () => {
       'moved@m': [OTHER, 'mod'],
       'cached@m': [SHA, 'hooks'],
       'local@m': ['local:2.0.0', 'plain'],
+      'unsure@m': [SHA, 'unknown'],
     },
   } as const
 
-  it('gives a kind only where the key is the entry’s own and the cache lacks it', () => {
+  it('gives a remote entry’s kind only where the key is its own and the cache lacks it', () => {
     const entries = [
       entry('same@m'),
       entry('moved@m'),
@@ -77,12 +78,20 @@ describe('fromIndex', () => {
       entry('local@m', { source: { kind: 'relative', path: './x' }, version: '2.0.0' }),
       entry('unlisted@m'),
       entry('unpinned@m', { source: { kind: 'github', repo: 'o/r' } }),
+      entry('unsure@m'),
     ]
+    // A local entry is read from disk; `unknown` is no verdict.
     const given = fromIndex(entries, index, { 'cached@m': [SHA, 'hooks'] })
-    expect(given).toEqual([
-      ['same@m', [SHA, 'mod']],
-      ['local@m', ['local:2.0.0', 'plain']],
+    expect(given).toEqual([['same@m', [SHA, 'mod']]])
+  })
+
+  it('a newer index corrects a kind cached at the same key', () => {
+    const cache = { 'cached@m': [SHA, 'plain'] } as const
+    expect(fromIndex([entry('cached@m')], index, cache)).toEqual([])
+    expect(fromIndex([entry('cached@m')], index, cache, true)).toEqual([
+      ['cached@m', [SHA, 'hooks']],
     ])
+    expect(fromIndex([entry('cached@m')], index, { 'cached@m': [SHA, 'hooks'] }, true)).toEqual([])
   })
 
   it('takes the index over a cached kind at another key', () => {
