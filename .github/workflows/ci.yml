@@ -71,3 +71,12 @@ jobs:
 
       - name: Build the site
         run: pnpm --filter modmgr-site build
+
+      - name: Check the site's links and weight
+        run: node scripts/check-site.ts
+
+      - name: Lighthouse (performance, accessibility, best practices, SEO at 100)
+        # The site lives under /modmgr/: serve the build there.
+        run: |
+          rm -rf .lhci-root && mkdir -p .lhci-root && cp -r site/dist .lhci-root/modmgr
+          pnpm dlx @lhci/cli@0.15.1 autorun --config=site/lighthouserc.json
