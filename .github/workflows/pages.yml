@@ -1,6 +1,6 @@
 name: pages
 
-# The landing page (PLAN §8) at https://ayagmar.github.io/modmgr/, from main.
+# The landing page at https://ayagmar.github.io/modmgr/, from main.
 on:
   push:
     branches: [main]

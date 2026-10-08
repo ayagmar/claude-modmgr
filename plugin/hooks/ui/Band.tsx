@@ -1,6 +1,6 @@
-// The band above the prompt (PLAN §5.4, C8): one line while something is
+// The band above the prompt: one line while something is
 // actionable and wasn't dismissed. Letters only (a bare digit in an empty
-// composer presses a band Button, F12). Undefined: the band passes.
+// composer presses a band Button). Undefined: the band passes.
 
 import type { RenderElement } from 'claude-code'
 import { bandOf, summaryOf } from '../domain/view.ts'

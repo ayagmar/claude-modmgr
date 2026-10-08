@@ -1,5 +1,5 @@
 // What each `$.state` key reads before anything is written, and the shape tag
-// its atom is kept under (C3). Bump a key's tag whenever its type in
+// its atom is kept under. Bump a key's tag whenever its type in
 // types/index.d.ts changes: the new module then reads the old value as absent.
 
 import type {

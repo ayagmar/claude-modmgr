@@ -1,6 +1,7 @@
-// What every view draws with (C2): the surface's element table, state reads
-// and the actions, never `$`. Theme keys and glyphs are fixed (PLAN §5.1,
-// §5.6, F13, R18); hotkeys come only from domain/keymap.ts.
+// What every view draws with: the surface's element table, state reads
+// and the actions, never `$`. Theme keys and glyphs are fixed (the theme has
+// no `accent` or `muted` keys: `claude` and `subtle` stand in); hotkeys come
+// only from domain/keymap.ts.
 
 import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
@@ -34,7 +35,7 @@ export const GLYPH = {
   stale: '↻',
 } as const
 
-/** The theme keys modmgr uses (F13): one accent, quiet metadata, three tones. */
+/** The theme keys modmgr uses: one accent, quiet metadata, three tones. */
 export const TONE = {
   accent: 'claude',
   muted: 'subtle',

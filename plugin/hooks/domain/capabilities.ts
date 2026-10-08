@@ -1,4 +1,4 @@
-// Capabilities as facts (PLAN §2.2, R4): what a mod hooks and calls, grouped by
+// Capabilities as facts: what a mod hooks and calls, grouped by
 // reach, plus a short list of "notable" combinations. No score: the facts and
 // the combinations are what a person can act on.
 

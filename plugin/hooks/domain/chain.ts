@@ -1,4 +1,4 @@
-// Chain-order notes (PLAN §2.5, R5). Only two events are worth a note: both
+// Chain-order notes. Only two events are worth a note: both
 // rewrite what the model reads, and the order they run in decides the result.
 
 export const CHAIN_EVENTS = {
@@ -28,7 +28,7 @@ const joinOrder = (names: readonly string[]): string =>
 
 /**
  * One note per chain event that two or more enabled mods hook, given the mods
- * in load order (F3: `enabledPlugins` key order).
+ * in load order (installed plugins load in `enabledPlugins` key order).
  */
 export const chainNotes = (modsInLoadOrder: readonly ChainMod[]): ChainNote[] =>
   (Object.keys(CHAIN_EVENTS) as ChainEvent[]).flatMap(event => {

@@ -1,5 +1,5 @@
-// Discover's logic (PLAN §2.3): what a catalogue row says, the install
-// review, the review that accepts a marketplace-declared command (F25), and
+// Discover's logic: what a catalogue row says, the install
+// review, the review that accepts a marketplace-declared command, and
 // adding a marketplace. The catalogue itself lives in services/catalog.ts.
 
 import type {
@@ -33,7 +33,7 @@ export type Inspection = {
   readonly hasModule: boolean
 }
 
-/** A local entry modmgr tried to read and couldn't, and why (review R-M4-5). */
+/** A local entry modmgr tried to read and couldn't, and why. */
 export type Unread = { readonly failed: string }
 
 export const isUnread = (value: Inspection | Unread | undefined): value is Unread =>
@@ -42,7 +42,7 @@ export const isUnread = (value: Inspection | Unread | undefined): value is Unrea
 /**
  * The review of installing `entry` (`i`): the scope (user by default), what it
  * can do when modmgr could read it, else that it couldn't (a remote source is
- * read only once installed; a pre-install diff is v1.1, PLAN §12).
+ * read only once installed).
  */
 export const installReview = (
   entry: { readonly id: string; readonly name: string; readonly version?: string | undefined },
@@ -84,7 +84,7 @@ export const withScope = (review: ReviewRequest, scope: Scope): ReviewRequest =>
  * the command a marketplace declares (or the headers helper that fetches its
  * archive), verbatim, with its sha256. Confirming passes the sha with
  * `--accept-command`; the CLI runs it only if the command it would run still
- * has that sha, and otherwise shows the new one (F25), which this review
+ * has that sha, and otherwise shows the new one, which this review
  * shows again. Undefined for a job that wasn't stopped that way.
  */
 export const acceptReview = (job: Job): ReviewRequest | undefined => {

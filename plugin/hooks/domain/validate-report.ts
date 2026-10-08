@@ -1,4 +1,4 @@
-// Parses `claude plugin validate --json <root>` (F5) into what a mod hooks,
+// Parses `claude plugin validate --json <root>` into what a mod hooks,
 // calls and reads, plus its errors and warnings. The notes are the validator's
 // own lines, e.g. `./register.tsx calls: $.fs.read (via log), $.ui.toast`.
 
@@ -23,7 +23,7 @@ export type ValidateReport = {
   readonly envWrites: string[]
   readonly stateReads: string[]
   readonly stateWrites: string[]
-  /** Gating hooks the validator found without a `.catch` (F14). */
+  /** Gating hooks the validator found without a `.catch` (it warns about each). */
   readonly uncaughtGates: string[]
 }
 

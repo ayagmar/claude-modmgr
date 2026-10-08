@@ -1,4 +1,4 @@
-// What the pane's Buttons, its Input, the band and the focus ring do (C2):
+// What the pane's Buttons, its Input, the band and the focus ring do:
 // each reads and writes `$.state` through the dispatch's own ports, then asks
 // the module's runtime to run what it queued (`kick`). No job ever runs here.
 // Every action catches its own failure: a press must never throw into the host.
@@ -160,14 +160,14 @@ export type Actions = {
   focusHealth(key: string): Promise<void>
   /** Enter on a Health item, split: its fix. */
   fix(key: string): Promise<void>
-  /** Enter on a Health item, stacked: the item whole, its fix a button (review R-M5-5). */
+  /** Enter on a Health item, stacked: the item whole (its row is clipped), its fix a button. */
   openHealth(key: string): Promise<void>
   /**
    * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
    * open. `hadKeys` is whether the pane held the keys when it was last drawn
    * on the terminal. Esc hands the keys back to the prompt before the hook runs
-   * (F45), so the cascade answers only when the pane had them then and has them
-   * no more; the close mark and ctrl+x x leave them with the pane (F49) and
+   * is raised, so the cascade answers only when the pane had them then and has them
+   * no more; the close mark and ctrl+x x leave them with the pane and
    * close. A kept pane re-takes the keys.
    */
   closing(origin: 'person' | 'plugin' | 'unload', hadKeys: boolean): Promise<boolean>
@@ -204,8 +204,8 @@ export const createActions = (
 
   /**
    * Opens (or re-opens) the dialog with its manners and the current title: a
-   * re-open sets both anew (F22), so every open says them. Toasts are held
-   * only while nothing runs (C8).
+   * re-open sets both anew, so every open says them. Toasts are held
+   * only while nothing runs.
    */
   const openDialog = async (how: { focus: boolean; idle?: boolean }): Promise<void> => {
     const [attention, queue, mods, view] = await Promise.all([
@@ -235,9 +235,9 @@ export const createActions = (
       when,
     )
     if (!queued) return 'stale'
-    // These are the dispatch's writes, not the runtime's: say so to the status line (R-M3b-12).
+    // These are the dispatch's writes, not the runtime's: say so to the status line.
     rt.chrome.schedule()
-    // A pane left open while jobs run must not hold other plugins' toasts (C8).
+    // A pane left open while jobs run must not hold other plugins' toasts.
     if ((await ui.panes()).some(pane => pane.id === PANE_ID)) {
       await openDialog({ focus: false, idle: false })
     }
@@ -249,7 +249,7 @@ export const createActions = (
   const retake = (): Promise<void> => openDialog({ focus: true })
 
   /**
-   * Puts the ring on the first of `keys` the pane draws (F46: a ring whose
+   * Puts the ring on the first of `keys` the pane draws (a ring whose
    * Button a redraw removed goes nowhere). `$.ui.focus` awaits an element the
    * redraw is about to draw; a denial or a refusal tries the next key.
    */
@@ -371,7 +371,7 @@ export const createActions = (
 
   const actions: Actions = {
     tab: safely('tab', async tab => {
-      // A review on the stack and in state go together (review R-M4-9).
+      // A review on the stack and in state go together.
       await dropReview()
       const view = await setView(current => ({ ...quiet(current), tab, stack: [] }))
       remember(view)
@@ -390,7 +390,7 @@ export const createActions = (
       await setView(view => pushOverlay({ ...quiet(view), selected: id }, 'detail'))
       await select(id)
       await ringToOverlay()
-      // Opening the detail is seeing what its update added (PLAN §2.2).
+      // Opening the detail is seeing what its update added.
       await rt?.registry.acknowledge(id)
     }),
 
@@ -463,7 +463,7 @@ export const createActions = (
 
     confirm: safely('confirm', async () => {
       // Taken by compare-and-set: of two presses before the redraw (a hotkey and
-      // an Enter), one gets the review and the other finds none (review R-M3a-2).
+      // an Enter), one gets the review and the other finds none.
       let taken: ReviewRequest | null = null
       await state.update('review', review => {
         taken = review
@@ -471,7 +471,7 @@ export const createActions = (
       })
       const review = taken as ReviewRequest | null
       if (review === null) return
-      // An undo reviewed is queued only while its batch is still the one to undo (R-M3b-8).
+      // An undo reviewed is queued only while its batch is still the one to undo.
       const { undoes } = review
       const queued = await queueBatch(
         specsOf(review),
@@ -483,7 +483,7 @@ export const createActions = (
       }
       const ids = new Set(review.targets.map(target => target.id))
       // A removed mod's detail goes with it, and the selection moves on, or the
-      // ring would land on a row the refresh is about to take away (R-M3b-8).
+      // ring would land on a row the refresh is about to take away.
       const gone = review.targets.find(target => target.op === 'remove')?.id
       // An entry installed leaves the catalogue: its Discover detail goes too.
       const installed = review.action === 'install' && (await state.read('view')).tab === 'discover'
@@ -529,7 +529,7 @@ export const createActions = (
         await openReview(undoReview(plan, mods, id => rt?.registry.facts(id)))
         return
       }
-      // Two presses read one queue: only the first still finds this batch to undo (R-M3b-2).
+      // Two presses read one queue: only the first still finds this batch to undo.
       const queued = await queueBatch(
         plan.steps.map(step => step.spec),
         current => stillUndoes(current.jobs, plan.batch),
@@ -551,7 +551,7 @@ export const createActions = (
         return
       }
       await rt.registry.refresh()
-      // A row the refresh flipped under a staged entry no longer changes (review R-M3a-3).
+      // A row the refresh flipped under a staged entry no longer changes.
       const mods = await state.read('mods')
       await setView(view => pruneStaged(view, mods))
     }),
@@ -624,7 +624,7 @@ export const createActions = (
 
     openPane: safely('open pane', async () => {
       await openDialog({ focus: true })
-      // A restored tab is read when the dialog shows it (review R-M6-2).
+      // A restored tab is read when the dialog shows it.
       void rt?.showTab((await state.read('view')).tab)
     }),
 
@@ -634,7 +634,7 @@ export const createActions = (
       await setView(current => ({ ...quiet(current), found: id }))
       await showCatalog()
       // A local entry beside the list (the split) says what it can do too: read in
-      // the background, never on the ring's path (review R-M4-1); the redraw follows.
+      // the background, never on the ring's path; the redraw follows.
       void rt?.catalog.inspect(id)
     }),
 
@@ -712,7 +712,7 @@ export const createActions = (
 
     dismiss: safely('dismiss', async line => {
       await state.update('attention', attention => ({ ...attention, dismissed: line }))
-      // A dismissal quiets the status line and the title too (R-M3b-3).
+      // A dismissal quiets the status line and the title too.
       rt?.chrome.schedule()
     }),
 
@@ -823,7 +823,7 @@ export const createActions = (
           (await ui.panes()).find(pane => pane.id === PANE_ID)?.isFocused === true
         debug(`modmgr: close from ${origin}, keys at last draw ${hadKeys}, now ${stillHasKeys}`)
         const before = await state.read('view')
-        // Closed or popped, the welcome was on screen: seen (review R-M6-5).
+        // Closed or popped, the welcome was on screen: seen.
         seenWelcome(before)
         if (origin === 'person' && hadKeys && !stillHasKeys) {
           const view = before

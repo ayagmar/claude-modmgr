@@ -1,7 +1,7 @@
-// Update detection (PLAN §2.6, C15). The CLI has no "outdated" query and no
+// Update detection. The CLI has no "outdated" query and no
 // dry run (`update` installs), and `list --available` leaves installed plugins
-// out (F10), so after a marketplace refresh modmgr reads each marketplace's own
-// file and finds what it can say for sure (F58): a newer declared version, or
+// out, so after a marketplace refresh modmgr reads each marketplace's own
+// file and finds what it can say for sure: a newer declared version, or
 // a pinned commit that moved past an installed commit-named version. Anything
 // else stays unknown; `a` (update all) still asks the CLI.
 
@@ -17,7 +17,7 @@ import { compareVersions } from './version.ts'
  * A plugin as its marketplace's own file lists it, with the version its own
  * `plugin.json` says when that file is on disk (a relative source): the CLI
  * compares the plugin's own version when it has one, the file's declaration
- * otherwise (F58, review R-M5-2).
+ * otherwise.
  */
 export type ListedEntry = {
   readonly version?: string
@@ -58,7 +58,7 @@ const pinnedSha = (source: CatalogSource): string | undefined =>
 /**
  * The version an installed plugin can update to, when its marketplace's file
  * says so for sure; undefined otherwise. Only marketplace installs update
- * through the CLI (a folder marketplace runs from its folder, F51; managed and
+ * through the CLI (a folder marketplace runs from its folder; managed and
  * launch-command plugins aren't the CLI's to update).
  */
 export const updateOf = (

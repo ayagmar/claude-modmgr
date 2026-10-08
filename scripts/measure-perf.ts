@@ -1,4 +1,4 @@
-// Measures the pure computations behind PLAN §6's budgets on this machine and
+// Measures the pure computations behind the performance budgets on this machine and
 // prints a Markdown table for docs/PERF.md: the catalogue index and a keystroke
 // over 3.5k and 10k entries, and what a pane draw computes over 200 mods
 // (rows, window, summary, Health's items). The host-bound budgets (first paint,

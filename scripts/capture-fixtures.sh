@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Captures real `claude plugin … --json` output into test/domain/fixtures/*.ts (PLAN §9).
+# Captures real `claude plugin … --json` output into test/domain/fixtures/*.ts.
 #
 # Everything runs against a throwaway CLAUDE_CONFIG_DIR and a throwaway project
 # folder; the person's real config is never read or written.
@@ -20,7 +20,7 @@ git -C "$work/project" init -q
 # A writable copy of the fixture marketplace, so versions can be bumped for `update`.
 cp -r "$repo/test/fixture-mods" "$work/mkt"
 
-# A marketplace whose one plugin is installed by a declared command (S2).
+# A marketplace whose one plugin is installed by a declared command.
 mkdir -p "$work/cmdmkt/.claude-plugin"
 cat > "$work/emit.sh" <<EOF
 #!/bin/sh

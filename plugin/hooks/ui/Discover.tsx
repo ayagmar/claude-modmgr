@@ -99,7 +99,7 @@ export const FoundList = (
           ? 'Network use is off, so only local catalogues are checked.'
           : 'modmgr checks more of the catalogue while you work.',
       )
-      // The footer draws `k` and `m`: a key is drawn once (two Buttons with one key clash, F12).
+      // The footer draws `k` and `m`: a key is drawn once (two Buttons with one hotkey clash).
       lines.push('k shows plugins with hooks; m adds a marketplace.')
     } else lines.push('Nothing to show with this filter.')
     return (

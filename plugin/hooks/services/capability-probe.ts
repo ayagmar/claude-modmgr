@@ -1,8 +1,8 @@
-// What this session lets modmgr do (C5, C8): `$.process` is detected by
+// What this session lets modmgr do: `$.process` is detected by
 // calling `claude --version` and catching (the validator refuses `'process' in
-// $`, F32); the network by `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`. The
+// $`); the network by `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`. The
 // result goes to `$.state` `degraded`; `acceptCommand` is set elsewhere, after
-// Claude Code refused an acceptance (C4), and kept here.
+// Claude Code refused an acceptance, and kept here.
 
 import type { Degraded } from '../../types/index.d.ts'
 import { trafficOff } from '../domain/config.ts'

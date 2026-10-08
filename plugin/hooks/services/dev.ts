@@ -1,9 +1,9 @@
-// Dev's sources (PLAN §2.4, C6, C14): the listed plugins a person edits in a
+// Dev's sources: the listed plugins a person edits in a
 // folder (`@inline`, `@skills-dir`, folder marketplaces), this session's mods
 // folder, and the `--plugin-dir` plugins inferred from their commands, whose
 // folder is looked for where the session runs. Rows go to `$.state` `dev`;
 // what validate and test said is read from the job queue. Also counts the
-// failures the session reports while it hot-reloads a folder (F20).
+// failures the session reports while it hot-reloads a folder.
 
 import type { DevShare } from '../../types/index.d.ts'
 import {
@@ -83,7 +83,7 @@ export const createDev = (
   /**
    * Where a `--plugin-dir` plugin's folder is: where the session runs, when its
    * manifest names it, or the folder a marketplace file there lists it at (a
-   * mod's repository is often its marketplace, reference §Sharing a mod).
+   * mod's repository is often its marketplace: the engine's reference, §Sharing a mod).
    */
   const locate = async (name: string, places: readonly string[]): Promise<Found | undefined> => {
     for (const place of places) {

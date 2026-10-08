@@ -1,9 +1,10 @@
-// The ordered fan-out for events modmgr hooks once (F37, review M3). Sequencing
+// The ordered fan-out for events modmgr hooks once (a module may hook an event
+// only once without a matcher). Sequencing
 // lives here, not in register.tsx, so it is tested.
 //
-// `session.start` must stay under 5 ms of blocking work (PLAN §6): it registers
+// `session.start` must stay under 5 ms of blocking work: it registers
 // `/mods` and takes the job queue over, then hands everything else to a clock
-// timer. It runs again when modmgr's own module reloads (F31), so every step is
+// timer. It runs again when modmgr's own module reloads, so every step is
 // idempotent.
 
 import { RELOADED_WITH_MODMGR, takeOver, tookOverReload } from '../domain/jobs.ts'
@@ -18,7 +19,7 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
   const { ports } = rt
   let fresh = false
   let reloaded = false
-  // Side by side: each is a host round trip, and session.start blocks the session (PLAN §6).
+  // Side by side: each is a host round trip, and session.start blocks the session.
   const takeQueue = async (): Promise<void> => {
     const now = await ports.clock.now()
     await ports.state.update('queue', queue => {
@@ -29,10 +30,10 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
     })
   }
   await Promise.all([ports.command.registerMods(), takeQueue()])
-  // The reload that restarted this module applied what the batch changed (F54).
+  // The reload that restarted this module applied what the batch changed.
   if (reloaded) {
     await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
-    // Said for a while, as the runner's own echo is (review R-M4-4).
+    // Said for a while, as the runner's own echo is.
     await echoLine(ports, RELOADED_WITH_MODMGR)
   }
   ports.clock.after(0, () => {
@@ -51,8 +52,8 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     await rt.store.load()
     if (how.fresh) {
       const prefs = readPrefs(rt.store.get('prefs'))
-      // Until it has been seen, a session that draws opens on a word of welcome (PLAN
-      // §5.3); leaving it marks it seen (review R-M6-5). A `-p` run draws nothing.
+      // Until it has been seen, a session that draws opens on a word of welcome;
+      // leaving it marks it seen. A `-p` run draws nothing.
       const draws = (await ports.session.surfaces().catch(() => [])).length > 0
       const welcome = draws && !prefs.firstRunDone
       await ports.state.update('view', view => ({
@@ -69,10 +70,10 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     if (!probe.process) {
       await rt.registry.refresh()
       rt.runner.kick()
-      // Re-armed by every module from the stored time: a reload loses timers (F19).
+      // Re-armed by every module from the stored time: a reload loses timers.
       await rt.updater.arm()
       // A reloaded modmgr with a tab showing reads what it needs again (module memory). A
-      // fresh session only restores the tab: it is read when the dialog opens (review R-M6-2).
+      // fresh session only restores the tab: it is read when the dialog opens.
       if (!how.fresh) await rt.showTab((await ports.state.read('view')).tab)
     }
   } catch (error) {
@@ -81,10 +82,10 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
 }
 
 /**
- * The turns running now, by id (review R-M4-2): a subagent's run raises no
+ * The turns running now, by id: a subagent's run raises no
  * `turn.start` and its `turn.complete` carries `agentId` (d.ts TurnCompleteFields),
  * so only the main loop's own start and end count. The detector probes, and
- * M5b's scheduler fetches, only while none runs (PLAN §2.3, idle-only).
+ * the update scheduler fetches, only while none runs.
  */
 export const onTurnStart = (rt: Runtime | undefined, turnId: string): void => {
   if (rt === undefined) return
@@ -105,7 +106,7 @@ export const onTurnEnd = (
 /**
  * A notice the session appended (`session.append`, door `notice`): while it
  * hot-reloads a folder, the engine says there when a plugin's hook or module
- * failed (F20). Dev counts them; nothing is answered or changed.
+ * failed. Dev counts them; nothing is answered or changed.
  */
 export const onNotice = (
   rt: Runtime | undefined,
