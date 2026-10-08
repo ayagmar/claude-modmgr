@@ -39,7 +39,8 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'act:tab.health' })
     await settle(h)
     await ui.redraw()
-    expect((await ui.find({ key: 'act:tab.health' }))?.props.label).toMatch(/^Health ▲\d+$/)
+    // The tab shown is its title, with the count of problems.
+    expect((await ui.find({ type: 'Text', text: /^Health ▲\d+$/ }))?.text).toMatch(/^Health ▲\d+$/)
     // The broken fixture's validate errors, the failures redactor reported, a reload owed.
     expect(await ui.find({ key: 'health:broken@fixtures:validate' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '→ see it' })).toBeDefined()

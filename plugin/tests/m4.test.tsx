@@ -35,7 +35,8 @@ for (const surface of SURFACES) {
     await $.session.start(START)
     await h.clock.advance(1)
     const ui = await mountPane($, surface)
-    await ui.press({ key: 'act:tab.discover' })
+    // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
+    if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
     expect(h.fetched).toContain(AWS_HOOKS)
@@ -83,7 +84,8 @@ for (const surface of SURFACES) {
     await $.session.start(START)
     await h.clock.advance(1)
     const ui = await mountPane($, surface, PANE(64, 30))
-    await ui.press({ key: 'act:tab.discover' })
+    // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
+    if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
     await ui.input({ key: 'filter', text: 'cmdmod', kind: 'change' })
@@ -115,7 +117,8 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
   await h.clock.advance(1)
   for (const [at, surface] of SURFACES.entries()) {
     const ui = await mountPane($, surface)
-    await ui.press({ key: 'act:tab.discover' })
+    // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
+    if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
     // Mods only (`k`, kept for the next surface): none found yet.
@@ -236,7 +239,8 @@ test('from 100 body columns the selected entry’s detail sits beside the Discov
   await h.clock.advance(1)
   for (const surface of SURFACES) {
     const ui = await mountPane($, surface, PANE(120, 24))
-    await ui.press({ key: 'act:tab.discover' })
+    // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
+    if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
     await settle(h)
     await ui.redraw()
     expect(await ui.find({ key: `found:${AWS}` })).toBeDefined()

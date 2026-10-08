@@ -16,8 +16,8 @@ import { bumpTurnBand, fixtureCli } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
 import { ELEMENTS, installJsx, type Line, render, tidy } from './render.ts'
 
-const COLUMNS = 62
-const ROWS = 15
+const COLUMNS = 96
+const ROWS = 24
 const DEMO = join(import.meta.dirname, '../../site/src/data/demo.ts')
 const AWS = 'aws-serverless@claude-plugins-official'
 

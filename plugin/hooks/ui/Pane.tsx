@@ -10,7 +10,6 @@ import type { Overlay, View } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
 import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
 import { healthItemsOf, problemCount } from '../domain/health.ts'
-import { isActive } from '../domain/jobs.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
@@ -62,8 +61,6 @@ type Key = {
   readonly action: string
   readonly on: KeySurface
   readonly label: string
-  /** Drawn in the footer; otherwise mounted hidden (its hotkey works, help lists it). */
-  readonly shown?: boolean
   /** Gets the press: a copy targets the surface it came from. */
   readonly onPress: (press: UiPressArgument) => void
 }
@@ -154,50 +151,44 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // stacked, the footer carries them until Enter opens the detail.
   const itemKeys = !split && top === undefined
 
-  // The keys that apply now. The `shown` ones are drawn in the footer; the rest
-  // are mounted hidden, so their hotkeys work and help lists them.
+  // The footer's keys: the actions of the moment. Every key is drawn where it
+  // belongs (tabs, refresh, search, pager, footer): a hotkey needs a Button,
+  // and every Button is a stop of the Tab ring, so none is hidden.
   const keys: Key[] = []
   const add = (key: Omit<Key, 'on'> & { readonly on?: KeySurface }) =>
     keys.push({ on: surface, ...key })
-  if (top === undefined && installed) {
-    const updatable = readOnly ? 0 : mods.filter(row => whyNoUpdate(row) === undefined).length
-    if (itemKeys && !readOnly && selected !== undefined) {
-      add({ action: 'toggle', label: 'toggle', shown: true, onPress: () => v.act.toggle() })
+  if (top === undefined && installed && !readOnly) {
+    const updatable = mods.filter(row => whyNoUpdate(row) === undefined).length
+    if (itemKeys && selected !== undefined) {
+      add({ action: 'toggle', label: 'toggle', onPress: () => v.act.toggle() })
       if (whyNoUpdate(selected) === undefined)
-        add({ action: 'update', label: 'update', shown: true, onPress: () => v.act.update() })
+        add({ action: 'update', label: 'update', onPress: () => v.act.update() })
       if (whyNoRemove(selected) === undefined)
         add({ action: 'remove', label: 'remove', onPress: () => v.act.remove() })
     }
     if (updatable > 1)
-      add({
-        action: 'update-all',
-        label: 'update all',
-        shown: true,
-        onPress: () => v.act.updateAll(),
-      })
-    if (!readOnly) add({ action: 'undo', label: 'undo', onPress: () => v.act.undo() })
+      add({ action: 'update-all', label: 'update all', onPress: () => v.act.updateAll() })
+    add({ action: 'undo', label: 'undo', onPress: () => v.act.undo() })
   }
   if (top === undefined && discover) {
     if (itemKeys && !readOnly && found !== undefined)
-      add({ action: 'install', label: 'install', shown: true, onPress: () => v.act.install() })
+      add({ action: 'install', label: 'install', onPress: () => v.act.install() })
     // Each says what pressing it does next.
     add({
       action: 'kind',
       label:
         view.kind === 'mods' ? 'with hooks' : view.kind === 'hooks' ? 'all plugins' : 'mods only',
-      shown: true,
       onPress: () => v.act.cycleKind(),
     })
     add({
       action: 'sort',
       label: `sort by ${nextSort(view.sort)}`,
-      shown: true,
       onPress: () => v.act.cycleSort(),
     })
     if (!readOnly)
       add({
         action: 'marketplace-add',
-        label: 'add marketplace',
+        label: 'marketplace',
         onPress: () => v.act.addMarketplace(),
       })
   }
@@ -205,13 +196,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     if (itemKeys && devRow !== undefined) {
       const path = devRow.path
       if (!readOnly) {
-        add({
-          action: 'validate',
-          label: 'validate',
-          shown: true,
-          onPress: () => v.act.devRun('validate'),
-        })
-        add({ action: 'test', label: 'test', shown: true, onPress: () => v.act.devRun('test') })
+        add({ action: 'validate', label: 'validate', onPress: () => v.act.devRun('validate') })
+        add({ action: 'test', label: 'test', onPress: () => v.act.devRun('test') })
         add({ action: 'share', label: 'share', onPress: () => v.act.share() })
       }
       add({
@@ -220,60 +206,35 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         onPress: press => v.act.copy(path, press.surface),
       })
     }
-    if (!readOnly)
-      add({ action: 'reload', label: 'reload', shown: true, onPress: () => v.act.reload() })
+    if (!readOnly) add({ action: 'reload', label: 'reload', onPress: () => v.act.reload() })
   }
   if (top === undefined && health && !readOnly) {
-    add({ action: 'reload', label: 'reload', shown: true, onPress: () => v.act.reload() })
+    add({ action: 'reload', label: 'reload', onPress: () => v.act.reload() })
   }
-  if (top === undefined) {
-    // `v` is Dev's validate: a waiting command is reviewed from Installed or Discover.
-    if (stopped !== undefined && !dev) {
-      add({
-        action: 'accept',
-        label: 'review the command',
-        shown: true,
-        onPress: () => v.act.acceptShown(),
-      })
-    }
-    add({ action: 'refresh', label: 'refresh', onPress: () => v.act.refresh() })
-    if (fieldShown) {
-      add({
-        action: 'filter',
-        label: discover ? 'search' : 'filter',
-        onPress: () => v.act.focusFilter(),
-      })
-    }
+  // `v` is Dev's validate: a waiting command is reviewed from Installed or Discover.
+  if (top === undefined && stopped !== undefined && !dev) {
+    add({ action: 'accept', label: 'review the command', onPress: () => v.act.acceptShown() })
   }
-  const working = queue.jobs.some(isActive)
-  if (top !== 'review' && top !== 'marketplace') {
-    add({
-      action: 'jobs',
-      on: 'pane',
-      label: 'jobs',
-      shown: working,
-      onPress: () => v.act.overlay('jobs'),
-    })
-  }
-  const helpKey: Key | undefined =
+  // Jobs and keys go over any view; a review or the marketplace form holds the keys.
+  const general: Key[] =
     top === 'review' || top === 'marketplace'
-      ? undefined
-      : { action: 'help', on: 'pane', label: 'keys', onPress: () => v.act.overlay('help') }
+      ? []
+      : [
+          { action: 'jobs', on: 'pane', label: 'jobs', onPress: () => v.act.overlay('jobs') },
+          { action: 'help', on: 'pane', label: 'keys', onPress: () => v.act.overlay('help') },
+        ]
   const closeLabel =
     top === undefined ? (terminal ? 'esc close' : 'close') : terminal ? 'esc back' : 'back'
   const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use the keys'
-  const shownKeys = keys.filter(key => key.shown === true)
 
-  // Rows the list may take: the body less every other line drawn.
+  // Rows the list may take: the body less every other line drawn. The footer's
+  // keys wrap in what the jobs, keys and close group leaves them (a hotkey is
+  // painted before its label: `e: toggle`).
+  const rightColumns =
+    general.reduce((sum, key) => sum + key.label.length + 3 + 2, 0) + closeLabel.length
   const footerRows = footerRowsFor(
-    [
-      // A hotkey is painted before its label (`e: toggle`).
-      ...shownKeys.map(key => key.label.length + 3),
-      ...(hint === undefined ? [] : [hint.length]),
-      ...(helpKey === undefined ? [] : [helpKey.label.length + 3]),
-      closeLabel.length,
-    ],
-    frame.bodyColumns,
+    [...keys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
+    Math.max(1, frame.bodyColumns - rightColumns - 2),
   )
   const boxedField = fieldShown && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
@@ -350,10 +311,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       loading: sync.at === undefined && sync.error === undefined,
       total: mods.length,
     })
-  }
-  if (top === undefined && showList && pager !== undefined) {
-    add({ action: 'page.first', label: 'first page', onPress: () => v.act.edge('first') })
-    add({ action: 'page.last', label: 'last page', onPress: () => v.act.edge('last') })
   }
 
   const under = stack.at(-2)
@@ -480,13 +437,12 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress })
   const on = mods.filter(row => row.enabled).length
   const tabs: readonly { readonly tab: View['tab']; readonly label: string }[] = [
-    { tab: 'installed', label: mods.length === 0 ? 'Installed' : `Installed ${mods.length}` },
+    { tab: 'installed', label: 'Installed' },
     { tab: 'discover', label: 'Discover' },
     { tab: 'dev', label: 'Dev' },
     { tab: 'health', label: problems === 0 ? 'Health' : `Health ${GLYPH.problem}${problems}` },
   ]
-  // The tab shown is a title; the others are pressable. Their number keys are
-  // mounted hidden with the other keys (help lists them).
+  // The tab shown is a title; the others are its number keys.
   const tabRow = tabs.map(({ tab, label }) =>
     view.tab === tab ? (
       <Box key={`tab:${tab}`} flexShrink={0}>
@@ -496,12 +452,15 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       </Box>
     ) : (
       <Box key={`tab:${tab}`} flexShrink={0}>
-        <Button key={`tab:${tab}`} plain dimColor label={label} onPress={() => v.act.tab(tab)} />
+        {KeyButton(v, {
+          action: `tab.${tab}`,
+          on: 'pane',
+          label,
+          dim: true,
+          onPress: () => v.act.tab(tab),
+        })}
       </Box>
     ),
-  )
-  const tabKeys = tabs.map(({ tab, label }) =>
-    KeyButton(v, { action: `tab.${tab}`, on: 'pane', label, onPress: () => v.act.tab(tab) }),
   )
   const failing = devState.rows.filter(row => devState.failures[row.name] !== undefined).length
   const updates = mods.filter(row => row.updateTo !== undefined).length
@@ -540,19 +499,28 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     fieldShown && Input !== undefined ? (
       <Box flexDirection="row" flexGrow={1}>
         <Text dimColor>⌕ </Text>
-        <Input
-          key={FILTER_KEY}
-          placeholder={
-            discover
-              ? page.total === 0
-                ? 'Search the catalogue'
-                : `Search ${count(page.total, 'plugin', 'plugins')}`
-              : `Filter ${count(mods.length, 'mod', 'mods')}`
-          }
-          value={discover ? view.search : view.query}
-          onInput={value => v.act.filter(value)}
-          onSubmit={value => v.act.filter(value)}
-        />
+        <Box flexGrow={1}>
+          <Input
+            key={FILTER_KEY}
+            placeholder={
+              discover
+                ? page.total === 0
+                  ? 'Search the catalogue'
+                  : `Search ${count(page.total, 'plugin', 'plugins')}`
+                : `Filter ${count(mods.length, 'mod', 'mods')}`
+            }
+            value={discover ? view.search : view.query}
+            onInput={value => v.act.filter(value)}
+            onSubmit={value => v.act.filter(value)}
+          />
+        </Box>
+        {KeyButton(v, {
+          action: 'filter',
+          on: surface,
+          label: discover ? 'search' : 'filter',
+          dim: true,
+          onPress: () => v.act.focusFilter(),
+        })}
       </Box>
     ) : null
 
@@ -562,11 +530,22 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         <Box flexDirection="row" columnGap={3} flexShrink={1}>
           {tabRow}
         </Box>
-        {stale ? (
-          <Text dimColor>{GLYPH.stale}</Text>
-        ) : installed && sync.error !== undefined ? (
-          <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh (r)</Text>
-        ) : null}
+        <Box flexDirection="row" columnGap={1} flexShrink={0}>
+          {stale ? (
+            <Text dimColor>{GLYPH.stale}</Text>
+          ) : installed && sync.error !== undefined ? (
+            <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh</Text>
+          ) : null}
+          {top === undefined
+            ? KeyButton(v, {
+                action: 'refresh',
+                on: surface,
+                label: 'refresh',
+                dim: true,
+                onPress: () => v.act.refresh(),
+              })
+            : null}
+        </Box>
       </Box>
       <Box flexDirection="row" justifyContent="space-between" columnGap={2} height={1}>
         <Box flexShrink={1} overflow="hidden">
@@ -575,8 +554,26 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           </Text>
         </Box>
         {showList && pager !== undefined ? (
-          <Box flexShrink={0}>
+          <Box flexDirection="row" columnGap={2} flexShrink={0}>
             <Text dimColor>{pager}</Text>
+            {top === undefined && split
+              ? KeyButton(v, {
+                  action: 'page.first',
+                  on: surface,
+                  label: 'first',
+                  dim: true,
+                  onPress: () => v.act.edge('first'),
+                })
+              : null}
+            {top === undefined && split
+              ? KeyButton(v, {
+                  action: 'page.last',
+                  on: surface,
+                  label: 'last',
+                  dim: true,
+                  onPress: () => v.act.edge('last'),
+                })
+              : null}
           </Box>
         ) : null}
       </Box>
@@ -625,11 +622,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       {Rule(v, frame.bodyColumns)}
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap" flexShrink={1}>
-          {shownKeys.map(button)}
+          {keys.map(button)}
           {hint === undefined ? null : <Text dimColor>{hint}</Text>}
         </Box>
         <Box flexDirection="row" columnGap={2} flexShrink={0}>
-          {helpKey === undefined ? null : button(helpKey)}
+          {general.map(key => KeyButton(v, { ...key, dim: true }))}
           {top === undefined ? (
             <Button
               key="act:close"
@@ -642,10 +639,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             <Button key="act:back" plain dimColor label={closeLabel} onPress={() => v.act.back()} />
           )}
         </Box>
-      </Box>
-      <Box display="none">
-        {tabKeys}
-        {keys.filter(key => key.shown !== true).map(button)}
       </Box>
     </Box>
   )

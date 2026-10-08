@@ -1,4 +1,4 @@
-// Health (PLAN §2.5, §5.3): one row per item, grouped by mod (the name once,
+// Health: one row per item, grouped by mod (the name once,
 // on its first item), worst first, then hook order and modmgr's own state. An
 // item with a fix is a Button whose press runs it, the fix named after it;
 // every row takes the ring so the arrows walk the list. Words a plugin or the
@@ -29,7 +29,8 @@ export const HealthLine = (
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const group = Math.max(8, Math.min(18, Math.floor(how.columns * 0.28)))
-  const fix = item.fixLabel === undefined ? undefined : `→ ${item.fixLabel}`
+  // Beside the list the detail names the fix: the row keeps its room for the words.
+  const fix = item.fixLabel === undefined || !how.stacked ? undefined : `→ ${item.fixLabel}`
   const text = Math.max(10, how.columns - 4 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>

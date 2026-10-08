@@ -14,7 +14,7 @@ export type Frame = {
   readonly lines: readonly (readonly Segment[])[]
 }
 
-export const COLUMNS = 62
+export const COLUMNS = 96
 
 export const FRAMES: readonly Frame[] = [
   {
@@ -26,28 +26,35 @@ export const FRAMES: readonly Frame[] = [
           "tone": "claude",
           "bold": true,
           "underline": true,
-          "text": "Installed 5"
+          "text": "Installed"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Discover"
+          "text": "2: Discover"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Dev"
+          "text": "3: Dev"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Health ▲1"
+          "text": "4: Health ▲1"
+        },
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "r: refresh"
         }
       ],
       [
@@ -59,6 +66,19 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
+          "text": "╭──────────────────────────────────────────────────────────────────────────────────────────────╮"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
           "text": "⌕ "
         },
         {
@@ -67,6 +87,26 @@ export const FRAMES: readonly Frame[] = [
         {
           "text": "Filter 5 mods",
           "dim": true
+        },
+        {
+          "text": "                                                                  "
+        },
+        {
+          "dim": true,
+          "text": "f: filter"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
         }
       ],
       [
@@ -78,25 +118,32 @@ export const FRAMES: readonly Frame[] = [
           "text": "●"
         },
         {
-          "text": " broken                 "
-        },
-        {
-          "dim": true,
-          "text": "0.0.1"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "user"
-        },
-        {
-          "text": "     "
+          "text": " broken             "
         },
         {
           "tone": "error",
           "text": "▲1"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "turn-band"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "0.4.0"
         }
       ],
       [
@@ -108,25 +155,32 @@ export const FRAMES: readonly Frame[] = [
           "text": "●"
         },
         {
-          "text": " quiet-bash             "
-        },
-        {
-          "dim": true,
-          "text": "0.2.0"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "user"
-        },
-        {
-          "text": "     "
+          "text": " quiet-bash         "
         },
         {
           "tone": "claude",
           "text": "◆1"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "success",
+          "text": "● on"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "· user · fixtures"
         }
       ],
       [
@@ -138,25 +192,21 @@ export const FRAMES: readonly Frame[] = [
           "text": "●"
         },
         {
-          "text": " redactor               "
-        },
-        {
-          "dim": true,
-          "text": "2.1.0"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "project"
-        },
-        {
-          "text": "  "
+          "text": " redactor           "
         },
         {
           "tone": "claude",
           "text": "◆3"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " e: disable  x: remove  c: copy id"
         }
       ],
       [
@@ -168,25 +218,25 @@ export const FRAMES: readonly Frame[] = [
           "text": "●"
         },
         {
-          "text": " spawner                "
-        },
-        {
-          "dim": true,
-          "text": "1.0.0"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "local"
-        },
-        {
-          "text": "    "
+          "text": " spawner            "
         },
         {
           "tone": "claude",
           "text": "◆2"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "↑ runs from its marketplace folder: no updates"
         }
       ],
       [
@@ -209,21 +259,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "turn-band"
         },
         {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "0.4.0"
-        },
-        {
-          "text": "      "
-        },
-        {
-          "dim": true,
-          "text": "user"
-        },
-        {
-          "text": "     "
+          "text": "          "
         },
         {
           "tone": "claude",
@@ -235,22 +271,153 @@ export const FRAMES: readonly Frame[] = [
         {
           "tone": "warning",
           "text": "new"
+        },
+        {
+          "text": "          "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "Reading what it can do…"
         }
       ],
-      [],
-      [],
-      [],
-      [],
-      [],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
       [
         {
           "dim": true,
-          "text": "──────────────────────────────────────────────────────────────"
+          "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "e: toggle                                   h: keys  "
+          "text": "z: undo                                                              "
+        },
+        {
+          "dim": true,
+          "text": "j: jobs"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "h: keys"
+        },
+        {
+          "text": "  "
         },
         {
           "dim": true,
@@ -268,28 +435,28 @@ export const FRAMES: readonly Frame[] = [
           "tone": "claude",
           "bold": true,
           "underline": true,
-          "text": "Installed 5"
+          "text": "Installed"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Discover"
+          "text": "2: Discover"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Dev"
+          "text": "3: Dev"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Health ▲1"
+          "text": "4: Health ▲1"
         }
       ],
       [
@@ -299,6 +466,76 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
+        {
+          "dim": true,
+          "text": "╭──────────────────────────────────────────────────────────────────────────────────────────────╮"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "⌕ "
+        },
+        {
+          "text": "› "
+        },
+        {
+          "text": "Filter 5 mods",
+          "dim": true
+        },
+        {
+          "text": "                                                                  "
+        },
+        {
+          "dim": true,
+          "text": "f: filter"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
+        }
+      ],
+      [
+        {
+          "text": "  "
+        },
+        {
+          "tone": "success",
+          "text": "●"
+        },
+        {
+          "text": " broken             "
+        },
+        {
+          "tone": "error",
+          "text": "▲1"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "bold": true,
           "text": "turn-band"
@@ -313,6 +550,30 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "  "
+        },
+        {
+          "tone": "success",
+          "text": "●"
+        },
+        {
+          "text": " quiet-bash         "
+        },
+        {
+          "tone": "claude",
+          "text": "◆1"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
           "tone": "success",
           "text": "● on"
         },
@@ -326,10 +587,55 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "e: disable  x: remove  c: copy id"
+          "text": "  "
+        },
+        {
+          "tone": "success",
+          "text": "●"
+        },
+        {
+          "text": " redactor           "
+        },
+        {
+          "tone": "claude",
+          "text": "◆3"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " e: disable  x: remove  c: copy id"
         }
       ],
       [
+        {
+          "text": "  "
+        },
+        {
+          "tone": "success",
+          "text": "●"
+        },
+        {
+          "text": " spawner            "
+        },
+        {
+          "tone": "claude",
+          "text": "◆2"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "dim": true,
           "text": "↑ runs from its marketplace folder: no updates"
@@ -337,12 +643,57 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "success",
+          "text": "●"
+        },
+        {
+          "text": " "
+        },
+        {
+          "ring": true,
+          "text": "turn-band"
+        },
+        {
+          "text": "          "
+        },
+        {
+          "tone": "claude",
+          "text": "◆2"
+        },
+        {
+          "text": "              "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
           "tone": "warning",
           "bold": true,
           "text": "New since 0.3.1"
         }
       ],
       [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "tone": "warning",
           "text": "◆"
@@ -353,11 +704,47 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": "   "
+        },
+        {
+          "dim": true,
+          "text": "process.run"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
           "bold": true,
           "text": "Notable"
         }
       ],
       [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "tone": "claude",
           "text": "◆"
@@ -368,22 +755,14 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "bold": true,
-          "text": "What it can do"
-        }
-      ],
-      [
-        {
-          "text": "Your machine "
+          "text": "                                       "
         },
         {
           "dim": true,
-          "text": "process.run"
-        }
-      ],
-      [
+          "text": "│"
+        },
         {
-          "text": "What the model sees "
+          "text": "   "
         },
         {
           "dim": true,
@@ -392,13 +771,161 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "                                       "
+        },
+        {
           "dim": true,
-          "text": "──────────────────────────────────────────────────────────────"
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "What it can do"
         }
       ],
       [
         {
-          "text": "                                             h: keys  "
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " Your machine"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "tone": "claude",
+          "text": "process.run"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "Runs a command on the host by its argumen"
+        },
+        {
+          "text": "…"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " What the model sees"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "tone": "claude",
+          "text": "prompt.submit"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "Fires when a prompt is submitted, befor"
+        },
+        {
+          "text": "…"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "Display only"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "turn.complete ui.render clock.now state.s"
+        },
+        {
+          "text": "…"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "✓ validates"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
+        }
+      ],
+      [
+        {
+          "text": "                                                                      "
+        },
+        {
+          "dim": true,
+          "text": "j: jobs"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "h: keys"
+        },
+        {
+          "text": "  "
         },
         {
           "dim": true,
@@ -414,7 +941,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "Installed 5"
+          "text": "1: Installed"
         },
         {
           "text": "   "
@@ -430,14 +957,21 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "Dev"
+          "text": "3: Dev"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Health ▲1"
+          "text": "4: Health ▲1"
+        },
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "r: refresh"
         }
       ],
       [
@@ -446,14 +980,41 @@ export const FRAMES: readonly Frame[] = [
           "text": "201 plugins · 0 mods so far · checking 0 of 200"
         },
         {
-          "text": "     "
+          "text": "                   "
         },
         {
           "dim": true,
-          "text": "1–5 of 201"
+          "text": "1–17 of 201"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "g: first"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "b: last"
         }
       ],
       [
+        {
+          "dim": true,
+          "text": "╭──────────────────────────────────────────────────────────────────────────────────────────────╮"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "dim": true,
           "text": "⌕ "
@@ -464,6 +1025,26 @@ export const FRAMES: readonly Frame[] = [
         {
           "text": "Search 201 plugins",
           "dim": true
+        },
+        {
+          "text": "                                                             "
+        },
+        {
+          "dim": true,
+          "text": "f: search"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
         }
       ],
       [
@@ -479,41 +1060,48 @@ export const FRAMES: readonly Frame[] = [
           "text": "frontend-design"
         },
         {
-          "text": "                                       "
+          "text": "               "
         },
         {
           "dim": true,
           "text": "1.2M"
-        }
-      ],
-      [
+        },
         {
-          "text": "    "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "Create distinctive, production-grade frontend interfaces "
+          "text": "│"
         },
         {
-          "text": "…"
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "frontend-design"
         }
       ],
       [
         {
-          "text": "    code-review                                           "
+          "text": "    code-review                   "
         },
         {
           "dim": true,
           "text": "492k"
-        }
-      ],
-      [
+        },
         {
-          "text": "    "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "Automated code review for pull requests using multiple sp"
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "not checked yet · claude-plugins-official · 1.2M insta"
         },
         {
           "text": "…"
@@ -521,76 +1109,293 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "    context7                                              "
+          "text": "    context7                      "
         },
         {
           "dim": true,
           "text": "458k"
-        }
-      ],
-      [
+        },
         {
-          "text": "    "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "Upstash Context7 MCP server for up-to-date documentation "
+          "text": "│"
         },
         {
-          "text": "…"
+          "text": " i: install  c: copy id"
         }
       ],
       [
         {
-          "text": "    security-guidance                                     "
+          "text": "    security-guidance             "
         },
         {
           "dim": true,
           "text": "273k"
-        }
-      ],
-      [
+        },
         {
-          "text": "    "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "Security review for Claude-generated code. Pattern-based "
+          "text": "│"
         },
         {
-          "text": "…"
+          "text": " Create distinctive, production-grade frontend"
         }
       ],
       [
         {
-          "text": "    telegram                                              "
+          "text": "    telegram                      "
         },
         {
           "dim": true,
           "text": "110k"
-        }
-      ],
-      [
+        },
         {
-          "text": "    "
+          "text": " "
         },
         {
           "dim": true,
-          "text": "Telegram messaging bridge with built-in access control. M"
+          "text": "│"
         },
         {
-          "text": "…"
+          "text": " interfaces with high design quality. Generates"
+        }
+      ],
+      [
+        {
+          "text": "    plugin-dev                     "
+        },
+        {
+          "dim": true,
+          "text": "73k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " creative, polished code that avoids generic AI…"
+        }
+      ],
+      [
+        {
+          "text": "    agent-sdk-dev                  "
+        },
+        {
+          "dim": true,
+          "text": "70k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "from its marketplace folder"
+        }
+      ],
+      [
+        {
+          "text": "    gopls-lsp                      "
+        },
+        {
+          "dim": true,
+          "text": "45k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "Reading what it can do…"
+        }
+      ],
+      [
+        {
+          "text": "    discord                        "
+        },
+        {
+          "dim": true,
+          "text": "36k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    php-lsp                        "
+        },
+        {
+          "dim": true,
+          "text": "35k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    clangd-lsp                     "
+        },
+        {
+          "dim": true,
+          "text": "32k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    claude-security                "
+        },
+        {
+          "dim": true,
+          "text": "23k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    laravel-boost                  "
+        },
+        {
+          "dim": true,
+          "text": "23k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    imessage                       "
+        },
+        {
+          "dim": true,
+          "text": "17k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    lua-lsp                        "
+        },
+        {
+          "dim": true,
+          "text": "16k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    session-report                 "
+        },
+        {
+          "dim": true,
+          "text": "14k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    deploy-on-aws                  "
+        },
+        {
+          "dim": true,
+          "text": "11k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
         }
       ],
       [
         {
           "dim": true,
-          "text": "──────────────────────────────────────────────────────────────"
+          "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "i: install  k: mods only  o: sort by name   h: keys  "
+          "text": "k: mods only  o: sort by name  m: marketplace                        "
+        },
+        {
+          "dim": true,
+          "text": "j: jobs"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "h: keys"
+        },
+        {
+          "text": "  "
         },
         {
           "dim": true,
@@ -606,7 +1411,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "Installed 5"
+          "text": "1: Installed"
         },
         {
           "text": "   "
@@ -622,23 +1427,104 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "Dev"
+          "text": "3: Dev"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Health ▲1"
+          "text": "4: Health ▲1"
         }
       ],
       [
         {
           "dim": true,
           "text": "201 plugins · 0 mods so far · checking 0 of 200"
+        },
+        {
+          "text": "                                      "
+        },
+        {
+          "dim": true,
+          "text": "1–17 of 201"
         }
       ],
       [
+        {
+          "dim": true,
+          "text": "╭──────────────────────────────────────────────────────────────────────────────────────────────╮"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "⌕ "
+        },
+        {
+          "text": "› "
+        },
+        {
+          "text": "Search 201 plugins",
+          "dim": true
+        },
+        {
+          "text": "                                                             "
+        },
+        {
+          "dim": true,
+          "text": "f: search"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
+        }
+      ],
+      [
+        {
+          "tone": "claude",
+          "text": "❯"
+        },
+        {
+          "text": "   "
+        },
+        {
+          "ring": true,
+          "text": "frontend-design"
+        },
+        {
+          "text": "               "
+        },
+        {
+          "dim": true,
+          "text": "1.2M"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "bold": true,
           "text": "Install aws-serverless from claude-plugins-official"
@@ -646,12 +1532,40 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "y: confirm  n: cancel"
+          "text": "    code-review                   "
+        },
+        {
+          "dim": true,
+          "text": "492k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " y: confirm  n: cancel"
         }
       ],
       [
         {
-          "text": "scope: "
+          "text": "    context7                      "
+        },
+        {
+          "dim": true,
+          "text": "458k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " scope: "
         },
         {
           "text": "user: every project ▾",
@@ -659,6 +1573,23 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
+        {
+          "text": "    security-guidance             "
+        },
+        {
+          "dim": true,
+          "text": "273k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "tone": "success",
           "text": "●"
@@ -675,25 +1606,87 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "claude-plugins-official · user"
+          "text": "claude-plugins-official · u"
+        },
+        {
+          "text": "…"
         }
       ],
       [
         {
-          "text": "modmgr reads what it can do once it is installed,"
+          "text": "    telegram                      "
+        },
+        {
+          "dim": true,
+          "text": "110k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " modmgr reads what it can do once it is installed,"
         }
       ],
       [
         {
-          "text": "and shows it in its detail then."
+          "text": "    plugin-dev                     "
+        },
+        {
+          "dim": true,
+          "text": "73k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " and shows it in its detail then."
         }
       ],
       [
         {
-          "text": "Takes effect after the reload modmgr runs."
+          "text": "    agent-sdk-dev                  "
+        },
+        {
+          "dim": true,
+          "text": "70k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " Takes effect after the reload modmgr runs."
         }
       ],
       [
+        {
+          "text": "    gopls-lsp                      "
+        },
+        {
+          "dim": true,
+          "text": "45k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
         {
           "dim": true,
           "text": "Runs"
@@ -701,24 +1694,167 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "    discord                        "
+        },
+        {
           "dim": true,
-          "text": "  claude plugin install aws-serverless@claude-plugins-officia"
+          "text": "36k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "  claude plugin install aws-serverless@claude-plugins-"
         },
         {
           "text": "…"
         }
       ],
-      [],
-      [],
       [
         {
+          "text": "    php-lsp                        "
+        },
+        {
           "dim": true,
-          "text": "──────────────────────────────────────────────────────────────"
+          "text": "35k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
         }
       ],
       [
         {
-          "text": "                                                      "
+          "text": "    clangd-lsp                     "
+        },
+        {
+          "dim": true,
+          "text": "32k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    claude-security                "
+        },
+        {
+          "dim": true,
+          "text": "23k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    laravel-boost                  "
+        },
+        {
+          "dim": true,
+          "text": "23k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    imessage                       "
+        },
+        {
+          "dim": true,
+          "text": "17k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    lua-lsp                        "
+        },
+        {
+          "dim": true,
+          "text": "16k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    session-report                 "
+        },
+        {
+          "dim": true,
+          "text": "14k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "    deploy-on-aws                  "
+        },
+        {
+          "dim": true,
+          "text": "11k"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "dim": true,
+          "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
+        }
+      ],
+      [
+        {
+          "text": "                                                                                        "
         },
         {
           "dim": true,
@@ -734,21 +1870,21 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "Installed 5"
+          "text": "1: Installed"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Discover"
+          "text": "2: Discover"
         },
         {
           "text": "   "
         },
         {
           "dim": true,
-          "text": "Dev"
+          "text": "3: Dev"
         },
         {
           "text": "   "
@@ -758,6 +1894,13 @@ export const FRAMES: readonly Frame[] = [
           "bold": true,
           "underline": true,
           "text": "Health ▲2"
+        },
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "r: refresh"
         }
       ],
       [
@@ -786,18 +1929,25 @@ export const FRAMES: readonly Frame[] = [
           "text": "broken"
         },
         {
-          "text": "            "
+          "text": "     "
         },
         {
           "ring": true,
-          "text": "validate finds 1 error in it"
+          "text": "validate finds 1 error"
         },
         {
-          "text": "    "
+          "text": "… "
         },
         {
-          "tone": "claude",
-          "text": "→ see it"
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "broken"
         }
       ],
       [
@@ -816,11 +1966,14 @@ export const FRAMES: readonly Frame[] = [
           "text": "redactor"
         },
         {
-          "text": "          1 failure while it reloaded;… "
+          "text": "   1 failure while it rel… "
         },
         {
-          "tone": "claude",
-          "text": "→ validate"
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " validate finds 1 error in it"
         }
       ],
       [
@@ -839,7 +1992,14 @@ export const FRAMES: readonly Frame[] = [
           "text": "modmgr"
         },
         {
-          "text": "            5 enabled"
+          "text": "     5 enabled               "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " → see it"
         }
       ],
       [
@@ -851,11 +2011,11 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "                   updates checked never, ever… "
+          "text": "            updates checked never,… "
         },
         {
-          "tone": "claude",
-          "text": "→ check now"
+          "dim": true,
+          "text": "│"
         }
       ],
       [
@@ -867,7 +2027,11 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "                   detector: 50 of 200 checked, 0 mods fou…"
+          "text": "            detector: 50 of 200 ch… "
+        },
+        {
+          "dim": true,
+          "text": "│"
         }
       ],
       [
@@ -879,11 +2043,11 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "                   cache: 194 B                     "
+          "text": "            cache: 194 B            "
         },
         {
-          "tone": "claude",
-          "text": "→ clear"
+          "dim": true,
+          "text": "│"
         }
       ],
       [
@@ -895,26 +2059,153 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "                   A hook that fails is log… "
+          "text": "            A hook that fails is l… "
         },
         {
-          "tone": "claude",
-          "text": "→ copy command"
+          "dim": true,
+          "text": "│"
         }
       ],
-      [],
-      [],
-      [],
-      [],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
       [
         {
           "dim": true,
-          "text": "──────────────────────────────────────────────────────────────"
+          "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
       ],
       [
         {
-          "text": "l: reload                                   h: keys  "
+          "text": "l: reload                                                            "
+        },
+        {
+          "dim": true,
+          "text": "j: jobs"
+        },
+        {
+          "text": "  "
+        },
+        {
+          "dim": true,
+          "text": "h: keys"
+        },
+        {
+          "text": "  "
         },
         {
           "dim": true,
