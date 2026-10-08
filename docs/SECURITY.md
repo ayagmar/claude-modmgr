@@ -87,12 +87,15 @@ is sent.
 **Update checks and Health.** Every `updateCheckHours` (off at `0` and under the traffic switch), while no turn runs,
 modmgr asks the CLI to refresh the marketplaces your installed mods come from (`claude plugin marketplace update
 <name>`, the CLI's fetch), then reads each one's `.claude-plugin/marketplace.json` under its install location. Health
-lists `<config dir>/debug` and, when a `--debug` session wrote `latest`, reads it for `hook failed closed` lines,
-keeping only the plugin's name, the event and the error kind (the engine logs no error text, F35). modmgr never reads
+lists `<config dir>/debug` and, when this session runs with `--debug`, reads its own log (`<session id>.txt`, not
+another session's) for `hook failed closed` lines, keeping only the plugin's name, the event and the error kind (the
+engine logs no error text, F35). modmgr never reads
 the CLI's internal files (`installed_plugins.json`, settings) or the project's settings.
 
 **Notices.** modmgr hooks `session.append` for notices only (`door: 'notice'`, the dim lines the model never reads),
-to count a hot-reloaded plugin's failures for Dev (F20, F57). The hook calls `next` first and returns the row the
+to count a hot-reloaded plugin's failures for Dev (F20, F57). A failure notice that names a module's file (`reload failed`, `did not load`) gives a folder; modmgr reads that
+folder's `plugin.json` once and lists it in Dev only when the manifest names the same plugin. The hook calls `next`
+first and returns the row the
 session stored, unchanged; its `.catch` passes through. The validator still reports it as a gating hook (any
 `session.append` hook is one), and a capability list built from event names, modmgr's own included, places it under
 "what the model sees": that is the event's reach, not what this hook does with it. `scripts/validate-plugin.ts` allows
