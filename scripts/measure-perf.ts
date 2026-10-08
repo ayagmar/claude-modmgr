@@ -4,6 +4,8 @@
 // (rows, window, summary, Health's items). The host-bound budgets (first paint,
 // CLI runs, session.start) are measured live with `debugTimings` (docs/PERF.md).
 //
+// It reuses the vitest benchmark's synthetic catalogue generator (test/domain/fixtures).
+//
 //   node scripts/measure-perf.ts
 
 import { buildIndex, type CatalogKind, matchAll, windowOf } from '../plugin/hooks/domain/catalog.ts'

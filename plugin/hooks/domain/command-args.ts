@@ -60,8 +60,20 @@ type Flags = {
 const VALUED = new Set(['--scope', '--accept-command'])
 const SWITCHES = new Set(['--yes', '--json', '--wipe-data'])
 
+/** The flags each subcommand reads; any other is an error, never silently dropped (review R-M6-4). */
+const ALLOWED: Readonly<Record<string, readonly string[]>> = {
+  install: ['--scope', '--accept-command', '--yes'],
+  remove: ['--wipe-data', '--yes'],
+  update: ['--yes'],
+  enable: ['--yes'],
+  disable: ['--yes'],
+  apply: ['--yes'],
+  doctor: ['--json'],
+}
+
 /** Splits the words from the flags; an unknown flag or one missing its value is an error. */
-const flagsOf = (tokens: readonly string[]): Result<Flags> => {
+const flagsOf = (sub: string, tokens: readonly string[]): Result<Flags> => {
+  const allowed = new Set(ALLOWED[sub] ?? [])
   const words: string[] = []
   const seen = new Map<string, string>()
   const switches = new Set<string>()
@@ -71,11 +83,14 @@ const flagsOf = (tokens: readonly string[]): Result<Flags> => {
       words.push(token)
       continue
     }
+    if (!SWITCHES.has(token) && !VALUED.has(token)) {
+      return fail('invalid', `unknown option ${sanitize(token, { max: 40 })}`)
+    }
+    if (!allowed.has(token)) return fail('invalid', `${token} doesn't apply to ${sub}`)
     if (SWITCHES.has(token)) {
       switches.add(token)
       continue
     }
-    if (!VALUED.has(token)) return fail('invalid', `unknown option ${sanitize(token, { max: 40 })}`)
     const value = tokens[i + 1]
     if (value === undefined || value.startsWith('--'))
       return fail('invalid', `${token} needs a value`)
@@ -105,7 +120,7 @@ export const parseModsArgs = (args: string): Result<ModsCommand> => {
   const tokens = args.trim() === '' ? [] : args.trim().split(/\s+/)
   const [sub, ...rest] = tokens
   if (sub === undefined) return ok({ kind: 'open' })
-  const flags = flagsOf(rest)
+  const flags = flagsOf(sub, rest)
   if (!flags.ok) return flags
   const { words, yes } = flags.value
   const extra = (count: number) =>

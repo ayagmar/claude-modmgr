@@ -4,7 +4,7 @@
 // one's in-flight work finishes on its own and then stops (it no longer owns
 // the queue).
 
-import type { Job } from '../../types/index.d.ts'
+import type { Job, Tab } from '../../types/index.d.ts'
 import { type Config, trafficOff } from '../domain/config.ts'
 import type { StateKey } from '../domain/state.ts'
 import type { Ports, StatePort } from '../ports.ts'
@@ -43,6 +43,12 @@ export type Runtime = {
   readonly timing: Timing
   /** After a job ends (the runner's, or a text write's, C16): catalogue, analyses, updates. */
   jobFinished(job: Job): void
+  /**
+   * What a tab needs read when it is shown (a press, an open, a reloaded module
+   * with it showing): Discover's catalogue and the detector, Dev's folders,
+   * Health's facts. Never at a fresh start (review R-M6-2).
+   */
+  showTab(tab: Tab): Promise<void>
   /** The main loop's turns running now, by id (lifecycle `onTurnStart`/`onTurnEnd`). */
   readonly turns: Set<string>
   /** Job ids unique across modules: the owner, then a counter. */
@@ -162,6 +168,17 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     health,
     timing,
     jobFinished,
+    async showTab(tab) {
+      if (tab === 'discover') {
+        // Read at the first visit, then at most every few hours (PLAN §2.3).
+        await catalog.load()
+        await catalog.show()
+        detector.start()
+      }
+      // What a session loads from folders changes with its commands and reloads: read on each visit.
+      if (tab === 'dev' || tab === 'health') await dev.refresh()
+      if (tab === 'health') await health.refresh()
+    },
     turns,
     newJobId,
     dispose() {

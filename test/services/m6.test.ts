@@ -56,14 +56,28 @@ describe('the first run', () => {
     expect(rt.store.get('prefs').firstRunDone).toBe(false)
   })
 
-  it('opens on the welcome once, and remembers it was said', async () => {
+  it('opens on the welcome until it is left, then never again (review R-M6-5)', async () => {
     const first = await setup()
     await background(first.rt, { fresh: true })
     expect(first.w.state.values.view.stack).toEqual(['welcome'])
+    // Not opened in that session: the next one still welcomes.
     await first.rt.store.flush()
     const second = await setup(Object.fromEntries(first.w.store.data))
     await background(second.rt, { fresh: true })
-    expect(second.w.state.values.view.stack).toEqual([])
+    expect(second.w.state.values.view.stack).toEqual(['welcome'])
+    await second.act.back()
+    await second.rt.store.flush()
+    const third = await setup(Object.fromEntries(second.w.store.data))
+    await background(third.rt, { fresh: true })
+    expect(third.w.state.values.view.stack).toEqual([])
+  })
+
+  it('closing the dialog on it counts as seen', async () => {
+    const { w, rt, act } = await setup()
+    await background(rt, { fresh: true })
+    await act.closing('person', false)
+    expect(rt.store.get('prefs').firstRunDone).toBe(true)
+    expect(w.state.values.view.stack).toEqual([])
   })
 
   it('start leaves it, the ring back on the list', async () => {

@@ -242,12 +242,26 @@ describe('how the jobs ended', () => {
       '  It runs this command, shown as the marketplace declares it:',
       '    echo one',
       '    echo two',
-      `  To run it, add --accept-command ${'f'.repeat(64)}`,
+      `  To run it: /mods install cmd@m --accept-command ${'f'.repeat(64)} --yes`,
     ])
     expect(
       jobsText([job({ kind: 'install', state: 'failed', shown: { ...shown, truncated: true } })])
         .text,
     ).toContain('It is longer than modmgr shows')
+    // At a scope, the hint keeps it; an update's stop is reviewed in the dialog.
+    const atScope = job({
+      kind: 'install',
+      target: 'c@m',
+      state: 'failed',
+      args: { scope: 'project' },
+      shown,
+    })
+    expect(jobsText([atScope]).text).toContain(
+      `/mods install c@m --scope project --accept-command ${'f'.repeat(64)} --yes`,
+    )
+    expect(
+      jobsText([job({ kind: 'update', target: 'c@m', state: 'failed', shown })]).text,
+    ).toContain('Review it in /mods (v), or run claude plugin update c@m in a terminal.')
     expect(jobsText([job({ state: 'interrupted' })]).text).toBe('✗ disable: interrupted')
   })
 })

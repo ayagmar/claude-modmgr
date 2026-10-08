@@ -195,6 +195,23 @@ export const whyNot = (
 ): string | undefined =>
   kind === 'remove' ? whyNoRemove(row) : kind === 'update' ? whyNoUpdate(row) : whyLocked(row)
 
+/**
+ * How to accept a declared command a write stopped on: a command that works as
+ * given, whichever subcommand stopped (an `apply` too, review R-M6-4).
+ */
+const acceptHint = (job: Job, shown: NonNullable<Job['shown']>): string => {
+  const id = sanitize(job.target ?? '', { max: 130 })
+  if (shown.truncated === true) {
+    return `It is longer than modmgr shows: run claude plugin ${job.kind} ${id} in a terminal.`
+  }
+  if (job.kind !== 'install') {
+    return `Review it in /mods (v), or run claude plugin ${job.kind} ${id} in a terminal.`
+  }
+  const scope =
+    job.args?.scope === undefined || job.args.scope === 'user' ? '' : ` --scope ${job.args.scope}`
+  return `To run it: /mods install ${id}${scope} --accept-command ${shown.sha256} --yes`
+}
+
 const verbOf = (job: Job): string =>
   job.kind === 'marketplace-update' ? 'refresh marketplace' : job.kind
 
@@ -226,11 +243,7 @@ export const jobsText = (jobs: readonly Job[]): { text: string; failed: boolean 
       for (const line of sanitize(job.shown.command, { max: 4000, multiline: true }).split('\n')) {
         lines.push(`    ${line}`)
       }
-      lines.push(
-        job.shown.truncated === true
-          ? '  It is longer than modmgr shows: install it in a terminal with claude plugin install.'
-          : `  To run it, add --accept-command ${job.shown.sha256}`,
-      )
+      lines.push(`  ${acceptHint(job, job.shown)}`)
     }
   }
   if (owed) lines.push(APPLY_NOTE)

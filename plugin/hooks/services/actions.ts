@@ -67,6 +67,7 @@ export type ActionPorts = Pick<Ports, 'state' | 'ui'>
 export type ActionRuntime = Pick<
   Runtime,
   | 'registry'
+  | 'showTab'
   | 'runner'
   | 'newJobId'
   | 'chrome'
@@ -339,10 +340,12 @@ export const createActions = (
     return healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
   }
 
-  /** Health read again: its facts, and the dev mods its failures name. */
-  const refreshHealth = async (): Promise<void> => {
-    await rt?.dev.refresh()
-    await rt?.health.refresh()
+  /** The welcome on the stack is being left: it isn't said again. */
+  const seenWelcome = (view: View): void => {
+    if (!view.stack.includes('welcome')) return
+    rt?.store.update('prefs', prefs =>
+      prefs.firstRunDone ? prefs : { ...prefs, firstRunDone: true },
+    )
   }
 
   /** The tab, sort and kind a next session opens with (the store's prefs, written in a batch). */
@@ -372,15 +375,7 @@ export const createActions = (
       await dropReview()
       const view = await setView(current => ({ ...quiet(current), tab, stack: [] }))
       remember(view)
-      if (tab === 'discover' && rt !== undefined) {
-        // Read at the first visit, then at most every few hours (PLAN §2.3).
-        await rt.catalog.load()
-        await rt.catalog.show()
-        rt.detector.start()
-      }
-      // What a session loads from folders changes with its commands and reloads: read on each visit.
-      if (tab === 'dev') await rt?.dev.refresh()
-      if (tab === 'health') await refreshHealth()
+      await rt?.showTab(tab)
       await ringToSelection()
     }),
 
@@ -402,6 +397,7 @@ export const createActions = (
     back: safely('back', async () => {
       const view = await state.read('view')
       if (topOverlay(view) === 'review') await dropReview()
+      seenWelcome(view)
       await setView(current => popOverlay(quiet(current)))
       await ringToOverlay()
     }),
@@ -546,8 +542,7 @@ export const createActions = (
       const { tab } = await state.read('view')
       if (tab === 'dev' || tab === 'health') {
         await rt.registry.refresh()
-        if (tab === 'dev') await rt.dev.refresh()
-        else await refreshHealth()
+        await rt.showTab(tab)
         return
       }
       if (tab === 'discover') {
@@ -629,6 +624,8 @@ export const createActions = (
 
     openPane: safely('open pane', async () => {
       await openDialog({ focus: true })
+      // A restored tab is read when the dialog shows it (review R-M6-2).
+      void rt?.showTab((await state.read('view')).tab)
     }),
 
     focusFound: safely('focus found', async id => {
@@ -825,8 +822,11 @@ export const createActions = (
         const stillHasKeys =
           (await ui.panes()).find(pane => pane.id === PANE_ID)?.isFocused === true
         debug(`modmgr: close from ${origin}, keys at last draw ${hadKeys}, now ${stillHasKeys}`)
+        const before = await state.read('view')
+        // Closed or popped, the welcome was on screen: seen (review R-M6-5).
+        seenWelcome(before)
         if (origin === 'person' && hadKeys && !stillHasKeys) {
-          const view = await state.read('view')
+          const view = before
           const step = escapeStep(view, true)
           if (step.kind !== 'close') {
             if (step.kind === 'pop' && topOverlay(view) === 'review') await dropReview()

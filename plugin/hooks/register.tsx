@@ -293,7 +293,10 @@ export const register: Register = (on, options) => {
       runtime,
       e.args,
     ),
-  ).catch(() => ({ text: 'modmgr failed to answer; run with --debug for the reason.' }))
+  ).catch(() => ({
+    text: 'modmgr failed to answer; run with --debug for the reason.',
+    exitCode: 1,
+  }))
 
   on('ui.render', { component: 'Pane', requestId: 'modmgr' }, async ($, e) => {
     // Esc closes from the terminal's keys; another surface's draw says nothing about them.
@@ -304,7 +307,10 @@ export const register: Register = (on, options) => {
       bodyRows: e.props.scroll.bodyRows,
       isFocused: e.props.isFocused,
     })
-    runtime?.timing(`pane draw (${e.surface}, ${e.props.bodyColumns} columns)`, started)
+    // The label is built only when timings are on (review R-M6-9).
+    if (config.debugTimings) {
+      runtime?.timing(`pane draw (${e.surface}, ${e.props.bodyColumns} columns)`, started)
+    }
     return tree
   }).catch((_$, e, next) => next(e))
 

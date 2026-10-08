@@ -51,8 +51,8 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
     await rt.store.load()
     if (how.fresh) {
       const prefs = readPrefs(rt.store.get('prefs'))
-      // The first session that draws opens on a word of welcome, once (PLAN §5.3);
-      // a `-p` run draws nothing, so it says nothing and keeps it for later.
+      // Until it has been seen, a session that draws opens on a word of welcome (PLAN
+      // §5.3); leaving it marks it seen (review R-M6-5). A `-p` run draws nothing.
       const draws = (await ports.session.surfaces().catch(() => [])).length > 0
       const welcome = draws && !prefs.firstRunDone
       await ports.state.update('view', view => ({
@@ -62,7 +62,6 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         kind: prefs.kind,
         ...(welcome ? { stack: ['welcome' as const] } : {}),
       }))
-      if (welcome) rt.store.update('prefs', current => ({ ...current, firstRunDone: true }))
     }
     // A reloaded module says again what the last one left on the status line.
     await rt.chrome.sync()
@@ -72,15 +71,9 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
       rt.runner.kick()
       // Re-armed by every module from the stored time: a reload loses timers (F19).
       await rt.updater.arm()
-      // A reloaded modmgr with Discover showing reads its catalogue again (module memory).
-      const { tab } = await ports.state.read('view')
-      if (tab === 'discover') {
-        await rt.catalog.load()
-        await rt.catalog.show()
-        rt.detector.start()
-      }
-      if (tab === 'dev') await rt.dev.refresh()
-      if (tab === 'health') await rt.health.refresh()
+      // A reloaded modmgr with a tab showing reads what it needs again (module memory). A
+      // fresh session only restores the tab: it is read when the dialog opens (review R-M6-2).
+      if (!how.fresh) await rt.showTab((await ports.state.read('view')).tab)
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

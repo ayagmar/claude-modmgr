@@ -73,6 +73,14 @@ describe('the arguments', () => {
     expect(error('install tb@m --accept-command abc')).toMatch(/sha256/)
     expect(error('install tb@m --scope')).toBe('--scope needs a value')
     expect(error('remove tb@m --force')).toBe('unknown option --force')
+    // A flag a subcommand doesn't read is refused, never dropped (review R-M6-4).
+    expect(error('enable tb@m --scope local')).toBe("--scope doesn't apply to enable")
+    expect(error('remove tb@m --accept-command x')).toBe("--accept-command doesn't apply to remove")
+    expect(error('install tb@m --wipe-data')).toBe("--wipe-data doesn't apply to install")
+    expect(error('apply f.json --accept-command x --yes')).toBe(
+      "--accept-command doesn't apply to apply",
+    )
+    expect(error('list --json')).toBe("--json doesn't apply to list")
     expect(error('apply')).toMatch(/which file/)
   })
 })
@@ -182,7 +190,9 @@ describe('/mods as text', () => {
     const answer = await run('install cmdmod@cmdmkt --yes')
     expect(answer.exitCode).toBe(1)
     expect(answer.text).toContain('It runs this command, shown as the marketplace declares it:')
-    expect(answer.text).toContain(`To run it, add --accept-command ${SHA}`)
+    expect(answer.text).toContain(
+      `To run it: /mods install cmdmod@cmdmkt --accept-command ${SHA} --yes`,
+    )
     expect(w.state.values.queue.jobs.at(-1)?.shown?.sha256).toBe(SHA)
   })
 
@@ -203,7 +213,7 @@ describe('/mods as text', () => {
     expect(dry.text).toBe(
       'This would run:\n  claude plugin install aws@official --scope user --json\nAdd --yes to run it.',
     )
-    expect((await run('apply /repo/bad.json')).exitCode).toBe(2)
+    expect((await run('apply /repo/bad.json')).exitCode).toBe(1)
     expect((await run('apply /repo/missing.json')).text).toMatch(
       /^Couldn't read \/repo\/missing.json: ENOENT/,
     )
