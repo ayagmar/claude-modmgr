@@ -13,6 +13,7 @@ import {
   healthOfKey,
   loadStates,
   loggedFailures,
+  OWN_GROUP,
   problemCount,
 } from '../../plugin/hooks/domain/health.ts'
 import type { AbsolutePath, PluginId } from '../../plugin/hooks/domain/ids.ts'
@@ -194,7 +195,7 @@ describe('Health’s items', () => {
         facts: facts({ logged: { quiet: 'tool.call (Error)' } }),
       }),
     )
-    const mine = items.filter(item => item.group !== 'modmgr')
+    const mine = items.filter(item => item.group !== OWN_GROUP)
     expect(mine.map(item => [item.group, item.tone, item.text, item.fixLabel])).toEqual([
       ['hurt', 'bad', 'validate finds 2 errors in it', 'see it'],
       ['quiet', 'bad', 'a hook failed: tool.call (Error) (debug log)', undefined],
@@ -248,15 +249,15 @@ describe('Health’s items', () => {
     )
     expect(texts).toEqual([
       'Hook order: a then b rewrite each row (session.append).',
-      'modmgr: no claude CLI',
-      "modmgr: couldn't read the installed list: list ran past 30 s → try again",
-      'modmgr: changes wait for a plugin reload → reload',
-      "modmgr: modmgr's cache is full; what it knows is not saved → clear cache",
-      'modmgr: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
-      'modmgr: 1 enabled · 1 disabled · 1 managed',
-      'modmgr: updates checked 3 h ago, every 6 hours → check now',
-      'modmgr: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
-      'modmgr: A hook that fails is logged only in a session started with --debug → copy command',
+      'modmgr itself: no claude CLI',
+      "modmgr itself: couldn't read the installed list: list ran past 30 s → try again",
+      'modmgr itself: changes wait for a plugin reload → reload',
+      "modmgr itself: modmgr's cache is full; what it knows is not saved → clear cache",
+      'modmgr itself: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      'modmgr itself: 1 enabled · 1 disabled · 1 managed',
+      'modmgr itself: updates checked 3 h ago, every 6 hours → check now',
+      'modmgr itself: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
+      'modmgr itself: A hook that fails is logged only in a session started with --debug → copy command',
     ])
   })
 
@@ -357,6 +358,11 @@ describe('Health’s list rows', () => {
     expect(shown(inside.lines)).toContain('a2')
     expect(inside.lines[0]).toEqual({ kind: 'group', group: 'a' })
     expect(inside.lines.length).toBeLessThanOrEqual(3)
+  })
+
+  it('keeps the row under the selection, the arrows’ way down', () => {
+    const one = [item('a', 'a1'), item('a', 'a2'), item('a', 'a3'), item('a', 'a4')]
+    expect(shown(healthLines(one, 2, 3).lines)).toEqual(['[a]', 'a3', 'a4'])
   })
 
   it('never ends on a group with none of its items shown', () => {

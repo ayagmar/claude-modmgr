@@ -30,7 +30,6 @@ export const FoundRow = (
   how: {
     readonly columns: number
     readonly focus: boolean
-    readonly twoLine: boolean
     /** The detail is beside the list: Enter moves onto its keys. */
     readonly beside: boolean
     /** Another entry has its name: its marketplace tells them apart. */
@@ -59,13 +58,11 @@ export const FoundRow = (
           <Text dimColor>{installs}</Text>
         </Box>
       </Box>
-      {how.twoLine ? (
-        <Box paddingLeft={2} height={1} overflow="hidden">
-          <Text dimColor wrap="truncate-end">
-            {sanitize(about, { max: 200 })}
-          </Text>
-        </Box>
-      ) : null}
+      <Box paddingLeft={2} height={1} overflow="hidden">
+        <Text dimColor wrap="truncate-end">
+          {sanitize(about, { max: 200 })}
+        </Text>
+      </Box>
     </Box>
   )
 }
@@ -83,8 +80,7 @@ export const FoundList = (
     readonly networkOff: boolean
     /** The detector is still checking the catalogue for mods. */
     readonly checking: boolean
-    /** Each entry takes two rows: its name, then what it says it does. */
-    readonly twoLine: boolean
+    /** The detail is beside the list: Enter moves onto its keys. */
     readonly beside: boolean
   },
 ): RenderElement => {
@@ -115,15 +111,16 @@ export const FoundList = (
       </Box>
     )
   }
-  const names = page.rows.map(row => row.name)
+  // Names the rows held share, counted once.
+  const named = new Map<string, number>()
+  for (const row of page.rows) named.set(row.name, (named.get(row.name) ?? 0) + 1)
   return (
     <Box flexDirection="column">
       {page.rows.slice(how.window.start, how.window.end).map(row =>
         FoundRow(v, row, {
-          twin: names.indexOf(row.name) !== names.lastIndexOf(row.name),
+          twin: (named.get(row.name) ?? 0) > 1,
           columns: how.columns,
           focus: row.id === how.focusId,
-          twoLine: how.twoLine,
           beside: how.beside,
         }),
       )}
@@ -206,7 +203,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       <Text dimColor>{GLYPH.ok} Nothing notable.</Text>
     ) : undefined
   const caps: Section = {
-    rows: 1 + (said === undefined ? (notable?.length ?? 0) : 1),
+    rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1),
     el: (
       <Box flexDirection="column">
         {Heading(v, 'What it can do')}

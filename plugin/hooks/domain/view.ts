@@ -440,9 +440,31 @@ export const bytesLabel = (n: number): string =>
       ? `${Math.round(n / 1024)} KB`
       : `${(n / 1048576).toFixed(1)} MB`
 
-/** Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's height). */
-export const wrappedRows = (texts: readonly string[], columns: number): number =>
-  texts.reduce((sum, text) => sum + Math.max(1, Math.ceil(text.length / Math.max(1, columns))), 0)
+/**
+ * Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's
+ * height): words move whole to the next row, as the terminal wraps them, and
+ * a word longer than the row is cut across rows.
+ */
+export const wrappedRows = (texts: readonly string[], columns: number): number => {
+  const width = Math.max(1, columns)
+  const rowsOf = (text: string): number => {
+    let rows = 1
+    let used = 0
+    for (const word of text.split(' ')) {
+      const length = [...word].length
+      const need = used === 0 ? length : used + 1 + length
+      if (need <= width) {
+        used = need
+        continue
+      }
+      if (used > 0) rows += 1
+      rows += Math.max(0, Math.ceil(length / width) - 1)
+      used = length % width === 0 && length > 0 ? width : length % width
+    }
+    return rows
+  }
+  return texts.reduce((sum, text) => sum + rowsOf(text), 0)
+}
 
 /**
  * Rows a wrapping row of items takes at `columns` (the footer's keys, laid

@@ -123,7 +123,7 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 ❯ ▲ validate finds 1 error in it       │
   redactor                             │ ▲ validate finds 1 error in it
   ▲ 1 failure while it reloaded; last… │
-  modmgr                               │ → see it
+  modmgr itself                        │ → see it
     5 enabled                          │
     updates checked never, every 6 ho… │
     detector: 5 mods found; 205 of 20… │

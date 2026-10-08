@@ -263,16 +263,33 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // Under the list, one line holds what is staged and the pager. The pager's
   // keys come after the field in the Tab ring: drawn above it, their coming
   // and going as the search narrows moved the ring off the field.
-  const fullRows = health
-    ? items.length + new Set(items.map(each => each.group)).size
+  const itemCount = health
+    ? items.length
     : dev
       ? devState.rows.length
       : discover
-        ? page.matched * 2
+        ? page.matched
         : rows.length
+  // The rows the whole list takes: Health's group names, Discover's two rows an entry.
+  const fullRows = health
+    ? itemCount +
+      items.filter((each, index) => index === 0 || items[index - 1]?.group !== each.group).length
+    : discover
+      ? itemCount * 2
+      : itemCount
   const paging = showList && fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
-  const underList = showStaged || paging
-  const listRows = Math.max(3, frame.bodyRows - chrome - (underList ? 1 : 0))
+  // Too narrow for both, the pager wraps under what is staged (its widest label counted).
+  const stagedWidth = `${staged} staged changes  s: review and apply`.length
+  const widestPager = pagerLabel({ start: itemCount - 1, end: itemCount }, itemCount) ?? ''
+  const pagerWidth = `${widestPager}  g: first  b: last`.length
+  const underRows = showStaged
+    ? paging
+      ? footerRowsFor([stagedWidth, pagerWidth], frame.bodyColumns)
+      : 1
+    : paging
+      ? 1
+      : 0
+  const listRows = Math.max(3, frame.bodyRows - chrome - underRows)
 
   // The list, windowed around the selection, and its pager.
   let list: RenderElement
@@ -308,7 +325,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       focusId: found?.id,
       networkOff: degraded.network,
       checking: detect.running,
-      twoLine: true,
       beside: split,
     })
     pager =
@@ -358,11 +374,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
               ? 'jobs'
               : surface
   // Beside the list the detail's keys are mounted too.
-  const helpSurfaces: KeySurface[] = [
-    'pane',
-    surfaceOf(under),
-    ...(split && under === undefined ? [detailSurface] : []),
-  ]
+  // Help takes the whole body: the detail beside the list isn't drawn under it.
+  const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
   const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
     if (which === 'review' && review !== null) return Review(v, review, mods, { refused })
@@ -374,17 +387,10 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     return null
   }
 
-  const detailHow = {
-    row: selected,
-    detail,
-    staged: changing,
-    view,
-    readOnly,
-    rows: listRows,
-  }
   // Beside the list: what the list, the divider and their gaps leave.
   const detailColumns = split ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns
   const sized = { readOnly, rows: listRows, columns: detailColumns }
+  const detailHow = { ...sized, row: selected, detail, staged: changing, view }
   const detailView = () =>
     discover
       ? FoundDetail(v, found, sized)
@@ -581,9 +587,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       <Box flexDirection="column" flexGrow={1}>
         {body}
       </Box>
-      {underList ? (
-        <Box flexDirection="row" justifyContent="space-between" columnGap={2} height={1}>
-          <Box flexDirection="row" gap={2} flexShrink={1} overflow="hidden">
+      {underRows > 0 ? (
+        <Box flexDirection="row" justifyContent="space-between" columnGap={2} flexWrap="wrap">
+          <Box flexDirection="row" gap={2} flexShrink={0}>
             {showStaged ? (
               <Text color={TONE.warn}>
                 {staged} staged {staged === 1 ? 'change' : 'changes'}

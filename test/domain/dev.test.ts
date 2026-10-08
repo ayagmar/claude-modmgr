@@ -342,5 +342,9 @@ describe('the pane around Dev', () => {
   it('counts wrapped rows', () => {
     expect(wrappedRows(['', 'abcd', 'abcde'], 4)).toBe(4)
     expect(wrappedRows([], 10)).toBe(0)
+    // Words move whole: a cut through a word costs the row the terminal adds.
+    expect(wrappedRows(['ab cd ef'], 5)).toBe(2)
+    expect(wrappedRows(['abc defgh'], 4)).toBe(3)
+    expect(wrappedRows(['abcdefghij k'], 4)).toBe(3)
   })
 })

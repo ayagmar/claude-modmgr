@@ -1991,10 +1991,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "modmgr"
+          "text": "modmgr itself"
         },
         {
-          "text": "                               "
+          "text": "                        "
         },
         {
           "dim": true,

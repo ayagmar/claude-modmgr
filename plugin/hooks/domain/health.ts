@@ -39,8 +39,8 @@ export type HealthItem = {
   readonly fixLabel?: string
 }
 
-/** modmgr's own heading, and the hook-order notes'. */
-export const OWN_GROUP = 'modmgr'
+/** modmgr's own heading (apart from an installed mod named modmgr), and the hook-order notes'. */
+export const OWN_GROUP = 'modmgr itself'
 export const ORDER_GROUP = 'Hook order'
 
 /** A Health item's Button key: what `ui.focus` and `ui.press` name. */
@@ -349,9 +349,11 @@ export const healthLines = (
   const first = lines[0]
   if (first?.kind === 'item') {
     lines = [{ kind: 'group', group: first.item.group }, ...lines]
-    // Over by the name: cut the end, or the top item when the end is the selection.
-    const last = lines.at(-1)
-    if (last?.kind === 'item' && last.item === selected) lines.splice(1, 1)
+    // Over by the name: cut the end, or the top item when that would take the
+    // selection or the row under it (the arrows' way down).
+    const near = lines.slice(-2).some(line => line.kind === 'item' && line.item === selected)
+    if (near && lines[1] !== undefined && !(lines[1].kind === 'item' && lines[1].item === selected))
+      lines.splice(1, 1)
     else lines.pop()
     // A top item cut away leaves the next group's name right under this one.
     if (lines[1]?.kind === 'group') lines.shift()

@@ -9,7 +9,14 @@ import type { RenderElement } from 'claude-code'
 import type { ModDetail, ModRow, View } from '../../types/index.d.ts'
 import { groupByReach, type Notable, notableOf, type ReachGroup } from '../domain/capabilities.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { bytesLabel, partsLabel, whyLocked, whyNoRemove, whyNoUpdate } from '../domain/view.ts'
+import {
+  bytesLabel,
+  partsLabel,
+  whyLocked,
+  whyNoRemove,
+  whyNoUpdate,
+  wrappedRows,
+} from '../domain/view.ts'
 import {
   GLYPH,
   Heading,
@@ -38,6 +45,8 @@ export type DetailHow = {
   readonly readOnly: boolean
   /** Rows the body has: past them the detail draws closer, then compactly. */
   readonly rows: number
+  /** Columns it has, where its prose wraps. */
+  readonly columns: number
 }
 
 const detailFor = (how: DetailHow): ModDetail | null =>
@@ -52,7 +61,10 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * hook or call its own explained row; `compact` one line per item and group.
  */
 type Form = { readonly full: boolean; readonly spaced: boolean }
-/** The forms tried in turn, the first that fits the body drawn. */
+/**
+ * The forms tried in turn, the first that fits the body drawn. The blank rows
+ * outrank the facts: a full detail without them reads as one block.
+ */
 const FORMS: readonly Form[] = [
   { full: true, spaced: true },
   { full: false, spaced: true },
@@ -66,10 +78,17 @@ const notableSection = (
   items: readonly Notable[],
   tone: string,
   full: boolean,
+  columns: number,
 ): Section => {
   const { Box, Text } = v.el
   return {
-    rows: 1 + items.length * (full ? 2 : 1),
+    rows:
+      1 +
+      wrappedRows(
+        items.map(item => item.text),
+        columns - 2,
+      ) +
+      (full ? items.length : 0),
     el: (
       <Box flexDirection="column">
         {heading}
@@ -172,7 +191,12 @@ const reachSection = (v: ViewPorts, groups: readonly ReachGroup[], full: boolean
 }
 
 /** The sections under the head, in `form`. */
-const bodySections = (v: ViewPorts, detail: ModDetail | null, full: boolean): Section[] => {
+const bodySections = (
+  v: ViewPorts,
+  detail: ModDetail | null,
+  full: boolean,
+  columns: number,
+): Section[] => {
   const { Box, Text } = v.el
   if (detail === null) {
     return [{ rows: 1, el: <Text dimColor>Reading what it can do…</Text> }]
@@ -189,10 +213,10 @@ const bodySections = (v: ViewPorts, detail: ModDetail | null, full: boolean): Se
         New since {sanitize(detail.capsNew.since, { max: 20 })}
       </Text>
     )
-    sections.push(notableSection(v, heading, fresh, TONE.warn, full))
+    sections.push(notableSection(v, heading, fresh, TONE.warn, full, columns))
   }
   if (old.length > 0) {
-    sections.push(notableSection(v, Heading(v, 'Notable'), old, TONE.accent, full))
+    sections.push(notableSection(v, Heading(v, 'Notable'), old, TONE.accent, full, columns))
   }
   sections.push(reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full))
 
@@ -206,7 +230,12 @@ const bodySections = (v: ViewPorts, detail: ModDetail | null, full: boolean): Se
   if (detail.dataBytes !== undefined) extras.push(`data ${bytesLabel(detail.dataBytes)}`)
   const { validate } = detail
   const facts: RenderElement[] = []
-  if (extras.length > 0) facts.push(<Text dimColor>{extras.join(' · ')}</Text>)
+  if (extras.length > 0)
+    facts.push(
+      <Text dimColor wrap="truncate-end">
+        {extras.join(' · ')}
+      </Text>,
+    )
   if (validate !== undefined) {
     facts.push(
       validate.errors > 0 ? (
@@ -236,12 +265,19 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
   const note = updateNote(row)
   const staged = how.staged.has(row.id) ? how.view.staged[row.id] : undefined
   const toggleLabel = staged !== undefined ? 'unstage' : row.enabled ? 'disable' : 'enable'
+  const lockedLine = locked === undefined ? undefined : `${GLYPH.locked} ${locked}`
+  const stagedLine =
+    staged === undefined
+      ? undefined
+      : `staged: ${staged ? 'on' : 'off'} after apply (s), after a reload`
   return {
     rows:
       3 +
-      (locked === undefined ? 0 : 1) +
       (note === undefined ? 0 : 1) +
-      (staged === undefined ? 0 : 1),
+      wrappedRows(
+        [lockedLine, stagedLine].filter((line): line is string => line !== undefined),
+        how.columns,
+      ),
     el: (
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
@@ -254,7 +290,7 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
           <Text color={row.enabled ? TONE.ok : TONE.muted}>
             {row.enabled ? `${GLYPH.on} on` : `${GLYPH.off} off`}
           </Text>
-          <Text dimColor>
+          <Text dimColor wrap="truncate-end">
             · {row.scope ?? row.origin} · {sanitize(marketplace, { max: 64 })}
           </Text>
         </Box>
@@ -290,21 +326,13 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
             onPress: press => v.act.copy(row.id, press.surface),
           })}
         </Box>
-        {locked === undefined ? null : (
-          <Text color={TONE.warn}>
-            {GLYPH.locked} {locked}
-          </Text>
-        )}
+        {lockedLine === undefined ? null : <Text color={TONE.warn}>{lockedLine}</Text>}
         {note === undefined ? null : (
           <Text dimColor wrap="truncate-end">
             {GLYPH.update} {note}
           </Text>
         )}
-        {staged === undefined ? null : (
-          <Text color={TONE.warn}>
-            staged: {staged ? 'on' : 'off'} after apply (s), after a reload
-          </Text>
-        )}
+        {stagedLine === undefined ? null : <Text color={TONE.warn}>{stagedLine}</Text>}
       </Box>
     ),
   }
@@ -321,7 +349,10 @@ const laidOut = (
   const detail = detailFor(how)
   let last: { sections: Section[]; spaced: boolean } | undefined
   for (const form of FORMS) {
-    last = { sections: [head, ...bodySections(v, detail, form.full)], spaced: form.spaced }
+    last = {
+      sections: [head, ...bodySections(v, detail, form.full, how.columns)],
+      spaced: form.spaced,
+    }
     if (sectionRows(last.sections, last.spaced) <= how.rows) return last
   }
   return last

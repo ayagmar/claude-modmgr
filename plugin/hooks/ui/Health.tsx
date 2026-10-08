@@ -66,9 +66,9 @@ export const HealthList = (
   const { Box, Text } = v.el
   return (
     <Box flexDirection="column">
-      {lines.map(line =>
+      {lines.map((line, index) =>
         line.kind === 'group' ? (
-          <Box key={`group:${line.group}`} paddingLeft={2}>
+          <Box key={`group:${index}`} paddingLeft={2}>
             <Text bold wrap="truncate-end">
               {line.group}
             </Text>
