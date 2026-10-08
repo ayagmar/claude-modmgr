@@ -247,6 +247,8 @@ export type Sync = {
 export type CatalogPage = {
   rows: CatalogRow[]
   total: number
+  /** Of `total`, the community index's mods (all of them mods). */
+  community: number
   matched: number
   offset: number
   loading: boolean

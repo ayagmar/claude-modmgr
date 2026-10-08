@@ -73,6 +73,24 @@ describe('community mods in the catalogue index', () => {
     ])
   })
 
+  it("takes one mod from each repository before any repository's second", () => {
+    const index = buildIndex(
+      [],
+      [
+        mod('big/a', { stars: 90, path: 'a', name: 'a' }),
+        mod('big/a', { stars: 90, path: 'b', name: 'b' }),
+        mod('big/a', { stars: 90, path: 'c', name: 'c' }),
+        mod('small/x', { stars: 5 }),
+      ],
+    )
+    expect(index.order.installs.map(item => item.id)).toEqual([
+      'github.com/big/a/a',
+      'github.com/small/x',
+      'github.com/big/a/b',
+      'github.com/big/a/c',
+    ])
+  })
+
   it('finds where an entry lives on GitHub', () => {
     expect(githubKeyOf({ kind: 'github', repo: 'A/B' })).toBe('a/b')
     expect(githubKeyOf({ kind: 'url', url: 'https://github.com/A/B.git' })).toBe('a/b')

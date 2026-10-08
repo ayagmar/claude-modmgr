@@ -513,6 +513,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? [
             view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,
             detectLine(detect) ?? '',
+            page.community === 0 ? '' : `${page.community.toLocaleString('en-US')} from GitHub`,
           ]
             .filter(part => part !== '')
             .join(' · ')
@@ -532,9 +533,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             key={FILTER_KEY}
             placeholder={
               discover
-                ? detect.found === 0
+                ? detect.found + page.community === 0
                   ? 'Search mods'
-                  : `Search ${count(detect.found, 'mod', 'mods')}`
+                  : `Search ${count(detect.found + page.community, 'mod', 'mods')}`
                 : `Filter ${count(mods.length, 'mod', 'mods')}`
             }
             value={discover ? view.search : view.query}

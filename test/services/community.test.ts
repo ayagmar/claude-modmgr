@@ -130,6 +130,7 @@ describe('Discover with community mods', () => {
       mod('carol/broken', { check: 'failed' }),
     ])
     const page = await w.state.read('catalogPage')
+    expect(page.community).toBe(2)
     const community = page.rows.filter(row => row.community !== undefined)
     expect(community.map(row => [row.id, row.stars])).toEqual([
       ['github.com/bob/meter', 9],

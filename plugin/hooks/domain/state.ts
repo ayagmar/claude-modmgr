@@ -62,7 +62,7 @@ export const INITIAL_VIEW: View = {
 export const INITIAL: Readonly<ModmgrState> = {
   mods: [],
   detail: null,
-  catalogPage: { rows: [], total: 0, matched: 0, offset: 0, loading: false },
+  catalogPage: { rows: [], total: 0, community: 0, matched: 0, offset: 0, loading: false },
   detect: { checked: 0, total: 0, found: 0, running: false },
   queue: { owner: '', jobs: [] },
   sync: { refreshing: false, skipped: 0 },

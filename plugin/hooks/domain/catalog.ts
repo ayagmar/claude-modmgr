@@ -39,6 +39,8 @@ type Indexed = {
 
 export type CatalogIndex = {
   readonly size: number
+  /** Of `size`, community mods. */
+  readonly community: number
   readonly byId: ReadonlyMap<string, Indexed>
   readonly order: Readonly<Record<CatalogSort, readonly Indexed[]>>
 }
@@ -106,24 +108,48 @@ export const buildIndex = (
   const name = [...all].sort(byName)
   return {
     size: all.length,
+    community: all.filter(item => item.mod !== undefined).length,
     byId,
     order: {
       name,
-      installs: [...name].sort(byPopularity),
+      installs: [...name].sort(byPopularity(turnsOf(name))),
       marketplace: [...name].sort((a, b) => originOf(a).localeCompare(originOf(b))),
     },
   }
 }
 
-/** The person's marketplaces first, by installs; then the community's mods, by stars. */
-const byPopularity = (a: Indexed, b: Indexed): number => {
-  if (a.entry !== undefined && b.entry !== undefined) {
-    return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+/**
+ * Each community mod's turn within its repository, in name order: a
+ * repository's mods share its stars, so one that ships dozens would fill the
+ * top of a list by stars on its own.
+ */
+const turnsOf = (byName: readonly Indexed[]): ReadonlyMap<string, number> => {
+  const seen = new Map<string, number>()
+  const turns = new Map<string, number>()
+  for (const item of byName) {
+    if (item.mod === undefined) continue
+    const repo = item.mod.repo.toLowerCase()
+    const turn = seen.get(repo) ?? 0
+    turns.set(item.id, turn)
+    seen.set(repo, turn + 1)
   }
-  if (a.entry !== undefined) return -1
-  if (b.entry !== undefined) return 1
-  return b.mod.stars - a.mod.stars
+  return turns
 }
+
+/**
+ * The person's marketplaces first, by installs; then the community's mods by
+ * stars, one from each repository before any repository's second.
+ */
+const byPopularity =
+  (turns: ReadonlyMap<string, number>) =>
+  (a: Indexed, b: Indexed): number => {
+    if (a.entry !== undefined && b.entry !== undefined) {
+      return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+    }
+    if (a.entry !== undefined) return -1
+    if (b.entry !== undefined) return 1
+    return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
+  }
 
 /** The marketplace an entry comes from, or the repository of a community mod. */
 const originOf = (item: Indexed): string =>

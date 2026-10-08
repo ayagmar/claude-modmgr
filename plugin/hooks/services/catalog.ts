@@ -221,11 +221,13 @@ export const createCatalog = (
         : { ...local, notable: [...read.notable] }
     })
     const total = index.size
+    const fromGithub = index.community
     const matched = memo.matched.length
     if (mine !== generation) return
     await ports.state.update('catalogPage', () => ({
       rows,
       total,
+      community: fromGithub,
       matched,
       offset,
       loading: false,
