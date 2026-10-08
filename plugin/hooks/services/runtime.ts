@@ -104,6 +104,10 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
       }
       // A refreshed marketplace says what can update (PLAN §2.6).
       if (job.kind === 'marketplace-update' && job.state === 'ok') void updater.check()
+      // The CLI found it current: what a check guessed goes, before the refresh that follows.
+      if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
+        updater.forget(job.target)
+      }
     },
     debug,
   })

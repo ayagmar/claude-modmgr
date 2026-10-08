@@ -155,7 +155,7 @@ const row = (name: string, more: Partial<ModRow> = {}): ModRow => ({
 const facts = (more: Partial<HealthFacts> = {}): HealthFacts => ({
   ...INITIAL.health,
   at: 10 * 3_600_000,
-  debugLog: true,
+  debugLog: { state: 'read', path: '/cfg/debug/s.txt' },
   detector: { spent: 40, budget: 600, remote: true },
   cache: { bytes: 2048, full: false },
   updates: { every: 6, at: 7 * 3_600_000 },
@@ -231,7 +231,7 @@ describe('Health’s items (PLAN §2.5)', () => {
         facts: facts({
           chain: [{ event: 'session.append', text: 'a then b rewrite each row (session.append).' }],
           cache: { bytes: 0, full: true },
-          debugLog: false,
+          debugLog: { state: 'none' },
           detector: {
             spent: 0,
             budget: 600,

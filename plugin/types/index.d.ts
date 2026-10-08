@@ -303,8 +303,11 @@ export type HealthFacts = {
   chain: ChainNoteRow[]
   /** By plugin name: the last `hook failed closed` line's event and error kind. */
   logged: Record<string, string>
-  /** Whether the session writes a debug log (`--debug`). */
-  debugLog: boolean
+  /**
+   * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`, F35):
+   * none, read, or too large to read here (over 4 MiB), with its path.
+   */
+  debugLog: { state: 'none' | 'read' | 'too-big'; path?: string }
   detector: { spent: number; budget: number; remote: boolean; why?: string }
   cache: { bytes: number; full: boolean }
   updates: { at?: number; every: number; off?: string }

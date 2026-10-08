@@ -6,13 +6,13 @@
 import type { HealthFacts } from '../../types/index.d.ts'
 import { chainNotes } from '../domain/chain.ts'
 import type { Config } from '../domain/config.ts'
-import { configDirOf, joinPath } from '../domain/dev.ts'
+import { configDirOf, isSessionId, joinPath } from '../domain/dev.ts'
 import { loggedFailures } from '../domain/health.ts'
 import type { Ports } from '../ports.ts'
 import type { Registry } from './registry.ts'
 import type { StoreService } from './store.ts'
 
-export type HealthPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'clock'>
+export type HealthPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'clock' | 'session'>
 
 /** modmgr observes the session's notices and changes no row (C14): no hook-order note names it. */
 const SELF = 'modmgr'
@@ -38,20 +38,32 @@ export const createHealth = (
   let running: Promise<void> | undefined
   let again = false
 
-  /** The last failures a `--debug` session's log names (`<config>/debug/latest`, F35). */
-  const logged = async (): Promise<{ found: boolean; failures: Record<string, string> }> => {
-    const [configDir, home] = await Promise.all([
+  /**
+   * The last failures this session's own debug log names (`<config>/debug/<session
+   * id>.txt`, F35): not `latest`, which may be another session's (review R-M5-4).
+   */
+  const logged = async (): Promise<{
+    log: HealthFacts['debugLog']
+    failures: Record<string, string>
+  }> => {
+    const none = { log: { state: 'none' as const }, failures: {} }
+    const [configDir, home, sessionId] = await Promise.all([
       ports.env.configDir().catch(() => undefined),
       ports.env.home().catch(() => undefined),
+      ports.session.id().catch(() => ''),
     ])
     const config = configDirOf(configDir, home)
-    if (config === undefined) return { found: false, failures: {} }
+    if (config === undefined || !isSessionId(sessionId)) return none
     const folder = joinPath(config, 'debug')
+    const name = `${sessionId}.txt`
     const entries = await ports.fs.list(folder).catch(() => [])
-    if (!entries.some(entry => entry.name === 'latest')) return { found: false, failures: {} }
-    // A log past 4 MiB can't be read in one piece: the pointer stays, the lines don't.
-    const text = await ports.fs.read(joinPath(folder, 'latest')).catch(() => '')
-    return { found: true, failures: loggedFailures(text) }
+    if (!entries.some(entry => entry.name === name)) return none
+    const path = joinPath(folder, name)
+    // Past 4 MiB the engine won't read it in one piece: say so, never "nothing failed".
+    const text = await ports.fs.read(path).catch(() => undefined)
+    return text === undefined
+      ? { log: { state: 'too-big', path }, failures: {} }
+      : { log: { state: 'read', path }, failures: loggedFailures(text) }
   }
 
   const once = async (): Promise<void> => {
@@ -80,7 +92,7 @@ export const createHealth = (
         text: note.text,
       })),
       logged: log.failures,
-      debugLog: log.found,
+      debugLog: log.log,
       detector: {
         spent: deps.detector.spent(),
         budget: deps.budget,

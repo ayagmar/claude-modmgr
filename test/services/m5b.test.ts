@@ -193,15 +193,19 @@ describe('the update scheduler (PLAN §2.6)', () => {
 describe('Health (PLAN §2.5)', () => {
   it('gathers its facts: hook order without modmgr, the debug log, the detector, the cache, the checks', async () => {
     const { w, rt } = await setup()
-    w.fs.dirs.set('/cfg/debug', [{ name: 'latest', kind: 'other' }])
+    // This session's own log, not `latest` (review R-M5-4).
+    w.fs.dirs.set('/cfg/debug', [
+      { name: 'latest', kind: 'other' },
+      { name: 'session-1.txt', kind: 'file' },
+    ])
     w.fs.files.set(
-      '/cfg/debug/latest',
+      '/cfg/debug/session-1.txt',
       'x [WARN] hook failed closed: quiet-bash: errorKind=Error errorChars=4 (tool.call; skipped)\n',
     )
     await rt.health.refresh()
     const facts = w.state.values.health
     expect(facts.logged).toEqual({ 'quiet-bash': 'tool.call (Error)' })
-    expect(facts.debugLog).toBe(true)
+    expect(facts.debugLog).toEqual({ state: 'read', path: '/cfg/debug/session-1.txt' })
     expect(facts.detector).toEqual({ spent: 0, budget: DETECT_BUDGET, remote: true })
     expect(facts.updates).toEqual({ every: 6 })
     expect(facts.cache.full).toBe(false)
@@ -212,7 +216,7 @@ describe('Health (PLAN §2.5)', () => {
     const { w, rt } = await setup()
     w.ports.env = { ...w.ports.env, configDir: async () => undefined, home: async () => undefined }
     await Promise.all([rt.health.refresh(), rt.health.refresh(), rt.health.refresh()])
-    expect(w.state.values.health.debugLog).toBe(false)
+    expect(w.state.values.health.debugLog).toEqual({ state: 'none' })
     w.state.failWrites = true
     await rt.health.refresh()
     expect(w.ui.lines.some(line => line.includes('health refresh failed'))).toBe(true)
@@ -222,7 +226,7 @@ describe('Health (PLAN §2.5)', () => {
     const { w, rt } = await setup({ env: { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' } })
     await rt.health.refresh()
     expect(w.state.values.health).toMatchObject({
-      debugLog: false,
+      debugLog: { state: 'none' },
       detector: { remote: false, why: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC is set' },
       updates: { off: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC is set' },
     })

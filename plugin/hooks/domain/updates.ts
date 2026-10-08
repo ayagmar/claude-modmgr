@@ -7,14 +7,26 @@
 
 import type { CatalogSource, InstalledEntry } from './cli-results.ts'
 import { parseCatalogSource } from './cli-results.ts'
-import { splitPluginId } from './ids.ts'
+import { isPluginName, splitPluginId } from './ids.ts'
 import { isRecord, parseJson, str } from './json.ts'
 import { originOf } from './mods.ts'
 import type { FoundUpdate, Updates } from './store-schema.ts'
 import { compareVersions } from './version.ts'
 
-/** A plugin as its marketplace's own file lists it. */
-export type ListedEntry = { readonly version?: string; readonly source: CatalogSource }
+/**
+ * A plugin as its marketplace's own file lists it, with the version its own
+ * `plugin.json` says when that file is on disk (a relative source): the CLI
+ * compares the plugin's own version when it has one, the file's declaration
+ * otherwise (F58, review R-M5-2).
+ */
+export type ListedEntry = {
+  readonly version?: string
+  readonly source: CatalogSource
+  readonly manifestVersion?: string
+}
+
+/** A version string kept from a file modmgr doesn't control: at most this long. */
+const VERSION_MAX = 64
 
 /** A `marketplace.json`'s plugins by name (unreadable entries left out). */
 export const marketplaceEntriesOf = (text: string): Map<string, ListedEntry> => {
@@ -24,13 +36,16 @@ export const marketplaceEntriesOf = (text: string): Map<string, ListedEntry> => 
   for (const plugin of value.plugins) {
     if (!isRecord(plugin)) continue
     const name = str(plugin, 'name')
-    if (name === undefined) continue
-    const version = str(plugin, 'version')
+    if (!isPluginName(name)) continue
+    const version = str(plugin, 'version')?.slice(0, VERSION_MAX)
     const source = parseCatalogSource(plugin.source)
     entries.set(name, version === undefined ? { source } : { version, source })
   }
   return entries
 }
+
+/** A whole version string (`1.2.0`, `1.2.0-beta.1`), not one that merely starts like one. */
+const VERSION = /^\d+\.\d+\.\d+(?:[-+][\w.-]{0,40})?$/
 
 /** A commit-named version: the 12-hex prefix the CLI gives a plugin with no version of its own. */
 const COMMIT_VERSION = /^[0-9a-f]{12}$/
@@ -53,10 +68,15 @@ export const updateOf = (
   const version = installed.version
   if (listed === undefined || version === undefined) return undefined
   if (originOf(installed) !== 'marketplace' || installed.scope === 'managed') return undefined
-  if (listed.version !== undefined) {
-    const newer = compareVersions(listed.version, version)
-    return newer !== undefined && newer > 0 ? listed.version : undefined
+  if (listed.source.kind === 'relative') {
+    // Its folder is in the clone: the plugin's own version first, as the CLI reads it.
+    const target = listed.manifestVersion ?? listed.version
+    if (target === undefined || !VERSION.test(target) || !VERSION.test(version)) return undefined
+    const newer = compareVersions(target, version)
+    return newer !== undefined && newer > 0 ? target : undefined
   }
+  // A remote source's own manifest isn't on disk: a declared version may not be what the
+  // CLI compares, so only a moved commit is sure.
   const sha = pinnedSha(listed.source)
   if (!COMMIT_VERSION.test(version) || sha === undefined || !/^[0-9a-f]{40}$/.test(sha)) {
     return undefined

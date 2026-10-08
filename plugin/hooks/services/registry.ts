@@ -194,7 +194,9 @@ export const createRegistry = (
     const [before, view] = await Promise.all([ports.state.read('mods'), ports.state.read('view')])
     // The row shown selected stays so when a new one sorts above it (found live in Dev);
     // written only when it moves, since a view write redraws the pane.
-    const shown = view.selected === undefined ? selectedRow(view, before)?.id : undefined
+    // Not under a filter: the first row it shows isn't what the person picked (review R-M5-10).
+    const shown =
+      view.selected === undefined && view.query === '' ? selectedRow(view, before)?.id : undefined
     if (shown !== undefined) {
       await ports.state.update('view', current =>
         current.selected === undefined ? { ...current, selected: shown } : current,

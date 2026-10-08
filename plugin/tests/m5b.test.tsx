@@ -45,8 +45,19 @@ for (const surface of SURFACES) {
     expect(await ui.find({ type: 'Text', text: '→ see it' })).toBeDefined()
     expect(await ui.find({ key: 'health:redactor:failures' })).toBeDefined()
     expect(await ui.find({ key: 'health:own:reload' })).toBeDefined()
-    // A fix runs from a press: the broken mod's detail on Installed.
+    // Stacked, a press opens the item whole (review R-M5-5), and its fix runs from there:
+    // the broken mod's detail on Installed.
+    await ui.press({ key: 'health:redactor:failures' })
+    await ui.redraw()
+    expect(
+      await ui.find({ type: 'Text', text: '2 failures while it reloaded; last: reload failed' }),
+    ).toBeDefined()
+    await ui.press({ key: 'act:back' })
+    await ui.redraw()
     await ui.press({ key: 'health:broken@fixtures:validate' })
+    await ui.redraw()
+    expect((await ui.find({ key: 'act:fix' }))?.props.label).toBe('→ see it')
+    await ui.press({ key: 'act:fix' })
     await settle(h)
     await ui.redraw()
     expect(h.read('view')).toMatchObject({

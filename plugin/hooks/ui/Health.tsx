@@ -7,7 +7,7 @@
 import type { RenderElement } from 'claude-code'
 import { type HealthItem, type HealthTone, healthKey } from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import type { Window } from '../domain/view.ts'
+import { type Window, wrappedRows } from '../domain/view.ts'
 import { GLYPH, TONE, type ViewPorts } from './kit.tsx'
 
 const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone: string }>> = {
@@ -19,7 +19,13 @@ const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone:
 export const HealthLine = (
   v: ViewPorts,
   item: HealthItem,
-  how: { readonly columns: number; readonly focus: boolean; readonly first: boolean },
+  how: {
+    readonly columns: number
+    readonly focus: boolean
+    readonly first: boolean
+    /** Stacked: Enter opens the item whole (its row is clipped, review R-M5-5); split: runs its fix. */
+    readonly stacked: boolean
+  },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const group = Math.max(8, Math.min(18, Math.floor(how.columns * 0.28)))
@@ -33,14 +39,14 @@ export const HealthLine = (
           {how.first ? item.group : ''}
         </Text>
       </Box>
-      {/* One row per item (the window counts them): the split's detail has the whole text. */}
+      {/* One row per item (the window counts them): the detail has the whole text. */}
       <Box width={text} height={1} flexShrink={1} overflow="hidden">
         <Button
           key={healthKey(item.key)}
           plain
           label={sanitize(item.text, { max: 300 })}
           {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => v.act.fix(item.key)}
+          onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.fix(item.key))}
         />
       </Box>
       {fix === undefined ? null : (
@@ -60,17 +66,10 @@ export const HealthList = (
     readonly columns: number
     readonly window: Window
     readonly focusKey: string | undefined
-    readonly loading: boolean
+    readonly stacked: boolean
   },
 ): RenderElement => {
-  const { Box, Text } = v.el
-  if (items.length === 0) {
-    return (
-      <Text dimColor>
-        {how.loading ? 'Looking at your mods…' : `${GLYPH.ok} Nothing needs you.`}
-      </Text>
-    )
-  }
+  const { Box } = v.el
   const shown = items.slice(how.window.start, how.window.end)
   return (
     <Box flexDirection="column">
@@ -79,21 +78,41 @@ export const HealthList = (
           columns: how.columns,
           focus: item.key === how.focusKey,
           first: index === 0 || shown[index - 1]?.group !== item.group,
+          stacked: how.stacked,
         }),
       )}
     </Box>
   )
 }
 
-/** The selected item in full, beside the list (the split): its words wrap here. */
-export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): RenderElement => {
-  const { Box, Text } = v.el
+/** The rows the item's detail takes at `columns`. */
+export const healthDetailRows = (item: HealthItem | undefined, columns: number): number =>
+  item === undefined
+    ? 1
+    : wrappedRows([item.group, sanitize(item.text, { max: 300 }), item.fixLabel ?? ''], columns)
+
+/**
+ * The selected item in full, its words wrapped: beside the list in the split
+ * (where Enter on the row runs the fix), or pushed by Enter when stacked, with
+ * its fix as a button (`actions`).
+ */
+export const HealthItemDetail = (
+  v: ViewPorts,
+  item: HealthItem | undefined,
+  how: { readonly actions: boolean },
+): RenderElement => {
+  const { Box, Button, Text } = v.el
   if (item === undefined) return <Text dimColor>{GLYPH.ok} Nothing needs you.</Text>
+  const label = item.fixLabel
   return (
     <Box flexDirection="column">
       <Text bold>{item.group}</Text>
       <Text>{sanitize(item.text, { max: 300 })}</Text>
-      {item.fixLabel === undefined ? null : <Text color={TONE.accent}>enter: {item.fixLabel}</Text>}
+      {label === undefined ? null : how.actions ? (
+        <Button key="act:fix" plain label={`→ ${label}`} onPress={() => v.act.fix(item.key)} />
+      ) : (
+        <Text color={TONE.accent}>enter: {label}</Text>
+      )}
     </Box>
   )
 }

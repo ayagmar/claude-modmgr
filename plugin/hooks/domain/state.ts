@@ -75,7 +75,7 @@ export const INITIAL: Readonly<ModmgrState> = {
   health: {
     chain: [],
     logged: {},
-    debugLog: false,
+    debugLog: { state: 'none' },
     detector: { spent: 0, budget: 0, remote: false },
     cache: { bytes: 0, full: false },
     updates: { every: 0 },

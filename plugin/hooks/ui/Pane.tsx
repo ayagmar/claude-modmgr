@@ -27,7 +27,7 @@ import {
 import { Detail, detailRows } from './Detail.tsx'
 import { DevDetail, DevList, devDetailRows, Share, shareRows } from './Dev.tsx'
 import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
-import { HealthItemDetail, HealthList } from './Health.tsx'
+import { HealthItemDetail, HealthList, healthDetailRows } from './Health.tsx'
 import { List } from './Installed.tsx'
 import { GLYPH, KeyButton, TONE, type ViewPorts } from './kit.tsx'
 import {
@@ -306,7 +306,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       columns: listColumns,
       window,
       focusKey: item?.key,
-      loading: facts.at === undefined,
+      stacked: layout !== 'split',
     })
   } else if (dev) {
     const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)
@@ -363,7 +363,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           ? 'discover-detail'
           : dev
             ? 'dev-detail'
-            : 'detail'
+            : health
+              ? 'health'
+              : 'detail'
         : overlay === 'share'
           ? 'share'
           : overlay === 'review'
@@ -397,7 +399,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       : dev
         ? DevDetail(v, devRow, { ...devHow, actions, readOnly })
         : health
-          ? HealthItemDetail(v, item)
+          ? HealthItemDetail(v, item, { actions })
           : Detail(v, detailHow(actions))
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
@@ -414,7 +416,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
                 ? foundDetailRows(found, true)
                 : dev
                   ? devDetailRows(devRow, devHow, true, frame.bodyColumns)
-                  : detailRows(detailHow(true))
+                  : health
+                    ? healthDetailRows(item, frame.bodyColumns)
+                    : detailRows(detailHow(true))
               : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>

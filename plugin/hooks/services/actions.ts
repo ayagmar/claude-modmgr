@@ -81,7 +81,7 @@ export type ActionRuntime = Pick<
 /** What Health's "check now" says, by what the scheduler did. */
 const CHECK_SAID: Readonly<Record<'queued' | 'busy' | 'off' | 'nothing', string>> = {
   queued: 'Checking the marketplaces for updates…',
-  busy: 'A turn is running; check again when it ends',
+  busy: 'Busy now (a turn or a reload); try again in a moment',
   off: 'Update checks are off',
   nothing: 'No installed mod comes from a marketplace that updates',
 }
@@ -157,8 +157,10 @@ export type Actions = {
   share(key?: string): Promise<void>
   /** The ring landed on a Health item: it becomes Health's selection. */
   focusHealth(key: string): Promise<void>
-  /** Enter on a Health item: its fix. */
+  /** Enter on a Health item, split: its fix. */
   fix(key: string): Promise<void>
+  /** Enter on a Health item, stacked: the item whole, its fix a button (review R-M5-5). */
+  openHealth(key: string): Promise<void>
   /**
    * Esc and the close mark (`ui.close`, origin `person`): true keeps the pane
    * open. `hadKeys` is whether the pane held the keys when it was last drawn
@@ -304,6 +306,7 @@ export const createActions = (
     if (top === 'marketplace') return ringTo(MARKETPLACE_KEY)
     if (top === 'detail' && view.tab === 'discover') return ringTo('act:install', 'act:copy')
     if (top === 'detail' && view.tab === 'dev') return ringTo('act:validate', 'act:copy')
+    if (top === 'detail' && view.tab === 'health') return ringTo('act:fix', 'act:back')
     if (top === 'share') return ringTo('act:copy')
     if (top === 'detail') return ringTo('act:toggle', 'act:copy')
     return ringTo(top === 'help' ? 'act:help' : 'act:jobs')
@@ -747,6 +750,11 @@ export const createActions = (
       await ringToOverlay()
     }),
 
+    openHealth: safely('open health', async key => {
+      await setView(view => pushOverlay({ ...quiet(view), health: key }, 'detail'))
+      await ringToOverlay()
+    }),
+
     focusHealth: safely('focus health', async key => {
       const view = await state.read('view')
       if (view.health === key) return
@@ -757,7 +765,12 @@ export const createActions = (
       const item = (await healthItems()).find(each => each.key === key)
       const fix = item?.fix
       if (fix === undefined || rt === undefined) return
-      await setView(current => ({ ...quiet(current), health: key }))
+      // The item's detail, when it was open, has done its job.
+      await setView(current => ({
+        ...quiet(current),
+        health: key,
+        stack: current.stack.filter(overlay => overlay !== 'detail'),
+      }))
       switch (fix.kind) {
         case 'open':
           // What a mod can do, and its errors, are in its Installed detail.

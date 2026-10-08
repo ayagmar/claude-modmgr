@@ -78,10 +78,8 @@ const TONE_ORDER: Readonly<Record<HealthTone, number>> = { bad: 0, warn: 1, info
 const modItems = (input: HealthInput): HealthItem[] => {
   const items: HealthItem[] = []
   const devKeyOf = new Map(input.dev.rows.map(row => [row.name, row.key]))
-  const named = new Set<string>()
   for (const row of input.mods) {
     const group = sanitize(row.name, { max: 40 })
-    named.add(row.name)
     if (row.problems > 0) {
       items.push({
         key: `${row.id}:validate`,
@@ -206,17 +204,19 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   const counts = loadStates(input.mods)
   if (counts !== undefined) own({ key: 'own:load', tone: 'info', text: counts })
   const updates = facts.updates
-  own({
-    key: 'own:updates',
-    tone: 'info',
-    text:
-      updates.off !== undefined
-        ? `update checks are off: ${updates.off}`
-        : `updates checked ${updates.at === undefined || facts.at === undefined ? 'never' : agoLabel(facts.at - updates.at)}, every ${plural(updates.every, 'hour', 'hours')}`,
-    ...(updates.off === undefined
-      ? { fix: { kind: 'check-updates' as const }, fixLabel: 'check now' }
-      : {}),
-  })
+  // Said once the facts are in (the first frame has none: "every 0 hours", review R-M5-9).
+  if (facts.at !== undefined)
+    own({
+      key: 'own:updates',
+      tone: 'info',
+      text:
+        updates.off !== undefined
+          ? `update checks are off: ${updates.off}`
+          : `updates checked ${updates.at === undefined || facts.at === undefined ? 'never' : agoLabel(facts.at - updates.at)}, every ${plural(updates.every, 'hour', 'hours')}`,
+      ...(updates.off === undefined
+        ? { fix: { kind: 'check-updates' as const }, fixLabel: 'check now' }
+        : {}),
+    })
   const left = Math.max(0, facts.detector.budget - facts.detector.spent)
   own({
     key: 'own:detector',
@@ -237,7 +237,17 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       fixLabel: 'clear',
     })
   }
-  if (!facts.debugLog) {
+  const log = facts.debugLog
+  if (log.state === 'too-big' && log.path !== undefined) {
+    own({
+      key: 'own:debug',
+      tone: 'warn',
+      text: "this session's debug log is too large to read here (over 4 MiB)",
+      fix: { kind: 'copy', text: `grep 'hook failed closed' ${log.path}` },
+      fixLabel: 'copy a search',
+    })
+  }
+  if (log.state === 'none') {
     own({
       key: 'own:debug',
       tone: 'info',

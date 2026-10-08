@@ -8,9 +8,9 @@
 // scheduler, which re-arms from the stored time.
 
 import { parseMarketplaces } from '../domain/cli-results.ts'
-import { joinPath } from '../domain/dev.ts'
+import { joinPath, manifestOf, marketplaceFolderOf } from '../domain/dev.ts'
 import { parseMarketplaceName, splitPluginId } from '../domain/ids.ts'
-import type { JobSpec } from '../domain/jobs.ts'
+import { isActive, type JobSpec } from '../domain/jobs.ts'
 import { originOf } from '../domain/mods.ts'
 import {
   foundUpdates,
@@ -38,6 +38,8 @@ export type Updater = {
   run(): Promise<'queued' | 'busy' | 'off' | 'nothing'>
   /** Reads the marketplaces' files and records what can update (no network). */
   check(): Promise<void>
+  /** Forgets what a check found for `id`: the CLI found it up to date (review R-M5-2). */
+  forget(id: string): void
   dispose(): void
 }
 
@@ -79,18 +81,24 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     })
   }
 
+  /** Checks off for this module: no timer at all, not one that finds them off (review R-M5-1). */
+  const isOff = async (): Promise<boolean> => deps.hours <= 0 || (await deps.trafficOff())
+
   const tick = async (): Promise<void> => {
     const outcome = await run().catch(error => {
       debug(`modmgr: update check failed: ${String(error)}`)
-      return 'nothing' as const
+      return 'failed' as const
     })
     if (outcome === 'busy') schedule(BUSY_RETRY_MS)
-    else await arm()
+    else if (outcome === 'failed') await arm()
   }
 
   const run = async (): Promise<'queued' | 'busy' | 'off' | 'nothing'> => {
-    if (deps.hours <= 0 || (await deps.trafficOff())) return 'off'
+    if (await isOff()) return 'off'
     if (deps.turns.size > 0) return 'busy'
+    // A reload under way or waiting goes first: a refresh would hold the queue (review R-M5-10).
+    const { jobs } = await ports.state.read('queue')
+    if (jobs.some(job => job.kind === 'reload' && isActive(job))) return 'busy'
     if (!deps.registry.isLoaded()) await deps.registry.refresh()
     const now = await ports.clock.now()
     // Said done now, so a failing network isn't asked again before the next period.
@@ -98,12 +106,15 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     const specs: JobSpec[] = marketplacesOfMods().flatMap(name =>
       parseMarketplaceName(name).ok ? [{ kind: 'marketplace-update', target: name }] : [],
     )
+    // The next one is a period from now, whoever asked (the timer or "check now", review R-M5-3).
+    await arm()
     if (specs.length === 0) return 'nothing'
+    // One refresh at a time: none waiting or running (review R-M5-3).
     const queued = await enqueue(
       ports,
       { id: deps.newJobId(), specs, reload: false },
       () => deps.newJobId(),
-      queue => !queue.jobs.some(job => job.kind === 'marketplace-update' && job.state === 'queued'),
+      queue => !queue.jobs.some(job => job.kind === 'marketplace-update' && isActive(job)),
     )
     if (!queued) return 'nothing'
     deps.kick()
@@ -111,6 +122,10 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
   }
 
   const arm = async (): Promise<void> => {
+    if (await isOff()) {
+      timer?.cancel()
+      return
+    }
     const now = await ports.clock.now()
     const lastAt = deps.store.get('updates').at
     const wait = nextCheckIn(lastAt, deps.hours, now)
@@ -121,6 +136,9 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     schedule(lastAt === undefined ? Math.max(wait, FIRST_CHECK_DELAY_MS) : wait)
   }
 
+  const readText = (path: string): Promise<string | undefined> =>
+    ports.fs.read(path).catch(() => undefined)
+
   const checkOnce = async (): Promise<void> => {
     const listed = await runCli(ports, { op: 'marketplaces' })
     const marketplaces = listed.ok ? parseMarketplaces(listed.value) : undefined
@@ -128,16 +146,34 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
       debug('modmgr: update check could not list the marketplaces')
       return
     }
+    // Mods only: a row shows nothing else (review R-M5-10).
+    const installed = deps.registry
+      .listed()
+      .filter(({ mod }) => mod === true)
+      .map(({ entry }) => entry)
     const wanted = new Set(marketplacesOfMods())
     const entries = new Map<string, ReadonlyMap<string, ListedEntry>>()
     for (const marketplace of marketplaces.value.items) {
-      if (!wanted.has(marketplace.name) || marketplace.installLocation === undefined) continue
-      const text = await ports.fs
-        .read(joinPath(marketplace.installLocation, '.claude-plugin/marketplace.json'))
-        .catch(() => undefined)
-      if (text !== undefined) entries.set(marketplace.name, marketplaceEntriesOf(text))
+      const root = marketplace.installLocation
+      if (!wanted.has(marketplace.name) || root === undefined) continue
+      const text = await readText(joinPath(root, '.claude-plugin/marketplace.json'))
+      if (text === undefined) continue
+      const listed = marketplaceEntriesOf(text)
+      // An installed mod's own plugin.json, in the clone, says the version the CLI compares.
+      for (const entry of installed) {
+        const { name, marketplace: from } = splitPluginId(entry.id)
+        const item = listed.get(name)
+        if (from !== marketplace.name || item?.source.kind !== 'relative') continue
+        const folder = marketplaceFolderOf(text, name)
+        if (folder === undefined) continue
+        const manifest = await readText(
+          joinPath(joinPath(root, folder), '.claude-plugin/plugin.json'),
+        )
+        const version = manifest === undefined ? undefined : manifestOf(manifest)?.version
+        if (version !== undefined) listed.set(name, { ...item, manifestVersion: version })
+      }
+      entries.set(marketplace.name, listed)
     }
-    const installed = deps.registry.listed().map(({ entry }) => entry)
     const found = foundUpdates(installed, entries)
     deps.store.update('updates', updates => ({ ...updates, found }))
     await deps.registry.refresh()
@@ -164,6 +200,13 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
         checking = undefined
       })
       return checking
+    },
+    forget(id) {
+      deps.store.update('updates', updates => {
+        if (updates.found[id] === undefined) return updates
+        const { [id]: _gone, ...found } = updates.found
+        return { ...updates, found }
+      })
     },
     dispose() {
       disposed = true

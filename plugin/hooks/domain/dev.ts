@@ -201,6 +201,9 @@ export const joinPath = (root: string, relative: string): string => {
 
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
 
+/** A session id that is one plain path segment. */
+export const isSessionId = (value: string): boolean => SESSION_ID.test(value)
+
 /**
  * This session's mods folder: `<config dir>/dev-mods/<session id>`, the config
  * dir being `CLAUDE_CONFIG_DIR` or `~/.claude`. Undefined when neither is an
@@ -296,8 +299,13 @@ const NOTICE = /^([a-z0-9][a-z0-9._-]{0,63})(?:@[a-z0-9][a-z0-9._-]{0,63})?: ([\
 /** The words the engine's notices use for a hook or module that didn't work (F20). */
 const FAILURE = /\b(?:fail(?:s|ed)?|refused|skipped|threw|not loaded|did not load|errors?)\b/i
 
-/** The plugin folder a hooks file's path names: `<folder>/hooks/<file>`. */
-const HOOKS_FILE = /(\/[^\s:`'"]+?)\/hooks\/[^\s/:`'"]+/
+/**
+ * The plugin folder a hooks file's path names (`: <folder>/hooks/<file>`), the
+ * folder allowed to hold spaces (review R-M5-7).
+ */
+const HOOKS_FILE = /:\s(\/.+?)\/hooks\/[^\s/:`'"]+/
+/** The notices that name a module's file, as F57 saw them: only these say where a plugin is. */
+const NAMES_FOLDER = /\b(?:reload failed|did not load)\b/
 
 export type Failure = { readonly name: string; readonly reason: string; readonly folder?: string }
 
@@ -313,7 +321,7 @@ export const failureOf = (text: string): Failure | undefined => {
   const name = match?.[1]
   const reason = match?.[2]
   if (name === undefined || reason === undefined || !FAILURE.test(reason)) return undefined
-  const folder = HOOKS_FILE.exec(reason)?.[1]
+  const folder = NAMES_FOLDER.test(reason) ? HOOKS_FILE.exec(reason)?.[1] : undefined
   const checked = folder === undefined ? undefined : parseAbsolutePath(folder)
   return {
     name,
