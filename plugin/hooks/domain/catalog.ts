@@ -1,4 +1,4 @@
-// The Discover catalogue (PLAN §2.3, R11): an index kept in module memory,
+// The Discover catalogue: an index kept in module memory,
 // never in `$.state` or `$.store`. Sort orders are computed once at build time,
 // so a keystroke costs one filter pass over a pre-sorted list and no sort.
 
@@ -10,8 +10,6 @@ export type { CatalogKind, CatalogRow }
 
 export const SORTS = ['installs', 'name', 'marketplace'] as const
 export type CatalogSort = (typeof SORTS)[number]
-export const KIND_FILTERS = ['mods', 'hooks', 'all'] as const
-export type KindFilter = (typeof KIND_FILTERS)[number]
 
 export const PAGE_SIZE = 50
 const NAME_MAX = 64
@@ -63,37 +61,30 @@ export const tokens = (text: string): string[] =>
     .split(' ')
     .filter(word => word.length > 0)
 
-const KIND_ALLOWED: Readonly<Record<KindFilter, ReadonlySet<CatalogKind>>> = {
-  mods: new Set(['mod']),
-  hooks: new Set(['mod', 'hooks']),
-  all: new Set(['mod', 'hooks', 'plain', 'unknown']),
-}
-
-/** One matched entry, with the kind the filter saw. */
+/** One matched entry, with its kind. */
 export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
 
 /**
- * Every entry the query matches, in its sort's order: one pass over a
- * pre-sorted list (PLAN §6: under 16 ms over 3.5k entries).
+ * Every entry the query matches in its sort's order, only those of `only`'s
+ * kind when given: one pass over a pre-sorted list (under 16 ms over 3.5k entries).
  */
 export const matchAll = (
   index: CatalogIndex,
-  query: { readonly text: string; readonly kind: KindFilter; readonly sort: CatalogSort },
+  query: { readonly text: string; readonly sort: CatalogSort; readonly only?: CatalogKind },
   kindOf: (id: string) => CatalogKind,
 ): Match[] => {
   const words = tokens(query.text)
-  const allowed = KIND_ALLOWED[query.kind]
   const matched: Match[] = []
   for (const item of index.order[query.sort]) {
     const kind = kindOf(item.entry.id)
-    if (!allowed.has(kind)) continue
+    if (query.only !== undefined && kind !== query.only) continue
     if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })
   }
   return matched
 }
 
 /**
- * The rows `$.state` holds (R11): at most `size` matches around the one
+ * The rows `$.state` holds (never the whole catalogue): at most `size` matches around the one
  * selected (the first when it isn't matched), and where they start.
  */
 export const windowOf = (

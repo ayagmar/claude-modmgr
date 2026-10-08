@@ -1,4 +1,4 @@
-// Health (PLAN §2.5, §5.3): one row per item, grouped by mod (the name once,
+// Health: one row per item, grouped by mod (the name once,
 // on its first item), worst first, then hook order and modmgr's own state. An
 // item with a fix is a Button whose press runs it, the fix named after it;
 // every row takes the ring so the arrows walk the list. Words a plugin or the
@@ -8,7 +8,7 @@ import type { RenderElement } from 'claude-code'
 import { type HealthItem, type HealthTone, healthKey } from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
-import { GLYPH, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone: string }>> = {
   bad: { glyph: GLYPH.problem, tone: TONE.bad },
@@ -23,16 +23,18 @@ export const HealthLine = (
     readonly columns: number
     readonly focus: boolean
     readonly first: boolean
-    /** Stacked: Enter opens the item whole (its row is clipped, review R-M5-5); split: runs its fix. */
+    /** Stacked: Enter opens the item whole (its row is clipped); split: moves onto its fix. */
     readonly stacked: boolean
   },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const group = Math.max(8, Math.min(18, Math.floor(how.columns * 0.28)))
-  const fix = item.fixLabel === undefined ? undefined : `→ ${item.fixLabel}`
-  const text = Math.max(10, how.columns - 2 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
+  // Beside the list the detail names the fix: the row keeps its room for the words.
+  const fix = item.fixLabel === undefined || !how.stacked ? undefined : `→ ${item.fixLabel}`
+  const text = Math.max(10, how.columns - 4 - group - 1 - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>
+      {Pointer(v, how.focus)}
       <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
       <Box width={group} flexShrink={0}>
         <Text bold={how.first} dimColor={!how.first} wrap="truncate-end">
@@ -46,7 +48,7 @@ export const HealthLine = (
           plain
           label={sanitize(item.text, { max: 300 })}
           {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.fix(item.key))}
+          onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.toDetail())}
         />
       </Box>
       {fix === undefined ? null : (
@@ -92,15 +94,11 @@ export const healthDetailRows = (item: HealthItem | undefined, columns: number):
     : wrappedRows([item.group, sanitize(item.text, { max: 300 }), item.fixLabel ?? ''], columns)
 
 /**
- * The selected item in full, its words wrapped: beside the list in the split
- * (where Enter on the row runs the fix), or pushed by Enter when stacked, with
- * its fix as a button (`actions`).
+ * The selected item in full, its words wrapped, its fix a button: beside the
+ * list in the split (Enter on the row moves onto the fix), or pushed by Enter
+ * when stacked.
  */
-export const HealthItemDetail = (
-  v: ViewPorts,
-  item: HealthItem | undefined,
-  how: { readonly actions: boolean },
-): RenderElement => {
+export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): RenderElement => {
   const { Box, Button, Text } = v.el
   if (item === undefined) return <Text dimColor>{GLYPH.ok} Nothing needs you.</Text>
   const label = item.fixLabel
@@ -108,10 +106,8 @@ export const HealthItemDetail = (
     <Box flexDirection="column">
       <Text bold>{item.group}</Text>
       <Text>{sanitize(item.text, { max: 300 })}</Text>
-      {label === undefined ? null : how.actions ? (
+      {label === undefined ? null : (
         <Button key="act:fix" plain label={`→ ${label}`} onPress={() => v.act.fix(item.key)} />
-      ) : (
-        <Text color={TONE.accent}>enter: {label}</Text>
       )}
     </Box>
   )

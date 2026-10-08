@@ -1,4 +1,4 @@
-// A least-recently-used map kept as a plain object for `$.store` (PLAN §4):
+// A least-recently-used map kept as a plain object for `$.store`:
 // JSON objects keep insertion order for string keys, so the first key is the
 // oldest. Every operation returns a new object; nothing is mutated.
 

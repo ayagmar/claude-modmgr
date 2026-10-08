@@ -67,8 +67,8 @@ const ATTENTION: Attention = { updates: 0, problems: 0, reloadPending: false, ca
 
 describe('layout and opening', () => {
   it('splits from 100 body columns', () => {
-    expect(layoutFor(99)).toBe('stacked')
-    expect(layoutFor(100)).toBe('split')
+    expect(layoutFor(79)).toBe('stacked')
+    expect(layoutFor(80)).toBe('split')
   })
 
   it('asks for rows that fit the list, between 14 and 24', () => {
@@ -83,6 +83,7 @@ describe('layout and opening', () => {
       title: 'mods',
       closeOnEscape: true,
       rows: 14,
+      columns: 96,
       focus: true,
       holdToasts: true,
     })
@@ -91,6 +92,7 @@ describe('layout and opening', () => {
       title: 'mods · 2',
       closeOnEscape: true,
       rows: 14,
+      columns: 96,
     })
   })
 
@@ -135,12 +137,13 @@ describe('rows and the window', () => {
   it('labels the window only when rows are hidden', () => {
     expect(pagerLabel({ start: 0, end: 3 }, 3)).toBeUndefined()
     expect(pagerLabel({ start: 5, end: 15 }, 40)).toBe('6–15 of 40')
+    expect(pagerLabel({ start: 0, end: 9 }, 3546)).toBe('1–9 of 3,546')
   })
 
   it('resolves the selected row through the filter, for the drawing and the actions alike', () => {
     const all = [row('alpha'), row('beta'), row('gamma')]
     expect(selectedRow(view({ selected: 'gamma@m' }), all)?.name).toBe('gamma')
-    // A selection the filter hides is not acted on: the first row shown is (review R-M3a-1).
+    // A selection the filter hides is not acted on: the first row shown is.
     expect(selectedRow(view({ selected: 'gamma@m', query: 'be' }), all)?.name).toBe('beta')
     expect(selectedRow(view({ selected: 'gone@m' }), all)?.name).toBe('alpha')
     expect(selectedRow(view({ query: 'zzz' }), all)).toBeUndefined()
@@ -278,7 +281,7 @@ describe('overlays and Esc', () => {
     expect(escapeStep(view(), true)).toEqual({ kind: 'close' })
   })
 
-  it('closes at once from the prompt (review M10)', () => {
+  it('closes at once from the prompt', () => {
     expect(escapeStep(view({ stack: ['review'], query: 'x' }), false)).toEqual({ kind: 'close' })
   })
 

@@ -1,5 +1,5 @@
-// The job queue as a pure reducer (PLAN §2.8, C3). The queue itself lives in
-// `$.state` (it survives a reload of modmgr, F31); services/job-runner.ts drives
+// The job queue as a pure reducer. The queue itself lives in
+// `$.state` (it survives a reload of modmgr); services/job-runner.ts drives
 // these functions. Jobs run one at a time; a batch ends with one reload, which
 // runs only when nothing else is queued or running.
 
@@ -14,7 +14,7 @@ export const SHOWN_MAX = 4000
 export const TAIL_LINES = 20
 /**
  * How long after a batch's last CLI settings write its reload may start: a
- * `/reload-plugins` under ~1 s after one reads stale settings (F38).
+ * `/reload-plugins` under ~1 s after one reads stale settings and applies nothing.
  */
 export const RELOAD_SETTLE_MS = 1500
 
@@ -116,7 +116,7 @@ export type Finish =
   | {
       readonly ok: false
       readonly error: { readonly kind: string; readonly message: string }
-      /** What a declared command the job stopped on showed (F25), for the review that accepts it. */
+      /** What a declared command the job stopped on showed, for the review that accepts it. */
       readonly shown?: Job['shown']
       readonly report?: Job['report']
     }
@@ -156,7 +156,7 @@ export const cancelQueued = (jobs: readonly Job[], id: string, now: number): Job
     job.state === 'queued' ? { ...job, state: 'cancelled', endedAt: now } : job,
   )
 
-/** On `register`: a job a previous module left running can't be finished by this one (F31). */
+/** On `register`: a job a previous module left running can't be finished by this one. */
 export const interruptRunning = (jobs: readonly Job[], now: number): Job[] =>
   jobs.map(job => (job.state === 'running' ? { ...job, state: 'interrupted', endedAt: now } : job))
 
@@ -182,7 +182,7 @@ export const prune = (jobs: readonly Job[], cap = JOBS_CAP): Job[] => {
 }
 
 /**
- * The CLI call that undoes a job, where one exists (`z`, PLAN §2.1). A job
+ * The CLI call that undoes a job, where one exists (`z`). A job
  * that changed nothing (already so) has nothing to undo; an update has no
  * inverse (the CLI can't install an older version). Undoing an install keeps
  * the data the mod made since.
@@ -250,7 +250,7 @@ export const stillUndoes = (jobs: readonly Job[], batch: string): boolean => {
   return plan.kind === 'ready' && plan.batch === batch
 }
 
-/** An undo that reinstalls runs a mod's code again: it goes through the review (R-M3a §3). */
+/** An undo that reinstalls runs a mod's code again: it goes through the review. */
 export const undoNeedsReview = (plan: UndoPlan): boolean =>
   plan.kind === 'ready' && plan.steps.some(step => step.spec.kind === 'install')
 
@@ -281,21 +281,24 @@ export const lastWriteAt = (jobs: readonly Job[]): number | undefined => {
   return latest
 }
 
-/** When a queued reload may start (F38): at once when nothing was written. */
+/** When a queued reload may start (see RELOAD_SETTLE_MS): at once when nothing was written. */
 export const reloadReadyAt = (jobs: readonly Job[]): number => {
   const last = lastWriteAt(jobs)
   return last === undefined ? 0 : last + RELOAD_SETTLE_MS
 }
 
-/** What a reload job says when the reload restarted modmgr with it (F54). */
+/**
+ * What a reload job says when the reload restarted modmgr with it: installing a
+ * mod that hooks `plugin.register` makes the batch's reload reload every module.
+ */
 export const RELOADED_WITH_MODMGR = 'Plugins reloaded, modmgr with them'
 
 /**
  * A module takes the queue over at `session.start`: a job another module left
- * running can't be finished by this one (F31), so it becomes `interrupted`;
+ * running can't be finished by this one, so it becomes `interrupted`;
  * but a reload left running is what restarted this module (a reload re-runs
  * modmgr when its files changed or a plugin that hooks `plugin.register`
- * joined, F19, F54), so it is done. The same owner taking over again changes
+ * joined), so it is done. The same owner taking over again changes
  * nothing.
  */
 export const takeOver = (queue: JobQueue, owner: string, now: number): JobQueue =>

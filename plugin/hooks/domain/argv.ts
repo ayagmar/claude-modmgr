@@ -1,5 +1,6 @@
-// Every `claude …` argv modmgr runs, built only from values `ids.ts` checked
-// (PLAN §7): an argv array, never a shell line; never `-y` (C4). A job read
+// Every `claude …` argv modmgr runs, built only from values `ids.ts` checked:
+// an argv array, never a shell line; never `-y` (a declared command is accepted
+// only by its sha, with `--accept-command`). A job read
 // back from `$.state` is checked again before it becomes a command.
 
 import type { Job } from '../../types/index.d.ts'

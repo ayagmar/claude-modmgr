@@ -1,4 +1,4 @@
-// `/mods` as text (PLAN §2.7, C16): the subcommands and their flags, parsed
+// `/mods` as text: the subcommands and their flags, parsed
 // into checked values. Every id, scope and sha passes domain/ids.ts before it
 // can become a job; a write asks for `--yes`.
 
@@ -60,7 +60,7 @@ type Flags = {
 const VALUED = new Set(['--scope', '--accept-command'])
 const SWITCHES = new Set(['--yes', '--json', '--wipe-data'])
 
-/** The flags each subcommand reads; any other is an error, never silently dropped (review R-M6-4). */
+/** The flags each subcommand reads; any other is an error, never silently dropped. */
 const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   install: ['--scope', '--accept-command', '--yes'],
   remove: ['--wipe-data', '--yes'],

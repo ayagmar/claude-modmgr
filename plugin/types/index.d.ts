@@ -1,7 +1,7 @@
-// modmgr's state contract (PLAN §4). Session-scoped values in `$.state`
+// modmgr's state contract. Session-scoped values in `$.state`
 // that drive rendering and survive `/reload-plugins`. Every key is `Shaped`:
 // its atom names a tag (`'queue/1'`), so a modmgr update that changes a
-// value's type reads the old value as absent instead of misreading it (C3).
+// value's type reads the old value as absent instead of misreading it.
 
 export type PluginId = string
 export type Scope = 'user' | 'project' | 'local' | 'managed'
@@ -34,7 +34,7 @@ export type ModRow = {
   updateTo?: string
   problems: number
   mixed: boolean
-  /** Notable capabilities its last update added, until its detail is opened (PLAN §2.2). */
+  /** Notable capabilities its last update added, until its detail is opened. */
   capsNew?: CapsNew
 }
 
@@ -104,7 +104,7 @@ export type Job = {
   /** A remove: whether the CLI said it kept the mod's data folder (`keptData`), when it said. */
   keptData?: boolean
   /**
-   * An install or update stopped on a marketplace-declared command (F25): what
+   * An install or update stopped on a marketplace-declared command: what
    * the CLI showed, for the review that accepts it. Untrusted text.
    */
   shown?: {
@@ -125,9 +125,8 @@ export type View = {
   stack: Overlay[]
   /** Installed's filter. */
   query: string
-  /** Discover's search, its kind filter and sort. */
+  /** Discover's search and sort. */
   search: string
-  kind: 'mods' | 'hooks' | 'all'
   sort: 'installs' | 'name' | 'marketplace'
   /** The catalogue entry Discover has selected. */
   found?: PluginId
@@ -155,8 +154,8 @@ export type ReviewTarget = {
 }
 
 /**
- * One confirm at a time (a plain value, R19). Every action that runs new code
- * or removes something passes through one (PLAN §5.1).
+ * One confirm at a time (a plain value). Every action that runs new code
+ * or removes something passes through one.
  */
 export type ReviewRequest = {
   action: 'toggle' | 'update' | 'remove' | 'undo' | 'install' | 'marketplace'
@@ -191,14 +190,14 @@ export type Attention = {
   capsChanged: number
   /** The band line the person dismissed; the band returns once its line changes. */
   dismissed?: string
-  /** The CLI's answer to the last reload ("Reloaded: …"), echoed in the band for a while (C8). */
+  /** The CLI's answer to the last reload ("Reloaded: …"), echoed in the band for a while. */
   lastReload?: string
 }
 
 export type Degraded = {
   process: boolean
   network: boolean
-  /** Set after Claude Code refused a declared-command acceptance from this session (C4, C8). */
+  /** Set after Claude Code refused a declared-command acceptance from this session. */
   acceptCommand: boolean
   reason?: string
 }
@@ -206,11 +205,11 @@ export type Degraded = {
 /**
  * The job queue and the module that drives it. A module takes the queue over
  * at `session.start` (setting `owner`); a runner whose owner was replaced stops
- * claiming jobs, so an old module's in-flight work never races the new one (F39).
+ * claiming jobs, so an old module's in-flight work never races the new one.
  */
 export type JobQueue = { owner: string; jobs: Job[] }
 
-/** The installed list's refresh, for the title's stale marker (C8). */
+/** The installed list's refresh, for the title's stale marker. */
 export type Sync = {
   refreshing: boolean
   at?: number
@@ -220,7 +219,7 @@ export type Sync = {
 }
 
 /**
- * The part of the catalogue Discover draws (R11): at most a window of rows
+ * The part of the catalogue Discover draws (never all of it): at most a window of rows
  * around the selection, `offset` the first one's place among the `matched`.
  */
 export type CatalogPage = {
@@ -231,10 +230,17 @@ export type CatalogPage = {
   loading: boolean
   error?: string
 }
-export type DetectProgress = { checked: number; total: number; found: number; running: boolean }
+export type DetectProgress = {
+  checked: number
+  total: number
+  found: number
+  running: boolean
+  /** When the hosted index whose kinds were taken was built (ms); absent when none was read. */
+  indexAt?: number
+}
 
 /**
- * How a mod under development is loaded (PLAN §2.4, C6, C14): from this
+ * How a mod under development is loaded: from this
  * session's mods folder, a `--plugin-dir` (found through its commands), a
  * `CLAUDE_CODE_PLUGIN_DIRS` folder, the skills folder, or a folder marketplace.
  */
@@ -258,7 +264,7 @@ export type DevRow = {
   enabled?: boolean
 }
 
-/** A plugin's failures the session reported while hot-reloading it (F20). */
+/** A plugin's failures the session reported while hot-reloading it. */
 export type DevFailures = {
   count: number
   lastReason: string
@@ -267,7 +273,7 @@ export type DevFailures = {
   folder?: string
 }
 
-/** How to share a dev mod (`p`, reference §Sharing a mod), for the share overlay. */
+/** How to share a dev mod (`p`), for the share overlay. */
 export type DevShare = {
   /** The row it is for. */
   key: string
@@ -290,11 +296,11 @@ export type DevState = {
   share?: DevShare
 }
 
-/** A note that two or more enabled mods hook an event whose order decides the result (PLAN §2.5). */
+/** A note that two or more enabled mods hook an event whose order decides the result. */
 export type ChainNoteRow = { event: string; text: string }
 
 /**
- * What Health shows beyond the other keys (PLAN §2.5, C15), gathered when it is
+ * What Health shows beyond the other keys, gathered when it is
  * opened or refreshed: notes on hook order, the last hook failures the debug
  * log names, the detector's budget, the store's size, the update checks.
  */
@@ -304,7 +310,7 @@ export type HealthFacts = {
   /** By plugin name: the last `hook failed closed` line's event and error kind. */
   logged: Record<string, string>
   /**
-   * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`, F35):
+   * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`):
    * none, read, or too large to read here (over 4 MiB), with its path.
    */
   debugLog: { state: 'none' | 'read' | 'too-big'; path?: string }

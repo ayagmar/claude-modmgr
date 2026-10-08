@@ -1,4 +1,4 @@
-// The pane's logic as pure functions (PLAN §5): which rows show, the staged
+// The pane's logic as pure functions: which rows show, the staged
 // toggles and the review they become, the Esc cascade, the band's line and
 // the status line. services/actions.ts applies them to `$.state`; ui/ draws
 // what they return.
@@ -31,8 +31,8 @@ export const nameOf = (id: string): string => {
 export const PANE_ID = 'modmgr'
 export const PANE_TITLE = 'mods'
 
-/** From this many body columns the list and the detail sit side by side (PLAN §5.2). */
-export const SPLIT_MIN_COLUMNS = 100
+/** From this many body columns the list and the detail sit side by side. */
+export const SPLIT_MIN_COLUMNS = 80
 
 export type Layout = 'stacked' | 'split'
 
@@ -49,7 +49,11 @@ export const rowOfKey = (key: string | undefined): string | undefined =>
 export const layoutFor = (bodyColumns: number): Layout =>
   bodyColumns >= SPLIT_MIN_COLUMNS ? 'split' : 'stacked'
 
-/** How a dialog open asks (C8): `holdToasts` only while nothing streams. */
+/** The list's columns beside the detail: about two fifths, never cramped or sprawling. */
+export const listColumnsFor = (bodyColumns: number): number =>
+  Math.max(28, Math.min(46, Math.floor(bodyColumns * 0.4)))
+
+/** How a dialog open asks: `holdToasts` only while nothing streams. */
 export type PaneOpen = {
   readonly id: string
   readonly title: string
@@ -57,6 +61,7 @@ export type PaneOpen = {
   readonly focus?: true
   readonly holdToasts?: true
   readonly rows?: number
+  readonly columns?: number
 }
 
 /**
@@ -64,6 +69,9 @@ export type PaneOpen = {
  * detail or a review is taller than a short list), never more than 24.
  */
 export const rowsFor = (mods: number): number => Math.min(24, Math.max(14, mods + 6))
+
+/** Columns a docked dialog asks for: room for the list and the detail side by side. */
+export const DOCK_COLUMNS = 96
 
 export const paneOpen = (how: {
   readonly focus: boolean
@@ -75,12 +83,13 @@ export const paneOpen = (how: {
   title: how.title ?? PANE_TITLE,
   closeOnEscape: true,
   rows: rowsFor(how.mods),
+  columns: DOCK_COLUMNS,
   ...(how.focus ? { focus: true as const } : {}),
   ...(how.hold ? { holdToasts: true as const } : {}),
 })
 
 /**
- * Whether an open of the dialog holds other plugins' toasts (C8): only while
+ * Whether an open of the dialog holds other plugins' toasts: only while
  * nothing runs or waits and the job log isn't on top, since a pane that stays
  * open must not silence them for long.
  */
@@ -118,7 +127,7 @@ export const windowAround = (count: number, index: number, size: number): Window
 export const pagerLabel = (window: Window, count: number): string | undefined =>
   window.start === 0 && window.end >= count
     ? undefined
-    : `${window.start + 1}–${window.end} of ${count}`
+    : `${(window.start + 1).toLocaleString('en-US')}–${window.end.toLocaleString('en-US')} of ${count.toLocaleString('en-US')}`
 
 /** The row the selection moves to when `id` goes: the next one shown, else the one before. */
 export const neighbourOf = (
@@ -139,8 +148,8 @@ export const selectedIndex = (rows: readonly ModRow[], selected: string | undefi
 }
 
 /**
- * The row the pane shows as selected and every action acts on (review
- * R-M3a-1): the selection when the filter shows it, else the first row shown.
+ * The row the pane shows as selected and every action acts on: the selection
+ * when the filter shows it, else the first row shown.
  * One resolver, so the drawing and a press never disagree.
  */
 export const selectedRow = (view: View, mods: readonly ModRow[]): ModRow | undefined => {
@@ -152,7 +161,7 @@ export const selectedRow = (view: View, mods: readonly ModRow[]): ModRow | undef
 
 /**
  * Stages a toggle of `row`: flips what it will be after apply. Staging it
- * back to its current state un-stages it. A row the CLI can't toggle (F17) is
+ * back to its current state un-stages it. A row the CLI can't toggle is
  * left alone.
  */
 export const stageToggle = (view: View, row: ModRow): View => {
@@ -185,7 +194,7 @@ export const pruneStaged = (view: View, rows: readonly ModRow[]): View => {
     : { ...view, staged: kept }
 }
 
-/** Why a row can't be toggled from here, in the person's terms (PLAN §2.1); undefined when it can. */
+/** Why a row can't be toggled from here, in the person's terms; undefined when it can. */
 export const whyLocked = (row: ModRow): string | undefined => {
   if (row.toggleable) return undefined
   if (row.scope === 'managed') return "managed by your organisation; it can't be turned off here"
@@ -247,7 +256,7 @@ const targetOf = (row: ModRow, op: ReviewOp): ReviewTarget => {
 
 const touchesRepo = (scope: Scope | undefined): boolean => scope === 'project' || scope === 'local'
 
-/** The review a batch of toggles opens (PLAN §5.3): one confirm for the whole batch. */
+/** The review a batch of toggles opens: one confirm for the whole batch. */
 export const toggleReview = (
   changes: readonly Change[],
   facts: (id: string) => ReviewFacts | undefined,
@@ -321,7 +330,7 @@ const UNDO_OP: Readonly<Partial<Record<JobSpec['kind'], ReviewOp>>> = {
 
 /**
  * The review of an undo that reinstalls (the inverse of a remove): what comes
- * back, what it can do, and that a declared install command stops it (C10).
+ * back, what it can do, and that a declared install command stops it.
  */
 export const undoReview = (
   plan: { readonly batch: string; readonly steps: readonly UndoStep[] },
@@ -334,7 +343,7 @@ export const undoReview = (
   const targets = steps.flatMap(({ spec, undoes }): ReviewTarget[] => {
     const op = UNDO_OP[spec.kind]
     if (op === undefined || spec.target === undefined) return []
-    // A queue job's target is checked only when it runs: drawn, it is sanitised (R-M3b-10).
+    // A queue job's target is checked only when it runs: drawn, it is sanitised.
     const name = sanitize(rows.find(row => row.id === spec.target)?.name ?? nameOf(spec.target), {
       max: 40,
     })
@@ -350,7 +359,7 @@ export const undoReview = (
         id: spec.target,
         op,
         ...(scope === undefined ? {} : { scope }),
-        // What the CLI said it did with the data, not what modmgr asked (R-M3b-6).
+        // What the CLI said it did with the data, not what modmgr asked.
         ...(op === 'install' && undoes.keptData !== undefined ? { keptData: undoes.keptData } : {}),
       },
     ]
@@ -378,7 +387,7 @@ export const specsOf = (review: ReviewRequest): JobSpec[] => {
     kind: 'marketplace-update',
     target: name,
   }))
-  // The sha of the command shown: the CLI runs it only while it still matches (F25).
+  // The sha of the command shown: the CLI runs it only while it still matches.
   const accepted = (review.declaredCommand ?? review.headersHelper)?.sha256
   const ops = review.targets.map((target): JobSpec => {
     const scope = cliScope(target.scope)
@@ -440,15 +449,21 @@ export const wrappedRows = (texts: readonly string[], columns: number): number =
  * out with `columnGap`): each line fills until the next item would overflow.
  */
 export const footerRowsFor = (widths: readonly number[], columns: number, gap = 2): number => {
+  const line = Math.max(1, columns)
   let rows = 1
   let used = 0
   for (const width of widths) {
     const need = used === 0 ? width : used + gap + width
-    if (used > 0 && need > columns) {
+    if (used > 0 && need > line) {
       rows += 1
       used = width
     } else {
       used = need
+    }
+    // An item wider than the line wraps inside itself; the next starts on a new line.
+    if (used > line) {
+      rows += Math.ceil(used / line) - 1
+      used = line
     }
   }
   return rows
@@ -477,7 +492,7 @@ export type Escape =
   | { readonly kind: 'close' }
 
 /**
- * What an Esc does (PLAN §5.2, review M10): while the pane holds the keys it
+ * What an Esc does: while the pane holds the keys it
  * pops the top overlay, then clears the filter, then closes. An Esc at the
  * prompt (the pane not focused) always closes: the person can't see what a
  * cascade would pop.
@@ -549,7 +564,7 @@ export const doneText = (work: readonly Job[]): string => {
 /**
  * The jobs a batch counts as its work: not the reload, and not a marketplace
  * refresh (a step of an update). The pane's batch line and the summary share
- * it, so they count a batch alike (review R-M3b-4).
+ * it, so they count a batch alike.
  */
 export const isWork = (job: Job): boolean =>
   job.kind !== 'reload' && job.kind !== 'marketplace-update'
@@ -558,8 +573,8 @@ export const isWork = (job: Job): boolean =>
  * One line about the newest batch, in the pane: what runs now, or how it
  * ended. A failure stays until the next batch; a success shows only while
  * `showDone` (the band's echo, which the runner clears after a while: that
- * write is what redraws the pane, review R-M3a-4). A batch that changed
- * nothing gets the same echo, though its reload never ran (R-M3b-1).
+ * write is what redraws the pane). A batch that changed
+ * nothing gets the same echo, though its reload never ran.
  */
 export const batchLineOf = (queue: JobQueue, showDone: boolean): Status | undefined => {
   const jobs = latestBatch(queue.jobs)
@@ -595,7 +610,7 @@ export const batchLineOf = (queue: JobQueue, showDone: boolean): Status | undefi
 }
 
 /**
- * What modmgr has to say outside the dialog, in one value (M3b): the band,
+ * What modmgr has to say outside the dialog, in one value: the band,
  * the status line and the pane title are each drawn from it, so they never
  * disagree.
  */
@@ -616,10 +631,10 @@ export type Summary = {
   /**
    * The person dismissed the band line that said this news (updates, what an
    * update added): the status line and the title leave it out too, until it
-   * changes (R-M3b-3). What is under way or owed is never quieted.
+   * changes. What is under way or owed is never quieted.
    */
   readonly newsDismissed: boolean
-  /** The CLI's answer to the last reload, or how a batch that needed none ended (C8). */
+  /** The CLI's answer to the last reload, or how a batch that needed none ended. */
   readonly echo?: string
 }
 
@@ -661,7 +676,7 @@ export type Band = {
 }
 
 /**
- * The band's one line (PLAN §5.4, C8): shown only when something is
+ * The band's one line: shown only when something is
  * actionable and that very thing wasn't dismissed. `isWorking` is the band's
  * `e.props.isWorking`: a reload asked mid-turn waits for the turn to end.
  */
@@ -689,7 +704,7 @@ export const bandOf = (
 
 /**
  * The status line under the prompt (`$.ui.status`, one per plugin, drawn
- * `modmgr: <text>`): one clause, the most important (C15), since it sits under
+ * `modmgr: <text>`): one clause, the most important, since it sits under
  * every prompt. What is under way, then what is owed, then news the person
  * hasn't dismissed (what an update added before how many updates wait);
  * nothing when idle (undefined clears it). The band says the rest.
@@ -702,11 +717,11 @@ export const statusLineOf = (summary: Summary): string | undefined => {
   if (summary.reloading) return 'reloading plugins…'
   if (summary.reloadOwed) return 'reload to apply'
   if (summary.newsDismissed) return undefined
-  // The engine names the plugin before it (`modmgr: …`, F52).
+  // The engine names the plugin before it (`modmgr: …`).
   return summary.caps ?? updatesText(summary.updates)
 }
 
-/** The pane's title: `mods`, with news not dismissed (F22: a retitle is an open). */
+/** The pane's title: `mods`, with news not dismissed (a retitle is an open). */
 export const titleOf = (summary: Summary): string => {
   const parts = [PANE_TITLE]
   if (!summary.newsDismissed) {

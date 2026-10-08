@@ -1,5 +1,5 @@
-// Discover's logic (PLAN §2.3): what a catalogue row says, the install
-// review, the review that accepts a marketplace-declared command (F25), and
+// Discover's logic: what a catalogue row says, the install
+// review, the review that accepts a marketplace-declared command, and
 // adding a marketplace. The catalogue itself lives in services/catalog.ts.
 
 import type {
@@ -11,7 +11,7 @@ import type {
   View,
 } from '../../types/index.d.ts'
 import { notableText } from './capabilities.ts'
-import { KIND_FILTERS, SORTS } from './catalog.ts'
+import { SORTS } from './catalog.ts'
 import { parseMarketplaceSource } from './ids.ts'
 
 export const INSTALL_SCOPES = ['user', 'project', 'local'] as const
@@ -27,21 +27,13 @@ export const SCOPE_LABEL: Readonly<Record<InstallScope, string>> = {
   local: 'local: this repository, only you',
 }
 
-/** A catalogue row's kind in words: what the detector knows. */
-export const KIND_LABEL: Readonly<Record<CatalogRow['kind'], string>> = {
-  mod: 'mod',
-  hooks: 'hooks',
-  plain: 'plugin',
-  unknown: '?',
-}
-
 /** What modmgr could read about an entry before installing it (a local source's `validate`). */
 export type Inspection = {
   readonly notable: readonly string[]
   readonly hasModule: boolean
 }
 
-/** A local entry modmgr tried to read and couldn't, and why (review R-M4-5). */
+/** A local entry modmgr tried to read and couldn't, and why. */
 export type Unread = { readonly failed: string }
 
 export const isUnread = (value: Inspection | Unread | undefined): value is Unread =>
@@ -50,7 +42,7 @@ export const isUnread = (value: Inspection | Unread | undefined): value is Unrea
 /**
  * The review of installing `entry` (`i`): the scope (user by default), what it
  * can do when modmgr could read it, else that it couldn't (a remote source is
- * read only once installed; a pre-install diff is v1.1, PLAN §12).
+ * read only once installed).
  */
 export const installReview = (
   entry: { readonly id: string; readonly name: string; readonly version?: string | undefined },
@@ -92,7 +84,7 @@ export const withScope = (review: ReviewRequest, scope: Scope): ReviewRequest =>
  * the command a marketplace declares (or the headers helper that fetches its
  * archive), verbatim, with its sha256. Confirming passes the sha with
  * `--accept-command`; the CLI runs it only if the command it would run still
- * has that sha, and otherwise shows the new one (F25), which this review
+ * has that sha, and otherwise shows the new one, which this review
  * shows again. Undefined for a job that wasn't stopped that way.
  */
 export const acceptReview = (job: Job): ReviewRequest | undefined => {
@@ -168,15 +160,14 @@ export const foundOfKey = (key: string | undefined): string | undefined =>
 export const foundRow = (view: View, page: CatalogPage): CatalogRow | undefined =>
   page.rows.find(row => row.id === view.found) ?? page.rows[0]
 
-/** The next kind filter (`k`): mods → hooks → all. */
-export const nextKind = (kind: View['kind']): View['kind'] =>
-  KIND_FILTERS[(KIND_FILTERS.indexOf(kind) + 1) % KIND_FILTERS.length] ?? 'mods'
-
 /** The next sort (`o`): installs → name → marketplace. */
 export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'
 
-/** `mods found 12 · checked 1,804/3,544`, or undefined before the detector ran. */
+/**
+ * `74 mods`, `74 mods among 1,804 of 3,544 checked`, or while it runs
+ * `12 mods so far · checking 1,804 of 3,544`; undefined before it ran.
+ */
 export const detectLine = (detect: {
   readonly checked: number
   readonly total: number
@@ -185,6 +176,11 @@ export const detectLine = (detect: {
 }): string | undefined => {
   if (detect.total === 0) return undefined
   const n = (value: number) => value.toLocaleString('en-US')
-  const line = `mods found ${n(detect.found)} · checked ${n(detect.checked)}/${n(detect.total)}`
-  return detect.running ? `${line} …` : line
+  const mods = `${n(detect.found)} ${detect.found === 1 ? 'mod' : 'mods'}`
+  if (detect.running)
+    return detect.checked === 0
+      ? `checking ${n(detect.total)} entries…`
+      : `${mods} so far · checking ${n(detect.checked)} of ${n(detect.total)}`
+  if (detect.checked >= detect.total) return mods
+  return `${mods} among ${n(detect.checked)} of ${n(detect.total)} checked`
 }

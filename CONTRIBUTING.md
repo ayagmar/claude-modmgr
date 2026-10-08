@@ -14,7 +14,7 @@
   (`scripts/capture-fixtures.sh` regenerates them from the real CLI), and `fixture-mods/`, a small marketplace of mods.
 - `vendor/claude-code-types/<version>/`: the Claude Code API declarations modmgr is built against.
 - `site/`: the landing page (Astro, static). Its demo frames (`site/src/data/demo.ts`) are drawn by `ui/Pane.tsx`.
-- `docs/`: plan, spikes, reviews, security and performance notes.
+- `docs/`: security and performance notes.
 
 ## Setup
 
@@ -51,6 +51,15 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
 - `plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
 - `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site and the README; a test fails when stale).
+- The catalogue index (not in the tree): `node scripts/build-index.ts <out.json>` on a throwaway config dir;
+  `.github/workflows/index.yml` runs it daily and force-pushes it to the `catalog-index` branch. To try one before
+  it is published, serve it and point modmgr at it:
+
+  ```sh
+  node scripts/build-index.ts /tmp/index/v1.json   # a few minutes, needs network
+  python3 -m http.server 8765 --directory /tmp/index &
+  MODMGR_INDEX_URL=http://127.0.0.1:8765/v1.json claude --plugin-dir ./plugin
+  ```
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes
@@ -74,6 +83,9 @@ pnpm --filter modmgr-site dev
    `.claude-plugin/marketplace.json` (a test checks they agree), and commit.
 3. `claude plugin tag plugin --dry-run`, then `claude plugin tag plugin --push`: the tag is `modmgr--v<version>`.
 4. The tag runs `.github/workflows/release.yml`: the gate again, then a GitHub release with that CHANGELOG section.
+
+The repository protects `main` and `modmgr--v*` tags with a ruleset that GitHub Actions can't bypass, so a workflow's
+token can push only where it is meant to (the index workflow to `catalog-index`).
 
 ## Rules
 

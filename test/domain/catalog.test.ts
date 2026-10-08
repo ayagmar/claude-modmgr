@@ -61,38 +61,36 @@ describe('matching', () => {
     'docs@official': 'plain',
   }
   const kindOf = (id: string): CatalogKind => kinds[id] ?? 'unknown'
-  const rows = (text: string, kind: 'mods' | 'hooks' | 'all', sort: 'name' | 'installs' = 'name') =>
-    windowOf(matchAll(index, { text, kind, sort }, kindOf), undefined).rows
+  const rows = (text: string, sort: 'name' | 'installs' = 'name') =>
+    windowOf(matchAll(index, { text, sort }, kindOf), undefined).rows
 
-  it('filters by kind', () => {
-    expect(matchAll(index, { text: '', kind: 'mods', sort: 'name' }, kindOf)).toHaveLength(2)
-    expect(matchAll(index, { text: '', kind: 'hooks', sort: 'name' }, kindOf)).toHaveLength(3)
-    expect(matchAll(index, { text: '', kind: 'all', sort: 'name' }, kindOf)).toHaveLength(4)
+  it('keeps one kind when asked', () => {
+    expect(matchAll(index, { text: '', sort: 'name', only: 'mod' }, kindOf)).toHaveLength(2)
+    expect(matchAll(index, { text: '', sort: 'name' }, kindOf)).toHaveLength(4)
   })
 
   it('matches every word anywhere in name, description, marketplace or id', () => {
-    const found = rows('  SECRETS  community ', 'all')
+    const found = rows('  SECRETS  community ')
     expect(found.map(row => row.id)).toEqual(['redactor@community'])
     expect(found[0]).toMatchObject({
       kind: 'mod',
       blurb: 'Redacts secrets',
       marketplace: 'community',
     })
-    expect(rows('nothing-matches', 'all')).toEqual([])
+    expect(rows('nothing-matches')).toEqual([])
   })
 
   it('carries installs only when known', () => {
-    const found = rows('', 'mods', 'installs')
+    const found = windowOf(
+      matchAll(index, { text: '', sort: 'installs', only: 'mod' }, kindOf),
+      undefined,
+    ).rows
     expect(found[0]).toMatchObject({ id: 'turn-band@official', installs: 1500 })
     expect(found[1]).not.toHaveProperty('installs')
   })
 
   it('works on the real catalogue', () => {
-    const matched = matchAll(
-      buildIndex(real),
-      { text: 'git', kind: 'all', sort: 'installs' },
-      allKinds,
-    )
+    const matched = matchAll(buildIndex(real), { text: 'git', sort: 'installs' }, allKinds)
     expect(matched.length).toBeGreaterThan(0)
     expect(windowOf(matched, undefined).rows.length).toBeLessThanOrEqual(50)
   })
@@ -100,7 +98,7 @@ describe('matching', () => {
   it('sanitises hostile catalogue text', () => {
     const hostile = buildIndex(syntheticCatalog)
     const found = windowOf(
-      matchAll(hostile, { text: '', kind: 'all', sort: 'name' }, allKinds),
+      matchAll(hostile, { text: '', sort: 'name' }, allKinds),
       undefined,
       100,
     ).rows

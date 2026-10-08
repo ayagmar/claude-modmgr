@@ -1,7 +1,7 @@
 # Security
 
 modmgr manages **mods**: Claude Code plugins that ship a hooks module and run inside your session. This page says what
-modmgr protects you from, what it can't, and how it's built to keep that promise. It expands PLAN.md §7.
+modmgr protects you from, what it can't, and how it's built to keep that promise.
 
 ## What modmgr is, and isn't
 
@@ -16,7 +16,7 @@ reload, or to stop launching it.
 |---|---|---|
 | **A hostile catalogue entry** | A look-alike name, a description with terminal escapes or bidi overrides, a plugin id shaped like a flag | Every id is checked against a strict pattern before it reaches a process (below). All untrusted text is sanitised and drawn as plain text, never Markdown. Names are always shown with their marketplace. |
 | **A malicious mod** | A mod that reads your conversation and posts it somewhere, runs programs, or rewrites what the model reads | In every detail view, and **before install for an entry whose files are on disk** (a folder in its marketplace or its clone), modmgr shows the mod's **capabilities as facts** from `claude plugin validate --json` (what it hooks, what it calls, which environment variables it reads), grouped by reach, with the dangerous combinations called out ("Can read your conversation and send data out"). A remote entry is read once installed, and the install review says so. After an update it shows what was **added**. It does not block anything: you decide. |
-| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | An install runs without acceptance first; when the marketplace declares a command, nothing runs (the CLI enforces this, F25) and the job stops. modmgr then shows the command **line for line with its sha256** (and says when sanitising removed hidden or control characters) on a review whose confirm key reads "run it and install". Confirming passes `--accept-command <sha256>`: the CLI runs the command only while it is still that very command, and otherwise shows the new one, which modmgr reviews again. modmgr never passes `-y`. |
+| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | An install runs without acceptance first; when the marketplace declares a command, nothing runs (the CLI enforces this) and the job stops. modmgr then shows the command **line for line with its sha256** (and says when sanitising removed hidden or control characters) on a review whose confirm key reads "run it and install". Confirming passes `--accept-command <sha256>`: the CLI runs the command only while it is still that very command, and otherwise shows the new one, which modmgr reviews again. modmgr never passes `-y`. |
 | **modmgr's own bugs** | A crash in a hook, a corrupt store, an unreadable CLI answer | Every hook has a `.catch` that passes through, so a failing modmgr never blocks a session event. Errors are values, never thrown across layers. The store is shape-checked on every read and starts a key empty when it's unreadable. A CLI answer modmgr can't parse is reported, never guessed. |
 
 ## Trust boundaries worth knowing
@@ -59,7 +59,7 @@ repository.
 **Text commands.** `/mods install | remove | update | enable | disable | apply` change nothing without `--yes`;
 without it they print the CLI lines they would run. With it they run the same checked jobs as the dialog (the runner's
 own `runJob`), record them in the job log and the history, and never reload. A declared install command is printed whole with its sha256 and runs only when `--accept-command <that sha>`
-is given (the CLI binds the acceptance to that command, F25); modmgr never passes `-y`. `apply <file>` reads the file
+is given (the CLI binds the acceptance to that command); modmgr never passes `-y`. `apply <file>` reads the file
 you name (a relative path is under the session's directory, an absolute one is read as given; at most 4 MiB, 100
 entries) and accepts only plugin ids and scopes. A write is refused while another job is running.
 
@@ -75,9 +75,18 @@ isolates, and zero-width characters are removed, and lengths are capped. The tex
 and zero-width characters (`test/layering.test.ts`).
 
 **Network and files.** modmgr makes no network requests of its own except the mod detector's reads of
-`https://raw.githubusercontent.com/` (a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the
-entry's pinned commit, at most 600 a session, only while no turn runs), without credentials, with response sizes
-checked and JSON shape-checked. They are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
+`https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/modmgr`, branch `catalog-index`, `v1.json`, at
+most every 12 hours) and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned
+commit (at most 600 a session, only while no turn runs), without credentials, with response sizes checked and JSON
+shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
+carries nothing about the person's catalogues or mods. The index only classifies remote entries: a kind is taken
+only when the index's key is the entry's own pinned commit, never `unknown` (the detector checks again), never for a
+local entry (read on disk instead); a malformed file is refused whole, and installing still goes through the review
+of what the entry can do. A wrong or hostile index can at worst mislabel an entry's kind, so Discover shows or hides
+it as a mod, until an index built later corrects it or the entry's commit moves. `MODMGR_INDEX_URL` (an http(s)
+address, for trying an index before it is published) reads the index from there instead, at every catalogue read.
+The index is built by a scheduled workflow whose job that fetches catalogue files holds no write token; a second job,
+running no third-party code, publishes the file. These reads are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
 empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on disk, the detector reads the same two
 files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads
@@ -96,11 +105,11 @@ modmgr asks the CLI to refresh the marketplaces your installed mods come from (`
 <name>`, the CLI's fetch), then reads each one's `.claude-plugin/marketplace.json` under its install location. Health
 lists `<config dir>/debug` and, when this session runs with `--debug`, reads its own log (`<session id>.txt`, not
 another session's) for `hook failed closed` lines, keeping only the plugin's name, the event and the error kind (the
-engine logs no error text, F35). modmgr never reads
+engine logs no error text). modmgr never reads
 the CLI's internal files (`installed_plugins.json`, settings) or the project's settings.
 
 **Notices.** modmgr hooks `session.append` for notices only (`door: 'notice'`, the dim lines the model never reads),
-to count a hot-reloaded plugin's failures for Dev (F20, F57). A failure notice that names a module's file (`reload failed`, `did not load`) gives a folder; modmgr reads that
+to count a hot-reloaded plugin's failures for Dev. A failure notice that names a module's file (`reload failed`, `did not load`) gives a folder; modmgr reads that
 folder's `plugin.json` once and lists it in Dev only when the manifest names the same plugin. The hook calls `next`
 first and returns the row the
 session stored, unchanged; its `.catch` passes through. The validator still reports it as a gating hook (any
@@ -112,7 +121,8 @@ this gate with exactly that matcher and no other.
 
 **What modmgr stores.** `$.store` (a JSON file under your Claude Code config directory) holds preferences, the
 detector's per-entry verdicts, per-version capability analyses, the notable capabilities each installed mod had at its
-last version, and the last 50 finished jobs (kind, target, outcome; no output). It never holds the catalogue, secrets,
+last version, the last 50 finished jobs (kind, target, outcome; no output), and when the catalogue index was last
+asked for and built. It never holds the catalogue, secrets,
 environment values or conversation text. It stays under 1 MiB; past 3 MiB modmgr stops writing and offers to clear its
 cache.
 

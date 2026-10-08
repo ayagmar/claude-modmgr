@@ -1,5 +1,5 @@
-// PLAN §6: a filter keystroke over the catalogue computes in < 16 ms. Measured
-// at today's size (3.5k) and at 10k for growth (§11). The budget is asserted on
+// A filter keystroke over the catalogue computes in < 16 ms. Measured
+// at today's size (3.5k) and at 10k for growth. The budget is asserted on
 // the median of several runs, with headroom for slow CI machines.
 import { describe, expect, it } from 'vitest'
 import {
@@ -33,7 +33,14 @@ describe.each([3_545, 10_000])('search over %d entries', size => {
         for (const text of typed) {
           const start = performance.now()
           // What a keystroke runs: one pass, then the window `$.state` gets.
-          windowOf(matchAll(index, { text, kind, sort: 'installs' }, kindOf), undefined)
+          windowOf(
+            matchAll(
+              index,
+              { text, sort: 'installs', ...(kind === 'mods' ? { only: 'mod' as const } : {}) },
+              kindOf,
+            ),
+            undefined,
+          )
           times.push(performance.now() - start)
         }
       }

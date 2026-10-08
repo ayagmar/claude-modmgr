@@ -1,6 +1,6 @@
-// What Health shows beyond the other state keys (PLAN §2.5, C15), gathered
+// What Health shows beyond the other state keys, gathered
 // into `$.state` `health` when Health is opened or refreshed: hook-order notes
-// (F3's load order), the last hook failures a `--debug` log names (C6, F35),
+// (in load order), the last hook failures a `--debug` log names,
 // the detector's budget, the store's size and the update checks.
 
 import type { HealthFacts } from '../../types/index.d.ts'
@@ -15,7 +15,7 @@ import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export type HealthPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'clock' | 'session'>
 
-/** modmgr observes the session's notices and changes no row (C14): no hook-order note names it. */
+/** modmgr observes the session's notices and changes no row: no hook-order note names it. */
 const SELF = 'modmgr'
 
 export type Health = {
@@ -42,7 +42,7 @@ export const createHealth = (
 
   /**
    * The last failures this session's own debug log names (`<config>/debug/<session
-   * id>.txt`, F35): not `latest`, which may be another session's (review R-M5-4).
+   * id>.txt`, written only with `--debug`): not `latest`, which may be another session's.
    */
   const logged = async (): Promise<{
     log: HealthFacts['debugLog']

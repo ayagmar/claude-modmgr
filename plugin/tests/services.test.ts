@@ -1,4 +1,4 @@
-// Wiring and host-only behaviour (PLAN §9, C3): what fake ports can't show.
+// Wiring and host-only behaviour: what fake ports can't show.
 import { expect, test } from 'claude-code/testing'
 import { host, MODS, START } from './harness.ts'
 
@@ -56,7 +56,7 @@ test('resumes a queue an earlier module left: interrupts its running job, runs t
   expect((h.read('attention') as { reloadPending: boolean }).reloadPending).toBe(false)
 })
 
-test('a refused reload fails its job and leaves the reload pending (F29)', async ($, on) => {
+test('a refused reload fails its job and leaves the reload pending', async ($, on) => {
   const h = host(on, {
     reload: () => {
       throw new Error('called from a command.run hook')
@@ -161,14 +161,14 @@ test('a store over the budget gives up its oldest cache entries when it next wri
   expect(history.data.map(entry => entry.kind)).toEqual(['disable'])
 })
 
-test('a failing session.start hook is passed through by its .catch (review M2)', async ($, on) => {
+test('a failing session.start hook is passed through by its .catch', async ($, on) => {
   host(on, { refuseRegister: true })
   const started = await $.session.start(START)
   expect(started).toEqual({ cwd: '/repo' })
 })
 
 test(
-  'a userConfig change reloads the module: it resumes like any other (C3)',
+  'a userConfig change reloads the module: it resumes like any other',
   { options: { updateCheckHours: 0, detectRemote: false } },
   async ($, on) => {
     const h = host(on, {
@@ -184,7 +184,7 @@ test(
   },
 )
 
-// ---- M6: /mods as text (PLAN §2.7, C16) -------------------------------------
+// ---- /mods as text -------------------------------------------------------------
 
 const mods = (args: string) => ({ ...MODS, args })
 

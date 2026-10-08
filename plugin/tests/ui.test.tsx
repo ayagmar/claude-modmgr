@@ -1,5 +1,5 @@
-// The dialog, the band and their wiring on the surfaces that draw them
-// (PLAN §5, §9): every body runs on terminal and desktop; mobile is checked
+// The dialog, the band and their wiring on the surfaces that draw them:
+// every body runs on terminal and desktop; mobile is checked
 // for its fallback (no Input). Acts by element key; nothing here paints.
 import { type Engine, expect, test } from 'claude-code/testing'
 import { host, START } from './harness.ts'
@@ -26,7 +26,7 @@ const BAND = (isWorking = false) => ({
 
 const TURN_BAND = 'turn-band@fixtures'
 
-// The harness answers `state.*` beneath the plugin (F44), so the engine never
+// The harness answers `state.*` beneath the plugin, so the engine never
 // sees a write and doesn't redraw by itself: each act is followed by `redraw()`.
 
 /** Moves the focus ring onto a row, as the person's arrow does. */
@@ -46,7 +46,15 @@ test('bare /mods opens the dialog with focus, Esc and held toasts, and answers n
   const ran = await $.command.run({ ...MODS_BARE })
   expect(ran.text).toBeUndefined()
   expect(h.opens).toEqual([
-    { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, focus: true, holdToasts: true },
+    {
+      id: 'modmgr',
+      title: 'mods',
+      closeOnEscape: true,
+      rows: 14,
+      columns: 96,
+      focus: true,
+      holdToasts: true,
+    },
   ])
   expect(h.argvs.filter(argv => argv.includes('disable'))).toEqual([])
 })
@@ -79,7 +87,7 @@ test('Installed lists every mod with its state, version and scope on terminal an
       'row:spawner@fixtures',
       `row:${TURN_BAND}`,
     ])
-    expect((await ui.find({ type: 'Text', text: /5 mods · 5 on/ }))?.text).toBe('5 mods · 5 on')
+    expect((await ui.find({ type: 'Text', text: /5 of 5 mods on/ }))?.text).toBe('5 of 5 mods on')
     expect(await ui.find({ key: 'filter' })).toBeDefined()
     expect(await ui.find({ key: 'act:toggle' })).toBeDefined()
     expect(await ui.find({ key: 'act:close' })).toBeDefined()
@@ -124,7 +132,7 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
 
     await ui.redraw()
     expect(h.read('review')).toBeNull()
-    // The pane re-opens without holding toasts while the batch runs (C8).
+    // The pane re-opens without holding toasts while the batch runs.
     expect(h.opens.at(-1)?.holdToasts).toBeUndefined()
     await h.clock.advance(1)
     expect(h.argvs.filter(argv => argv.startsWith('plugin disable'))).toHaveLength(disables + 1)
@@ -198,7 +206,7 @@ test('without the keys the footer says how to take them', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /ctrl\+x tab/ })).toBeDefined()
 })
 
-test('from 100 body columns the detail sits beside the list and follows the focus', async ($, on) => {
+test('from 80 body columns the detail sits beside the list with its keys and follows the focus', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -215,8 +223,11 @@ test('from 100 body columns the detail sits beside the list and follows the focu
     expect(await ui.find({ key: 'row:quiet-bash@fixtures' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'What it can do' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Can run programs/ })).toBeDefined()
-    // The preview draws no action keys; the detail overlay does.
-    expect(await ui.find({ key: 'act:copy' })).toBeUndefined()
+    // Its keys are the detail's: the footer doesn't draw them twice.
+    expect(await ui.find({ key: 'act:copy' })).toBeDefined()
+    expect((await ui.findAll({ type: 'Button' })).filter(b => b.key === 'act:toggle')).toHaveLength(
+      1,
+    )
     await ui.unmount()
   }
 })
@@ -276,9 +287,9 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
       props: PANE(64, 20),
     })
     const paint = Date.now() - started
-    // PLAN §6 budgets 50 ms for the first paint (measured 2026-10-07: 37 ms on the
+    // The budget for the first paint is 50 ms (measured 2026-10-07: 37 ms on the
     // terminal, the module's first draw, and 3 ms on desktop). The bound leaves room
-    // for a loaded CI runner (review R-M3a-12).
+    // for a loaded CI runner.
     expect(paint).toBeLessThan(150)
     const drawn = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
     expect(drawn.length).toBeGreaterThan(5)
@@ -381,7 +392,7 @@ test('mobile draws the list without the filter field (no Input there)', async ($
   expect(await ui.find({ key: 'filter' })).toBeUndefined()
 })
 
-// ---- review R-M3a-1, R-M3a-9, R-M3a-13 -------------------------------------
+// ---- a filter's selection, scope warnings, read-only, the job log, layout -----
 
 const mountPane = ($: Engine, surface: 'terminal' | 'desktop', props = PANE()) =>
   $.ui.mount({ plugin: 'modmgr', surface, component: 'Pane', requestId: 'modmgr', props })
@@ -464,7 +475,6 @@ test('the job log shows a running test’s output and offers to cancel it', asyn
         layout: 'stacked',
         stack: ['jobs'],
         query: '',
-        kind: 'mods',
         sort: 'name',
         page: 0,
         staged: {},
@@ -480,7 +490,7 @@ test('the job log shows a running test’s output and offers to cancel it', asyn
   }
 })
 
-test('the split’s list drops version and scope; help sits beside the list', async ($, on) => {
+test('the split’s list drops version and scope; help takes the whole body', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -494,8 +504,36 @@ test('the split’s list drops version and scope; help sits beside the list', as
     await ui.press({ key: 'act:help' })
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: 'Keys' })).toBeDefined()
-    expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeDefined()
+    expect(await ui.find({ key: `row:${TURN_BAND}` })).toBeUndefined()
     await ui.press({ key: 'act:help' })
+    await ui.unmount()
+  }
+})
+
+test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail pushes nothing', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const keyed = async (ui: Awaited<ReturnType<typeof mountPane>>, key: string) =>
+    (await ui.findAll({ type: 'Button' })).filter(button => button.key === key).length
+  for (const [columns, rows] of [
+    [46, 14],
+    [80, 24],
+    [96, 30],
+  ] as const) {
+    const ui = await mountPane($, 'terminal', PANE(columns, rows))
+    await focusRow($, TURN_BAND)
+    await ui.redraw()
+    // Stacked in the footer, beside the list in the detail: once either way.
+    for (const key of ['act:toggle', 'act:refresh', 'act:help', 'act:close', 'act:tab.discover']) {
+      expect(await keyed(ui, key)).toBe(1)
+    }
+    if (columns >= 80) {
+      await ui.press({ key: `row:${TURN_BAND}` })
+      await ui.redraw()
+      expect((h.read('view') as { stack: string[] }).stack).toEqual([])
+      expect(await keyed(ui, 'act:close')).toBe(1)
+    }
     await ui.unmount()
   }
 })

@@ -1,13 +1,15 @@
-// Drives the job queue in `$.state` (PLAN §2.8, C3). One runner per module,
+// Drives the job queue in `$.state`. One runner per module,
 // on the port set built at `session.start`; press handlers only enqueue and
 // `kick()`. The rules:
 // - one job at a time, claimed by compare-and-set, and only while this module
-//   owns the queue (a newer module takes it over at its `session.start`, F39);
+//   owns the queue (a newer module takes it over at its `session.start`, while
+//   an old module's in-flight handlers may still finish);
 // - a batch's reload waits until nothing else is queued, and until 1.5 s after
-//   the last CLI write (F38); it is written `running` before `/reload-plugins`
-//   is asked, so a module replaced mid-reload finds it `interrupted` instead of
-//   reloading twice (review M5);
-// - every run starts from a clock timer, never inside a `command.run` hook (F29).
+//   the last CLI write (a reload sooner reads stale settings); it is written
+//   `running` before `/reload-plugins` is asked, so a module replaced
+//   mid-reload finds it `interrupted` instead of reloading twice;
+// - every run starts from a clock timer, never inside a `command.run` hook
+//   (`/reload-plugins` rejects there: it would wait on the turn the hook holds).
 
 import { argvOf, commandOfJob } from '../domain/argv.ts'
 import {
@@ -39,7 +41,7 @@ import type { StoreService } from './store.ts'
 
 export type RunnerPorts = CliPorts & Pick<Ports, 'state' | 'command' | 'ui'>
 
-/** Streamed output reaches `$.state` at most this often (PLAN §2.8: ≤ 10 writes/s). */
+/** Streamed output reaches `$.state` at most this often (≤ 10 writes/s). */
 export const TAIL_FLUSH_MS = 100
 
 /** How long the band echoes a reload's answer. */
@@ -51,7 +53,7 @@ export type RunnerOptions = {
   readonly store: Pick<StoreService, 'update'>
   /**
    * Whether `list --json` shows the plugin. `enable` of an id that isn't
-   * installed reports success (C4), so toggles run only for listed ids.
+   * installed reports success, so toggles run only for listed ids.
    */
   readonly isInstalled?: (id: string) => Promise<boolean>
   /** After a drain in which a CLI write finished: refresh the installed list. */
@@ -74,7 +76,7 @@ export type Runner = {
 
 export type Outcome = { finish: Finish; tail: string[] }
 
-/** A job whose module lost the queue mid-run: nothing about it is written (review R-M4-13). */
+/** A job whose module lost the queue mid-run: nothing about it is written. */
 const ABANDONED: Outcome = { finish: { cancelled: true }, tail: [] }
 
 const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = []): Outcome => ({
@@ -86,7 +88,7 @@ const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = [
 })
 const succeeded = (tail: string[]): Outcome => ({ finish: { ok: true }, tail })
 
-/** What the store's history keeps of a finished job: no output (PLAN §4). */
+/** What the store's history keeps of a finished job: no output. */
 export const historyOf = (job: Job, endedAt: number, outcome: Outcome): HistoryEntry => ({
   id: job.id,
   kind: job.kind,
@@ -99,8 +101,8 @@ export const historyOf = (job: Job, endedAt: number, outcome: Outcome): HistoryE
 /**
  * Runs one CLI job (not a reload, not a streamed test) on `ports` and says how
  * it ended: the runner's for the dialog, and `/mods`'s text writes on their own
- * hook's ports (C16: a hook's 10 s budget doesn't run through its `$` calls).
- * `isInstalled` keeps an enable or disable to ids `list --json` shows (C4).
+ * hook's ports (a hook's 10 s budget doesn't run down while it awaits its own
+ * `$` calls). `isInstalled` keeps an enable or disable to ids `list --json` shows.
  */
 export const runJob = async (
   ports: CliPorts & Pick<Ports, 'state'>,
@@ -190,7 +192,7 @@ export const runJob = async (
 
 /**
  * Says `line` in the band (and the pane's batch line) for RELOAD_ECHO_MS, then
- * lets it go, unless another line replaced it meanwhile (C8).
+ * lets it go, unless another line replaced it meanwhile.
  */
 export const echoLine = async (
   ports: Pick<Ports, 'state' | 'clock'>,
@@ -215,7 +217,7 @@ export const enqueue = async (
   newId: (index: number) => string,
   /**
    * Queues only while this holds, checked in the same versioned write: of two
-   * presses that read one queue, the second finds it changed (review R-M3b-2).
+   * presses that read one queue, the second finds it changed.
    */
   when: (queue: JobQueue) => boolean = () => true,
 ): Promise<boolean> => {
@@ -257,7 +259,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       return succeeded([line])
     } catch (error) {
       // A reload that restarted modmgr rejects in the old module: the new one owns
-      // the queue and has settled this reload (F54), so say nothing more.
+      // the queue and has settled this reload, so say nothing more.
       const queue = await ports.state.read('queue').catch(() => undefined)
       if (queue !== undefined && queue.owner !== owner) return ABANDONED
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
@@ -341,7 +343,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       if (next.kind === 'reload') {
         if (!reloadIsUseful(queue.jobs, next)) {
           await writeQueue(jobs => finish(jobs, next.id, now, { cancelled: true }))
-          // A batch that changed nothing still says so (review R-M3b-1).
+          // A batch that changed nothing still says so.
           const work = queue.jobs.filter(job => job.batch === next.batch && isWork(job))
           if (work.some(job => job.state === 'ok')) await echo(doneText(work))
           continue

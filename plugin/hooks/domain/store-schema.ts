@@ -1,4 +1,4 @@
-// What modmgr keeps in `$.store` across sessions (PLAN §4), as pure data:
+// What modmgr keeps in `$.store` across sessions, as pure data:
 // each key is an envelope `{ v, data }`, checked on read (the file is the
 // person's to edit, and an older or newer modmgr may have written it), migrated
 // forward, capped, and held under a size budget. services/store.ts does the I/O.
@@ -11,7 +11,6 @@ import type { Analysis } from './mods.ts'
 export type Prefs = {
   readonly tab: Tab
   readonly sort: View['sort']
-  readonly kind: View['kind']
   readonly firstRunDone: boolean
 }
 
@@ -19,7 +18,7 @@ export type Prefs = {
 export type DetectEntry = readonly [sha: string, kind: CatalogKind]
 
 /**
- * A mod's notable capabilities at the version modmgr last saw (PLAN §2.2).
+ * A mod's notable capabilities at the version modmgr last saw.
  * `added` and `since` are what a version change added and the version it came
  * from, kept until the person opens the mod's detail; both or neither.
  */
@@ -43,10 +42,19 @@ export type HistoryEntry = {
 /** An update a check found: the version it was found for, and the one available. */
 export type FoundUpdate = { readonly from: string; readonly to: string }
 
-/** The update scheduler's last check, and what it found (PLAN §2.6). */
+/** The update scheduler's last check, and what it found. */
 export type Updates = {
   readonly at?: number
   readonly found: Readonly<Record<string, FoundUpdate>>
+}
+
+/**
+ * The hosted index's last check: when it was last asked for with an answer
+ * (a 200, or a 404 before it exists), and when the index it read was built.
+ */
+export type IndexCheck = {
+  readonly at?: number
+  readonly built?: number
 }
 
 export type StoreData = {
@@ -56,6 +64,7 @@ export type StoreData = {
   capsHistory: Readonly<Record<string, CapsRecord>>
   history: readonly HistoryEntry[]
   updates: Updates
+  catalogIndex: IndexCheck
 }
 
 export type StoreKey = keyof StoreData
@@ -67,6 +76,7 @@ export const STORE_KEYS: readonly StoreKey[] = [
   'capsHistory',
   'history',
   'updates',
+  'catalogIndex',
 ]
 
 /**
@@ -78,10 +88,11 @@ export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
   prefs: 1,
   detect: 1,
   validate: 1,
-  // 2: records gained `added` and `since` (M3b, the capability diff).
+  // 2: records gained `added` and `since` (the capability diff).
   capsHistory: 2,
   history: 1,
   updates: 1,
+  catalogIndex: 1,
 }
 
 export const CAPS = { detect: 6000, validate: 300, history: 50 } as const
@@ -90,13 +101,12 @@ const KiB = 1024
 const MiB = 1024 * KiB
 /** Steady-state budget: past it, the caches give up their oldest entries. */
 export const SOFT_BUDGET = 1 * MiB
-/** Past this even after eviction, a write is refused as `store-full`. The engine's own limit is 4 MiB (F16). */
+/** Past this even after eviction, a write is refused as `store-full`. The engine's own limit is 4 MiB. */
 export const HARD_BUDGET = 3 * MiB
 
 export const DEFAULT_PREFS: Prefs = {
   tab: 'installed',
   sort: 'name',
-  kind: 'mods',
   firstRunDone: false,
 }
 
@@ -107,13 +117,13 @@ export const emptyStore = (): StoreData => ({
   capsHistory: {},
   history: [],
   updates: { found: {} },
+  catalogIndex: {},
 })
 
 // ---- shape checks --------------------------------------------------------
 
 const TABS: readonly string[] = ['installed', 'discover', 'dev', 'health']
 const SORTS: readonly string[] = ['installs', 'name', 'marketplace']
-const KINDS: readonly string[] = ['mods', 'hooks', 'all']
 const CATALOG_KINDS: readonly string[] = ['mod', 'hooks', 'plain', 'unknown']
 const JOB_KINDS: readonly string[] = [
   'install',
@@ -148,7 +158,6 @@ export const readPrefs = (value: unknown): Prefs => {
   return {
     tab: oneOf(TABS, value.tab, DEFAULT_PREFS.tab),
     sort: oneOf(SORTS, value.sort, DEFAULT_PREFS.sort),
-    kind: oneOf(KINDS, value.kind, DEFAULT_PREFS.kind),
     firstRunDone: value.firstRunDone === true,
   }
 }
@@ -251,6 +260,14 @@ export const readUpdates = (value: unknown): Updates => {
   return isCount(value.at) ? { at: value.at, found } : { found }
 }
 
+export const readIndexCheck = (value: unknown): IndexCheck => {
+  if (!isRecord(value)) return {}
+  return {
+    ...(isCount(value.at) ? { at: value.at } : {}),
+    ...(isCount(value.built) ? { built: value.built } : {}),
+  }
+}
+
 const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
   prefs: readPrefs,
   detect: value => lruTrim(readMap(value, readDetectEntry), CAPS.detect),
@@ -264,6 +281,7 @@ const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
       })
       .slice(-CAPS.history),
   updates: readUpdates,
+  catalogIndex: readIndexCheck,
 }
 
 // ---- envelopes and migrations ---------------------------------------------
@@ -325,7 +343,7 @@ export const envelope = (data: unknown, version = 1): Envelope => ({
 
 // ---- caps and budget -----------------------------------------------------
 
-/** Applies the per-key caps (PLAN §4). */
+/** Applies the per-key caps. */
 const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   prefs: data => data,
   detect: data => lruTrim(data, CAPS.detect),
@@ -333,6 +351,7 @@ const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   capsHistory: data => data,
   history: data => data.slice(-CAPS.history),
   updates: data => data,
+  catalogIndex: data => data,
 }
 
 export const capped = <K extends StoreKey>(key: K, data: StoreData[K]): StoreData[K] =>

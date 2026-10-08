@@ -1,4 +1,4 @@
-// Timings for PLAN §6's budgets (M6, `docs/PERF.md`): with `userConfig.debugTimings`
+// Timings for the performance budgets (`docs/PERF.md`): with `userConfig.debugTimings`
 // on, each measured step writes one debug-log line (`--debug`); off, nothing.
 // `performance.now()` is a hooks-module global (d.ts globals), so measuring
 // costs no host round trip.

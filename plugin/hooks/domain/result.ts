@@ -1,4 +1,4 @@
-// Result values and modmgr's error kinds (PLAN §3). Nothing in modmgr throws
+// Result values and modmgr's error kinds. Nothing in modmgr throws
 // across a layer boundary: a failure is an `Err` with one of these kinds.
 
 export type Ok<T> = { readonly ok: true; readonly value: T }

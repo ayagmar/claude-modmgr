@@ -1,4 +1,4 @@
-// Installed plugins → the rows Installed draws (PLAN §2.1, §4). A plugin is a
+// Installed plugins → the rows Installed draws. A plugin is a
 // mod when `validate --json` finds a hooks module in it; what it can do comes
 // from the same report, cached per `root@version` (the Analysis below).
 
@@ -8,7 +8,7 @@ import type { Details, InstalledEntry } from './cli-results.ts'
 import { type AbsolutePath, splitPluginId } from './ids.ts'
 import type { ValidateReport } from './validate-report.ts'
 
-/** What modmgr keeps per `root@version` (the `validate` store key, PLAN §4). */
+/** What modmgr keeps per `root@version` (the `validate` store key). */
 export type Analysis = {
   readonly mod: boolean
   readonly events: readonly string[]
@@ -49,7 +49,7 @@ export const rootOf = (entry: InstalledEntry): AbsolutePath | undefined =>
 
 /**
  * The version a session runs: a folder marketplace's plugin runs from its
- * folder (verified M3b, F51), so its folder's version, not the install copy's.
+ * folder (`readFromFolder`), so its folder's version, not the install copy's.
  */
 export const runningVersion = (entry: InstalledEntry): string | undefined =>
   entry.folderVersion ?? entry.version
@@ -72,7 +72,7 @@ export const originOf = (entry: InstalledEntry): Origin => {
   return 'marketplace'
 }
 
-/** The CLI can toggle it (F17, F18): not managed, not loaded by the launch command. */
+/** The CLI can toggle it: not managed, not loaded by the launch command (`--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`). */
 export const isToggleable = (entry: InstalledEntry): boolean =>
   originOf(entry) !== 'env-dir' && entry.scope !== 'managed'
 

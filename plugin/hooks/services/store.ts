@@ -1,6 +1,6 @@
-// modmgr's persistent store over `$.store` (PLAN §4): typed keys in versioned
+// modmgr's persistent store over `$.store`: typed keys in versioned
 // envelopes, read once per load, held in memory, and written back in batches
-// (each `$.store.set` rewrites the whole file, F16). Writes are capped per key
+// (each `$.store.set` rewrites the whole file). Writes are capped per key
 // and kept under a 1 MiB budget by evicting the caches' oldest entries; past
 // 3 MiB a write is refused as `store-full`, never sent.
 
@@ -56,6 +56,7 @@ const zeroSizes = (): Record<StoreKey, number> => ({
   capsHistory: 0,
   history: 0,
   updates: 0,
+  catalogIndex: 0,
 })
 
 export const createStore = (ports: StorePorts, options: StoreOptions = {}): StoreService => {
@@ -149,7 +150,7 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
     },
     get: key => data[key],
     set,
-    // A change that returns what it was given writes nothing (each write rewrites the file, F16).
+    // A change that returns what it was given writes nothing (each write rewrites the file).
     update: (key, change) => {
       const next = change(data[key])
       if (next !== data[key]) set(key, next)

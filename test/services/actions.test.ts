@@ -93,8 +93,10 @@ describe('toggle → review → confirm → reload', () => {
     expect(w.state.values.review).toBeNull()
     expect(w.state.values.view.stack).toEqual([])
     expect(w.state.values.view.staged).toEqual({})
-    // Re-opened without holding toasts while the batch runs (C8).
-    expect(w.ui.opens).toEqual([{ id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14 }])
+    // Re-opened without holding toasts while the batch runs.
+    expect(w.ui.opens).toEqual([
+      { id: 'modmgr', title: 'mods', closeOnEscape: true, rows: 14, columns: 96 },
+    ])
     expect(w.state.values.queue.jobs.map(job => `${job.kind}:${job.state}`)).toEqual([
       'disable:queued',
       'reload:queued',
@@ -261,7 +263,7 @@ describe('Esc (ui.close from the person)', () => {
     expect(w.state.values.view.staged).toEqual({ [TURN_BAND]: false })
   })
 
-  it('closes at once when the pane did not hold the keys (review M10)', async () => {
+  it('closes at once when the pane did not hold the keys', async () => {
     const { w, act } = await setup()
     await act.open(TURN_BAND)
     w.ui.keysToPrompt()
@@ -288,7 +290,7 @@ describe('Esc (ui.close from the person)', () => {
   })
 })
 
-describe('the focus ring (F46, review R-M3a-5)', () => {
+describe('the focus ring', () => {
   it('goes to what each overlay offers first, and back to the row when it closes', async () => {
     const { w, act } = await setup()
     const last = () => w.ui.focuses.at(-1)
@@ -332,7 +334,7 @@ describe('the focus ring (F46, review R-M3a-5)', () => {
   })
 })
 
-describe('review findings R-M3a-1 to R-M3a-3', () => {
+describe('a filter, two presses, a refresh under a staged toggle', () => {
   it('toggle acts on the row the filter shows, never a hidden selection', async () => {
     const { w, act } = await setup()
     await act.focusRow(TURN_BAND)

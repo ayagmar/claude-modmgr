@@ -1,4 +1,4 @@
-// Claude Code versions: the minimum modmgr is built for (PLAN C1) and a
+// Claude Code versions: the minimum modmgr is built for and a
 // comparison for `x.y.z` strings.
 
 export const MIN_CLAUDE_VERSION = '2.1.292'

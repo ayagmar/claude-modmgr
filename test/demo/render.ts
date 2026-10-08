@@ -1,14 +1,16 @@
 // Draws an element tree from ui/ (Box, Text, Button, Input, Select) as lines of
 // styled text at a fixed width, close enough to the terminal's own drawing for
-// the landing page's mock (PLAN §8, R23): rows and columns, fixed widths,
-// gaps, wrapping rows, space-between, clipped heights, truncated and wrapped
-// text. It is not Ink; it only has to draw what modmgr's views use.
+// the landing page's mock: rows and columns, fixed widths, gaps, padding,
+// borders, wrapping rows, space-between and flex-end, a grown child filling a
+// fixed height, clipped heights, hidden boxes, truncated and wrapped text. It
+// is not Ink; it only has to draw what modmgr's views use.
 
 export type Segment = {
   readonly text: string
   readonly tone?: string
   readonly bold?: true
   readonly dim?: true
+  readonly underline?: true
   /** The focus ring sits on it (the element drawn with `autoFocus`). */
   readonly ring?: true
 }
@@ -71,6 +73,7 @@ const styleOf = (props: Props): Omit<Segment, 'text'> => ({
   ...(typeof props.color === 'string' ? { tone: props.color } : {}),
   ...(props.bold === true ? { bold: true as const } : {}),
   ...(props.dimColor === true ? { dim: true as const } : {}),
+  ...(props.underline === true ? { underline: true as const } : {}),
 })
 
 const textOf = (children: readonly unknown[]): string =>
@@ -121,6 +124,8 @@ export const render = (node: unknown, width: number): Line[] => {
     case 'Text': {
       const text = textOf(node.children)
       const style = styleOf(props)
+      // Blank text keeps its width, as Ink draws it.
+      if (text !== '' && text.trim() === '') return [[{ ...style, text }]]
       if (props.wrap === 'truncate-end' || props.wrap === 'truncate') {
         return [cut([{ ...style, text }], width)]
       }
@@ -139,13 +144,7 @@ export const render = (node: unknown, width: number): Line[] => {
       const value = typeof props.value === 'string' && props.value !== '' ? props.value : undefined
       const placeholder = typeof props.placeholder === 'string' ? props.placeholder : ''
       return [
-        cut(
-          [
-            { text: '› ' },
-            { text: value ?? placeholder, ...(value ? {} : { dim: true as const }) },
-          ],
-          width,
-        ),
+        cut([{ text: value ?? placeholder, ...(value ? {} : { dim: true as const }) }], width),
       ]
     }
     case 'Select': {
@@ -170,20 +169,68 @@ export const render = (node: unknown, width: number): Line[] => {
 
 type Block = { readonly lines: Line[]; readonly width: number }
 
+const BORDERS: Readonly<Record<string, string>> = { round: '╭╮╰╯─│', single: '┌┐└┘─│' }
+
 const box = (node: Node, props: Props, available: number): Line[] => {
-  const width = Math.min(num(props.width) ?? available, available)
+  if (props.display === 'none') return []
+  const outer = Math.min(num(props.width) ?? available, available)
+  const border = typeof props.borderStyle === 'string' ? BORDERS[props.borderStyle] : undefined
+  const left = (num(props.paddingLeft) ?? num(props.paddingX) ?? 0) + (border ? 1 : 0)
+  const right = (num(props.paddingRight) ?? num(props.paddingX) ?? 0) + (border ? 1 : 0)
+  const width = Math.max(0, outer - left - right)
   const children = node.children.filter(
     child => child !== null && child !== undefined && child !== false,
   )
+  const height = num(props.height)
   let lines: Line[]
   if (node.type === 'Fragment' || props.flexDirection === 'column') {
-    lines = children.flatMap(child => render(child, width))
+    lines = column(children, width, height)
   } else {
     lines = row(children, props, width)
   }
-  const height = num(props.height)
   if (height !== undefined && props.overflow === 'hidden') lines = lines.slice(0, height)
-  return num(props.width) === undefined ? lines : lines.map(line => pad(cut(line, width), width))
+  if (props.justifyContent === 'flex-end' && props.flexDirection !== 'column') {
+    lines = lines.map(line => [{ text: ' '.repeat(Math.max(0, width - widthOf(line))) }, ...line])
+  }
+  if (border !== undefined) {
+    const [tl, tr, bl, br, h, v] = [...border]
+    const edge = (props.borderDimColor === true ? { dim: true } : {}) as Omit<Segment, 'text'>
+    const padL = ' '.repeat(left - 1)
+    const padR = ' '.repeat(right - 1)
+    lines = [
+      [{ ...edge, text: `${tl}${(h ?? '').repeat(width + left + right - 2)}${tr}` }],
+      ...lines.map(line => [
+        { ...edge, text: v ?? '' },
+        { text: padL },
+        ...pad(cut(line, width), width),
+        { text: padR },
+        { ...edge, text: v ?? '' },
+      ]),
+      [{ ...edge, text: `${bl}${(h ?? '').repeat(width + left + right - 2)}${br}` }],
+    ]
+  } else if (left > 0) {
+    lines = lines.map(line => [{ text: ' '.repeat(left) }, ...line])
+  }
+  return num(props.width) === undefined ? lines : lines.map(line => pad(cut(line, outer), outer))
+}
+
+/** Children stacked; with a fixed height, a growing child takes the rows the others leave. */
+const column = (
+  children: readonly unknown[],
+  width: number,
+  height: number | undefined,
+): Line[] => {
+  const grows = (child: unknown) => isNode(child) && child.props?.flexGrow === 1
+  const drawn = children.map(child => (grows(child) ? undefined : render(child, width)))
+  const used = drawn.reduce((sum, lines) => sum + (lines?.length ?? 0), 0)
+  return children.flatMap((child, index) => {
+    const lines = drawn[index]
+    if (lines !== undefined) return lines
+    const own = render(child, width)
+    if (height === undefined) return own
+    const room = Math.max(own.length, height - used)
+    return [...own, ...Array.from({ length: room - own.length }, (): Line => [])]
+  })
 }
 
 /** Lays children side by side, wrapping onto new rows when the box says so. */
@@ -251,6 +298,7 @@ export const tidy = (line: Line): Line => {
       last.tone === seg.tone &&
       last.bold === seg.bold &&
       last.dim === seg.dim &&
+      last.underline === seg.underline &&
       last.ring === seg.ring
     if (same) out[out.length - 1] = { ...last, text: last.text + seg.text }
     else if (seg.text !== '') out.push(seg)

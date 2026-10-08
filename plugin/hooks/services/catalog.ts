@@ -1,4 +1,4 @@
-// The Discover catalogue (PLAN §2.3, R2, R11): `list --json --available` read
+// The Discover catalogue: `list --json --available` read
 // into an index in module memory, never into `$.state` or `$.store`. `$.state`
 // gets the window of rows around Discover's selection and the counts. Kinds
 // come from the detector's cache (the store's `detect` key), checked against
@@ -9,6 +9,7 @@ import { capabilitiesOf } from '../domain/capabilities.ts'
 import {
   buildIndex,
   type CatalogIndex,
+  type CatalogSort,
   type Match,
   matchAll,
   PAGE_SIZE,
@@ -27,7 +28,7 @@ import { type CliPorts, runCli, validateRoot } from './cli.ts'
 import type { StoreService } from './store.ts'
 import { NO_TIMING, type Timing, timed } from './timing.ts'
 
-/** How long a loaded catalogue is used before Discover reads it again (PLAN §2.3). */
+/** How long a loaded catalogue is used before Discover reads it again. */
 export const CATALOG_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 export type CatalogPorts = CliPorts & Pick<Ports, 'state'>
@@ -51,6 +52,12 @@ export type Catalog = {
   folderOf(id: string): string | undefined
   kindOf(id: string): CatalogKind
   /**
+   * The entries the person is looking at, to check first: the rows shown, then
+   * the first PRIORITY_MAX the search matches whatever their kind (so a search
+   * under "mods only" finds the mods among entries not checked yet).
+   */
+  priority(): readonly string[]
+  /**
    * What a local entry can do, read with `validate` before installing (or why it
    * couldn't be); undefined for an entry with no files on disk. One child per
    * entry and version at a time, three at once; the answer is kept in the store's
@@ -59,8 +66,11 @@ export type Catalog = {
   inspect(id: string): Promise<Inspection | Unread | undefined>
 }
 
-/** Validations of catalogue entries at once (PLAN §6: cache misses, three concurrent). */
+/** Validations of catalogue entries at once (cache misses, three concurrent). */
 export const INSPECT_CONCURRENCY = 3
+
+/** Search matches the detector checks ahead of the rest. */
+export const PRIORITY_MAX = 200
 
 const toInspection = (analysis: Analysis): Inspection => ({
   notable: capabilitiesOf(analysis).notable,
@@ -79,6 +89,9 @@ export const createCatalog = (
   let loading: Promise<Result<void>> | undefined
   let kindsVersion = 0
   let memo: { key: string; matched: Match[] } | undefined
+  // What the last window showed, and the search's matches whatever their kind.
+  let shown: { ids: string[]; text: string; sort: CatalogSort } | undefined
+  let searched: { key: string; ids: string[] } | undefined
   // Reads that failed this session (`r` tries again), and the ones under way.
   const failures = new Map<string, string>()
   const inflight = new Map<string, Promise<Inspection | Unread | undefined>>()
@@ -96,7 +109,7 @@ export const createCatalog = (
     if (next === undefined) slots += 1
     else next()
   }
-  // A window computed from a view another show() has since replaced is dropped (R-M4-3).
+  // A window computed from a view another show() has since replaced is dropped.
   let generation = 0
 
   const kindOf = (id: string): CatalogKind => {
@@ -134,7 +147,7 @@ export const createCatalog = (
 
   const read = async (): Promise<Result<void>> => {
     await ports.state.update('catalogPage', page => ({ ...page, loading: true }))
-    // Two reads that don't depend on each other, side by side (M6: about 0.5 s and 0.3 s).
+    // Two reads that don't depend on each other, side by side (about 0.5 s and 0.3 s).
     const [run, listed] = await Promise.all([
       runCli(ports, { op: 'available' }),
       runCli(ports, { op: 'marketplaces' }),
@@ -160,6 +173,7 @@ export const createCatalog = (
     }
     index = buildIndex(parsed.value.available.items)
     memo = undefined
+    searched = undefined
     loadedAt = await ports.clock.now()
     await show()
     return ok(undefined)
@@ -173,14 +187,16 @@ export const createCatalog = (
     const mine = generation
     const view = await ports.state.read('view')
     if (mine !== generation) return
-    const key = `${view.search}\u0000${view.kind}\u0000${view.sort}\u0000${kindsVersion}`
+    // Discover lists mods only: the rest of the catalogue is what the detector checks.
+    const key = `${view.search}\u0000${view.sort}\u0000${kindsVersion}`
     if (memo?.key !== key) {
       memo = {
         key,
-        matched: matchAll(index, { text: view.search, kind: view.kind, sort: view.sort }, kindOf),
+        matched: matchAll(index, { text: view.search, sort: view.sort, only: 'mod' }, kindOf),
       }
     }
     const window = windowOf(memo.matched, view.found, PAGE_SIZE)
+    shown = { ids: window.rows.map(row => row.id), text: view.search, sort: view.sort }
     const { offset } = window
     // A row modmgr read before installing says what it can do (the detail, the review).
     const rows = window.rows.map(row => {
@@ -230,6 +246,15 @@ export const createCatalog = (
     rootOf: marketplace => roots.get(marketplace),
     folderOf,
     kindOf,
+    priority() {
+      if (index === undefined || shown === undefined) return []
+      const key = `${shown.text}\u0000${shown.sort}`
+      if (searched?.key !== key) {
+        const all = matchAll(index, { text: shown.text, sort: shown.sort }, () => 'unknown')
+        searched = { key, ids: all.slice(0, PRIORITY_MAX).map(match => match.item.entry.id) }
+      }
+      return [...shown.ids, ...searched.ids]
+    },
     inspect(id) {
       const at = inspectKey(id)
       if (at === undefined) return Promise.resolve(undefined)

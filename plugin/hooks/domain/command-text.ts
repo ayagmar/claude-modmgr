@@ -1,4 +1,4 @@
-// What `/mods` says as text (PLAN §2.7, C16): the list, one mod's detail,
+// What `/mods` says as text: the list, one mod's detail,
 // the doctor's report (Health's items, so the two never disagree), the export
 // and the plan an `apply` file asks for, and how the jobs a write queued ended.
 
@@ -197,7 +197,7 @@ export const whyNot = (
 
 /**
  * How to accept a declared command a write stopped on: a command that works as
- * given, whichever subcommand stopped (an `apply` too, review R-M6-4).
+ * given, whichever subcommand stopped (an `apply` too).
  */
 const acceptHint = (job: Job, shown: NonNullable<Job['shown']>): string => {
   const id = sanitize(job.target ?? '', { max: 130 })

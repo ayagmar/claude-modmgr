@@ -1,5 +1,5 @@
 // What each `$.state` key reads before anything is written, and the shape tag
-// its atom is kept under (C3). Bump a key's tag whenever its type in
+// its atom is kept under. Bump a key's tag whenever its type in
 // types/index.d.ts changes: the new module then reads the old value as absent.
 
 import type {
@@ -39,10 +39,10 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   mods: 'mods/2',
   detail: 'detail/2',
   catalogPage: 'catalogPage/2',
-  detect: 'detect/1',
+  detect: 'detect/2',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/6',
+  view: 'view/7',
   review: 'review/3',
   attention: 'attention/2',
   degraded: 'degraded/1',
@@ -55,7 +55,6 @@ export const INITIAL_VIEW: View = {
   stack: [],
   query: '',
   search: '',
-  kind: 'mods',
   sort: 'name',
   staged: {},
 }

@@ -1,4 +1,4 @@
-// Health (PLAN §2.5, C15): what needs the person's attention, grouped by mod,
+// Health: what needs the person's attention, grouped by mod,
 // each with a one-press fix where one exists, then modmgr's own state (the
 // installed list's refresh, a reload owed, the detector, the cache, the update
 // checks). Built from `$.state` alone, so it is drawn, never fetched.
@@ -204,7 +204,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   const counts = loadStates(input.mods)
   if (counts !== undefined) own({ key: 'own:load', tone: 'info', text: counts })
   const updates = facts.updates
-  // Said once the facts are in (the first frame has none: "every 0 hours", review R-M5-9).
+  // Said once the facts are in (the first frame has none, and would say "every 0 hours").
   if (facts.at !== undefined)
     own({
       key: 'own:updates',
@@ -218,6 +218,11 @@ const ownItems = (input: HealthInput): HealthItem[] => {
         : {}),
     })
   const left = Math.max(0, facts.detector.budget - facts.detector.spent)
+  // Where Discover's kinds came from: the catalogue index (and how old it is), then checks here.
+  const index =
+    detect.indexAt === undefined || facts.at === undefined
+      ? ''
+      : `, from the catalogue index built ${agoLabel(facts.at - detect.indexAt)}`
   own({
     key: 'own:detector',
     tone: 'info',
@@ -225,7 +230,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       detect.total === 0
         ? 'detector: not run yet; it starts when Discover opens'
         : facts.detector.remote
-          ? `detector: ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${detect.found} mods found, ${left} requests left this session`
+          ? `detector: ${detect.found} mods found${index}; ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${left} requests left this session`
           : `detector: local catalogues only (${facts.detector.why ?? 'remote checks are off'}); ${detect.found} mods found`,
   })
   if (!facts.cache.full) {
@@ -299,7 +304,7 @@ export const problemCount = (items: readonly HealthItem[]): number =>
 
 /**
  * The last `hook failed closed: <plugin>: errorKind=… (<event>; …)` line per
- * plugin in a debug log (F35: the engine logs the error's length, not its text).
+ * plugin in a debug log (the engine logs the error's length, not its text).
  */
 export const loggedFailures = (log: string): Record<string, string> => {
   const found: Record<string, string> = {}

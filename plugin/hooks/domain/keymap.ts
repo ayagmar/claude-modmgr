@@ -1,6 +1,6 @@
-// The one keymap (PLAN §5.5, R17). Every hotkey a Button carries comes from
+// The one keymap. Every hotkey a Button carries comes from
 // here, and the help overlay and the landing page are generated from it.
-// A hotkey is one digit or one lowercase letter (F12); the band takes letters
+// A hotkey is one digit or one lowercase letter; the band takes letters
 // only, since a bare digit in an empty composer presses a band Button.
 
 export const SURFACES = [
@@ -42,10 +42,9 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'open', key: 'enter', label: 'open', on: LISTS },
   { action: 'back', key: 'esc', label: 'back · clear filter · close', on: ['pane'] },
   { action: 'jobs', hotkey: 'j', label: 'jobs', on: ['pane'] },
-  { action: 'help', hotkey: 'h', label: 'help', on: ['pane'] },
+  { action: 'help', hotkey: 'h', label: 'keys', on: ['pane'] },
   { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },
   { action: 'sort', hotkey: 'o', label: 'sort', on: ['discover'] },
-  { action: 'kind', hotkey: 'k', label: 'kind', on: ['discover', 'discover-empty'] },
   { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS },
   { action: 'page.last', hotkey: 'b', label: 'last page', on: LISTS },
   { action: 'refresh', hotkey: 'r', label: 'refresh', on: LISTS },
@@ -80,7 +79,7 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'reload', hotkey: 'l', label: 'reload plugins', on: ['dev', 'health', 'band'] },
   { action: 'confirm', hotkey: 'y', label: 'confirm', on: ['review'] },
   { action: 'cancel', hotkey: 'n', label: 'cancel', on: ['review'] },
-  // Not `d`: that dismisses the band, a reflex there (review R-M3b-5).
+  // Not `d`: that dismisses the band, a reflex there.
   { action: 'keep-data', hotkey: 'w', label: "keep or wipe a removed mod's data", on: ['review'] },
   { action: 'cancel-job', hotkey: 'q', label: 'cancel running job', on: ['jobs'] },
   { action: 'open-modmgr', hotkey: 'm', label: 'open mods', on: ['band'] },
@@ -119,7 +118,7 @@ export type Collision = {
 }
 
 /**
- * Two Buttons with one hotkey in one site: "two clash, later wins" (F12). The
+ * Two Buttons with one hotkey in one site: "two clash, later wins". The
  * same action on two surfaces of a set is fine: the shell draws it once.
  */
 export const collisions = (
@@ -138,7 +137,7 @@ export const collisions = (
       .map(([hotkey, actions]) => ({ hotkey, actions: [...actions].sort(), set: set.join('+') }))
   })
 
-/** Bindings that break F12: a malformed hotkey, or a digit on the band. */
+/** Bindings the engine refuses or misreads: a malformed hotkey, or a digit on the band. */
 export const invalidHotkeys = (bindings: readonly Binding[] = BINDINGS): Binding[] =>
   bindings.filter(
     binding =>

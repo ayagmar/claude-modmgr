@@ -1,4 +1,4 @@
-// The social card, drawn at build time (PLAN §8): an SVG rasterised by sharp,
+// The social card, drawn at build time: an SVG rasterised by sharp,
 // so no image is checked in and its words can't go stale.
 import type { APIRoute } from 'astro'
 import sharp from 'sharp'

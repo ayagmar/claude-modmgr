@@ -1,4 +1,4 @@
-// Checks the built site (PLAN §8): every internal link and asset resolves in
+// Checks the built site: every internal link and asset resolves in
 // site/dist, and what a first visit transfers stays under 100 KB, fonts aside.
 //
 //   pnpm --filter modmgr-site build && node scripts/check-site.ts

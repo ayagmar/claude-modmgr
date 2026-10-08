@@ -1,4 +1,4 @@
-// The capability diff (PLAN §2.2): what each installed mod could do at the
+// The capability diff: what each installed mod could do at the
 // version modmgr last saw, and what a version change added to its notable
 // list. A mod seen for the first time is only recorded; a version change that
 // adds notable items keeps them (`added`, `since`) until the person opens the
@@ -46,9 +46,9 @@ const sameRecord = (a: CapsRecord | undefined, b: CapsRecord): boolean =>
  * The history after a refresh saw `sightings`: each seen mod's record updated
  * and made most recent, the oldest unseen ones dropped past the cap. `changed`
  * is false when nothing needs writing. A refresh that only reorders writes
- * nothing (each store write rewrites the file, F16), so the stored order is
+ * nothing (each store write rewrites the file), so the stored order is
  * the order of the last content change: good enough for a cap of 300 over a
- * few dozen installed mods (review R-M3b-13). Don't "fix" the no-write.
+ * few dozen installed mods. Don't "fix" the no-write.
  */
 export const recordCaps = (
   history: Lru<CapsRecord>,

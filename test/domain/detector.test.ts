@@ -134,7 +134,7 @@ describe('probe steps', () => {
     expect(afterHooksJson({ status: 301 }, base)).toEqual({ done: 'unknown' })
   })
 
-  it('reads the manifest hooks field (R14)', () => {
+  it('reads the manifest hooks field', () => {
     const manifest = (value: unknown) => ({ status: 200, text: JSON.stringify(value) })
     expect(afterManifest(manifest({ name: 'x' }), base)).toEqual({ done: 'plain' })
     expect(afterManifest(manifest({ hooks: { modules: ['./m.ts'] } }), base)).toEqual({
@@ -152,7 +152,7 @@ describe('probe steps', () => {
       fetch: `${base.base}hooks%20dir/h.json`,
       stage: 'followed',
     })
-    // A local plugin's folder is read as written, not URL-encoded (review R-M4-12).
+    // A local plugin's folder is read as written, not URL-encoded.
     expect(afterManifest(manifest({ hooks: './hooks dir/h.json' }), { base: '/mkt/p/' })).toEqual({
       fetch: '/mkt/p/hooks dir/h.json',
       stage: 'followed',

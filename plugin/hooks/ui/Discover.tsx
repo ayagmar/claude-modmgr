@@ -1,55 +1,52 @@
-// Discover (PLAN §2.3, §5.3): the catalogue's rows around the selection, its
-// empty states, and an entry's detail. Rows are plain Buttons keyed `found:<id>`
+// Discover: the mods the catalogue holds, around the selection, its empty
+// states, and a mod's detail. Rows are plain Buttons keyed `found:<id>`
 // (Enter opens the detail); every name and blurb is the catalogue's own word,
 // sanitised by the catalogue and drawn as Text.
 
 import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
-import { foundKey, inspectionLines, KIND_LABEL } from '../domain/discover.ts'
+import { foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import type { Window } from '../domain/view.ts'
-import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, Heading, KeyButton, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
-/** Cells for the kind and the install count at a row's end. */
-const TAIL = 14
-
-const kindTone = (kind: CatalogRow['kind']): string | undefined =>
-  kind === 'mod' ? TONE.accent : undefined
+/** Cells for the install count at a row's end (`12.3k`). */
+const INSTALLS = 5
 
 export const FoundRow = (
   v: ViewPorts,
   row: CatalogRow,
-  how: { readonly columns: number; readonly focus: boolean },
+  how: { readonly columns: number; readonly focus: boolean; readonly twoLine: boolean },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
-  const wide = how.columns >= 60
-  const name = Math.max(10, Math.min(36, how.columns - 2 - TAIL - (wide ? 20 : 0)))
+  const name = Math.max(8, how.columns - 2 - 1 - INSTALLS)
+  const installs = row.installs === undefined ? '' : formatCount(row.installs)
+  const about = row.blurb === '' ? row.marketplace : row.blurb
   return (
-    <Box key={`line:${row.id}`} flexDirection="row" gap={1}>
-      <Text color={kindTone(row.kind) ?? TONE.muted}>
-        {row.kind === 'mod' ? GLYPH.notable : ' '}
-      </Text>
-      <Box width={name} flexShrink={0}>
-        <Button
-          key={foundKey(row.id)}
-          plain
-          label={sanitize(row.name, { max: name })}
-          {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => v.act.openFound(row.id)}
-        />
+    <Box key={`line:${row.id}`} flexDirection="column">
+      <Box flexDirection="row" gap={1}>
+        {Pointer(v, how.focus)}
+        <Box width={name} flexShrink={0}>
+          <Button
+            key={foundKey(row.id)}
+            plain
+            label={sanitize(row.name, { max: name })}
+            {...(how.focus ? { autoFocus: true as const } : {})}
+            onPress={() => (how.twoLine ? v.act.openFound(row.id) : v.act.toDetail())}
+          />
+        </Box>
+        <Box width={INSTALLS} flexShrink={0} justifyContent="flex-end">
+          <Text dimColor>{installs}</Text>
+        </Box>
       </Box>
-      {wide ? (
-        <Box width={20} flexShrink={0}>
+      {how.twoLine ? (
+        <Box paddingLeft={2} height={1} overflow="hidden">
           <Text dimColor wrap="truncate-end">
-            {row.marketplace}
+            {sanitize(about, { max: 200 })}
           </Text>
         </Box>
       ) : null}
-      <Box width={6} flexShrink={0}>
-        <Text dimColor>{KIND_LABEL[row.kind]}</Text>
-      </Box>
-      <Text dimColor>{row.installs === undefined ? '' : formatCount(row.installs)}</Text>
     </Box>
   )
 }
@@ -65,6 +62,10 @@ export const FoundList = (
     readonly window: Window
     readonly focusId: string | undefined
     readonly networkOff: boolean
+    /** The detector is still checking the catalogue for mods. */
+    readonly checking: boolean
+    /** Each entry takes two rows: its name, then what it says it does. */
+    readonly twoLine: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
@@ -74,18 +75,17 @@ export const FoundList = (
     else if (page.error !== undefined)
       lines.push(`Couldn't read the catalogue: ${sanitize(page.error, { max: 200 })} (r retries)`)
     else if (page.total === 0) lines.push('Your marketplaces list nothing you haven’t installed.')
-    else if (how.view.search !== '')
-      lines.push(`Nothing matches "${sanitize(how.view.search, { max: 40 })}". Esc clears it.`)
-    else if (how.view.kind === 'mods') {
-      lines.push('No mods found in your marketplaces yet.')
+    else {
       lines.push(
-        how.networkOff
-          ? 'Network use is off, so only local catalogues are checked.'
-          : 'modmgr checks more of the catalogue while you work.',
+        how.view.search === ''
+          ? 'No mods found in your marketplaces yet.'
+          : `No mod matches "${sanitize(how.view.search, { max: 40 })}". Esc clears it.`,
       )
-      // The footer draws `k` and `m`: a key is drawn once (two Buttons with one key clash, F12).
-      lines.push('k shows plugins with hooks; m adds a marketplace.')
-    } else lines.push('Nothing to show with this filter.')
+      if (how.networkOff) lines.push('Network use is off, so only local catalogues are checked.')
+      else if (how.checking) lines.push('modmgr is still checking the catalogue: more may appear.')
+      // The footer draws `m`: a key is drawn once (two Buttons with one key clash).
+      if (how.view.search === '') lines.push('m adds a marketplace.')
+    }
     return (
       <Box flexDirection="column">
         {lines.map(line => (
@@ -96,30 +96,28 @@ export const FoundList = (
   }
   return (
     <Box flexDirection="column">
-      {page.rows
-        .slice(how.window.start, how.window.end)
-        .map(row => FoundRow(v, row, { columns: how.columns, focus: row.id === how.focusId }))}
+      {page.rows.slice(how.window.start, how.window.end).map(row =>
+        FoundRow(v, row, {
+          columns: how.columns,
+          focus: row.id === how.focusId,
+          twoLine: how.twoLine,
+        }),
+      )}
     </Box>
   )
 }
 
 /** The rows the catalogue detail draws (Pane clips a taller one to the body). */
-export const foundDetailRows = (row: CatalogRow | undefined, actions: boolean): number => {
+export const foundDetailRows = (row: CatalogRow | undefined): number => {
   if (row === undefined) return 1
   const notable = row.notable ?? []
-  return (
-    3 +
-    (actions ? 1 : 0) +
-    (row.blurb === '' ? 0 : 1) +
-    1 +
-    (notable.length === 0 ? 1 : 1 + notable.length)
-  )
+  return 3 + 1 + (row.blurb === '' ? 0 : 1) + 1 + (notable.length === 0 ? 1 : 1 + notable.length)
 }
 
 export const FoundDetail = (
   v: ViewPorts,
   row: CatalogRow | undefined,
-  how: { readonly actions: boolean; readonly readOnly: boolean },
+  how: { readonly readOnly: boolean },
 ): RenderElement => {
   const { Box, Text } = v.el
   if (row === undefined) return <Text dimColor>Select an entry to see more.</Text>
@@ -133,29 +131,29 @@ export const FoundDetail = (
         <Text bold>{row.name}</Text>
         <Text dimColor>{row.version ?? ''}</Text>
       </Box>
-      <Text dimColor wrap="truncate-end">
-        {KIND_LABEL[row.kind] === '?' ? 'not checked yet' : KIND_LABEL[row.kind]} ·{' '}
-        {row.marketplace}
-        {row.installs === undefined ? '' : ` · ${formatCount(row.installs)} installs`}
-      </Text>
-      {how.actions ? (
-        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {how.readOnly
-            ? null
-            : KeyButton(v, {
-                action: 'install',
-                on: 'discover-detail',
-                label: 'install',
-                onPress: () => v.act.install(row.id),
-              })}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'discover-detail',
-            label: 'copy id',
-            onPress: press => v.act.copy(row.id, press.surface),
-          })}
-        </Box>
-      ) : null}
+      <Box flexDirection="row" gap={1} height={1} overflow="hidden">
+        <Text color={TONE.accent}>{GLYPH.notable} mod</Text>
+        <Text dimColor wrap="truncate-end">
+          · {row.marketplace}
+          {row.installs === undefined ? '' : ` · ${formatCount(row.installs)} installs`}
+        </Text>
+      </Box>
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+        {how.readOnly
+          ? null
+          : KeyButton(v, {
+              action: 'install',
+              on: 'discover-detail',
+              label: 'install',
+              onPress: () => v.act.install(row.id),
+            })}
+        {KeyButton(v, {
+          action: 'copy',
+          on: 'discover-detail',
+          label: 'copy id',
+          onPress: press => v.act.copy(row.id, press.surface),
+        })}
+      </Box>
       {row.blurb === '' ? null : <Text>{row.blurb}</Text>}
       <Text dimColor wrap="truncate-end">
         from {row.source}
