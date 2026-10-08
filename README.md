@@ -25,15 +25,21 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
   ● quiet-bash         ◆1              │ ● on · project · fixtures
 ❯ ● redactor           ◆3              │ e: disable  x: remove  c: copy id
   ● spawner            ◆2              │ ↑ runs from its marketplace folder: no updates
-  ● turn-band          ◆2 new          │ Notable
+  ● turn-band          ◆2 new          │
+                                       │ Notable
                                        │ ◆ Can read your conversation or files and send data out
                                        │ ◆ Reads environment variables that look like secrets
                                        │ ◆ Can change what the model reads
+                                       │
                                        │ What it can do
-                                       │ Network http.fetch
-                                       │ Session content env.get session.messages
+                                       │ Network             http.fetch
+                                       │ Session content     env.get session.messages
                                        │ What the model sees session.append
-                                       │ Display only session.end
+                                       │ Display only        session.end
+                                       │
+                                       │ ✓ validates
+                                       │
+                                       │
 ────────────────────────────────────────────────────────────────────────────────────────────────
 z: undo                                                              j: jobs  h: keys  esc close
 ```
@@ -52,15 +58,21 @@ Installed   2: Discover   3: Dev   4: Health ▲1
   ● quiet-bash         ◆1              │ ● on · user · fixtures
   ● redactor           ◆3              │ e: disable  x: remove  c: copy id
   ● spawner            ◆2              │ ↑ runs from its marketplace folder: no updates
-❯ ● turn-band          ◆2              │ New since 0.3.1
+❯ ● turn-band          ◆2              │
+                                       │ New since 0.3.1
                                        │ ◆ Can run programs or change files on your machine
+                                       │
                                        │ Notable
                                        │ ◆ Can change what the model reads
+                                       │
                                        │ What it can do
-                                       │ Your machine process.run
+                                       │ Your machine        process.run
                                        │ What the model sees prompt.submit
-                                       │ Display only turn.complete ui.render clock.now state.s…
+                                       │ Display only        turn.complete ui.render clock.now …
+                                       │
                                        │ ✓ validates
+                                       │
+                                       │
 ────────────────────────────────────────────────────────────────────────────────────────────────
                                                                       j: jobs  h: keys  esc back
 ```
@@ -72,23 +84,29 @@ shown whole, with its sha256, and runs only when you confirm that exact command.
 
 ```
 1: Installed   Discover   3: Dev   4: Health ▲1
-201 plugins · 0 mods so far · checking 0 of 200                                      1–13 of 201
+5 mods
 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ⌕ Search 201 plugins                                                               f: search │
+│ ⌕ Search 5 mods                                                                    f: search │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
-❯   frontend-design               1.2M │ Install aws-serverless from claude-plugins-official
-    code-review                   492k │ y: confirm  n: cancel
-    context7                      458k │ scope: user: every project ▾
-    security-guidance             273k │ ● install   aws-serverless claude-plugins-official · u…
-    telegram                      110k │ modmgr reads what it can do once it is installed,
-    plugin-dev                     73k │ and shows it in its detail then.
-    agent-sdk-dev                  70k │ Takes effect after the reload modmgr runs.
-    gopls-lsp                      45k │ Runs
-    discord                        36k │   claude plugin install aws-serverless@claude-plugins-…
-    php-lsp                        35k │
-    clangd-lsp                     32k │
-    claude-security                23k │
-    laravel-boost                  23k │
+❯ secret-scrub                    4.2k │ Install secret-scrub from fixtures
+  Masks tokens and keys in tool outpu… │ y: confirm  n: cancel
+  commit-guard                    2.8k │
+  Stops a commit while the tests fail… │ scope: user: every project ▾
+  turn-timer                      1.9k │ ● install   secret-scrub 1.0.0 · fixtures · user
+  Shows how long the current turn has… │
+  cost-meter                      1.2k │ modmgr reads what it can do once it is installed,
+  Counts the tokens each turn spends,… │ and shows it in its detail then.
+  quiet-hours                      610 │ Takes effect after the reload modmgr runs.
+  Holds notifications while a turn ru… │
+                                       │ Runs
+                                       │   claude plugin install secret-scrub@fixtures --scope …
+                                       │
+                                       │
+                                       │
+                                       │
+                                       │
+                                       │
+                                       │
 ────────────────────────────────────────────────────────────────────────────────────────────────
                                                                                         esc back
 ```
@@ -101,13 +119,19 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 ```
 1: Installed   2: Discover   3: Dev   Health ▲2                                       r: refresh
 2 problems to look at
-❯ ▲ broken     validate finds 1 error… │ broken
-  ▲ redactor   1 failure while it rel… │ validate finds 1 error in it
-    modmgr     5 enabled               │ → see it
-               updates checked never,… │
-               detector: 50 of 200 ch… │
-               cache: 194 B            │
-               A hook that fails is l… │
+  broken                               │ broken
+❯ ▲ validate finds 1 error in it       │
+  redactor                             │ ▲ validate finds 1 error in it
+  ▲ 1 failure while it reloaded; last… │
+  modmgr                               │ → see it
+    5 enabled                          │
+    updates checked never, every 6 ho… │
+    detector: 5 mods found; 205 of 20… │
+    cache: 181 B                       │
+    A hook that fails is logged only … │
+                                       │
+                                       │
+                                       │
                                        │
                                        │
                                        │
