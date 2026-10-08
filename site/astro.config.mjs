@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config'
 
 export default defineConfig({
   site: 'https://ayagmar.github.io',
-  base: '/modmgr',
+  base: '/claude-modmgr',
   integrations: [sitemap()],
   // Small inline styles stay inline; the page ships no client framework.
   build: { inlineStylesheets: 'always' },

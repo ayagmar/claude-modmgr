@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
 const dist = join(import.meta.dirname, '../site/dist')
-const BASE = '/modmgr/'
+const BASE = '/claude-modmgr/'
 const BUDGET = 100 * 1024
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8')
