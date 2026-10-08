@@ -837,3 +837,9 @@ Pushes and GitHub actions still need the person's go-ahead.
   (terminal and desktop: rows, a validate from the detail; a notice raised through `$.session.append` counted on its
   row; share and copy). Verified live with a broken `--plugin-dir` mod, a `CLAUDE_CODE_PLUGIN_DIRS` folder, a mod in
   this session's mods folder and modmgr itself (located through the repository's marketplace file).
+- **Found in the live check** (inline at ~117 and ~59 body columns; fullscreen docked at ~48): a failing folder that
+  joined at the top took the selection (an unset selection means "the first row") while the ring stayed on the row it
+  was on, so `v` validated the wrong mod; the ring's `autoFocus` placement raises no `ui.focus`. A refresh now keeps the
+  row shown selected (`keptSelection` for Dev; the registry pins Installed's the same way, since an install that sorts
+  first did the same there). Dev's detail wraps its prose (path, how it loads) and cuts only output lines; row counts
+  are wrap-aware.
