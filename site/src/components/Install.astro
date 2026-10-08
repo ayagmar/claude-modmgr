@@ -68,12 +68,36 @@ const INSTALL_HTML = INSTALL.split(' --')
     border-radius: 0 10px 10px 0;
     padding: 0 1.15rem;
     cursor: pointer;
-    transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
   }
 
-  .copy:hover {
+  .copy:hover,
+  .copy[data-state='copied'] {
     background: var(--cover);
     color: var(--cover-ink);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .copy {
+      transition:
+        transform 0.15s var(--ease),
+        background-color 0.2s var(--ease),
+        color 0.2s var(--ease);
+    }
+
+    .copy:active {
+      transform: scale(0.95);
+    }
+
+    .copy[data-state] {
+      animation: answer 0.4s var(--ease);
+    }
+  }
+
+  @keyframes answer {
+    from {
+      opacity: 0.4;
+      transform: scale(0.9);
+    }
   }
 
   .copy:focus-visible {

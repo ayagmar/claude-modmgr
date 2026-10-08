@@ -37,7 +37,7 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
     <meta property="og:url" content="https://ayagmar.github.io/claude-modmgr/" />
     <meta property="og:image" content="https://ayagmar.github.io/claude-modmgr/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#f2b632" />
+    <meta name="theme-color" content="#d77757" />
     <script is:inline>
       // The toggle's choice, before paint; without script the system decides.
       try {
@@ -273,14 +273,25 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
         const source = document.getElementById(button.dataset.copy)
         if (!source || !navigator.clipboard) continue
         button.hidden = false
+        let timer
         button.addEventListener('click', async () => {
+          let state = 'copied'
           try {
             await navigator.clipboard.writeText(source.textContent)
             button.textContent = 'Copied'
           } catch {
+            state = 'failed'
             button.textContent = 'Select and copy'
           }
-          setTimeout(() => (button.textContent = 'Copy'), 2000)
+          // Set again from scratch, so a second click replays the feedback.
+          delete button.dataset.state
+          void button.offsetWidth
+          button.dataset.state = state
+          clearTimeout(timer)
+          timer = setTimeout(() => {
+            delete button.dataset.state
+            button.textContent = 'Copy'
+          }, 2000)
         })
       }
       const toggle = document.querySelector('.theme')
@@ -309,7 +320,7 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
 </html>
 
 <style>
-  /* The guide's cover cloth: a band of marigold, its own ink. */
+  /* The guide's cover cloth: a band of orange, its own ink. */
   .cover {
     background: var(--cover);
     color: var(--cover-ink);
@@ -325,7 +336,7 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
   }
 
   .cover :not(pre) > code {
-    background: rgb(27 22 8 / 0.1);
+    background: rgb(28 14 8 / 0.1);
   }
 
   .top {
@@ -364,7 +375,6 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
     border-radius: 999px;
     padding: 0.2rem 0.75rem;
     cursor: pointer;
-    transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
   }
 
   @media (max-width: 30rem) {
@@ -456,7 +466,7 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
   }
 
   .marks-text p {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
 
   .key {
@@ -616,7 +626,7 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
   .cite {
     display: block;
     margin-top: 0.15rem;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 600;
     font-stretch: 85%;
     letter-spacing: 0.04em;
@@ -653,9 +663,44 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
   }
 
   .all-keys summary {
-    cursor: pointer;
     font-weight: 650;
-    padding-block: 1rem;
+  }
+
+  /* A drawn chevron in place of the browser's marker: it turns as the entry opens. */
+  .faq summary,
+  .all-keys summary {
+    position: relative;
+    padding: 1rem 0 1rem 1.3rem;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .faq summary::-webkit-details-marker,
+  .all-keys summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq summary::before,
+  .all-keys summary::before {
+    content: '';
+    position: absolute;
+    left: 0.1rem;
+    top: calc(1rem + 0.5lh - 0.3em);
+    width: 0.45em;
+    height: 0.45em;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(-45deg);
+  }
+
+  .faq details[open] summary::before,
+  .all-keys[open] summary::before {
+    transform: translateY(-0.1em) rotate(45deg);
+  }
+
+  .faq summary:hover::before,
+  .all-keys summary:hover::before {
+    border-color: var(--ink);
   }
 
   .faq details {
@@ -667,21 +712,13 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
   }
 
   .faq summary {
-    cursor: pointer;
     font-weight: 650;
-    font-size: 1.1rem;
-    padding-block: 1rem;
-    list-style-position: outside;
-    margin-left: 1.1rem;
-  }
-
-  .faq summary::marker {
-    color: var(--muted);
+    font-size: 1.15rem;
   }
 
   .faq details p {
     color: var(--muted);
-    margin: 0 0 1.25rem 1.1rem;
+    margin: 0 0 1.25rem 1.3rem;
   }
 
   .close {
@@ -703,5 +740,79 @@ const REACHES = REACH_ORDER.map(reach => REACH_LABEL[reach])
 
   .foot p {
     margin: 0;
+  }
+
+  /* Motion, all of it off under reduced motion. Transform and opacity only,
+     and the headline is never hidden: it settles into place as it paints. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+
+    .pitch h1 {
+      animation: settle 0.8s var(--ease) backwards;
+    }
+
+    .lead {
+      animation: settle 0.8s var(--ease) 0.08s backwards;
+    }
+
+    .act {
+      animation: rise 0.5s var(--ease) 0.1s backwards;
+    }
+
+    .theme {
+      transition:
+        transform 0.15s var(--ease),
+        background-color 0.2s var(--ease),
+        color 0.2s var(--ease);
+    }
+
+    .theme:active {
+      transform: scale(0.95);
+    }
+
+    .faq summary::before,
+    .all-keys summary::before {
+      transition:
+        transform 0.25s var(--ease),
+        border-color 0.2s var(--ease);
+    }
+
+    .faq details[open] > p,
+    .all-keys[open] > :not(summary) {
+      animation: rise 0.35s var(--ease) backwards;
+    }
+
+    /* Each section's heading and matter come up as they scroll in; the cautions
+       arrive one by one, as the list they are. */
+    @supports (animation-timeline: view()) {
+      main > section:not(.plates) > .wrap > *,
+      .cautions li {
+        animation: reveal linear backwards;
+        animation-timeline: view();
+        animation-range: entry 0% entry 70%;
+      }
+    }
+  }
+
+  @keyframes settle {
+    from {
+      transform: translateY(0.35em);
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+  }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(2.25rem);
+    }
   }
 </style>

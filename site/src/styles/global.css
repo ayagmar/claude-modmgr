@@ -2,7 +2,7 @@
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 
 /* Tokens: light by default, dark from the system or the toggle (data-theme).
-   Marigold is the guide's cover cloth: it owns whole bands, never body text. */
+   Orange is the guide's cover cloth: it owns whole bands, never body text. */
 :root {
   --paper: #f1f2ee;
   --sheet: #fbfbf9;
@@ -10,12 +10,12 @@
   --muted: #545a5e;
   --rule: #cfd2cc;
   --link: #18191b;
-  --cover: #f2b632;
-  --cover-ink: #1b1608;
-  --cover-muted: #4d3c10;
-  --cover-rule: #c99215;
-  --mark: #f2b632;
-  --mark-ink: #1b1608;
+  --cover: #d77757;
+  --cover-ink: #1c0e08;
+  --cover-muted: #3b170a;
+  --cover-rule: #b25a3d;
+  --mark: #d77757;
+  --mark-ink: #1c0e08;
   --code-bg: #e3e5df;
   --term-bg: #131517;
   --term-fg: #dadcd6;

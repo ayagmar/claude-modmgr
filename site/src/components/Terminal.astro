@@ -186,7 +186,7 @@ const screenOf = (lines: Frame['lines']): string =>
             <p class="caption" set:html={captionOf(plate)} />
             <ol class="legend">
               {plate.marks.map((mark, n) => (
-                <li data-n={n + 1}>
+                <li data-n={n + 1} style={`--i: ${n}`}>
                   <span class="tag">{n + 1}</span>
                   {mark.note}
                 </li>
@@ -256,7 +256,6 @@ const screenOf = (lines: Frame['lines']): string =>
     border: 1px solid var(--rule);
     border-radius: 999px;
     cursor: pointer;
-    transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
   }
 
   .index label:hover {
@@ -287,8 +286,8 @@ const screenOf = (lines: Frame['lines']): string =>
   #plate-2:checked ~ .index [for='plate-2'] .no,
   #plate-3:checked ~ .index [for='plate-3'] .no,
   #plate-4:checked ~ .index [for='plate-4'] .no {
-    color: var(--mark);
-    border-color: currentColor;
+    color: inherit;
+    border-color: var(--mark);
   }
 
   #plate-0:focus-visible ~ .index [for='plate-0'],
@@ -303,7 +302,6 @@ const screenOf = (lines: Frame['lines']): string =>
   .plate {
     display: none;
     margin: 0;
-    animation: arrive 0.5s var(--ease) both;
   }
 
   #plate-0:checked ~ .screens .plate-0,
@@ -329,13 +327,6 @@ const screenOf = (lines: Frame['lines']): string =>
     /* Below the cover's edge, on paper. */
     figcaption {
       padding-top: 3.25rem;
-    }
-  }
-
-  @keyframes arrive {
-    from {
-      opacity: 0.4;
-      transform: translateY(0.5rem);
     }
   }
 
@@ -389,10 +380,7 @@ const screenOf = (lines: Frame['lines']): string =>
     height: calc(var(--h) * 1.5em);
     border: 2px solid var(--mark);
     border-radius: 4px;
-    background: rgb(242 182 50 / 0.1);
-    animation: draw 0.7s var(--ease) both;
-    animation-delay: calc(0.25s + var(--i) * 0.16s);
-    transition: background-color 0.2s var(--ease);
+    background: rgb(215 119 87 / 0.1);
   }
 
   /* Each mark's number sits in the gutter, on its row, clear of the text. */
@@ -403,26 +391,6 @@ const screenOf = (lines: Frame['lines']): string =>
     translate: 0 -50%;
     /* The row unit is the sheet's em: the tag keeps that size. */
     font-size: inherit;
-    animation: pop 0.5s var(--ease) both;
-    animation-delay: calc(0.4s + var(--i) * 0.16s);
-  }
-
-  @keyframes draw {
-    from {
-      clip-path: inset(0 100% 0 0 round 4px);
-      opacity: 0;
-    }
-    to {
-      clip-path: inset(0 0 0 0 round 4px);
-      opacity: 1;
-    }
-  }
-
-  @keyframes pop {
-    from {
-      transform: scale(0.4);
-      opacity: 0;
-    }
   }
 
   .tag {
@@ -507,14 +475,6 @@ const screenOf = (lines: Frame['lines']): string =>
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .plate,
-    .mark,
-    .marks .tag {
-      animation: none;
-    }
-  }
-
   .legend .tag {
     font-size: 0.95rem;
     transform: translateY(0.1em);
@@ -527,12 +487,111 @@ const screenOf = (lines: Frame['lines']): string =>
     }
   }
 
-  /* A legend entry lights its mark, and a mark its entry. */
+  /* A legend entry lights its mark. */
   .plate:has(.legend [data-n='1']:hover) .mark[data-n='1'],
   .plate:has(.legend [data-n='2']:hover) .mark[data-n='2'],
   .plate:has(.legend [data-n='3']:hover) .mark[data-n='3'],
   .plate:has(.legend [data-n='4']:hover) .mark[data-n='4'] {
-    background: rgb(242 182 50 / 0.32);
+    background: rgb(215 119 87 / 0.32);
+  }
+
+  /* Motion, all of it off under reduced motion: a plate arrives, its marks
+     draw in one after another with their legend entries, and the controls
+     answer the pointer. Transform and opacity only. */
+  @media (prefers-reduced-motion: no-preference) {
+    .index {
+      animation: plate-rise 0.5s var(--ease) 0.3s backwards;
+    }
+
+    .index label {
+      transition:
+        transform 0.2s var(--ease),
+        background-color 0.25s var(--ease),
+        border-color 0.25s var(--ease),
+        color 0.25s var(--ease);
+    }
+
+    .index label:hover {
+      transform: translateY(-2px);
+    }
+
+    .index label:active {
+      transform: translateY(0) scale(0.97);
+    }
+
+    /* The frame stays painted (it is the page's largest text); it settles in. */
+    .plate .pane {
+      animation: plate-settle 0.6s var(--ease) backwards;
+    }
+
+    .plate figcaption > p {
+      animation: plate-rise 0.5s var(--ease) backwards;
+    }
+
+    .plate .caption {
+      animation-delay: 0.06s;
+    }
+
+    .mark {
+      transform-origin: left center;
+      animation: mark-draw 0.6s var(--ease) backwards;
+      animation-delay: calc(0.3s + var(--i) * 0.15s);
+      transition:
+        background-color 0.2s var(--ease),
+        transform 0.25s var(--ease);
+    }
+
+    .marks .tag {
+      animation: mark-pop 0.45s var(--ease) backwards;
+      animation-delay: calc(0.42s + var(--i) * 0.15s);
+    }
+
+    .legend li {
+      animation: plate-rise 0.5s var(--ease) backwards;
+      animation-delay: calc(0.3s + var(--i) * 0.15s);
+    }
+
+    .legend .tag {
+      transition: transform 0.2s var(--ease);
+    }
+
+    .legend li:hover .tag {
+      transform: translateY(0.1em) scale(1.15);
+    }
+
+    .plate:has(.legend [data-n='1']:hover) .mark[data-n='1'],
+    .plate:has(.legend [data-n='2']:hover) .mark[data-n='2'],
+    .plate:has(.legend [data-n='3']:hover) .mark[data-n='3'],
+    .plate:has(.legend [data-n='4']:hover) .mark[data-n='4'] {
+      transform: scale(1.03);
+    }
+  }
+
+  @keyframes plate-settle {
+    from {
+      transform: translateY(0.9rem);
+    }
+  }
+
+  @keyframes plate-rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+
+  @keyframes mark-draw {
+    from {
+      opacity: 0;
+      transform: scaleX(0.15);
+    }
+  }
+
+  @keyframes mark-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
   }
 
   pre :global(.t-success) {

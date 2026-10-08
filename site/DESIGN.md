@@ -2,12 +2,12 @@
 name: modmgr
 description: A field guide to the mods in your Claude Code, set as specimen plates with numbered field marks.
 colors:
-  cover: "#f2b632"
-  cover-ink: "#1b1608"
-  cover-muted: "#4d3c10"
-  cover-rule: "#c99215"
-  mark: "#f2b632"
-  mark-ink: "#1b1608"
+  cover: "#d77757"
+  cover-ink: "#1c0e08"
+  cover-muted: "#3b170a"
+  cover-rule: "#b25a3d"
+  mark: "#d77757"
+  mark-ink: "#1c0e08"
   paper: "#f1f2ee"
   sheet: "#fbfbf9"
   ink: "#18191b"
@@ -187,15 +187,15 @@ components:
 
 **Creative North Star: "The Field Guide to Mods"**
 
-The page is a field guide in the Peterson manner: a marigold cloth cover, plates printed on a cool off-white paper, and specimens in terminal black. The specimens are the real `/mods` dialog frames, generated from the plugin's tests and never retouched; the guide's work is to number the field marks on the exact cells that matter and to say, in a legend, what each one tells you. Everything else is the back matter of a guide: headings in a left margin column, matter on the right, ruled lists, numbered cautions.
+The page is a field guide in the Peterson manner: an orange cloth cover, plates printed on a cool off-white paper, and specimens in terminal black. The specimens are the real `/mods` dialog frames, generated from the plugin's tests and never retouched; the guide's work is to number the field marks on the exact cells that matter and to say, in a legend, what each one tells you. Everything else is the back matter of a guide: headings in a left margin column, matter on the right, ruled lists, numbered cautions.
 
 Density is calm and editorial around dense specimens. Type is achromatic; colour lives in fields (the cover bands) and marks (the boxes and their numeral discs), never in running text. Narrow uppercase Archivo carries the guide's titles, normal-width Archivo the prose, JetBrains Mono the frames and ids. Marks are told apart by number and position, never by hue.
 
 The world refuses the split hero with a screenshot and the three-card feature row; the plates and their legends do that work instead.
 
 **Key Characteristics:**
-- Marigold cover cloth owns whole bands (the cover and the closing install) and stays marigold in both themes.
-- Specimen plates in terminal black on paper, with numbered marigold field marks drawn onto a 1ch by 1.5em cell grid.
+- Orange cover cloth owns whole bands (the cover and the closing install) and stays orange in both themes.
+- Specimen plates in terminal black on paper, with numbered orange field marks drawn onto a 1ch by 1.5em cell grid.
 - Plates are numbered in roman (I to V); the dialog's own tab keys keep their arabic 1 to 4.
 - Narrow uppercase titles (Archivo at 68 to 85% width) over normal-width body.
 - Mod ids are set in italic mono, like a binomial.
@@ -206,11 +206,11 @@ The world refuses the split hero with a screenshot and the three-card feature ro
 One loud cloth, achromatic paper and ink, and the terminal's own black and tones for specimens.
 
 ### Primary
-- **Marigold Cover Cloth** (cover): fills the masthead and hero band, bleeds 6.5rem down behind the first plate, and returns as the closing install band. Also the selection colour, link underline, and the Copy button's hover fill. Never body text on paper.
+- **Orange Cover Cloth** (cover): fills the masthead and hero band, bleeds 6.5rem down behind the first plate, and returns as the closing install band. Also the selection colour, link underline, and the Copy button's hover fill. Never body text on paper.
 - **Cover Ink** (cover-ink): all text, links, rules of emphasis and focus outlines on the cloth. **Cover Muted** (cover-muted) for secondary lines on the cloth; **Cover Rule** (cover-rule) for the masthead's bottom rule.
 
 ### Secondary
-- **Field-Mark Marigold** (mark, mark-ink): the same hue in a separate role: field-mark box strokes (2px) with a 10% tint fill (32% when its legend entry is hovered), the numeral disc behind every mark number, the active plate tab's roman numeral, the caution numerals and the limits heading on the black band.
+- **Field-Mark Orange** (mark, mark-ink): the same hue in a separate role: field-mark box strokes (2px) with a 10% tint fill (32% when its legend entry is hovered), the numeral disc behind every mark number, the active plate tab's numeral divider, the caution numerals and the limits heading on the black band.
 
 ### Neutral
 - **Plate Paper** (paper / paper-dark): page ground.
@@ -225,7 +225,7 @@ One loud cloth, achromatic paper and ink, and the terminal's own black and tones
 - **Terminal Tones** (t-success, t-warning, t-error, t-claude, t-subtle): only inside frames, as the dialog draws them; t-claude also marks the install line's `>` prompt.
 
 ### Named Rules
-**The Cover Cloth Rule.** Marigold owns whole bands or marks a specific thing (a field mark, a numeral, a hover, a selection). It is never a text colour on paper and never a decorative stripe.
+**The Cover Cloth Rule.** Orange owns whole bands or marks a specific thing (a field mark, a numeral, a hover, a selection). It is never a text colour on paper and never a decorative stripe.
 
 **The Achromatic Text Rule.** Running text is ink or muted on paper, cover-ink on cloth, term-fg on black. State reads by glyph and number, never by colour alone.
 
@@ -248,7 +248,7 @@ One loud cloth, achromatic paper and ink, and the terminal's own black and tones
 - **Label**: plate tabs, uppercase at 85% width; nav at 0.95rem weight 550.
 - **Label Small**: group headings inside the key card and keymap column heads, uppercase at 85%, muted.
 - **Numeral**: the field-mark disc numbers, tabular.
-- **Caution Numeral**: the limits list's plain marigold numbers, narrow, no disc.
+- **Caution Numeral**: the limits list's plain orange numbers, narrow, no disc.
 - **Mono Frame**: the specimen grid; text and marks share it.
 
 ### Named Rules
@@ -261,7 +261,7 @@ One loud cloth, achromatic paper and ink, and the terminal's own black and tones
 A single 76rem column (`min(100% - 2rem, 76rem)`) with sections padded `clamp(3.5rem, 2rem + 5vw, 6.5rem)` and separated by 1px rules; bands (cover, limits, close) drop the rule. Prose holds the 66ch measure.
 
 - **Cover:** masthead row (name left, nav right) over a hero; from 64rem the h1 spans the full width and the lead and install line sit in two columns (1fr / 1.15fr).
-- **Plates:** the plate index and first plate overlap the cover's lower edge via a 6.5rem marigold gradient behind the section. From 78rem the plate and its caption sit side by side (frame at its own width, caption at least 15rem, starting 3.25rem down on paper); below that they stack, and between 52rem and 78rem the legend runs in two columns.
+- **Plates:** the plate index and first plate overlap the cover's lower edge via a 6.5rem orange gradient behind the section. From 78rem the plate and its caption sit side by side (frame at its own width, caption at least 15rem, starting 3.25rem down on paper); below that they stack, and between 52rem and 78rem the legend runs in two columns.
 - **Back matter:** from 64rem, sections use a 1fr / 2.6fr grid with the h2 sticky in the left column; below, they stack.
 - **Narrow screens (below 60rem):** the frame keeps its 96-column width and scrolls inside its pane; a scroll cue says so, each mark's numeral sits beside its own box instead of in the gutter, and tapping a legend entry (or opening a plate) scrolls the frame to that mark.
 
@@ -283,22 +283,22 @@ Soft rectangles throughout: 12px for plates and the key card, 10px for the insta
 ## Components
 
 ### Install Line
-The one action, styled as the prompt people type at. A terminal-black slab (max 44rem) with a t-claude `> ` prompt, mono text that wraps but keeps each `--flag value` together, and a Copy button separated by a 1px term-rule divider. Copy appears only with script and clipboard support; on hover it fills marigold with cover ink; focus uses an inset marigold outline. A label above names where to type it.
+The one action, styled as the prompt people type at. A terminal-black slab (max 44rem) with a t-claude `> ` prompt, mono text that wraps but keeps each `--flag value` together, and a Copy button separated by a 1px term-rule divider. Copy appears only with script and clipboard support; on hover it fills orange with cover ink; focus uses an inset orange outline. A label above names where to type it.
 
 ### Plate Index (tabs)
-A radio group, so plates switch without script and only when asked. Pills on sheet with a 1px rule border; the roman numeral sits left of a 1px divider in muted. Hover darkens the border to ink. Checked: ink fill, paper text, numeral and divider in marigold. Focus: 3px ink outline offset 3px.
+A radio group, so plates switch without script and only when asked. Pills on sheet with a 1px rule border; the roman numeral sits left of a 1px divider in muted. Hover darkens the border to ink. Checked: ink fill, paper text, the numeral in the tab's text colour and its divider in orange. Focus: 3px ink outline offset 3px.
 
 ### Specimen Plate
 The generated frame in a terminal-black pane (1px term-rule border, 12px radius, specimen lift), drawn on a cell grid one character wide and 1.5em tall. Glyphs a mono font may lack are held to one cell. The ring segment inverts term-fg and term-bg. Frames come from the generated demo data and are never edited by hand.
 
 ### Field Mark
-A 2px marigold box (4px radius, 10% marigold fill) placed on the exact cells of its text, with a marigold numeral disc (1.5em circle, mark-ink, tabular) in the gutter on the same row. On opening a plate, boxes draw in left to right one after another (0.7s, 0.16s stagger) and discs pop in; reduced motion disables both. Hovering a legend entry deepens its box's fill.
+A 2px orange box (4px radius, 10% orange fill) placed on the exact cells of its text, with an orange numeral disc (1.5em circle, mark-ink, tabular) in the gutter on the same row. On opening a plate, boxes grow in from their left edge one after another (0.6s, 0.15s stagger), discs pop in, and each legend entry rises with its mark; reduced motion disables all of it. Hovering a legend entry deepens its box's fill.
 
 ### Plate Caption and Legend
 Plate title, a muted caption, then an ordered legend whose entries carry the same numeral disc as their mark. The disc is used only by field marks and their legends.
 
 ### Cautions
-An ordered list on the band, each item ruled, with a plain narrow marigold numeral in a 2.75rem margin column, an h3 head and a muted body.
+An ordered list on the band, each item ruled, with a plain narrow orange numeral in a 2.75rem margin column, an h3 head and a muted body.
 
 ### Key Card
 A sheet card (1px rule, 12px radius) holding small-label groups; the notable list uses the dialog's own `◆` glyph as its bullet, in ink.
@@ -310,23 +310,32 @@ Ruled lists under a 2px ink rule. Tab names are narrow uppercase with a muted pl
 Masthead on the cloth: "modmgr" set in narrow uppercase (800, 72% width) left; Source, Changes, Security as cover-ink underlined links right, with a pill theme toggle (1px cover-ink border, inverts on hover) that appears only with script.
 
 ### Links and Focus
-Links keep their text colour with a marigold underline (0.12em, offset 0.22em) that thickens to 0.22em on hover; on cloth the underline is cover-ink. Focus is a 3px outline in ink (cover-ink on cloth, marigold on the band), offset 3px.
+Links keep their text colour with an orange underline (0.12em, offset 0.22em) that thickens to 0.22em on hover; on cloth the underline is cover-ink. Focus is a 3px outline in ink (cover-ink on cloth, orange on the band), offset 3px.
+
+## Motion
+
+All motion sits inside `prefers-reduced-motion: no-preference`, in transform and opacity only, with one easing curve (`--ease`, `cubic-bezier(0.16, 1, 0.3, 1)`). Under reduced motion the page is the same, with nothing moving.
+
+- **Cover settles on load:** the headline and lead rise 0.35em into place without ever being hidden (they may be the largest paint); the install line fades up 0.1s later, then the plate index.
+- **Plate switch:** the frame settles 0.9rem up, the plate title and caption rise, then each field mark grows in from its left edge with its legend entry and numeral, 0.15s apart.
+- **Scroll:** where scroll-driven animations exist, each section's heading and matter rise 2.25rem as they enter, and the cautions arrive one by one. Without support, nothing is hidden.
+- **Feedback:** plate tabs lift 2px on hover and press to 97%; the theme pill and Copy press to 95%; Copy answers with an orange fill and a short scale-up, replayed on every click; summary chevrons turn a quarter and opened answers rise in.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** show the dialog as generated frames and point at it with numbered field marks; let the legend say what each mark means.
-- **Do** keep marigold to whole bands and to marks, numerals, hovers and selection.
+- **Do** keep orange to whole bands and to marks, numerals, hovers and selection.
 - **Do** number plates in roman with a rule between number and title, and keep the dialog's own 1 to 4 tab keys arabic.
-- **Do** reserve the marigold numeral disc for field marks and their legend entries; caution numbers are plain narrow marigold numerals.
+- **Do** reserve the orange numeral disc for field marks and their legend entries; caution numbers are plain narrow orange numerals.
 - **Do** set mod ids in italic mono (0.92em).
 - **Do** open ruled lists with a 2px ink rule and divide rows with 1px rules.
 - **Do** keep every interaction working without script: radio plates, native disclosures, a copy button that only appears when it can work.
-- **Do** honour reduced motion by dropping the draw, pop and arrive animations.
+- **Do** keep every animation and transition inside `prefers-reduced-motion: no-preference`, in transform and opacity only, and never start the headline, the lead or a frame hidden.
 
 ### Don't:
 - **Don't** use a split hero with a screenshot or a three-card feature row.
-- **Don't** set body text in marigold on paper, or carry state by colour alone.
+- **Don't** set body text in orange on paper, or carry state by colour alone.
 - **Don't** edit a frame's contents to suit a mark; change the mark or regenerate the frames.
 - **Don't** put shadows on paper-toned surfaces; only the terminal-black slabs lift.
 - **Don't** put numeral discs on plate numbers, cautions or anything other than field marks.
