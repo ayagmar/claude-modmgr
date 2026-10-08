@@ -1,31 +1,36 @@
 ---
 name: modmgr
-description: A field guide to the mods in your Claude Code, set as specimen plates with numbered field marks.
+description: The search-first store for Claude Code mods, near-black with hairlines and one orange accent, at dev-tool craft.
 colors:
-  cover: "#d77757"
-  cover-ink: "#1c0e08"
-  cover-muted: "#3b170a"
-  cover-rule: "#b25a3d"
-  mark: "#d77757"
-  mark-ink: "#1c0e08"
-  paper: "#f1f2ee"
-  sheet: "#fbfbf9"
-  ink: "#18191b"
-  muted: "#545a5e"
-  rule: "#cfd2cc"
-  code-bg: "#e3e5df"
-  term-bg: "#131517"
+  bg: "#0b0d10"
+  raised: "#111418"
+  field: "#15191e"
+  hover: "#181c22"
+  line: "#20252c"
+  line-strong: "#2c323a"
+  text: "#f5f5f4"
+  text-2: "#a7abb1"
+  text-3: "#8a9098"
+  accent: "#d77757"
+  accent-text: "#e8916f"
+  accent-ink: "#1a0c06"
+  accent-wash: "rgb(215 119 87 / 0.14)"
+  accent-ring: "rgb(215 119 87 / 0.22)"
+  bg-light: "#fbfbfa"
+  raised-light: "#f4f4f2"
+  field-light: "#ffffff"
+  hover-light: "#f1f1ef"
+  line-light: "#e5e5e1"
+  line-strong-light: "#d4d4cf"
+  text-light: "#131417"
+  text-2-light: "#50545a"
+  text-3-light: "#62676e"
+  accent-text-light: "#a8461f"
+  accent-wash-light: "rgb(215 119 87 / 0.16)"
+  accent-ring-light: "rgb(215 119 87 / 0.25)"
+  term-bg: "#0d0f12"
   term-fg: "#dadcd6"
-  term-rule: "#2b2f33"
-  band: "#131517"
-  paper-dark: "#141517"
-  sheet-dark: "#1b1d20"
-  ink-dark: "#e8e7e2"
-  muted-dark: "#a3a7a9"
-  rule-dark: "#2e3236"
-  code-bg-dark: "#24272b"
-  term-bg-dark: "#0c0d0f"
-  band-dark: "#202327"
+  term-line: "#262b31"
   t-success: "#7cc48a"
   t-warning: "#e3b65a"
   t-error: "#ec7d74"
@@ -33,309 +38,328 @@ colors:
   t-subtle: "#8e959a"
 typography:
   display:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "clamp(2.6rem, 1.2rem + 4.4vw, 5.25rem)"
-    fontWeight: 800
-    lineHeight: 0.95
-    letterSpacing: "-0.01em"
-    fontVariation: "'wdth' 68"
-  display-close:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "clamp(2.2rem, 1.2rem + 4vw, 4.2rem)"
-    fontWeight: 750
-    lineHeight: 0.95
-    letterSpacing: "0.005em"
-    fontVariation: "'wdth' 68"
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "clamp(2.25rem, 1.35rem + 3.4vw, 4rem)"
+    fontWeight: 680
+    lineHeight: 1.02
+    letterSpacing: "-0.03em"
   headline:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "clamp(1.6rem, 1.1rem + 2vw, 2.6rem)"
-    fontWeight: 750
-    lineHeight: 1.05
-    letterSpacing: "0.005em"
-    fontVariation: "'wdth' 72"
-  plate-title:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "clamp(1.35rem, 1.1rem + 1vw, 1.8rem)"
-    fontWeight: 750
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "clamp(1.75rem, 1.35rem + 1.5vw, 2.5rem)"
+    fontWeight: 650
     lineHeight: 1.1
-    fontVariation: "'wdth' 72"
+    letterSpacing: "-0.035em"
   title:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "1.15rem"
-    fontWeight: 700
-    lineHeight: 1.05
-    letterSpacing: "-0.02em"
-  body:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "1.0625rem"
+    fontWeight: 650
+    lineHeight: 1.1
+    letterSpacing: "-0.015em"
+  row-name:
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "0.9375rem"
+    fontWeight: 600
+    letterSpacing: "-0.01em"
+  lead:
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 400
-    lineHeight: 1.6
-    fontVariation: "'wdth' 100"
-  lead:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "clamp(1.05rem, 1rem + 0.3vw, 1.2rem)"
+    lineHeight: 1.55
+  body:
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.55
+    fontFeature: "\"kern\""
   label:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "0.95rem"
-    fontWeight: 650
-    letterSpacing: "0.03em"
-    fontVariation: "'wdth' 85"
-  label-small:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "0.85rem"
-    fontWeight: 750
-    letterSpacing: "0.06em"
-    fontVariation: "'wdth' 85"
-  numeral:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "0.85em"
-    fontWeight: 750
-    lineHeight: 1
-    fontFeature: "'tnum'"
-  caution-numeral:
-    fontFamily: "Archivo Variable, system-ui, sans-serif"
-    fontSize: "1.6rem"
-    fontWeight: 800
-    lineHeight: 1.1
-    fontFeature: "'tnum'"
-    fontVariation: "'wdth' 68"
-  mono-frame:
-    fontFamily: "JetBrains Mono Variable, ui-monospace, SF Mono, Menlo, monospace"
-    fontSize: "clamp(0.66rem, 0.4rem + 0.55vw, 0.86rem)"
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 500
+  caption:
+    fontFamily: "Archivo Variable, system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "0.75rem"
     fontWeight: 400
-    lineHeight: 1.5
-  mono-install:
+  mono:
     fontFamily: "JetBrains Mono Variable, ui-monospace, SF Mono, Menlo, monospace"
-    fontSize: "clamp(0.88rem, 0.8rem + 0.3vw, 1rem)"
+    fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.5
 rounded:
-  focus: "2px"
-  cell: "4px"
-  key: "5px"
-  line: "10px"
-  plate: "12px"
+  mark: "3px"
+  xs: "5px"
+  sm: "7px"
+  md: "8px"
+  row: "10px"
+  lg: "12px"
+  field: "14px"
   pill: "999px"
 spacing:
-  wrap: "min(100% - 2rem, 76rem)"
-  measure: "66ch"
-  section-block: "clamp(3.5rem, 2rem + 5vw, 6.5rem)"
-  cover-overlap: "6.5rem"
-  cell-width: "1ch"
-  cell-height: "1.5em"
+  row-inset: "0.75rem"
+  control: "2rem"
+  section: "clamp(4rem, 2.5rem + 5vw, 7.5rem)"
+  wrap: "68rem"
+  results: "60rem"
 components:
+  button-quiet:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-2}"
+    typography: "{typography.label}"
+    rounded: "{rounded.md}"
+    padding: "0 0.7rem"
+    height: "2rem"
+  button-quiet-hover:
+    backgroundColor: "{colors.hover}"
+    textColor: "{colors.text}"
+  button-copied:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.accent-ink}"
+  search-field:
+    backgroundColor: "{colors.field}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.field}"
+    padding: "0 7rem 0 3.1rem"
+    height: "3.5rem"
+  chip:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-2}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    padding: "0 0.8rem"
+    height: "2rem"
+  chip-selected:
+    backgroundColor: "{colors.accent-wash}"
+    textColor: "{colors.text}"
+  sort-select:
+    backgroundColor: "{colors.field}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.md}"
+    padding: "0 1.9rem 0 0.7rem"
+    height: "2rem"
+  result-row:
+    backgroundColor: "transparent"
+    textColor: "{colors.text}"
+    rounded: "{rounded.row}"
+    padding: "0.7rem 8.5rem 0.7rem 0.75rem"
+  result-row-hover:
+    backgroundColor: "{colors.hover}"
+  result-row-open:
+    backgroundColor: "{colors.raised}"
+  badge:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.text-2}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: "0 0.4rem"
+  tag:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-2}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: "0 0.4rem"
+  match-mark:
+    backgroundColor: "{colors.accent-wash}"
+    textColor: "{colors.accent-text}"
+    rounded: "{rounded.mark}"
+  command-block:
+    backgroundColor: "{colors.field}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.md}"
+    padding: "0.6rem 0.75rem"
+  pager-link:
+    textColor: "{colors.text-2}"
+    rounded: "{rounded.sm}"
+    padding: "0 0.55rem"
+    size: "2rem"
+  pager-current:
+    backgroundColor: "{colors.field}"
+    textColor: "{colors.text}"
+  stepper:
+    backgroundColor: "{colors.raised}"
+    rounded: "{rounded.row}"
+    padding: "0.25rem"
+  stepper-tab:
+    textColor: "{colors.text-2}"
+    rounded: "{rounded.sm}"
+    padding: "0 0.85rem 0 0.6rem"
+    height: "2rem"
+  stepper-tab-active:
+    backgroundColor: "{colors.field}"
+    textColor: "{colors.text}"
+  terminal-window:
+    backgroundColor: "{colors.term-bg}"
+    textColor: "{colors.term-fg}"
+    rounded: "{rounded.lg}"
   install-line:
-    backgroundColor: "{colors.term-bg}"
-    textColor: "{colors.term-fg}"
-    typography: "{typography.mono-install}"
-    rounded: "{rounded.line}"
-    padding: "0.95rem 1.1rem"
-  install-copy:
-    textColor: "{colors.term-fg}"
-    typography: "{typography.label}"
-    padding: "0 1.15rem"
-  install-copy-hover:
-    backgroundColor: "{colors.cover}"
-    textColor: "{colors.cover-ink}"
-  plate-tab:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.pill}"
-    padding: "0.45rem 0.9rem 0.45rem 0.6rem"
-  plate-tab-active:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.paper}"
-  specimen-plate:
-    backgroundColor: "{colors.term-bg}"
-    textColor: "{colors.term-fg}"
-    typography: "{typography.mono-frame}"
-    rounded: "{rounded.plate}"
-    padding: "1.25rem 1.1rem 1.25rem 0"
-  field-mark-tag:
-    backgroundColor: "{colors.mark}"
-    textColor: "{colors.mark-ink}"
-    typography: "{typography.numeral}"
-    size: "1.5em"
-  key-card:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.plate}"
-    padding: "1.5rem 1.6rem 1.6rem"
-  theme-pill:
-    textColor: "{colors.cover-ink}"
-    rounded: "{rounded.pill}"
-    padding: "0.2rem 0.75rem"
-  theme-pill-hover:
-    backgroundColor: "{colors.cover-ink}"
-    textColor: "{colors.cover}"
-  inline-code:
-    backgroundColor: "{colors.code-bg}"
-    rounded: "{rounded.cell}"
-    padding: "0.08em 0.35em"
+    backgroundColor: "{colors.field}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.lg}"
+    padding: "0.5rem 0.5rem 0.5rem 1.1rem"
+  code-inline:
+    backgroundColor: "{colors.raised}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.xs}"
+    padding: "0.1em 0.35em"
   kbd:
-    backgroundColor: "{colors.sheet}"
-    rounded: "{rounded.key}"
-    padding: "0.05em 0.45em"
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.text-2}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    height: "1.35rem"
 ---
 
 # Design System: modmgr
 
 ## Overview
 
-**Creative North Star: "The Field Guide to Mods"**
+**Creative North Star: "The Store at the Prompt"**
 
-The page is a field guide in the Peterson manner: an orange cloth cover, plates printed on a cool off-white paper, and specimens in terminal black. The specimens are the real `/mods` dialog frames, generated from the plugin's tests and never retouched; the guide's work is to number the field marks on the exact cells that matter and to say, in a legend, what each one tells you. Everything else is the back matter of a guide: headings in a left margin column, matter on the right, ruled lists, numbered cautions.
+The page is a search tool before it is a page. A near-black ground, two or three surface steps above it, 1px hairlines, warm off-white type and a single Claude-orange accent: the category standard for developer tools, played straight and held to exact type and spacing. The first viewport is a slim nav, a centred two-line headline carrying the live mod count, a large search field focused on load, filter chips, and the first dense rows of results. Everything below (the `/mods` dialog, the honesty block, the install line) is set left on one section rhythm and stays as quiet as the results.
 
-Density is calm and editorial around dense specimens. Type is achromatic; colour lives in fields (the cover bands) and marks (the boxes and their numeral discs), never in running text. Narrow uppercase Archivo carries the guide's titles, normal-width Archivo the prose, JetBrains Mono the frames and ids. Marks are told apart by number and position, never by hue.
+Density is a dev-tool list's, not a marketing page's: rows of about 70px, 13px meta type, tabular numbers, actions that stay dim until the row is pointed at or focused. Depth comes from surface steps and hairlines, never from shadow. Light mode, from `prefers-color-scheme`, is an equal re-tune of the same tokens, not an afterthought; the terminal window stays dark in both themes because the real terminal is dark.
 
-The world refuses the split hero with a screenshot and the three-card feature row; the plates and their legends do that work instead.
+The keyboard is a first-class path: `/` and Ctrl K (⌘K on Apple platforms) focus search, arrow keys move between rows, Enter opens one inline, `[` and `]` turn the page. Without script the page still paints the 40 most-starred mods, the rows still open (native `details`), the dialog stepper still switches (CSS radio group), and the nav's install button becomes a link to the install section.
 
 **Key Characteristics:**
-- Orange cover cloth owns whole bands (the cover and the closing install) and stays orange in both themes.
-- Specimen plates in terminal black on paper, with numbered orange field marks drawn onto a 1ch by 1.5em cell grid.
-- Plates are numbered in roman (I to V); the dialog's own tab keys keep their arabic 1 to 4.
-- Narrow uppercase titles (Archivo at 68 to 85% width) over normal-width body.
-- Mod ids are set in italic mono, like a binomial.
-- Light by default; dark follows the system or the toggle, swapping paper and ink but not the cover.
+- Near-black ground with tonal surface steps and 1px hairlines; no ambient shadow.
+- One accent, Claude orange, for focus, matches, selected state and the copy confirmation.
+- Archivo Variable at normal width for everything read; JetBrains Mono for repos, commands, keys and the terminal.
+- Search-first first viewport, dense results list, inline expansion.
+- Motion is short, eased on one curve, transform and opacity only, and gated on reduced-motion preference.
 
 ## Colors
 
-One loud cloth, achromatic paper and ink, and the terminal's own black and tones for specimens.
+A cool near-black neutral ramp carrying one warm accent; the light theme swaps the neutrals and darkens the accent's text tone, leaving the accent fill unchanged.
 
 ### Primary
-- **Orange Cover Cloth** (cover): fills the masthead and hero band, bleeds 6.5rem down behind the first plate, and returns as the closing install band. Also the selection colour, link underline, and the Copy button's hover fill. Never body text on paper.
-- **Cover Ink** (cover-ink): all text, links, rules of emphasis and focus outlines on the cloth. **Cover Muted** (cover-muted) for secondary lines on the cloth; **Cover Rule** (cover-rule) for the masthead's bottom rule.
-
-### Secondary
-- **Field-Mark Orange** (mark, mark-ink): the same hue in a separate role: field-mark box strokes (2px) with a 10% tint fill (32% when its legend entry is hovered), the numeral disc behind every mark number, the active plate tab's numeral divider, the caution numerals and the limits heading on the black band.
+- **Claude Ember** (`accent`): the only chromatic UI color. It fills the copy button's confirmed state, the active step's number disc, text selection, and the brand mark; it draws the 2px focus outline, the search field's focused border, the text caret, and the checked chip's check. Never a resting fill on a control.
+- **Ember Text** (`accent-text`, `accent-text-light`): the accent when it must read as text: the search-match highlight, the checked-chip check icon, the `> ` prompt before the install line. Darkened to a burnt sienna in light mode for contrast.
+- **Ember Wash and Ring** (`accent-wash`, `accent-ring`): translucent accent. The wash backs search-match `mark`s and checked chips (whose border is the accent at 55% alpha); the ring is the 3px focus halo on the search field only.
+- **Ember Ink** (`accent-ink`): text on an accent fill (copied button, active step number, selection).
 
 ### Neutral
-- **Plate Paper** (paper / paper-dark): page ground.
-- **Sheet** (sheet / sheet-dark): raised surfaces: the key card, plate tabs at rest, kbd keys, keymap row hover.
-- **Ink** (ink / ink-dark): text and links on paper, the active plate tab's fill, 2px heading rules over lists.
-- **Muted** (muted / muted-dark): captions, definitions, FAQ answers, small group labels.
-- **Rule** (rule / rule-dark): 1px dividers between sections and list rows, tab and card borders.
-- **Code Ground** (code-bg / code-bg-dark): inline code chips.
-- **Terminal Black** (term-bg, term-fg, term-rule): the specimen pane and the install line. **Band** (band / band-dark) carries the limits section on the plates' own black.
+- **Night Ground** (`bg` / `bg-light`): the page.
+- **Raised Slate** (`raised` / `raised-light`): the open result row, badges, inline code, `kbd`, the stepper track, and the full-width honesty band.
+- **Field Slate** (`field` / `field-light`): anything you type into or that holds a command: search field, sort select, command block, install line, current page, active step tab. In light mode it is pure white, the lightest surface.
+- **Hover Slate** (`hover` / `hover-light`): pointer and keyboard hover on rows, chips, quiet buttons and page links.
+- **Hairline** (`line` / `line-light`): section borders, nav and footer borders, open-row inset, badge borders, quiet actions at rest.
+- **Strong Hairline** (`line-strong` / `line-strong-light`): borders of interactive controls (buttons, chips, select, field, tags, kbd), dividers between honesty items, link underlines.
+- **Off-white Text** (`text` / `text-light`): headings, names, values.
+- **Secondary Text** (`text-2` / `text-2-light`): descriptions, subheads, meta, nav links, control labels.
+- **Tertiary Text** (`text-3` / `text-3-light`): repos, placeholders, icons at rest, footnotes, the about line, detail-panel labels.
 
-### Tertiary
-- **Terminal Tones** (t-success, t-warning, t-error, t-claude, t-subtle): only inside frames, as the dialog draws them; t-claude also marks the install line's `>` prompt.
+### Terminal (both themes)
+- **Terminal Ground / Foreground / Line** (`term-bg`, `term-fg`, `term-line`) and the tone set (`t-success`, `t-warning`, `t-error`, `t-claude`, `t-subtle`): reserved for the `/mods` dialog window, matching the colors the real dialog draws. They never appear outside the window.
 
 ### Named Rules
-**The Cover Cloth Rule.** Orange owns whole bands or marks a specific thing (a field mark, a numeral, a hover, a selection). It is never a text colour on paper and never a decorative stripe.
+**The One Ember Rule.** Orange is the only hue in the UI chrome, and it means "focused, matched, chosen or done". It is never a resting background on a button, chip or section.
 
-**The Achromatic Text Rule.** Running text is ink or muted on paper, cover-ink on cloth, term-fg on black. State reads by glyph and number, never by colour alone.
+**The Terminal Stays Dark Rule.** The dialog window keeps its dark terminal palette in light mode; only the page around it re-tunes.
 
 ## Typography
 
-**Display Font:** Archivo Variable at narrow widths (with system-ui)
-**Body Font:** Archivo Variable at normal width (with system-ui)
+**Display Font:** Archivo Variable, normal width, weights 400 to 700 (with system-ui, -apple-system, Segoe UI)
+**Body Font:** Archivo Variable
 **Label/Mono Font:** JetBrains Mono Variable (with ui-monospace, SF Mono, Menlo)
 
-**Character:** One grotesque in two registers: condensed uppercase for the guide's titles, normal width for reading. Mono belongs to the specimens, install lines, code and ids. Width is set with `font-stretch`; the `wdth` values in the tokens are the same axis. Both faces ship as subsets cut by `scripts/subset-fonts.sh` (Archivo: wght 400–800, wdth 68–100%, ASCII and the copy's punctuation; JetBrains Mono: wght 400–700, ASCII and the frames' arrows). A character outside them falls back to the next font in the stack, so add it to the script when the copy needs it.
+**Character:** A neutral grotesque set tight and heavy at the top and plain below; the mono is reserved for literal things a person types or copies. Both are self-hosted and subset to the page's characters.
 
 ### Hierarchy
-- **Display** (h1): the cover headline, uppercase, at 68% width.
-- **Display Close**: the closing "Install it" heading, uppercase at 68% width.
-- **Headline** (h2): plate-section and back-matter titles, uppercase at 72% width, balanced.
-- **Plate Title**: "Plate I. Installed", uppercase at 72% width.
-- **Title** (h3): caution and list-item heads, sentence case.
-- **Body**: prose capped at the 66ch measure.
-- **Lead**: the cover's introductory paragraph, max 38rem.
-- **Label**: plate tabs, uppercase at 85% width; nav at 0.95rem weight 550.
-- **Label Small**: group headings inside the key card and keymap column heads, uppercase at 85%, muted.
-- **Numeral**: the field-mark disc numbers, tabular.
-- **Caution Numeral**: the limits list's plain orange numbers, narrow, no disc.
-- **Mono Frame**: the specimen grid; text and marks share it.
+- **Display** (680, `clamp(2.25rem, 1.35rem + 3.4vw, 4rem)`, 1.02, -0.03em): the hero headline only, set as two block lines so the fallback breaks where Archivo does.
+- **Headline** (650, `clamp(1.75rem, 1.35rem + 1.5vw, 2.5rem)`, 1.1, -0.035em): section headings; the install heading steps up to `clamp(2rem, 1.5rem + 2vw, 3rem)`.
+- **Title** (650, 1.0625rem, -0.015em): honesty-block item headings.
+- **Lead** (400, 1.0625rem, 1.55): section intros and the install subhead, max about 40rem; the hero subhead is `clamp(1rem, 0.95rem + 0.25vw, 1.125rem)`.
+- **Row name** (600, 0.9375rem, -0.01em): a mod's name in a result row.
+- **Body** (400, 1rem, 1.55): running text; 0.875rem for row descriptions and detail lists, 0.9375rem in the honesty block.
+- **Label** (500 to 550, 0.8125rem): buttons, chips, sort, count, pager, footer, facts.
+- **Caption** (0.75rem): badges, tags, `kbd`, keyboard hints; detail-panel labels at 600 in tertiary text, sentence case.
+- **Mono** (400 to 500, 0.8125rem): repo names, command blocks, the nav install button, the window title; the install line runs `clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem)`.
 
 ### Named Rules
-**The Binomial Rule.** A mod id named in prose or a caption is italic mono at 0.92em, like a species name. Captions italicise only ids that appear on their own frame.
+**The Typed-Literal Rule.** Mono only for what is typed, copied or shown by a terminal, always with ligatures off so `--flag` reads as typed.
 
-**The Roman Plate Rule.** Plates are numbered I to V, as text separated from the title by a rule. Arabic digits are kept for the dialog's own tab keys and for numbered marks and cautions.
+**The Tabular Count Rule.** Every number that changes or lines up (count, range, stars, page numbers, step numbers) uses tabular figures.
 
 ## Layout
 
-A single 76rem column (`min(100% - 2rem, 76rem)`) with sections padded `clamp(3.5rem, 2rem + 5vw, 6.5rem)` and separated by 1px rules; bands (cover, limits, close) drop the rule. Prose holds the 66ch measure.
+One centred column: `min(100% - 2rem, 68rem)`, narrowed to 60rem for the results so rows stay scannable. The hero, the search (max 46rem) and the install section are centred; the results, the dialog section and the honesty block are left-aligned with headings at max 40rem.
 
-- **Cover:** masthead row (name left, nav right) over a hero; from 64rem the h1 spans the full width and the lead and install line sit in two columns (1fr / 1.15fr).
-- **Plates:** the plate index and first plate overlap the cover's lower edge via a 6.5rem orange gradient behind the section. From 78rem the plate and its caption sit side by side (frame at its own width, caption at least 15rem, starting 3.25rem down on paper); below that they stack, and between 52rem and 78rem the legend runs in two columns.
-- **Back matter:** from 64rem, sections use a 1fr / 2.6fr grid with the h2 sticky in the left column; below, they stack.
-- **Narrow screens (below 60rem):** the frame keeps its 96-column width and scrolls inside its pane; a scroll cue says so, each mark's numeral sits beside its own box instead of in the gutter, and tapping a legend entry (or opening a plate) scrolls the frame to that mark.
+Rhythm: the nav is 3.5rem tall; controls are 2rem tall (buttons, chips, select, page links, step tabs) except the 3.5rem search field and the 2.25rem install copy button. Rows and the results head share a 0.75rem horizontal inset so text aligns from count to description. The three lower sections share `clamp(4rem, 2.5rem + 5vw, 7.5rem)` block padding; the honesty block becomes a two-column grid (`1fr 1.5fr`) from 56rem. The inline detail panel is a two-column grid (`1fr 1.35fr`) that collapses to one column on phones.
+
+Breakpoints observed: 40rem (phone: nav install shrinks to an icon, search hints hide, row head wraps with repo and badges on their own lines, description clamps to two lines, Copy becomes icon-only, the dialog frame scrolls sideways and opens on its detail column), 23.5rem (wordmark text hides), 56rem (honesty grid), 64rem (keyboard hint row appears).
 
 ## Elevation & Depth
 
-Paper is flat; depth belongs to the black objects that sit on it. Only the specimen pane and the install line cast shadows, both soft and ambient, so they read as dark slabs laid on the page. Everything else separates by rule, sheet tone, or band.
+Flat. Depth is carried by tonal surface steps (ground, raised, field, hover) and 1px hairlines, including inset hairlines drawn with `box-shadow: inset 0 0 0 1px` on the open row, the focused row (accent) and the current page. Only two real lifts exist, both state responses.
 
 ### Shadow Vocabulary
-- **Specimen lift** (`box-shadow: 0 2px 4px rgb(0 0 0 / 0.12), 0 28px 50px -24px rgb(0 0 0 / 0.55)`): the plate pane.
-- **Install lift** (`box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 10px 24px -12px rgb(0 0 0 / 0.45)`): the install line.
+- **Step lift** (`box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px rgb(0 0 0 / 0.2)`): the active tab of the dialog stepper.
+- **Search focus ring** (`box-shadow: 0 0 0 3px var(--accent-ring)`): the search field while focused, with its border turned accent.
 
 ### Named Rules
-**The Black Slab Rule.** Shadows are for the terminal-black objects only. Cards, tabs and sheets stay flat with a 1px rule border.
+**The Hairline Rule.** A surface separates by one step of tone and one 1px line. If something seems to need a drop shadow, it needs a surface step instead.
 
 ## Shapes
 
-Soft rectangles throughout: 12px for plates and the key card, 10px for the install line, 5px for kbd keys (with a 2px bottom border as their only bevel), 4px for code chips and field-mark boxes, full pills for plate tabs and the theme toggle, and true circles only for field-mark numeral discs. Lists are ruled, not boxed: a 2px ink rule opens a list (tabs, keymap, FAQ, every-key drawer) and 1px rules divide its rows. The specimen's numeral gutter is a 1px dashed term-rule line.
+Softly rounded rectangles, radius growing with the element's size: 3px on match marks, 5px on badges, tags, inline code and `kbd`, 7px on page links and step tabs, 8px on buttons, select and command blocks, 10px on result rows and the stepper track, 12px on the terminal window and install line, 14px on the search field. Filter chips are full pills; the step number is a circle. Borders are always 1px.
 
 ## Components
 
-### Install Line
-The one action, styled as the prompt people type at. A terminal-black slab (max 44rem) with a t-claude `> ` prompt, mono text that wraps but keeps each `--flag value` together, and a Copy button separated by a 1px term-rule divider. Copy appears only with script and clipboard support; on hover it fills orange with cover ink; focus uses an inset orange outline. A label above names where to type it.
+### Buttons
+Quiet and outlined; the accent appears only once the action has happened.
+- **Shape:** gently rounded (8px), 2rem tall, 1px strong-hairline border, transparent fill.
+- **Default:** secondary-text label at 0.8125rem/550 with a 1em stroked SVG icon; icon-only variants are 2rem square.
+- **Hover / Focus:** text brightens and the hover surface fills; 2px accent outline at 2px offset on focus; presses scale to 0.96.
+- **Copied:** for 1.6s the button fills accent with accent-ink text and its label reads "Copied" ("Select it" if the clipboard refuses), announced through a polite status region.
+- **Row actions:** Copy and GitHub sit at the row's top right, dimmed (tertiary text, hairline border) at rest and brought up on row hover, focus or open.
+- **Nav install:** the same quiet button in mono, reading `/plugin install modmgr` and copying the full line; icon-only on phones.
 
-### Plate Index (tabs)
-A radio group, so plates switch without script and only when asked. Pills on sheet with a 1px rule border; the roman numeral sits left of a 1px divider in muted. Hover darkens the border to ink. Checked: ink fill, paper text, the numeral in the tab's text colour and its divider in orange. Focus: 3px ink outline offset 3px.
+### Chips
+- **Style:** pill, 2rem tall, strong-hairline border, secondary text, transparent.
+- **State:** checked fills with the accent wash, borders with accent at 55% alpha, brightens the text and shows a check icon in ember text. They are visually hidden checkboxes behind labels.
 
-### Specimen Plate
-The generated frame in a terminal-black pane (1px term-rule border, 12px radius, specimen lift), drawn on a cell grid one character wide and 1.5em tall. Glyphs a mono font may lack are held to one cell. The ring segment inverts term-fg and term-bg. Frames come from the generated demo data and are never edited by hand.
-
-### Field Mark
-A 2px orange box (4px radius, 10% orange fill) placed on the exact cells of its text, with an orange numeral disc (1.5em circle, mark-ink, tabular) in the gutter on the same row. On opening a plate, boxes grow in from their left edge one after another (0.6s, 0.15s stagger), discs pop in, and each legend entry rises with its mark; reduced motion disables all of it. Hovering a legend entry deepens its box's fill.
-
-### Plate Caption and Legend
-Plate title, a muted caption, then an ordered legend whose entries carry the same numeral disc as their mark. The disc is used only by field marks and their legends.
-
-### Cautions
-An ordered list on the band, each item ruled, with a plain narrow orange numeral in a 2.75rem margin column, an h3 head and a muted body.
-
-### Key Card
-A sheet card (1px rule, 12px radius) holding small-label groups; the notable list uses the dialog's own `◆` glyph as its bullet, in ink.
-
-### Definition Rows, Keymap, FAQ
-Ruled lists under a 2px ink rule. Tab names are narrow uppercase with a muted plate cross-reference (roman numerals) beneath; definitions in muted. The keymap is a table with kbd keys, a row hover on sheet, and scrolls sideways inside a focusable region. FAQ items are disclosure rows with muted markers.
+### Inputs / Fields
+- **Search:** 3.5rem tall, field surface, strong-hairline border, 14px radius, search icon inset left, `/` and Ctrl K `kbd` hints inset right (hidden on phones), accent caret, autofocused.
+- **Focus:** border turns accent with a 3px accent-ring halo.
+- **Sort select:** 2rem, field surface, 8px radius, custom chevron, labelled "Sort" in secondary text.
 
 ### Navigation
-Masthead on the cloth: "modmgr" set in narrow uppercase (800, 72% width) left; Source, Changes, Security as cover-ink underlined links right, with a pill theme toggle (1px cover-ink border, inverts on hover) that appears only with script.
+Slim 3.5rem bar with a bottom hairline: brand mark and lowercase wordmark at 650, three text links in secondary text that brighten on hover, the copy install button pushed right.
 
-### Links and Focus
-Links keep their text colour with an orange underline (0.12em, offset 0.22em) that thickens to 0.22em on hover; on cloth the underline is cover-ink. Focus is a 3px outline in ink (cover-ink on cloth, orange on the band), offset 3px.
+### Results head and pager
+The head carries the live range ("1–40 of N mods", polite live region, tabular), the keyboard hint row from 64rem, and the sort. The pager sits under a hairline: range on the left, Prev, numbered 2rem links with ellipsis gaps and Next on the right; the current page is a field surface with an inset strong hairline, disabled ends fade to 60%.
 
-## Motion
+### Result rows
+Native `details`/`summary`, one open at a time. The head line holds name, repo in mono (truncates first), Clone or validation tags (outlined), reach badges (raised fill, hairline; the notable badge gets a strong hairline, full text and a diamond icon) pushed right, then stars with a star icon. The description runs the full width below on one truncated line, so every row cuts at the same place. Hover and keyboard focus fill the hover surface; focus adds an inset accent hairline; open fills raised with an inset hairline.
 
-All motion sits inside `prefers-reduced-motion: no-preference`, in transform and opacity only, with one easing curve (`--ease`, `cubic-bezier(0.16, 1, 0.3, 1)`). Under reduced motion the page is the same, with nothing moving.
+### Inline detail panel
+Opens under the row's head with a 0.24s fade and 4px rise. Left column: "What it can reach" in words, then notable lines each led by a diamond. Right column: the install line in a mono command block, a sentence on what it does, and facts (validation, last push, GitHub link). Labels are 0.75rem/600 tertiary text, sentence case.
 
-- **Cover settles on load:** the headline and lead rise 0.35em into place without ever being hidden (they may be the largest paint); the install line fades up 0.1s later, then the plate index.
-- **Plate switch:** the frame settles 0.9rem up, the plate title and caption rise, then each field mark grows in from its left edge with its legend entry and numeral, 0.15s apart.
-- **Scroll:** where scroll-driven animations exist, each section's heading and matter rise 2.25rem as they enter, and the cautions arrive one by one. Without support, nothing is hidden.
-- **Feedback:** plate tabs lift 2px on hover and press to 97%; the theme pill and Copy press to 95%; Copy answers with an orange fill and a short scale-up, replayed on every click; summary chevrons turn a quarter and opened answers rise in.
+### The `/mods` dialog window (signature)
+A segmented stepper (Discover, Review, Installed) over a terminal window. The stepper is a raised track with 7px tabs; the active tab lifts onto the field surface and its numbered disc fills accent. The window is the terminal palette with a 2.25rem title bar (three muted dots, `claude · /mods` centred in mono) and a hairline below. Its frame is real dialog output in a `pre` whose font size fits the frame's columns to the window width (a cell is 0.6em; capped at 1.1rem); glyphs outside the font are pinned to one cell. On phones the frame stays at 0.6rem, scrolls sideways and opens on its detail column. A caption bar under a terminal hairline names the step. Switching steps cross-fades the frame (0.4s) with the caption following 60ms later.
+
+### Honesty block
+A full-width raised band with hairlines top and bottom: heading and intro on the left, four claims on the right separated by strong hairlines, each a title plus a secondary-text sentence.
+
+### Install line
+Centred, max 40rem: field surface, strong hairline, 12px radius, the full mono line prefixed by an ember `> ` prompt and wrapping only between flags, with a 2.25rem copy button at its right.
+
+### Footer
+Hairline above, license line left and three links right in tertiary text at 0.8125rem.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** show the dialog as generated frames and point at it with numbered field marks; let the legend say what each mark means.
-- **Do** keep orange to whole bands and to marks, numerals, hovers and selection.
-- **Do** number plates in roman with a rule between number and title, and keep the dialog's own 1 to 4 tab keys arabic.
-- **Do** reserve the orange numeral disc for field marks and their legend entries; caution numbers are plain narrow orange numerals.
-- **Do** set mod ids in italic mono (0.92em).
-- **Do** open ruled lists with a 2px ink rule and divide rows with 1px rules.
-- **Do** keep every interaction working without script: radio plates, native disclosures, a copy button that only appears when it can work.
-- **Do** keep every animation and transition inside `prefers-reduced-motion: no-preference`, in transform and opacity only, and never start the headline, the lead or a frame hidden.
+- **Do** separate surfaces with one tonal step and a 1px hairline (`line` for structure, `line-strong` for controls).
+- **Do** keep orange to focus, search matches, checked chips, the active step and the copied state.
+- **Do** set repos, commands, keys and terminal output in JetBrains Mono with ligatures off, and everything else in Archivo Variable at normal width.
+- **Do** use tabular figures for counts, ranges, stars and page numbers.
+- **Do** animate only transform, opacity and color, on `cubic-bezier(0.16, 1, 0.3, 1)`, 0.12 to 0.4s, inside `prefers-reduced-motion: no-preference`.
+- **Do** keep every control reachable by keyboard and every core path (rows, stepper, install line) working without script.
+- **Do** re-tune neutrals for light mode at equal care and leave the terminal window dark.
 
 ### Don't:
-- **Don't** use a split hero with a screenshot or a three-card feature row.
-- **Don't** set body text in orange on paper, or carry state by colour alone.
-- **Don't** edit a frame's contents to suit a mark; change the mark or regenerate the frames.
-- **Don't** put shadows on paper-toned surfaces; only the terminal-black slabs lift.
-- **Don't** put numeral discs on plate numbers, cautions or anything other than field marks.
+- **Don't** add drop shadows beyond the step lift and the search focus ring.
+- **Don't** fill a resting button, chip or section with the accent.
+- **Don't** add glows, gradient blobs, glass or icon feature cards.
+- **Don't** use mono for prose or Archivo for something a person types.
+- **Don't** introduce a second accent hue in the page chrome; the terminal tones stay inside the window.
