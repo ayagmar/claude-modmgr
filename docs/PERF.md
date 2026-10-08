@@ -17,7 +17,7 @@ plugins (four of them mods), the dialog inline at 116 body columns. Two sources:
 
 | Operation | Budget | Measured | Verdict |
 |---|---|---|---|
-| `session.start` blocking | < 5 ms | 4.8, 4.8, 11.2 ms over three cold starts (was 8.9 ms before registering `/mods` and taking the queue over side by side) | at the edge: met in two of three; the third is the host's variance on two round trips |
+| `session.start` blocking | < 5 ms | 4.8, 4.8, 11.2 ms over three cold starts (was 8.9 ms before registering `/mods` and taking the queue over side by side) | ≈ 5 ms, round-trip bound: three host calls two deep (`clock.now` then `state.update`, beside `command.register`); the 11.2 ms start is unexplained (not measured further) |
 | `/mods` → first paint | < 50 ms | pane draw 0.5–7.5 ms (12 state reads and Health's items included); 200 rows painted in < 50 ms in `plugin/tests/ui.test.tsx` | met |
 | Row move / tab switch | < 16 ms | pane draw 0.5–1.2 ms per move; tab switches 0.7–4.8 ms; the pure part of a move over 200 mods 0.01 ms | met |
 | Filter keystroke over 3.5k entries | < 16 ms compute + one state write | catalogue window (match, window, one write) 2.6–6.3 ms live; match + window alone 0.16 ms (mods) / 0.30 ms (all), 0.45 / 0.89 ms at 10k | met |
@@ -39,7 +39,9 @@ plugins (four of them mods), the dialog inline at 116 body columns. Two sources:
 - `drawPane` reads 12 state keys and computes Health's items on every draw of every tab (the tab label shows Health's
   count). Live it stays at 0.5–7.5 ms; Health's items over 200 mods cost 0.06 ms. If draws grow, Health's count is
   the first thing to cache.
-- `session.start` is two host round trips in parallel; its budget leaves no room for a third.
+- `session.start` is three host calls, two deep; its budget leaves no room for more.
+- A cold installed refresh (1.7 s for seven plugins) is what a text command waits for when start-up hasn't read the
+  list yet; it runs on the command hook's own ports (C16), so it doesn't meter the hook's 10 s budget.
 
 ## Reproduce
 

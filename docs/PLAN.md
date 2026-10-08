@@ -167,10 +167,10 @@ Sources: `~/.claude/dev-mods/*/*`, `CLAUDE_CODE_PLUGIN_DIRS` (via `$.env.get('CL
 - `u` updates one, `a` updates all. Updates run serially through the job queue, followed by one reload, then the capability diff.
 
 ### 2.7 Non-UI `/mods`
-`/mods list | info <id> | install <id> [--scope s] | remove <id> | update [id] | enable <id> | disable <id> | doctor [--json] | export | apply <file>`.
-- Write subcommands need `--yes`. A declared install command also needs `--accept-command <sha>`, and modmgr refuses if it doesn't match.
-- They return `{ text }` and set a non-zero `exitCode` on failure. They **never** try to reload (S8); they end with "run /reload-plugins (or restart) to apply".
-- `export` prints `{ mods: [{ id, scope, version }] }`; `apply <file>` installs and enables what's missing, going through the same confirms (pi-extmgr "profiles", minimal).
+`/mods list | info <id> | doctor [--json] | export | install <id> [--scope s] [--accept-command <sha256>] | remove <id> [--wipe-data] | update [<id>] | enable <id> | disable <id> | apply <file> | help`; each subcommand accepts only its own flags.
+- Write subcommands need `--yes` (without it they print the CLI lines they would run). A declared install command also needs `--accept-command <sha>`; the CLI refuses a sha that doesn't match (F25). Writes are refused while another job is queued or running.
+- They return `{ text }` with `exitCode` 0 (done), 1 (refused, failed, or a dry run) or 2 (usage). They **never** try to reload (S8); they end with "Run /reload-plugins (or restart Claude Code) to apply."
+- `export` prints `{ mods: [{ id, scope, version }] }`; `apply <file>` installs what's missing and enables what's off, behind the same `--yes` (pi-extmgr "profiles", minimal). C16 is the design as built.
 
 ### 2.8 Jobs and reload
 - Every mutation is a `Job` in **`$.state` `jobs`** (survives reloads, F19). A module-level runner picks up `queued` jobs. On `register`, a job left `running` by a previous module is marked `interrupted`, with `[retry]`.
@@ -341,9 +341,9 @@ The catalogue is never stored. On `store-full`, Health shows "modmgr's cache is 
 - `/mods` → `$.ui.open({ id: 'modmgr', title, focus: true, closeOnEscape: true, holdToasts: true, rows })`. As a dialog, Tab and the arrows walk the Buttons (F22). If `focus` is refused (text in the composer), the footer says "ctrl+x tab to focus".
 - **Stacked layout (primary, 40–99 body columns):** title/tabs, list, footer. Enter pushes the detail.
 - **Split (≥ 100 body columns):** list 45 % | detail 55 %.
-- Rows are windowed with `e.props.scroll.bodyRows`. A `Pager` shows `21–40 of 312` with `g` (first page) and `b` (last page).
+- Rows are windowed with `e.props.scroll.bodyRows`, centred on the selection; a line says `21–40 of 312` with `g` (first) and `b` (last) (C11, C13).
 - **Esc** (`ui.close` hook, origin `person`): while the pane holds the keys (`isFocused` in `$.ui.panes()`), it first pops the top overlay, or clears a non-empty query; otherwise it lets the close through. An Esc at the prompt (also `origin: person`, F22) always closes. `unload` never reaches the hook (d.ts 7311).
-- Mobile: read-only Installed and Detail. VS Code and desktop: full if S11 shows `$.process`; otherwise read-only with "managing mods needs the terminal CLI" (R13).
+- Every surface manages mods when `$.process` works (S11/F32), mobile included (C16: the CLI runs on the session's machine and every write passes the same review); mobile lacks the fields only. Without the CLI every surface is read-only and says why (R13).
 
 ### 5.3 Views (stacked, 64 columns)
 
@@ -953,3 +953,22 @@ Pushes and GitHub actions still need the person's go-ahead.
   updates), as the runner records its own; the network-off note no longer prefixes every answer (only a missing CLI
   does); a `-p` session no longer spends the first-run welcome (it waits for a session that draws). The welcome
   draws stacked at 64 and beside the list in the split, the ring on `enter: start`.
+- **After the Fable 5.1 review** (`docs/reviews/2026-10-08-m6-review-response.md`): a text write goes **on the queue**
+  like the dialog's: refused while a job is queued or running (a reload waiting included) or another module owns the
+  queue; its jobs are written as one batch, the first `running` in the same write, each finished and the next started
+  in one write, so the runner never runs beside it and a queued reload waits behind it; it still runs its CLI on the
+  hook's own ports, writes the history before answering (`store.flush`, a `-p` run exits with the answer), and kicks
+  the runner after. The rule for a command hook: **it awaits nothing but its own `$`**, except Health's local facts
+  for `doctor` (a few ms); a text command that finds the installed list unread refreshes it with the CLI on the hook's
+  ports (`registry.refresh(via)`). A remembered tab is only restored at a fresh start; what it needs is read when the
+  dialog shows it (`rt.showTab`, from a tab press, `/mods`, the band's `m`, or a reloaded module), so no catalogue
+  read or detector run happens in a session that doesn't open Discover. Each subcommand accepts only its own flags;
+  a declared command's hint is a command that works (`/mods install <id> [--scope s] --accept-command <sha> --yes`,
+  after an `apply` too); a malformed `apply` file exits 1; the hook's `.catch` exits 1. The welcome is marked seen
+  when it is left (start, Esc, close), not when a session starts. `vitest.config.ts` keeps `services/` at ≥ 90 %
+  branches on its own.
+- **PLAN §10's "empty states, degraded modes" for M6**: built across M3a–M6 and checked here. Each tab has an empty
+  state with a next action (Installed: Discover finds mods; Discover: `k` and `m`; Dev: how to run a folder; Health:
+  its own lines always); degraded: a missing CLI makes every tab and every text write read-only with the reason,
+  network off limits Discover to local catalogues and turns update checks off (Health says why), a refused
+  declared-command acceptance offers the terminal command (C4).

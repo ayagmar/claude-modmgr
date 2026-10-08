@@ -60,7 +60,8 @@ repository.
 without it they print the CLI lines they would run. With it they run the same checked jobs as the dialog (the runner's
 own `runJob`), record them in the job log and the history, and never reload. A declared install command is printed whole with its sha256 and runs only when `--accept-command <that sha>`
 is given (the CLI binds the acceptance to that command, F25); modmgr never passes `-y`. `apply <file>` reads the file
-you name (relative to the session's directory) and accepts only plugin ids and scopes.
+you name (a relative path is under the session's directory, an absolute one is read as given; at most 4 MiB, 100
+entries) and accepts only plugin ids and scopes. A write is refused while another job is running.
 
 **Settings.** modmgr never writes a settings file. Every change goes through `claude plugin …`, which owns those files.
 
