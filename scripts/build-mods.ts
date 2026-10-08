@@ -48,11 +48,13 @@ export const SEEDS_URL =
   'https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/data/repos.txt'
 const CONCURRENCY = 6
 const METADATA_BATCH = 50
-/** Recent repositories of the broad queries checked in one build, newest first. */
+/** Recent repositories of the broad queries checked in one build (most are not mods: a fresh clone tells). */
 const RECENT_MAX = 1000
 const DAY = 24 * 60 * 60 * 1000
 /** Past this share of the last index's mods lost, nothing is written. */
 export const MAX_DROP = 0.2
+/** About 2% of mods fail validate; past this share the build's own reading broke. */
+export const MAX_FAILED = 0.25
 
 /** What GitHub's GraphQL API says of a repository; undefined when it is gone or private. */
 export type RepoMeta = RepoFacts & {
@@ -219,6 +221,9 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
     ].join('\n'),
   )
   if (mods.length === 0) return { refused: 'no mods found: nothing written' }
+  if ((checks.failed ?? 0) > mods.length * MAX_FAILED) {
+    return { refused: `${checks.failed} of ${mods.length} mods fail validate: nothing written` }
+  }
   const before = previous?.mods.length ?? 0
   if (mods.length < before * (1 - MAX_DROP)) {
     return { refused: `${mods.length} mods against ${before} last time: nothing written` }
@@ -336,7 +341,7 @@ const runChild = (
   })
 
 /** A shallow clone, read and validated; undefined when git couldn't fetch it. */
-const inspectRepo =
+export const inspectRepo =
   (work: string, env: NodeJS.ProcessEnv) =>
   async (repo: string, facts: RepoFacts): Promise<CommunityMod[] | undefined> => {
     const dir = mkdtempSync(join(work, 'repo-'))
@@ -396,7 +401,8 @@ const inspectRepo =
           return { exitCode: ran.code, stdout: ran.stdout, stderr: ran.stderr }
         },
       }
-      return inspectCheckout(checkout, facts)
+      // Awaited here: the finally below removes the checkout validate reads.
+      return await inspectCheckout(checkout, facts)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

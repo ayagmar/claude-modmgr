@@ -480,6 +480,16 @@ describe('buildMods', () => {
     expect(await buildMods(empty.built)).toEqual({ refused: 'no mods found: nothing written' })
   })
 
+  it('refuses an index where most mods fail validate, as when validate itself broke', async () => {
+    const { built } = deps({
+      seeds: 'a/one\nb/two\nc/three\n',
+      inspect: repo => [found(repo, { check: repo === 'c/three' ? 'passed' : 'failed' })],
+    })
+    expect(await buildMods(built)).toEqual({
+      refused: '2 of 3 mods fail validate: nothing written',
+    })
+  })
+
   it('starts fresh from an unreadable published index', async () => {
     const { built, logs } = deps({ previous: '{', seeds: 'a/b' })
     expect('text' in (await buildMods(built))).toBe(true)
