@@ -243,6 +243,9 @@ describe('what Discover draws', () => {
     expect(detectLine({ checked: 1, total: 2, found: 0, running: true })).toBe(
       '0 mods so far · checking 1 of 2',
     )
+    expect(detectLine({ checked: 0, total: 200, found: 0, running: true })).toBe(
+      'checking 200 entries…',
+    )
   })
 
   it('Esc clears the search on Discover, the filter on Installed', () => {

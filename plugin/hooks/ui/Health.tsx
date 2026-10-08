@@ -23,7 +23,7 @@ export const HealthLine = (
     readonly columns: number
     readonly focus: boolean
     readonly first: boolean
-    /** Stacked: Enter opens the item whole (its row is clipped); split: runs its fix. */
+    /** Stacked: Enter opens the item whole (its row is clipped); split: moves onto its fix. */
     readonly stacked: boolean
   },
 ): RenderElement => {
@@ -48,7 +48,7 @@ export const HealthLine = (
           plain
           label={sanitize(item.text, { max: 300 })}
           {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.fix(item.key))}
+          onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.toDetail())}
         />
       </Box>
       {fix === undefined ? null : (
@@ -94,15 +94,11 @@ export const healthDetailRows = (item: HealthItem | undefined, columns: number):
     : wrappedRows([item.group, sanitize(item.text, { max: 300 }), item.fixLabel ?? ''], columns)
 
 /**
- * The selected item in full, its words wrapped: beside the list in the split
- * (where Enter on the row runs the fix), or pushed by Enter when stacked, with
- * its fix as a button (`actions`).
+ * The selected item in full, its words wrapped, its fix a button: beside the
+ * list in the split (Enter on the row moves onto the fix), or pushed by Enter
+ * when stacked.
  */
-export const HealthItemDetail = (
-  v: ViewPorts,
-  item: HealthItem | undefined,
-  how: { readonly actions: boolean },
-): RenderElement => {
+export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): RenderElement => {
   const { Box, Button, Text } = v.el
   if (item === undefined) return <Text dimColor>{GLYPH.ok} Nothing needs you.</Text>
   const label = item.fixLabel
@@ -110,10 +106,8 @@ export const HealthItemDetail = (
     <Box flexDirection="column">
       <Text bold>{item.group}</Text>
       <Text>{sanitize(item.text, { max: 300 })}</Text>
-      {label === undefined ? null : how.actions ? (
+      {label === undefined ? null : (
         <Button key="act:fix" plain label={`→ ${label}`} onPress={() => v.act.fix(item.key)} />
-      ) : (
-        <Text color={TONE.accent}>enter: {label}</Text>
       )}
     </Box>
   )

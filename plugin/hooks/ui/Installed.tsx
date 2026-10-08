@@ -48,6 +48,8 @@ export const Row = (
     readonly staged: ReadonlySet<string>
     readonly columns: number
     readonly focus: boolean
+    /** The detail is beside the list: Enter moves onto its keys. */
+    readonly beside: boolean
   },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
@@ -65,7 +67,7 @@ export const Row = (
           plain
           label={name}
           {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => v.act.open(row.id)}
+          onPress={() => (how.beside ? v.act.toDetail() : v.act.open(row.id))}
         />
       </Box>
       {cols.meta ? (
@@ -110,6 +112,7 @@ export const List = (
     readonly focusId: string | undefined
     readonly loading: boolean
     readonly total: number
+    readonly beside: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
@@ -133,6 +136,7 @@ export const List = (
           staged: how.staged,
           columns: how.columns,
           focus: row.id === how.focusId,
+          beside: how.beside,
         }),
       )}
     </Box>

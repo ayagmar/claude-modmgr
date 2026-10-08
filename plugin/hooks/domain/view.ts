@@ -449,15 +449,21 @@ export const wrappedRows = (texts: readonly string[], columns: number): number =
  * out with `columnGap`): each line fills until the next item would overflow.
  */
 export const footerRowsFor = (widths: readonly number[], columns: number, gap = 2): number => {
+  const line = Math.max(1, columns)
   let rows = 1
   let used = 0
   for (const width of widths) {
     const need = used === 0 ? width : used + gap + width
-    if (used > 0 && need > columns) {
+    if (used > 0 && need > line) {
       rows += 1
       used = width
     } else {
       used = need
+    }
+    // An item wider than the line wraps inside itself; the next starts on a new line.
+    if (used > line) {
+      rows += Math.ceil(used / line) - 1
+      used = line
     }
   }
   return rows

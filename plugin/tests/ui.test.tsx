@@ -510,6 +510,34 @@ test('the split’s list drops version and scope; help takes the whole body', as
   }
 })
 
+test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail pushes nothing', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const keyed = async (ui: Awaited<ReturnType<typeof mountPane>>, key: string) =>
+    (await ui.findAll({ type: 'Button' })).filter(button => button.key === key).length
+  for (const [columns, rows] of [
+    [46, 14],
+    [80, 24],
+    [96, 30],
+  ] as const) {
+    const ui = await mountPane($, 'terminal', PANE(columns, rows))
+    await focusRow($, TURN_BAND)
+    await ui.redraw()
+    // Stacked in the footer, beside the list in the detail: once either way.
+    for (const key of ['act:toggle', 'act:refresh', 'act:help', 'act:close', 'act:tab.discover']) {
+      expect(await keyed(ui, key)).toBe(1)
+    }
+    if (columns >= 80) {
+      await ui.press({ key: `row:${TURN_BAND}` })
+      await ui.redraw()
+      expect((h.read('view') as { stack: string[] }).stack).toEqual([])
+      expect(await keyed(ui, 'act:close')).toBe(1)
+    }
+    await ui.unmount()
+  }
+})
+
 test('the footer words close and back per surface; the key hint is the terminal’s', async ($, on) => {
   const h = host(on)
   await $.session.start(START)

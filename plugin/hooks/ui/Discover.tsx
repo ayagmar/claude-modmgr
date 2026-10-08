@@ -33,7 +33,7 @@ export const FoundRow = (
             plain
             label={sanitize(row.name, { max: name })}
             {...(how.focus ? { autoFocus: true as const } : {})}
-            onPress={() => v.act.openFound(row.id)}
+            onPress={() => (how.twoLine ? v.act.openFound(row.id) : v.act.toDetail())}
           />
         </Box>
         <Box width={INSTALLS} flexShrink={0} justifyContent="flex-end">
@@ -108,22 +108,16 @@ export const FoundList = (
 }
 
 /** The rows the catalogue detail draws (Pane clips a taller one to the body). */
-export const foundDetailRows = (row: CatalogRow | undefined, actions: boolean): number => {
+export const foundDetailRows = (row: CatalogRow | undefined): number => {
   if (row === undefined) return 1
   const notable = row.notable ?? []
-  return (
-    3 +
-    (actions ? 1 : 0) +
-    (row.blurb === '' ? 0 : 1) +
-    1 +
-    (notable.length === 0 ? 1 : 1 + notable.length)
-  )
+  return 3 + 1 + (row.blurb === '' ? 0 : 1) + 1 + (notable.length === 0 ? 1 : 1 + notable.length)
 }
 
 export const FoundDetail = (
   v: ViewPorts,
   row: CatalogRow | undefined,
-  how: { readonly actions: boolean; readonly readOnly: boolean },
+  how: { readonly readOnly: boolean },
 ): RenderElement => {
   const { Box, Text } = v.el
   if (row === undefined) return <Text dimColor>Select an entry to see more.</Text>
@@ -144,24 +138,22 @@ export const FoundDetail = (
           {row.installs === undefined ? '' : ` · ${formatCount(row.installs)} installs`}
         </Text>
       </Box>
-      {how.actions ? (
-        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {how.readOnly
-            ? null
-            : KeyButton(v, {
-                action: 'install',
-                on: 'discover-detail',
-                label: 'install',
-                onPress: () => v.act.install(row.id),
-              })}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'discover-detail',
-            label: 'copy id',
-            onPress: press => v.act.copy(row.id, press.surface),
-          })}
-        </Box>
-      ) : null}
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+        {how.readOnly
+          ? null
+          : KeyButton(v, {
+              action: 'install',
+              on: 'discover-detail',
+              label: 'install',
+              onPress: () => v.act.install(row.id),
+            })}
+        {KeyButton(v, {
+          action: 'copy',
+          on: 'discover-detail',
+          label: 'copy id',
+          onPress: press => v.act.copy(row.id, press.surface),
+        })}
+      </Box>
       {row.blurb === '' ? null : <Text>{row.blurb}</Text>}
       <Text dimColor wrap="truncate-end">
         from {row.source}

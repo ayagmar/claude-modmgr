@@ -1697,7 +1697,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": "            detector: 205 of 205 c… "
+          "text": "            detector: 5 mods found… "
         },
         {
           "dim": true,

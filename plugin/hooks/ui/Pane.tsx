@@ -151,6 +151,20 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // stacked, the footer carries them until Enter opens the detail.
   const itemKeys = !split && top === undefined
 
+  const tabs: readonly { readonly tab: View['tab']; readonly label: string }[] = [
+    { tab: 'installed', label: 'Installed' },
+    { tab: 'discover', label: 'Discover' },
+    { tab: 'dev', label: 'Dev' },
+    { tab: 'health', label: problems === 0 ? 'Health' : `Health ${GLYPH.problem}${problems}` },
+  ]
+  // The tab row's width: a shown tab is its label, another `n: label`. When it
+  // and `r: refresh` don't fit, the tabs close up and refresh joins the footer.
+  const tabsWidth = tabs.reduce(
+    (sum, { tab, label }) => sum + label.length + (view.tab === tab ? 0 : 3),
+    0,
+  )
+  const narrowHeader =
+    tabsWidth + 3 * (tabs.length - 1) + 2 + 'r: refresh'.length > frame.bodyColumns
   // The footer's keys: the actions of the moment. Every key is drawn where it
   // belongs (tabs, refresh, search, pager, footer): a hotkey needs a Button,
   // and every Button is a stop of the Tab ring, so none is hidden.
@@ -204,6 +218,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   }
   if (top === undefined && health && !readOnly) {
     add({ action: 'reload', label: 'reload', onPress: () => v.act.reload() })
+  }
+  if (top === undefined && narrowHeader) {
+    add({ action: 'refresh', label: 'refresh', onPress: () => v.act.refresh() })
   }
   // `v` is Dev's validate: a waiting command is reviewed from Installed or Discover.
   if (top === undefined && stopped !== undefined && !dev) {
@@ -268,6 +285,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       window,
       focusKey: devRow?.key,
       loading: devState.loading && devState.at === undefined,
+      beside: split,
     })
   } else if (discover) {
     // Stacked, each entry takes two rows: its name, then what it says it does.
@@ -305,6 +323,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       focusId: selected?.id,
       loading: sync.at === undefined && sync.error === undefined,
       total: mods.length,
+      beside: split,
     })
   }
 
@@ -345,23 +364,22 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     return null
   }
 
-  const detailHow = (actions: boolean) => ({
+  const detailHow = {
     row: selected,
     detail,
     staged: changing,
     view,
-    actions,
     readOnly,
     rows: listRows,
-  })
-  const detailOf = (actions: boolean) =>
+  }
+  const detailView = () =>
     discover
-      ? FoundDetail(v, found, { actions, readOnly })
+      ? FoundDetail(v, found, { readOnly })
       : dev
-        ? DevDetail(v, devRow, { ...devHow, actions, readOnly })
+        ? DevDetail(v, devRow, { ...devHow, readOnly })
         : health
-          ? HealthItemDetail(v, item, { actions })
-          : Detail(v, detailHow(actions))
+          ? HealthItemDetail(v, item)
+          : Detail(v, detailHow)
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
     which === 'review' && review !== null
@@ -376,12 +394,12 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
               ? welcomeRows
               : which === 'detail'
                 ? discover
-                  ? foundDetailRows(found, true)
+                  ? foundDetailRows(found)
                   : dev
-                    ? devDetailRows(devRow, devHow, true, frame.bodyColumns)
+                    ? devDetailRows(devRow, devHow, frame.bodyColumns)
                     : health
                       ? healthDetailRows(item, frame.bodyColumns)
-                      : detailRows(detailHow(true))
+                      : detailRows(detailHow)
                 : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
@@ -416,14 +434,14 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         </Box>
         <Box flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden">
           <Box flexDirection="column" flexShrink={0}>
-            {overlay(top) ?? detailOf(true)}
+            {overlay(top) ?? detailView()}
           </Box>
         </Box>
       </Box>
     ) : top === undefined ? (
       list
     ) : top === 'detail' ? (
-      clipped(detailOf(true), overlayRows(top))
+      clipped(detailView(), overlayRows(top))
     ) : (
       clipped(overlay(top) ?? list, overlayRows(top))
     )
@@ -431,12 +449,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const button = (key: Key) =>
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress })
   const on = mods.filter(row => row.enabled).length
-  const tabs: readonly { readonly tab: View['tab']; readonly label: string }[] = [
-    { tab: 'installed', label: 'Installed' },
-    { tab: 'discover', label: 'Discover' },
-    { tab: 'dev', label: 'Dev' },
-    { tab: 'health', label: problems === 0 ? 'Health' : `Health ${GLYPH.problem}${problems}` },
-  ]
   // The tab shown is a title; the others are its number keys.
   const tabRow = tabs.map(({ tab, label }) =>
     view.tab === tab ? (
@@ -518,7 +530,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   return (
     <Box flexDirection="column" height={frame.bodyRows}>
       <Box flexDirection="row" justifyContent="space-between" height={1} overflow="hidden">
-        <Box flexDirection="row" columnGap={3} flexShrink={1}>
+        <Box flexDirection="row" columnGap={narrowHeader ? 2 : 3} flexShrink={1}>
           {tabRow}
         </Box>
         <Box flexDirection="row" columnGap={1} flexShrink={0}>
@@ -527,7 +539,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           ) : installed && sync.error !== undefined ? (
             <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh</Text>
           ) : null}
-          {top === undefined
+          {top === undefined && !narrowHeader
             ? KeyButton(v, {
                 action: 'refresh',
                 on: surface,

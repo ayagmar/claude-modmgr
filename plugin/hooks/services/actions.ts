@@ -92,6 +92,11 @@ export type Actions = {
   focusRow(id: string): Promise<void>
   /** Enter on a row: its detail. */
   open(id: string): Promise<void>
+  /**
+   * Enter on a row whose detail is already beside the list: the ring moves onto
+   * the detail's first key. Nothing is pushed, so Esc has nothing hidden to pop.
+   */
+  toDetail(): Promise<void>
   /** Pops the top overlay (a review popped is a review cancelled). */
   back(): Promise<void>
   /** Stages a toggle of the selected mod, or of `id`. */
@@ -155,7 +160,7 @@ export type Actions = {
   share(key?: string): Promise<void>
   /** The ring landed on a Health item: it becomes Health's selection. */
   focusHealth(key: string): Promise<void>
-  /** Enter on a Health item, split: its fix. */
+  /** A Health item's fix: its button in the detail. */
   fix(key: string): Promise<void>
   /** Enter on a Health item, stacked: the item whole (its row is clipped), its fix a button. */
   openHealth(key: string): Promise<void>
@@ -381,6 +386,14 @@ export const createActions = (
       if (view.selected === id) return
       await setView(current => ({ ...quiet(current), selected: id }))
       await select(id)
+    }),
+
+    toDetail: safely('to detail', async () => {
+      const { tab } = await state.read('view')
+      if (tab === 'discover') return ringTo('act:install', 'act:copy')
+      if (tab === 'dev') return ringTo('act:validate', 'act:copy')
+      if (tab === 'health') return ringTo('act:fix')
+      return ringTo('act:toggle', 'act:copy')
     }),
 
     open: safely('open', async id => {

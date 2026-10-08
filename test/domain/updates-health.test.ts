@@ -266,7 +266,16 @@ describe('Health’s items', () => {
       'update checks are off: updateCheckHours is 0',
     )
     expect(texts({})).toContain(
-      'detector: 120 of 3,545 checked, 3 mods found, 560 requests left this session',
+      'detector: 3 mods found; 120 of 3,545 checked, 560 requests left this session',
+    )
+    const indexed = healthItemsOf(
+      input({
+        facts: facts({ at: 10 * 3_600_000 }),
+        detect: { checked: 3545, total: 3545, found: 53, running: false, indexAt: 7 * 3_600_000 },
+      }),
+    )
+    expect(indexed.map(item => item.text)).toContain(
+      'detector: 53 mods found, from the catalogue index built 3 h ago; 3,545 of 3,545 checked, 560 requests left this session',
     )
     expect(texts({})).toContain('cache: 2 KB')
     const fresh = healthItemsOf(

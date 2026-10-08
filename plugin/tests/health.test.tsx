@@ -84,7 +84,19 @@ test('Health’s reload fix queues a reload, and its own state says the cache an
     await ui.find({ type: 'Button', text: /^updates checked never, every 6 hours$/ }),
   ).toBeDefined()
   expect(await ui.find({ type: 'Button', text: /^cache: / })).toBeDefined()
+  // The ring on the item selects it; beside the list, Enter on the row moves
+  // onto the detail's fix, and the fix runs it.
+  await $.ui.focus({
+    component: 'Pane',
+    requestId: 'modmgr',
+    plugin: 'modmgr',
+    element: 'health:own:reload',
+    origin: { kind: 'person' },
+  })
   await ui.press({ key: 'health:own:reload' })
+  await ui.redraw()
+  expect(h.reloads()).toBe(0)
+  await ui.press({ key: 'act:fix' })
   await h.clock.advance(1)
   await h.clock.advance(1500)
   expect(h.reloads()).toBe(1)

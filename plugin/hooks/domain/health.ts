@@ -218,6 +218,11 @@ const ownItems = (input: HealthInput): HealthItem[] => {
         : {}),
     })
   const left = Math.max(0, facts.detector.budget - facts.detector.spent)
+  // Where Discover's kinds came from: the catalogue index (and how old it is), then checks here.
+  const index =
+    detect.indexAt === undefined || facts.at === undefined
+      ? ''
+      : `, from the catalogue index built ${agoLabel(facts.at - detect.indexAt)}`
   own({
     key: 'own:detector',
     tone: 'info',
@@ -225,7 +230,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       detect.total === 0
         ? 'detector: not run yet; it starts when Discover opens'
         : facts.detector.remote
-          ? `detector: ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${detect.found} mods found, ${left} requests left this session`
+          ? `detector: ${detect.found} mods found${index}; ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${left} requests left this session`
           : `detector: local catalogues only (${facts.detector.why ?? 'remote checks are off'}); ${detect.found} mods found`,
   })
   if (!facts.cache.full) {

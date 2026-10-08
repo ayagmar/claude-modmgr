@@ -177,7 +177,10 @@ export const detectLine = (detect: {
   if (detect.total === 0) return undefined
   const n = (value: number) => value.toLocaleString('en-US')
   const mods = `${n(detect.found)} ${detect.found === 1 ? 'mod' : 'mods'}`
-  if (detect.running) return `${mods} so far · checking ${n(detect.checked)} of ${n(detect.total)}`
+  if (detect.running)
+    return detect.checked === 0
+      ? `checking ${n(detect.total)} entries…`
+      : `${mods} so far · checking ${n(detect.checked)} of ${n(detect.total)}`
   if (detect.checked >= detect.total) return mods
   return `${mods} among ${n(detect.checked)} of ${n(detect.total)} checked`
 }

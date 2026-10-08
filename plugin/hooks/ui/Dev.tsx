@@ -51,7 +51,7 @@ const marksOf = (row: DevRow, how: DevHow): RunMark[] => {
 export const DevLine = (
   v: ViewPorts,
   row: DevRow,
-  how: DevHow & { readonly columns: number; readonly focus: boolean },
+  how: DevHow & { readonly columns: number; readonly focus: boolean; readonly beside: boolean },
 ): RenderElement => {
   const { Box, Button, Text } = v.el
   const wide = how.columns >= 60
@@ -68,7 +68,7 @@ export const DevLine = (
           plain
           label={sanitize(row.name, { max: name })}
           {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => v.act.openDev(row.key)}
+          onPress={() => (how.beside ? v.act.toDetail() : v.act.openDev(row.key))}
         />
       </Box>
       {wide ? (
@@ -98,6 +98,7 @@ export const DevList = (
     readonly window: Window
     readonly focusKey: string | undefined
     readonly loading: boolean
+    readonly beside: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
@@ -126,6 +127,7 @@ export const DevList = (
           failures: how.failures,
           columns: how.columns,
           focus: row.key === how.focusKey,
+          beside: how.beside,
         }),
       )}
     </Box>
@@ -177,24 +179,19 @@ const detailLines = (row: DevRow, how: DevHow): DetailLine[] => {
 }
 
 /** The rows the dev detail takes at `columns` (Pane clips a taller one to the body). */
-export const devDetailRows = (
-  row: DevRow | undefined,
-  how: DevHow,
-  actions: boolean,
-  columns: number,
-): number => {
+export const devDetailRows = (row: DevRow | undefined, how: DevHow, columns: number): number => {
   if (row === undefined) return 1
   const lines = detailLines(row, how)
   const prose = lines.filter(line => line.output !== true).map(line => line.text)
   // The keys row: four labels at most, wrapping like the footer's.
-  const keys = actions ? wrappedRows(['v: validate  t: test  c: copy path  p: share'], columns) : 0
+  const keys = wrappedRows(['v: validate  t: test  c: copy path  p: share'], columns)
   return 1 + keys + wrappedRows(prose, columns) + (lines.length - prose.length)
 }
 
 export const DevDetail = (
   v: ViewPorts,
   row: DevRow | undefined,
-  how: DevHow & { readonly actions: boolean; readonly readOnly: boolean },
+  how: DevHow & { readonly readOnly: boolean },
 ): RenderElement => {
   const { Box, Text } = v.el
   if (row === undefined) return <Text dimColor>Select a mod to see more.</Text>
@@ -206,38 +203,36 @@ export const DevDetail = (
         <Text bold>{sanitize(row.name, { max: 64 })}</Text>
         <Text dimColor>{row.version === undefined ? '' : sanitize(row.version, { max: 20 })}</Text>
       </Box>
-      {how.actions ? (
-        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {runs
-            ? KeyButton(v, {
-                action: 'validate',
-                on: 'dev-detail',
-                label: 'validate',
-                onPress: () => v.act.devRun('validate', row.key),
-              })
-            : null}
-          {runs
-            ? KeyButton(v, {
-                action: 'test',
-                on: 'dev-detail',
-                label: 'test',
-                onPress: () => v.act.devRun('test', row.key),
-              })
-            : null}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'dev-detail',
-            label: 'copy path',
-            onPress: press => v.act.copy(path, press.surface),
-          })}
-          {KeyButton(v, {
-            action: 'share',
-            on: 'dev-detail',
-            label: 'share',
-            onPress: () => v.act.share(row.key),
-          })}
-        </Box>
-      ) : null}
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+        {runs
+          ? KeyButton(v, {
+              action: 'validate',
+              on: 'dev-detail',
+              label: 'validate',
+              onPress: () => v.act.devRun('validate', row.key),
+            })
+          : null}
+        {runs
+          ? KeyButton(v, {
+              action: 'test',
+              on: 'dev-detail',
+              label: 'test',
+              onPress: () => v.act.devRun('test', row.key),
+            })
+          : null}
+        {KeyButton(v, {
+          action: 'copy',
+          on: 'dev-detail',
+          label: 'copy path',
+          onPress: press => v.act.copy(path, press.surface),
+        })}
+        {KeyButton(v, {
+          action: 'share',
+          on: 'dev-detail',
+          label: 'share',
+          onPress: () => v.act.share(row.key),
+        })}
+      </Box>
       {detailLines(row, how).map((line, index) => {
         const wrap = line.output === true ? ('truncate-end' as const) : ('wrap' as const)
         return line.tone === undefined ? (

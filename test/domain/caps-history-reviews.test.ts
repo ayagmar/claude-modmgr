@@ -442,7 +442,10 @@ describe('layout helpers', () => {
     expect(footerRowsFor([], 64)).toBe(1)
     expect(footerRowsFor([10, 10, 10], 34)).toBe(1)
     expect(footerRowsFor([10, 10, 10], 33)).toBe(2)
-    expect(footerRowsFor([40, 40], 30)).toBe(2)
+    // A label wider than the line wraps inside itself, and the next starts below it.
+    expect(footerRowsFor([22], 17)).toBe(2)
+    expect(footerRowsFor([5, 22, 5], 17)).toBe(4)
+    expect(footerRowsFor([40, 40], 30)).toBe(4)
   })
 
   it('reads a size', () => {

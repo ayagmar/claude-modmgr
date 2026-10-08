@@ -21,8 +21,6 @@ export type DetailHow = {
   /** The ids whose staged entry still changes something (`stagedIds`). */
   readonly staged: ReadonlySet<string>
   readonly view: View
-  /** Draw the action keys (the overlay is on top), not just the facts (a split's preview). */
-  readonly actions: boolean
   readonly readOnly: boolean
   /** Rows the body has: past them the reach groups draw one line each. */
   readonly rows: number
@@ -55,9 +53,9 @@ const fullRows = (how: DetailHow): number => {
   const staged = how.staged.has(row.id)
   const head =
     2 +
-    (how.actions ? 1 : 0) +
+    1 +
     (whyLocked(row) === undefined ? 0 : 1) +
-    (how.actions && updateNote(row) !== undefined ? 1 : 0) +
+    (updateNote(row) !== undefined ? 1 : 0) +
     (staged ? 1 : 0)
   if (detail === null) return head + 1
   const fresh = newFor(detail)
@@ -134,46 +132,44 @@ export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
           · {row.scope ?? row.origin} · {sanitize(marketplace, { max: 64 })}
         </Text>
       </Box>
-      {how.actions ? (
-        <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {how.readOnly || locked !== undefined
-            ? null
-            : KeyButton(v, {
-                action: 'toggle',
-                on: 'detail',
-                label: toggleLabel,
-                onPress: () => v.act.toggle(row.id),
-              })}
-          {how.readOnly || whyNoUpdate(row) !== undefined
-            ? null
-            : KeyButton(v, {
-                action: 'update',
-                on: 'detail',
-                label: 'update',
-                onPress: () => v.act.update(row.id),
-              })}
-          {how.readOnly || whyNoRemove(row) !== undefined
-            ? null
-            : KeyButton(v, {
-                action: 'remove',
-                on: 'detail',
-                label: 'remove',
-                onPress: () => v.act.remove(row.id),
-              })}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'detail',
-            label: 'copy id',
-            onPress: press => v.act.copy(row.id, press.surface),
-          })}
-        </Box>
-      ) : null}
+      <Box flexDirection="row" columnGap={2} flexWrap="wrap">
+        {how.readOnly || locked !== undefined
+          ? null
+          : KeyButton(v, {
+              action: 'toggle',
+              on: 'detail',
+              label: toggleLabel,
+              onPress: () => v.act.toggle(row.id),
+            })}
+        {how.readOnly || whyNoUpdate(row) !== undefined
+          ? null
+          : KeyButton(v, {
+              action: 'update',
+              on: 'detail',
+              label: 'update',
+              onPress: () => v.act.update(row.id),
+            })}
+        {how.readOnly || whyNoRemove(row) !== undefined
+          ? null
+          : KeyButton(v, {
+              action: 'remove',
+              on: 'detail',
+              label: 'remove',
+              onPress: () => v.act.remove(row.id),
+            })}
+        {KeyButton(v, {
+          action: 'copy',
+          on: 'detail',
+          label: 'copy id',
+          onPress: press => v.act.copy(row.id, press.surface),
+        })}
+      </Box>
       {locked === undefined ? null : (
         <Text color={TONE.warn}>
           {GLYPH.locked} {locked}
         </Text>
       )}
-      {how.actions && updateNote(row) !== undefined ? (
+      {updateNote(row) !== undefined ? (
         <Text dimColor wrap="truncate-end">
           {GLYPH.update} {updateNote(row)}
         </Text>
