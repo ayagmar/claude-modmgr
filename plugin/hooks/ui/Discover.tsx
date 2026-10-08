@@ -12,6 +12,7 @@ import { type Window, wrappedRows } from '../domain/view.ts'
 import {
   GLYPH,
   Heading,
+  HiddenRows,
   KeyButton,
   Pointer,
   type Section,
@@ -23,6 +24,29 @@ import {
 
 /** Cells for the install count at a row's end (`12.3k`). */
 const INSTALLS = 5
+
+/** An entry's Button: Enter opens the detail, or moves onto it beside the list. */
+const foundButton = (
+  v: ViewPorts,
+  row: CatalogRow,
+  how: {
+    readonly label: string
+    readonly max: number
+    readonly focus: boolean
+    readonly beside: boolean
+  },
+): RenderElement => {
+  const { Button } = v.el
+  return (
+    <Button
+      key={foundKey(row.id)}
+      plain
+      label={sanitize(how.label, { max: how.max })}
+      {...(how.focus ? { autoFocus: true as const } : {})}
+      onPress={() => (how.beside ? v.act.toDetail() : v.act.openFound(row.id))}
+    />
+  )
+}
 
 export const FoundRow = (
   v: ViewPorts,
@@ -36,7 +60,7 @@ export const FoundRow = (
     readonly twin: boolean
   },
 ): RenderElement => {
-  const { Box, Button, Text } = v.el
+  const { Box, Text } = v.el
   const name = Math.max(8, how.columns - 2 - 1 - INSTALLS)
   const label = how.twin ? `${row.name} · ${row.marketplace}` : row.name
   const installs = row.installs === undefined ? '' : formatCount(row.installs)
@@ -46,13 +70,7 @@ export const FoundRow = (
       <Box flexDirection="row" gap={1}>
         {Pointer(v, how.focus)}
         <Box width={name} flexShrink={0}>
-          <Button
-            key={foundKey(row.id)}
-            plain
-            label={sanitize(label, { max: name })}
-            {...(how.focus ? { autoFocus: true as const } : {})}
-            onPress={() => (how.beside ? v.act.toDetail() : v.act.openFound(row.id))}
-          />
+          {foundButton(v, row, { label, max: name, focus: how.focus, beside: how.beside })}
         </Box>
         <Box width={INSTALLS} flexShrink={0} justifyContent="flex-end">
           <Text dimColor>{installs}</Text>
@@ -114,8 +132,16 @@ export const FoundList = (
   // Names the rows held share, counted once.
   const named = new Map<string, number>()
   for (const row of page.rows) named.set(row.name, (named.get(row.name) ?? 0) + 1)
+  const hidden = (shown: readonly CatalogRow[]) =>
+    HiddenRows(
+      v,
+      shown.map(row =>
+        foundButton(v, row, { label: row.name, max: 64, focus: false, beside: how.beside }),
+      ),
+    )
   return (
     <Box flexDirection="column">
+      {hidden(page.rows.slice(0, how.window.start))}
       {page.rows.slice(how.window.start, how.window.end).map(row =>
         FoundRow(v, row, {
           twin: (named.get(row.name) ?? 0) > 1,
@@ -124,6 +150,7 @@ export const FoundList = (
           beside: how.beside,
         }),
       )}
+      {hidden(page.rows.slice(how.window.end))}
     </Box>
   )
 }

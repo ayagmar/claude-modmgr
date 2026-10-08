@@ -6,7 +6,7 @@ import type { RenderElement } from 'claude-code'
 import type { ModRow, View } from '../../types/index.d.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { rowKey, type Window, whyLocked } from '../domain/view.ts'
-import { GLYPH, Pointer, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, HiddenRows, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 /** Cells kept for the flags at a row's end (`→ off ▲2 ◆3`). */
 const FLAGS = 16
@@ -40,6 +40,24 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   return flags
 }
 
+/** A row's Button: its name; Enter opens the detail, or moves onto it beside the list. */
+const rowButton = (
+  v: ViewPorts,
+  row: ModRow,
+  how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
+): RenderElement => {
+  const { Button } = v.el
+  return (
+    <Button
+      key={rowKey(row.id)}
+      plain
+      label={sanitize(row.name, { max: how.max })}
+      {...(how.focus ? { autoFocus: true as const } : {})}
+      onPress={() => (how.beside ? v.act.toDetail() : v.act.open(row.id))}
+    />
+  )
+}
+
 export const Row = (
   v: ViewPorts,
   row: ModRow,
@@ -52,23 +70,16 @@ export const Row = (
     readonly beside: boolean
   },
 ): RenderElement => {
-  const { Box, Button, Text } = v.el
+  const { Box, Text } = v.el
   // Only an entry that still changes the row is drawn.
   const staged = how.staged.has(row.id) ? how.view.staged[row.id] : undefined
   const cols = rowColumns(how.columns)
-  const name = sanitize(row.name, { max: cols.name })
   return (
     <Box key={`line:${row.id}`} flexDirection="row" gap={1}>
       {Pointer(v, how.focus)}
       <Text color={row.enabled ? TONE.ok : TONE.muted}>{row.enabled ? GLYPH.on : GLYPH.off}</Text>
       <Box width={cols.name} flexShrink={0}>
-        <Button
-          key={rowKey(row.id)}
-          plain
-          label={name}
-          {...(how.focus ? { autoFocus: true as const } : {})}
-          onPress={() => (how.beside ? v.act.toDetail() : v.act.open(row.id))}
-        />
+        {rowButton(v, row, { max: cols.name, focus: how.focus, beside: how.beside })}
       </Box>
       {cols.meta ? (
         <Box width={10} flexShrink={0}>
@@ -128,8 +139,14 @@ export const List = (
       </Box>
     )
   }
+  const hidden = (shown: readonly ModRow[]) =>
+    HiddenRows(
+      v,
+      shown.map(row => rowButton(v, row, { max: 64, focus: false, beside: how.beside })),
+    )
   return (
     <Box flexDirection="column">
+      {hidden(rows.slice(0, how.window.start))}
       {rows.slice(how.window.start, how.window.end).map(row =>
         Row(v, row, {
           view: how.view,
@@ -139,6 +156,7 @@ export const List = (
           beside: how.beside,
         }),
       )}
+      {hidden(rows.slice(how.window.end))}
     </Box>
   )
 }

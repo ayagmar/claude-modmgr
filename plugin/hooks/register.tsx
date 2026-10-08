@@ -348,19 +348,27 @@ export const register: Register = (on, options) => {
   // validator names it, and scripts/validate-plugin.ts allows these two gates
   // only on modmgr's own pane.
 
-  // The ring landing on a row makes it the selection (the window and the split follow).
+  // The ring landing on a row makes it the selection (the window and the split
+  // follow). Selected as the ring moves, not after it, so the row's mark and the
+  // detail are drawn with the ring instead of a frame behind it.
   on('ui.focus', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
-    const moved = await next(e)
-    if (moved.deny !== undefined) return moved
     const id = rowOfKey(e.element)
     const found = foundOfKey(e.element)
     const dev = devOfKey(e.element)
     const item = healthOfKey(e.element)
-    noteRing(e.element)
-    if (id !== undefined) await actionsOf($).focusRow(id)
-    else if (found !== undefined) await actionsOf($).focusFound(found)
-    else if (dev !== undefined) await actionsOf($).focusDev(dev)
-    else if (item !== undefined) await actionsOf($).focusHealth(item)
+    const act = actionsOf($)
+    const selecting =
+      id !== undefined
+        ? act.focusRow(id)
+        : found !== undefined
+          ? act.focusFound(found)
+          : dev !== undefined
+            ? act.focusDev(dev)
+            : item !== undefined
+              ? act.focusHealth(item)
+              : Promise.resolve()
+    const [moved] = await Promise.all([next(e), selecting])
+    if (moved.deny === undefined) noteRing(e.element)
     return moved
   }).catch((_$, e, next) => next(e))
 

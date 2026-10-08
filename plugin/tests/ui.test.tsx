@@ -291,21 +291,31 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
     // terminal, the module's first draw, and 3 ms on desktop). The bound only
     // catches a gross regression: a GitHub runner's first paint took 229 ms.
     expect(paint).toBeLessThan(500)
-    const drawn = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
-    expect(drawn.length).toBeGreaterThan(5)
-    expect(drawn.length).toBeLessThan(20)
+    // A row in the window is drawn whole (its line); every other one stays a
+    // hidden Button, so the ring's stops are the same whatever the window shows.
+    const lines = async () =>
+      (await ui.findAll({ type: 'Box' }))
+        .map(box => box.key)
+        .filter(key => key?.startsWith('line:'))
+    const shown = await lines()
+    expect(shown.length).toBeGreaterThan(5)
+    expect(shown.length).toBeLessThan(20)
+    const stops = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
+    expect(stops).toHaveLength(200)
     expect(await ui.find({ type: 'Text', text: /^1–\d+ of 200$/ })).toBeDefined()
     await focusRow($, 'mod-100@m')
     await ui.redraw()
-    const moved = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
-    expect(moved.map(row => row.key)).toContain('row:mod-099@m')
-    expect(moved.map(row => row.key)).toContain('row:mod-101@m')
+    expect(await lines()).toContain('line:mod-099@m')
+    expect(await lines()).toContain('line:mod-101@m')
+    expect(
+      (await ui.findAll({ type: 'Button' })).map(b => b.key).filter(k => k?.startsWith('row:')),
+    ).toEqual(stops.map(b => b.key))
     // `g`/`b` move the selection (and the ring, once the row is drawn: in a session
     // the write redraws at once; here the redraw is the test's).
     await ui.press({ key: 'act:page.last' })
     expect((h.read('view') as { selected: string }).selected).toBe('mod-199@m')
     await ui.redraw()
-    expect(await ui.find({ key: 'row:mod-199@m' })).toBeDefined()
+    expect(await lines()).toContain('line:mod-199@m')
     expect(await ui.find({ type: 'Text', text: /^\d+–200 of 200$/ })).toBeDefined()
     await ui.press({ key: 'act:page.first' })
     expect((h.read('view') as { selected: string }).selected).toBe('mod-000@m')
