@@ -288,9 +288,9 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
     })
     const paint = Date.now() - started
     // The budget for the first paint is 50 ms (measured 2026-10-07: 37 ms on the
-    // terminal, the module's first draw, and 3 ms on desktop). The bound leaves room
-    // for a loaded CI runner.
-    expect(paint).toBeLessThan(150)
+    // terminal, the module's first draw, and 3 ms on desktop). The bound only
+    // catches a gross regression: a GitHub runner's first paint took 229 ms.
+    expect(paint).toBeLessThan(500)
     const drawn = (await ui.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('row:'))
     expect(drawn.length).toBeGreaterThan(5)
     expect(drawn.length).toBeLessThan(20)
