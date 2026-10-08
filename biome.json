@@ -9,7 +9,6 @@
     "includes": [
       "**",
       "!vendor",
-      "!docs/spikes",
       "!test/fixture-mods",
       "!plugin/hooks/domain/explanations.ts",
       "!plugin/tests/fixtures.ts",

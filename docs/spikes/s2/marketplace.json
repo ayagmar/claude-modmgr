@@ -1,3 +1,0 @@
-{ "name": "s2mkt", "owner": {"name":"t"}, "description": "s2", "plugins": [
-  { "name": "cmdmod", "description": "s2 command source v2", "source": { "source": "command", "command": "/tmp/claude-1000/-home-ayagmar-projects-modmgr/6702c786-d394-4f90-8ffb-9384c7ad6b08/scratchpad/s2/emit.sh" } }
-]}
