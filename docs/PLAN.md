@@ -998,3 +998,15 @@ Pushes and GitHub actions still need the person's go-ahead.
   (the page links only to the repository).
 - **Deploy**: `.github/workflows/pages.yml` builds and deploys to GitHub Pages from `main`. It runs only once the
   repository is pushed and Pages is enabled, which waits for the person's go-ahead.
+
+**C18. Release 0.1.0 (M8, applied 2026-10-08).**
+- **Version**: 0.1.0 in `plugin.json` and the marketplace entry; the CHANGELOG's `[Unreleased]` became `[0.1.0]`.
+- **Release workflow**: `.github/workflows/release.yml` runs on a `modmgr--v*` tag (what `claude plugin tag` makes),
+  runs the gate on the pinned Claude Code build, and publishes a GitHub release whose notes are that version's
+  CHANGELOG section (it fails when the section is missing). CONTRIBUTING has the steps.
+- **README**: frames from `site/src/data/demo.ts` (the same ones the site draws, so they can't drift) instead of GIFs:
+  a GIF of a terminal would need recording a real session with real mods and would go stale on the next change.
+- **Not done here, waiting for the person's go-ahead**: creating the GitHub repository, pushing, the real tag and
+  release, enabling Pages, and submitting to community marketplaces. PLAN §10's M8 check (`/plugin install` from
+  `ayagmar/modmgr` on a clean `CLAUDE_CONFIG_DIR`) needs the pushed repository; until then it was checked against the
+  local marketplace (`claude plugin marketplace add .` on a throwaway config dir).
