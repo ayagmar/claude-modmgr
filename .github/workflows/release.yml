@@ -1,8 +1,8 @@
 name: release
 
-# A release: `claude plugin tag plugin` makes a `modmgr--v<version>` tag
-# once plugin.json and the marketplace entry agree; pushing it runs this, which
-# runs the gate again and publishes the CHANGELOG's section as the release.
+# A release: `claude plugin tag plugin` makes a `modmgr--v<version>` tag from
+# plugin.json's version; pushing it runs this, which runs the gate again and
+# publishes the CHANGELOG's section as the release.
 on:
   push:
     tags: ['modmgr--v*']
