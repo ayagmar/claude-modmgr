@@ -24,6 +24,7 @@ import {
   HiddenRows,
   KeyButton,
   LabelRow,
+  ListButton,
   Pointer,
   type Section,
   Sections,
@@ -60,26 +61,17 @@ const devButton = (
   v: ViewPorts,
   row: DevRow,
   how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
-): RenderElement => {
-  const { Button } = v.el
-  return (
-    <Button
-      key={devKey(row.key)}
-      plain
-      label={sanitize(row.name, { max: how.max })}
-      {...(how.focus ? { autoFocus: true as const } : {})}
-      // Beside the detail: the terminal's ring already selected the row, so a
-      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
-      onPress={press =>
-        !how.beside
-          ? v.act.openDev(row.key)
-          : press.surface === 'terminal'
-            ? v.act.toDetail()
-            : v.act.focusDev(row.key)
-      }
-    />
+): RenderElement =>
+  ListButton(
+    v,
+    {
+      key: devKey(row.key),
+      label: row.name,
+      open: () => v.act.openDev(row.key),
+      select: () => v.act.focusDev(row.key),
+    },
+    how,
   )
-}
 
 export const DevLine = (
   v: ViewPorts,

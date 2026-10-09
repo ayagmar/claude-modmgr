@@ -6,7 +6,7 @@ import type { RenderElement } from 'claude-code'
 import type { ModRow, View } from '../../types/index.d.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { rowKey, type Window, whyLocked } from '../domain/view.ts'
-import { GLYPH, HiddenRows, Pointer, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, HiddenRows, ListButton, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 /** Cells kept for the flags at a row's end (`→ off ▲2 ◆3`). */
 const FLAGS = 16
@@ -45,26 +45,17 @@ const rowButton = (
   v: ViewPorts,
   row: ModRow,
   how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
-): RenderElement => {
-  const { Button } = v.el
-  return (
-    <Button
-      key={rowKey(row.id)}
-      plain
-      label={sanitize(row.name, { max: how.max })}
-      {...(how.focus ? { autoFocus: true as const } : {})}
-      // Beside the detail: the terminal's ring already selected the row, so a
-      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
-      onPress={press =>
-        !how.beside
-          ? v.act.open(row.id)
-          : press.surface === 'terminal'
-            ? v.act.toDetail()
-            : v.act.focusRow(row.id)
-      }
-    />
+): RenderElement =>
+  ListButton(
+    v,
+    {
+      key: rowKey(row.id),
+      label: row.name,
+      open: () => v.act.open(row.id),
+      select: () => v.act.focusRow(row.id),
+    },
+    how,
   )
-}
 
 export const Row = (
   v: ViewPorts,

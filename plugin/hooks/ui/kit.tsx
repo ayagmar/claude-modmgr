@@ -5,6 +5,7 @@
 
 import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
+import { sanitize } from '../domain/sanitize.ts'
 import type { StatePort } from '../ports.ts'
 import type { Actions } from '../services/actions.ts'
 
@@ -83,6 +84,36 @@ export const Pointer = (v: ViewPorts, on: boolean): RenderElement => {
     <Box width={1} flexShrink={0}>
       {on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>}
     </Box>
+  )
+}
+
+/** What a list row's Button names and does: open its detail, or select it. */
+export type ListItem = {
+  readonly key: string
+  readonly label: string
+  readonly open: () => Promise<void>
+  readonly select: () => Promise<void>
+}
+
+/** A list row's Button: its name; Enter opens the detail, or moves onto it beside the list. */
+export const ListButton = (
+  v: ViewPorts,
+  item: ListItem,
+  how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
+): RenderElement => {
+  const { Button } = v.el
+  return (
+    <Button
+      key={item.key}
+      plain
+      label={sanitize(item.label, { max: how.max })}
+      {...(how.focus ? { autoFocus: true as const } : {})}
+      // Beside the detail: the terminal's ring already selected the row, so a
+      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
+      onPress={press =>
+        !how.beside ? item.open() : press.surface === 'terminal' ? v.act.toDetail() : item.select()
+      }
+    />
   )
 }
 

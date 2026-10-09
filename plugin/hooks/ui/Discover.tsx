@@ -15,6 +15,7 @@ import {
   Heading,
   HiddenRows,
   KeyButton,
+  ListButton,
   Pointer,
   type Section,
   Sections,
@@ -36,26 +37,17 @@ const foundButton = (
     readonly focus: boolean
     readonly beside: boolean
   },
-): RenderElement => {
-  const { Button } = v.el
-  return (
-    <Button
-      key={foundKey(row.id)}
-      plain
-      label={sanitize(how.label, { max: how.max })}
-      {...(how.focus ? { autoFocus: true as const } : {})}
-      // Beside the detail: the terminal's ring already selected the row, so a
-      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
-      onPress={press =>
-        !how.beside
-          ? v.act.openFound(row.id)
-          : press.surface === 'terminal'
-            ? v.act.toDetail()
-            : v.act.focusFound(row.id)
-      }
-    />
+): RenderElement =>
+  ListButton(
+    v,
+    {
+      key: foundKey(row.id),
+      label: how.label,
+      open: () => v.act.openFound(row.id),
+      select: () => v.act.focusFound(row.id),
+    },
+    how,
   )
-}
 
 export const FoundRow = (
   v: ViewPorts,
