@@ -194,3 +194,34 @@ describe('installing a community mod', () => {
     ])
   })
 })
+
+describe('one entry per folder', () => {
+  const shared = (marketplace: string, installs?: number): CatalogEntry => ({
+    id: `fakechat@${marketplace}` as CatalogEntry['id'],
+    name: 'fakechat',
+    description: '',
+    marketplace,
+    source:
+      marketplace === 'official'
+        ? { kind: 'relative', path: './external_plugins/fakechat' }
+        : {
+            kind: 'git-subdir',
+            url: 'https://github.com/anthropics/claude-plugins-official.git',
+            path: 'external_plugins/fakechat',
+          },
+    ...(installs === undefined ? {} : { installs }),
+  })
+
+  it('offers a plugin two catalogues list once, from the one that counts its installs', () => {
+    const index = buildIndex([shared('directory'), shared('official', 8778)], [], {
+      installed: new Set(),
+      marketplaceRepos: new Map([['official', 'anthropics/claude-plugins-official']]),
+    })
+    expect([...index.byId.keys()]).toEqual(['fakechat@official'])
+  })
+
+  it("keeps both when a marketplace's repository is unknown, rather than guess", () => {
+    const index = buildIndex([shared('directory'), shared('official', 8778)])
+    expect(index.size).toBe(2)
+  })
+})

@@ -71,11 +71,11 @@ describe('the catalogue', () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')
     // Mods only: nothing is known to be one yet.
-    expect(w.state.values.catalogPage).toMatchObject({ total: 201, matched: 0, rows: [] })
+    expect(w.state.values.catalogPage).toMatchObject({ total: 199, matched: 0, rows: [] })
     const mods = markMods(rt.store, rt.catalog)
     await rt.catalog.show()
     const page = w.state.values.catalogPage
-    expect(page.total).toBe(201)
+    expect(page.total).toBe(199)
     expect(page.matched).toBe(mods)
     expect(page.rows.length).toBeLessThanOrEqual(PAGE_SIZE)
     expect(page.loading).toBe(false)
@@ -125,7 +125,7 @@ describe('the catalogue', () => {
     w.process.when(['list', '--json', '--available'], out(runs['list-available'].stdout))
     await act.refresh()
     expect(w.state.values.catalogPage.error).toBeUndefined()
-    expect(w.state.values.catalogPage.total).toBe(201)
+    expect(w.state.values.catalogPage.total).toBe(199)
   })
 
   it('a local entry is read before installing: the detail and the review say what it can do', async () => {
@@ -188,8 +188,8 @@ describe('the detector', () => {
     expect(catalog.kindOf(AWS)).toBe('mod')
     expect(catalog.kindOf(SDK)).toBe('mod')
     expect(store.get('detect')[AWS]?.[0]).toBe('097fe8ad56d8a1d5e2c81d7880adf145553cf244')
-    // A command source can never be checked: it isn't counted.
-    expect(w.state.values.detect).toMatchObject({ found: 2, running: false, total: 200 })
+    // A command source can never be checked, and a plugin two catalogues share is one entry: neither is counted twice.
+    expect(w.state.values.detect).toMatchObject({ found: 2, running: false, total: 198 })
     // A 404 hooks.json falls back to the manifest.
     expect(w.http.gets).toContain(
       'https://raw.githubusercontent.com/42Crunch-AI/claude-plugins/faf5305385de8afed9468904e8639be737aff39e/plugins/api-security-testing/.claude-plugin/plugin.json',
