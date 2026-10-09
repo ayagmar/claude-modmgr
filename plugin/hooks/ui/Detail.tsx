@@ -34,7 +34,7 @@ const QUIET = new Set(['display'])
 
 /** Cells at most for the capability table's group and name columns. */
 const LABEL_MAX = 20
-const NAME_MAX = 20
+const NAME_MAX = 23
 
 export type DetailHow = {
   readonly row: ModRow | undefined
@@ -88,7 +88,12 @@ const notableSection = (
         items.map(item => item.text),
         columns - 2,
       ) +
-      (full ? items.length : 0),
+      (full
+        ? wrappedRows(
+            items.map(item => item.because.join(' ')),
+            columns - 2,
+          )
+        : 0),
     el: (
       <Box flexDirection="column">
         {heading}
@@ -100,9 +105,7 @@ const notableSection = (
             </Box>
             {full ? (
               <Box paddingLeft={2}>
-                <Text dimColor wrap="truncate-end">
-                  {item.because.join(' ')}
-                </Text>
+                <Text dimColor>{item.because.join(' ')}</Text>
               </Box>
             ) : null}
           </Box>
@@ -112,13 +115,22 @@ const notableSection = (
   }
 }
 
+/** A hook reads `on <event>`, as a module spells it, so it never passes for the call of that name. */
+const itemName = (item: ReachGroup['items'][number]): string =>
+  item.kind === 'event' ? `on ${item.name}` : item.name
+
 /**
  * Everything it hooks and calls, grouped by reach. In the full form each group
- * is named on its own row and each item follows on a row of its own, its name
- * in a column, then what it does; a group that only draws lists its names.
+ * is named on its own row and each item follows, its name in a column, then
+ * what it does, wrapped under itself; a group that only draws lists its names.
  * Compactly, a table: the reach in the first column, the names beside it.
  */
-const reachSection = (v: ViewPorts, groups: readonly ReachGroup[], full: boolean): Section => {
+const reachSection = (
+  v: ViewPorts,
+  groups: readonly ReachGroup[],
+  full: boolean,
+  columns: number,
+): Section => {
   const { Box, Text } = v.el
   const heading = Heading(v, 'What it can do')
   if (groups.length === 0) {
@@ -132,7 +144,7 @@ const reachSection = (v: ViewPorts, groups: readonly ReachGroup[], full: boolean
       ),
     }
   }
-  const names = (group: ReachGroup) => group.items.map(item => item.name).join(' ')
+  const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
     const label = Math.min(LABEL_MAX, Math.max(...groups.map(g => g.label.length)))
     return {
@@ -156,31 +168,39 @@ const reachSection = (v: ViewPorts, groups: readonly ReachGroup[], full: boolean
   }
   const name = Math.min(
     NAME_MAX,
-    Math.max(...groups.flatMap(g => g.items.map(item => item.name.length))),
+    Math.max(...groups.flatMap(g => g.items.map(item => itemName(item).length))),
   )
-  const lines = groups.flatMap(group => [
-    <Text>{group.label}</Text>,
-    ...(QUIET.has(group.reach)
-      ? [
-          <Box paddingLeft={2}>
-            <Text dimColor wrap="truncate-end">
-              {names(group)}
-            </Text>
-          </Box>,
-        ]
-      : group.items.map(item => (
-          <Box flexDirection="row" gap={1} paddingLeft={2}>
-            <Box width={name} flexShrink={0}>
-              <Text wrap="truncate-end">{item.name}</Text>
-            </Box>
-            <Text dimColor wrap="truncate-end">
-              {item.line}
-            </Text>
+  // What an item does wraps in the column beside its name.
+  const said = Math.max(10, columns - 2 - name - 1)
+  let rows = 1
+  const lines = groups.flatMap(group => {
+    rows += 1
+    if (QUIET.has(group.reach)) {
+      rows += wrappedRows([names(group)], columns - 2)
+      return [
+        <Text>{group.label}</Text>,
+        <Box paddingLeft={2}>
+          <Text dimColor>{names(group)}</Text>
+        </Box>,
+      ]
+    }
+    rows += group.items.reduce((sum, item) => sum + wrappedRows([item.line], said), 0)
+    return [
+      <Text>{group.label}</Text>,
+      ...group.items.map(item => (
+        <Box flexDirection="row" gap={1} paddingLeft={2}>
+          <Box width={name} flexShrink={0}>
+            <Text wrap="truncate-end">{itemName(item)}</Text>
           </Box>
-        ))),
-  ])
+          <Box width={said} flexShrink={0}>
+            <Text dimColor>{item.line}</Text>
+          </Box>
+        </Box>
+      )),
+    ]
+  })
   return {
-    rows: 1 + lines.length,
+    rows,
     el: (
       <Box flexDirection="column">
         {heading}
@@ -218,7 +238,9 @@ const bodySections = (
   if (old.length > 0) {
     sections.push(notableSection(v, Heading(v, 'Notable'), old, TONE.accent, full, columns))
   }
-  sections.push(reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full))
+  sections.push(
+    reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full, columns),
+  )
 
   const extras: string[] = []
   if (detail.mixedCounts !== undefined) {

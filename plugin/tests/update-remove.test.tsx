@@ -279,3 +279,35 @@ test('w wipes the data too, said on the confirm key; a appears with two updatabl
     await ui.unmount()
   }
 })
+
+test('a hook and a call of one name read apart', async ($, on) => {
+  host(on, {
+    state: {
+      mods: [ROW],
+      detail: {
+        ...ROW,
+        capsNew: undefined,
+        caps: {
+          events: ['command.run'],
+          calls: ['command.run'],
+          envReads: [],
+          reach: ['tools'],
+          notable: [],
+        },
+      },
+      view: {
+        tab: 'installed',
+        stack: [],
+        query: '',
+        sort: 'name',
+        staged: {},
+        selected: TURN_BAND,
+      },
+    },
+  })
+  await $.session.start(START)
+  const ui = await mountPane($, 'terminal', PANE(90, 40))
+  expect(await ui.find({ type: 'Text', text: 'on command.run' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'command.run' })).toBeDefined()
+  await ui.unmount()
+})
