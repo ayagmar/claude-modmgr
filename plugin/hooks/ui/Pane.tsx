@@ -30,7 +30,6 @@ import {
   MarketplaceForm,
   marketplaceRows,
   Review,
-  reviewRows,
   Welcome,
   welcomeRows,
 } from './overlays.tsx'
@@ -48,9 +47,13 @@ const NOT_YET: ReadonlySet<string> = new Set()
 /** From this many body rows the search field is drawn in a box. */
 const BOXED_FIELD_MIN_ROWS = 18
 
-/** The items one page of the list drawn last holds: what Page Up and Page Down move by. */
+/** What Page Up and Page Down move by: the items one page of the list drawn last holds, or the review's lines in view. */
 let lastPage = 1
 export const pageSize = (): number => lastPage
+
+/** The furthest line the review drawn last scrolls to. */
+let reviewLast = 0
+export const reviewEnd = (): number => reviewLast
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
   const [
@@ -238,7 +241,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
   const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
-    if (which === 'review' && review !== null) return Review(v, review, mods, { refused })
+    if (which === 'review' && drawnReview !== undefined) return drawnReview.el
     if (which === 'help') return Help(v, helpSurfaces, NOT_YET, frame.bodyColumns)
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     if (which === 'marketplace') return MarketplaceForm(v)
@@ -255,10 +258,28 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     rows: listRows - card,
     columns: beside ? frame.bodyColumns - listColumns - 3 - card : frame.bodyColumns,
   }
+  // The review in the window it has, beside the list or over it; the page keys
+  // and the wheel scroll it.
+  const drawnReview =
+    top === 'review' && review !== null
+      ? Review(
+          v,
+          review,
+          mods,
+          beside && !wide
+            ? { rows: sized.rows, columns: sized.columns, at: view.reviewAt ?? 0 }
+            : { rows: listRows, columns: frame.bodyColumns, at: view.reviewAt ?? 0 },
+          { refused },
+        )
+      : undefined
+  if (drawnReview !== undefined) {
+    lastPage = drawnReview.page
+    reviewLast = drawnReview.last
+  }
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
-    which === 'review' && review !== null
-      ? reviewRows(v, review, mods, frame.bodyColumns, { refused })
+    which === 'review' && drawnReview !== undefined
+      ? drawnReview.rows
       : which === 'help'
         ? helpRows(helpSurfaces, NOT_YET, frame.bodyColumns)
         : which === 'marketplace'

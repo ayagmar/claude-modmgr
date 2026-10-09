@@ -10,6 +10,7 @@ import { hasHiddenCharacters, sanitize } from '../domain/sanitize.ts'
 import {
   bytesLabel,
   commandLine,
+  lineWindow,
   marketplaceOf,
   nameOf,
   partsLabel,
@@ -53,10 +54,6 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
 /** A line of the review and its text, from which the rows it wraps to are counted. */
 type Line = { readonly el: RenderElement; readonly text: string }
 
-/**
- * The review's lines (Pane clips a taller review to the body). The keys come
- * right under the heading, so a clipped review keeps them.
- */
 /** What the review knows beyond the request: Claude Code refused an acceptance from here. */
 export type ReviewHow = { readonly refused: boolean }
 
@@ -69,6 +66,10 @@ const terminalCommand = (review: ReviewRequest): string | undefined => {
   return `claude plugin ${target.op === 'update' ? 'update' : 'install'} ${target.id}${scope}`
 }
 
+/**
+ * The review's lines. The heading and the keys come first: a review taller
+ * than its window keeps them and scrolls the rest.
+ */
 const reviewLines = (
   v: ViewPorts,
   review: ReviewRequest,
@@ -315,27 +316,66 @@ const reviewLines = (
   return lines
 }
 
-/** The rows the review draws at `columns`: each line's text, wrapped. */
-export const reviewRows = (
-  v: ViewPorts,
-  review: ReviewRequest,
-  rows: readonly ModRow[],
-  columns: number,
-  how: ReviewHow = { refused: false },
-): number =>
-  wrappedRows(
-    reviewLines(v, review, rows, how).map(line => line.text),
-    columns,
-  )
+/** The rows the review is given, and the first line below its keys it shows. */
+export type ReviewWindow = { readonly rows: number; readonly columns: number; readonly at: number }
 
+/** The review drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
+export type DrawnReview = {
+  readonly el: RenderElement
+  readonly rows: number
+  readonly page: number
+  readonly last: number
+}
+
+/** Heading and keys: the lines a scrolled review keeps. */
+const PINNED = 2
+
+/**
+ * The review in its window: whole when it fits, else its heading and keys,
+ * the lines from `at` that fit, and a row saying where it stands. What will
+ * run is always reachable, never clipped out of sight.
+ */
 export const Review = (
   v: ViewPorts,
   review: ReviewRequest,
   rows: readonly ModRow[],
+  window: ReviewWindow,
   how: ReviewHow = { refused: false },
-): RenderElement => {
-  const { Box } = v.el
-  return <Box flexDirection="column">{reviewLines(v, review, rows, how).map(line => line.el)}</Box>
+): DrawnReview => {
+  const { Box, Text } = v.el
+  const lines = reviewLines(v, review, rows, how)
+  const pinned = lines.slice(0, PINNED)
+  const rest = lines.slice(PINNED)
+  const heights = rest.map(line => wrappedRows([line.text], window.columns))
+  const pinnedRows = wrappedRows(
+    pinned.map(line => line.text),
+    window.columns,
+  )
+  const total = pinnedRows + heights.reduce((sum, height) => sum + height, 0)
+  if (total <= window.rows) {
+    return {
+      el: <Box flexDirection="column">{lines.map(line => line.el)}</Box>,
+      rows: total,
+      page: rest.length,
+      last: 0,
+    }
+  }
+  const shown = lineWindow(heights, Math.max(1, window.rows - pinnedRows - 1), window.at)
+  const where = `lines ${shown.start + 1}–${shown.end} of ${rest.length} · scroll or Page Up/Down`
+  return {
+    el: (
+      <Box flexDirection="column">
+        {pinned.map(line => line.el)}
+        {rest.slice(shown.start, shown.end).map(line => line.el)}
+        <Text dimColor wrap="truncate-end">
+          {where}
+        </Text>
+      </Box>
+    ),
+    rows: pinnedRows + heights.slice(shown.start, shown.end).reduce((sum, h) => sum + h, 0) + 1,
+    page: Math.max(1, shown.end - shown.start),
+    last: shown.last,
+  }
 }
 
 /** The rows the marketplace form draws. */

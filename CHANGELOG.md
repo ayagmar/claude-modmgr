@@ -54,6 +54,8 @@ All notable changes to this project are documented here. The format follows
   can do…" until a key is pressed.
 - In the desktop app, whose sessions refuse a plugin's `/reload-plugins`, a batch says the reload failed and asks you
   to run `/reload-plugins`, instead of reporting the changes applied.
+- A review taller than the pane scrolls with the wheel and Page Up/Down, its heading and keys kept, instead of
+  cutting off its last lines, where the commands it runs are.
 
 ## [0.3.0] - 2026-10-09
 

@@ -38,7 +38,7 @@ import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './serv
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
-import { drawPane, pageSize } from './ui/Pane.tsx'
+import { drawPane, pageSize, reviewEnd } from './ui/Pane.tsx'
 
 // One atom per key, its plugin and key spelled as literals (the validator lists
 // them) and a shape tag that changes with the key's type (domain/state.ts).
@@ -369,13 +369,13 @@ export const register: Register = (on, options) => {
   }).catch((_$, e, next) => next(e))
 
   // The person's wheel over the dialog steps the selection, and Page Up and
-  // Page Down move it a page: the list windows itself to the body, so the
-  // engine has nothing of its own to scroll.
+  // Page Down move it a page; over a review they scroll its lines. The pane
+  // windows both itself, so the engine has nothing of its own to scroll.
   on('ui.scroll', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
     if (e.origin.kind !== 'person') return next(e)
     // A key moving more than a row is a page key: a page of items, not of the body's rows.
     const page = e.pointer === undefined && Math.abs(e.by) > 1
-    await actionsOf($).scroll(page ? Math.sign(e.by) * pageSize() : e.by)
+    await actionsOf($).scroll(page ? Math.sign(e.by) * pageSize() : e.by, reviewEnd())
     return {}
   }).catch((_$, e, next) => next(e))
 

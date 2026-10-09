@@ -10,6 +10,7 @@ import {
   filterRows,
   latestBatch,
   layoutFor,
+  lineWindow,
   pagerLabel,
   paneOpen,
   partsLabel,
@@ -477,5 +478,16 @@ describe('a list that scrolls at its edges', () => {
     expect(windowFollowing(46, 100, 99, 10)).toEqual({ start: 90, end: 100 })
     expect(windowFollowing(46, 100, 0, 10)).toEqual({ start: 0, end: 10 })
     expect(windowFollowing(3, 5, 4, 10)).toEqual({ start: 0, end: 5 })
+  })
+})
+
+describe('a review window', () => {
+  it('stops at the last full window, however far it is scrolled', () => {
+    expect(lineWindow([1, 1, 2, 1, 1], 3, 99)).toEqual({ start: 3, end: 5, last: 3 })
+    expect(lineWindow([1, 1, 2, 1, 1], 3, 0)).toEqual({ start: 0, end: 2, last: 3 })
+  })
+
+  it('shows a line taller than the window rather than none', () => {
+    expect(lineWindow([1, 9, 1], 3, 1)).toEqual({ start: 1, end: 2, last: 2 })
   })
 })

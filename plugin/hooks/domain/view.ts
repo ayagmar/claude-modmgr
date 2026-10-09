@@ -491,6 +491,33 @@ export const bytesLabel = (n: number): string =>
       : `${(n / 1048576).toFixed(1)} MB`
 
 /**
+ * The lines `[start, end)` a window of `rows` shows from line `at`, each line
+ * `heights[i]` rows tall. `last` is the furthest start that still fills the
+ * window, and `at` is held to it; one line always shows, however tall.
+ */
+export const lineWindow = (
+  heights: readonly number[],
+  rows: number,
+  at: number,
+): { start: number; end: number; last: number } => {
+  let last = heights.length
+  let tail = 0
+  while (last > 0 && tail + (heights[last - 1] ?? 0) <= rows) {
+    last -= 1
+    tail += heights[last] ?? 0
+  }
+  last = Math.min(last, Math.max(0, heights.length - 1))
+  const start = Math.max(0, Math.min(at, last))
+  let end = start
+  let used = 0
+  while (end < heights.length && (end === start || used + (heights[end] ?? 0) <= rows)) {
+    used += heights[end] ?? 0
+    end += 1
+  }
+  return { start, end, last }
+}
+
+/**
  * Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's
  * height): words move whole to the next row, as the terminal wraps them, and
  * a word longer than the row is cut across rows.

@@ -127,8 +127,11 @@ export type Actions = {
   focusFilter(): Promise<void>
   /** Moves the selection to the first or last row the filter shows, and the ring with it. */
   edge(which: 'first' | 'last'): Promise<void>
-  /** The wheel, j and k, the page keys: moves the selection `by` rows (negative: up), the ring with it. */
-  scroll(by: number): Promise<void>
+  /**
+   * The wheel, j and k, the page keys: moves the selection `by` rows (negative: up),
+   * the ring with it; over a review, its lines, no further than `last`.
+   */
+  scroll(by: number, last?: number): Promise<void>
   copy(text: string, surface?: RenderSurface): Promise<void>
   /** Opens the dialog from the band. */
   openPane(): Promise<void>
@@ -381,7 +384,8 @@ export const createActions = (
   /** Puts a review on top, the ring on its safe default (cancel). */
   const openReview = async (review: ReviewRequest): Promise<void> => {
     await state.update('review', () => review)
-    await setView(current => pushOverlay(quiet(current), 'review'))
+    // A new review starts at its top.
+    await setView(({ reviewAt: _top, ...current }) => pushOverlay(quiet(current), 'review'))
     await ringToOverlay()
   }
 
@@ -658,9 +662,17 @@ export const createActions = (
       await moveSelection(count => (which === 'first' ? 0 : count - 1))
     }),
 
-    scroll: safely('scroll', async by => {
-      // Under an overlay the list isn't what the wheel is over.
-      if (topOverlay(await state.read('view')) !== undefined) return
+    scroll: safely('scroll', async (by, last = 0) => {
+      const top = topOverlay(await state.read('view'))
+      if (top === 'review') {
+        await setView(view => ({
+          ...view,
+          reviewAt: Math.max(0, Math.min(last, (view.reviewAt ?? 0) + by)),
+        }))
+        return
+      }
+      // Under another overlay the list isn't what the wheel is over.
+      if (top !== undefined) return
       await moveSelection((_count, at) => at + by)
     }),
 
