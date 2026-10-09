@@ -45,13 +45,16 @@ jobs:
       - run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
       # It reads the catalogues on a throwaway config and refuses to write a
       # file when much was left unclassified or a client would refuse it.
-      - run: mkdir "$RUNNER_TEMP/out" && node scripts/build-index.ts "$RUNNER_TEMP/out/v1.json"
+      # The repositories of the mods it found go to the community build, not out.
+      - run: |
+          mkdir "$RUNNER_TEMP/out"
+          node scripts/build-index.ts "$RUNNER_TEMP/out/v1.json" "$RUNNER_TEMP/mod-repos.txt"
       # A refused or failed community build keeps the published file (see publish).
       - id: mods
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/build-mods.ts "$RUNNER_TEMP/out/mods-v1.json"
+        run: node scripts/build-mods.ts "$RUNNER_TEMP/out/mods-v1.json" "$RUNNER_TEMP/mod-repos.txt"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: catalog-index

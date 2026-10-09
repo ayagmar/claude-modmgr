@@ -64,6 +64,8 @@ describe('the index build', () => {
     const index = parseIndex(result.text)
     if (!index.ok) throw new Error(index.error.message)
     expect(index.value.entries[AWS]?.[1]).toBe('mod')
+    // Its repository goes to the community build, which reads what it can do.
+    expect(result.modRepos).toEqual(['awslabs/agent-plugins'])
     // Remote entries only: a local one is read by each client from its clone.
     const ids = Object.keys(index.value.entries)
     expect(ids.length).toBe(remote.length)

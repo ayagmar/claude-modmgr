@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format follows
   support links (OSC 8) on a click too.
 - A marketplace's mod shows its repository's GitHub stars, as a community mod does, and sorts among them by stars;
   the count at a row's end is the one the list is sorted by.
+- The community index reads every mod the official catalogues list, including those GitHub search hasn't found, so
+  Discover knows their stars and what they can do.
 
 ### Changed
 - Discover opens on its catalogue: the slowest read (about a second) starts when `/mods` first shows another tab.

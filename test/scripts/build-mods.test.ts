@@ -387,6 +387,7 @@ describe('buildMods', () => {
   type World = {
     previous?: string
     seeds?: string
+    catalogued?: string[]
     search?: (kind: string, query: string) => string[]
     meta?: Record<string, Record<string, unknown> | null>
     inspect?: (repo: string) => CommunityMod[] | undefined
@@ -418,6 +419,7 @@ describe('buildMods', () => {
         inspected.push(repo)
         return world.inspect === undefined ? [found(repo)] : world.inspect(repo)
       },
+      catalogued: world.catalogued ?? [],
       now: () => 20 * 24 * 60 * 60 * 1000,
       sleep: async () => {},
       log: line => logs.push(line),
@@ -425,10 +427,12 @@ describe('buildMods', () => {
     return { built, logs, inspected }
   }
 
-  it('publishes the mods of every candidate: searched, seeded and listed last time', async () => {
+  it('publishes the mods of every candidate: searched, catalogued, seeded and listed last time', async () => {
     const { built, logs, inspected } = deps({
       previous: communityText(1, [found('old/mod')]),
       seeds: 'seed/mod\n',
+      // A mod a catalogue lists that no search finds.
+      catalogued: ['listed/mod'],
       search: (kind, query) =>
         kind === 'code' && query.startsWith('CLAUDE') ? ['code/mod', 'Seed/Mod'] : [],
     })
@@ -437,11 +441,14 @@ describe('buildMods', () => {
     const parsed = 'text' in result ? parseCommunity(result.text) : undefined
     expect(parsed?.ok && parsed.value.mods.map(mod => mod.repo).sort()).toEqual([
       'code/mod',
+      'listed/mod',
       'old/mod',
       'seed/mod',
     ])
-    expect(inspected.sort()).toEqual(['code/mod', 'old/mod', 'seed/mod'])
-    expect(logs.join('\n')).toMatch(/candidates 3 \(seeds 1, last index 1\), public 3/)
+    expect(inspected.sort()).toEqual(['code/mod', 'listed/mod', 'old/mod', 'seed/mod'])
+    expect(logs.join('\n')).toMatch(
+      /candidates 4 \(catalogued 1, seeds 1, last index 1\), public 4/,
+    )
   })
 
   it('drops private, archived, bundled and forked copies, and keeps the word of a repository it could not read', async () => {

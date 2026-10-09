@@ -7,9 +7,11 @@
 // at a time, every request paused after a 429/403/5xx. It refuses to write a
 // file when too much was left unclassified, so a bad run can't replace a good
 // index. CI (.github/workflows/index.yml) runs it daily; its logic takes the
-// CLI and the network as arguments, so a test runs it on fixtures.
+// CLI and the network as arguments, so a test runs it on fixtures. With a
+// second path it also writes the GitHub repositories of the mods it found,
+// one a line, for the community build to read (GitHub search misses some).
 //
-//   node scripts/build-index.ts <out.json>
+//   node scripts/build-index.ts <out.json> [<mod-repos.txt>]
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,9 +24,11 @@ import {
   type CliRun,
   parseAvailable,
 } from '../plugin/hooks/domain/cli-results.ts'
+import { isRepo } from '../plugin/hooks/domain/community.ts'
 import {
   backoffMs,
   type FetchedFile,
+  githubRepo,
   MAX_BODY,
   planProbe,
   probeKey,
@@ -51,8 +55,18 @@ export type BuildDeps = {
   readonly log: (line: string) => void
 }
 
-/** The file to publish, or why there is none. */
-export type Built = { readonly text: string } | { readonly refused: string }
+/** The file to publish and the repositories of the mods it lists, or why there is none. */
+export type Built =
+  | { readonly text: string; readonly modRepos: readonly string[] }
+  | { readonly refused: string }
+
+/** The GitHub repository an entry's files are in, as its source spells it. */
+const repoOf = (entry: CatalogEntry): string | undefined => {
+  const { source } = entry
+  if (source.kind === 'github') return isRepo(source.repo) ? source.repo : undefined
+  if (source.kind !== 'url' && source.kind !== 'git-subdir') return undefined
+  return githubRepo(source.url)?.join('/')
+}
 
 /** A GET for at most MAX_BODY bytes (a Range request); a range answered (206) reads as 200. */
 export const fetchFile = async (url: string): Promise<FetchedFile> => {
@@ -140,13 +154,18 @@ export const buildIndex = async (deps: BuildDeps): Promise<Built> => {
   // What clients would refuse is never published.
   const check = parseIndex(text)
   if (!check.ok) return { refused: `the index would be refused: ${check.error.message}` }
-  return { text }
+  const modRepos = new Set<string>()
+  for (const entry of entries) {
+    const repo = found.get(entry.id)?.[1] === 'mod' ? repoOf(entry) : undefined
+    if (repo !== undefined) modRepos.add(repo)
+  }
+  return { text, modRepos: [...modRepos].sort() }
 }
 
 if (import.meta.main) {
-  const out = process.argv[2]
+  const [out, repos] = process.argv.slice(2)
   if (out === undefined) {
-    console.error('usage: node scripts/build-index.ts <out.json>')
+    console.error('usage: node scripts/build-index.ts <out.json> [<mod-repos.txt>]')
     process.exit(2)
   }
   const config = mkdtempSync(join(tmpdir(), 'modmgr-index-'))
@@ -172,6 +191,8 @@ if (import.meta.main) {
       process.exitCode = 1
     } else {
       writeFileSync(out, built.text)
+      if (repos !== undefined)
+        writeFileSync(repos, built.modRepos.map(repo => `${repo}\n`).join(''))
     }
   } finally {
     rmSync(config, { recursive: true, force: true })
