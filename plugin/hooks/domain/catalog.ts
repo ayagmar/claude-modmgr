@@ -127,14 +127,15 @@ export const buildIndex = (
   }
   const all = [...byId.values()]
   const name = [...all].sort(byName)
+  const turns = turnsOf(name)
   return {
     size: all.length,
     community: all.filter(item => item.mod !== undefined).length,
     byId,
     order: {
       name,
-      installs: [...name].sort(byPopularity(turnsOf(name))),
-      stars: [...name].sort(byStars),
+      installs: [...name].sort(byPopularity(turns)),
+      stars: [...name].sort(byStars(turns)),
       marketplace: [...name].sort((a, b) => originOf(a).localeCompare(originOf(b))),
     },
   }
@@ -173,13 +174,20 @@ const byPopularity =
     return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
   }
 
-/** Community mods by stars, as GitHub counts them; then the catalogue's entries, by installs. */
-const byStars = (a: Indexed, b: Indexed): number => {
-  if (a.mod !== undefined && b.mod !== undefined) return b.mod.stars - a.mod.stars
-  if (a.mod !== undefined) return -1
-  if (b.mod !== undefined) return 1
-  return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
-}
+/**
+ * Community mods by stars, as GitHub counts them, one from each repository
+ * before any repository's second; then the catalogue's entries, by installs.
+ */
+const byStars =
+  (turns: ReadonlyMap<string, number>) =>
+  (a: Indexed, b: Indexed): number => {
+    if (a.mod !== undefined && b.mod !== undefined) {
+      return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
+    }
+    if (a.mod !== undefined) return -1
+    if (b.mod !== undefined) return 1
+    return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+  }
 
 /** The marketplace an entry comes from, or the repository of a community mod. */
 const originOf = (item: Indexed): string =>

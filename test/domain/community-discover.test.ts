@@ -91,7 +91,7 @@ describe('community mods in the catalogue index', () => {
     ])
   })
 
-  it('sorts by stars as GitHub counts them, and keeps only your marketplaces when asked', () => {
+  it('sorts by stars, one mod per repository before any second, and keeps only your marketplaces when asked', () => {
     const index = buildIndex(
       [entry('own@m', 5)],
       [
@@ -100,10 +100,11 @@ describe('community mods in the catalogue index', () => {
         mod('small/x', { stars: 5 }),
       ],
     )
+    // A repository's mods share its stars: its second waits behind every repository's first.
     expect(index.order.stars.map(item => item.id)).toEqual([
       'github.com/big/a/a',
-      'github.com/big/a/b',
       'github.com/small/x',
+      'github.com/big/a/b',
       'own@m',
     ])
     const mine = matchAll(index, { text: '', sort: 'stars', mine: true }, () => 'mod')
