@@ -7,3 +7,5 @@ site/.astro/
 .DS_Store
 .lighthouseci/
 .lhci-root/
+site/.impeccable/surfaces/
+site/.impeccable/review/

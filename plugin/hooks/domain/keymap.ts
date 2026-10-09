@@ -45,6 +45,7 @@ export const BINDINGS: readonly Binding[] = [
   { action: 'help', hotkey: 'h', label: 'keys', on: ['pane'] },
   { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },
   { action: 'sort', hotkey: 'o', label: 'sort', on: ['discover'] },
+  { action: 'mine', hotkey: 'k', label: 'only your marketplaces', on: ['discover'] },
   { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS },
   { action: 'page.last', hotkey: 'b', label: 'last page', on: LISTS },
   { action: 'refresh', hotkey: 'r', label: 'refresh', on: LISTS },

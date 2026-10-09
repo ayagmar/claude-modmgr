@@ -70,6 +70,23 @@ export type CatalogRow = {
   local?: boolean
   /** A local entry modmgr couldn't read: why (`r` tries again). */
   unread?: string
+  /** A community mod's GitHub stars. */
+  stars?: number
+  /** A community mod: from a repository none of the person's marketplaces lists. */
+  community?: CommunityFacts
+}
+
+/** Where a community mod lives, what validate said of it, and how it installs. */
+export type CommunityFacts = {
+  /** `owner/repo`. */
+  repo: string
+  /** Its folder in the repository; empty at the root. */
+  path: string
+  /** The commit the community index validated. */
+  commit: string
+  check: 'passed' | 'warnings' | 'failed'
+  /** `<plugin>@<marketplace>` when the marketplace at its repository's root lists it. */
+  installId?: string
 }
 
 export type JobKind =
@@ -127,7 +144,9 @@ export type View = {
   query: string
   /** Discover's search and sort. */
   search: string
-  sort: 'installs' | 'name' | 'marketplace'
+  sort: 'installs' | 'stars' | 'name' | 'marketplace'
+  /** Discover lists only the entries of the person's own marketplaces. */
+  mine?: boolean
   /** The catalogue entry Discover has selected. */
   found?: PluginId
   /** The dev mod Dev has selected (its `DevRow.key`). */
@@ -179,8 +198,13 @@ export type ReviewRequest = {
   uninspected?: boolean
   /** An install of a local entry modmgr tried to read and couldn't: why. */
   unreadable?: string
-  /** A marketplace to add (`claude plugin marketplace add <source>`). */
+  /**
+   * A marketplace to add (`claude plugin marketplace add <source>`), or, for an
+   * install, the one it installs from and adds first (`--marketplace <source>`).
+   */
   source?: string
+  /** An install of a community mod: what it can do is what the community index read at this commit. */
+  indexedAt?: string
 }
 
 export type Attention = {
@@ -225,6 +249,8 @@ export type Sync = {
 export type CatalogPage = {
   rows: CatalogRow[]
   total: number
+  /** Of `total`, the community index's mods (all of them mods). */
+  community: number
   matched: number
   offset: number
   loading: boolean

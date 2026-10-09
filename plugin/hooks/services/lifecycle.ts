@@ -9,6 +9,7 @@
 
 import { RELOADED_WITH_MODMGR, takeOver, tookOverReload } from '../domain/jobs.ts'
 import { readPrefs } from '../domain/store-schema.ts'
+import { PANE_ID } from '../domain/view.ts'
 import { probeAndRecord } from './capability-probe.ts'
 import { echoLine } from './job-runner.ts'
 import type { Runtime } from './runtime.ts'
@@ -72,8 +73,12 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
       // Re-armed by every module from the stored time: a reload loses timers.
       await rt.updater.arm()
       // A reloaded modmgr with a tab showing reads what it needs again (module memory). A
-      // fresh session only restores the tab: it is read when the dialog opens.
-      if (!how.fresh) await rt.showTab((await ports.state.read('view')).tab)
+      // fresh session only restores the tab: it is read when the dialog opens, or now
+      // when `/mods` opened it before this module was ready to read it.
+      const shown = (await ports.ui.panes().catch(() => [])).some(
+        pane => pane.id === PANE_ID && pane.isPlaced,
+      )
+      if (!how.fresh || shown) await rt.showTab((await ports.state.read('view')).tab)
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

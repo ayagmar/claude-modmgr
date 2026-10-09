@@ -227,6 +227,16 @@ const reviewLines = (
     else say(`Deletes its data (${bytesLabel(review.dataBytes)}) for good.`, TONE.bad)
     say('Undo (z) reinstalls it from its marketplace.')
   }
+  if (review.action === 'install' && review.source !== undefined) {
+    const source = sanitize(review.source, { max: 120 })
+    say(`From the marketplace at github.com/${source}:`)
+    say('the install adds it to your user settings first')
+    say('(a clone; adding runs no plugin code).')
+    if (review.indexedAt !== undefined) {
+      say(`What it can do was read at ${review.indexedAt.slice(0, 7)}; modmgr`)
+      say('reads the installed version again.')
+    }
+  }
   if (review.action === 'install' && review.uninspected === true && declared === undefined) {
     if (review.unreadable !== undefined) {
       // A local entry it tried to read and couldn't: not the same as a remote one.
@@ -358,7 +368,7 @@ const WELCOME_INTRO =
   'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, and changes them safely, with undo.'
 const WELCOME_TABS = [
   ['1', 'Installed', 'what you have: toggle, update and remove'],
-  ['2', 'Discover', 'the mods your marketplaces offer'],
+  ['2', 'Discover', 'mods from your marketplaces and all of GitHub'],
   ['3', 'Dev', 'the mods you are writing: validate, test, share'],
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const

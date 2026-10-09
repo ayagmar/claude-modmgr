@@ -9,7 +9,13 @@
 import type { RenderElement, UiPressArgument } from 'claude-code'
 import type { Overlay, View } from '../../types/index.d.ts'
 import { devRowOf } from '../domain/dev.ts'
-import { awaitingAcceptance, detectLine, foundRow, nextSort } from '../domain/discover.ts'
+import {
+  awaitingAcceptance,
+  detectLine,
+  foundRow,
+  nextSort,
+  SORT_LABEL,
+} from '../domain/discover.ts'
 import { healthItemsOf, healthLines, problemCount } from '../domain/health.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
@@ -194,8 +200,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     // It says what pressing it does next.
     add({
       action: 'sort',
-      label: `sort by ${nextSort(view.sort)}`,
+      label: `sort by ${SORT_LABEL[nextSort(view.sort)]}`,
       onPress: () => v.act.cycleSort(),
+    })
+    add({
+      action: 'mine',
+      label: view.mine === true ? 'all of GitHub' : 'yours only',
+      onPress: () => v.act.toggleMine(),
     })
     if (!readOnly)
       add({
@@ -507,6 +518,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? [
             view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,
             detectLine(detect) ?? '',
+            page.community === 0 || view.mine === true
+              ? ''
+              : `${page.community.toLocaleString('en-US')} from GitHub`,
           ]
             .filter(part => part !== '')
             .join(' · ')
@@ -517,6 +531,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             .filter(part => part !== '')
             .join(' · ')
   const stale = discover ? page.loading : dev ? devState.loading : sync.refreshing
+  // The mods Discover can list: with `k`, only your marketplaces' (what the detector found).
+  const listed = detect.found + (view.mine === true ? 0 : page.community)
   const field =
     fieldShown && Input !== undefined ? (
       <Box flexDirection="row" flexGrow={1}>
@@ -526,9 +542,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             key={FILTER_KEY}
             placeholder={
               discover
-                ? detect.found === 0
+                ? listed === 0
                   ? 'Search mods'
-                  : `Search ${count(detect.found, 'mod', 'mods')}`
+                  : `Search ${count(listed, 'mod', 'mods')}`
                 : `Filter ${count(mods.length, 'mod', 'mods')}`
             }
             value={discover ? view.search : view.query}

@@ -77,10 +77,14 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                                                       j: jobs  h: keys  esc back
 ```
 
-**Discover** lists the mods in every marketplace you have added. The official catalogues' mods are known at once
-from an index modmgr's CI rebuilds daily; anything else is checked while you work, search matches first. Installing
-goes through a review that says what will run and where; a command a marketplace declares is
-shown whole, with its sha256, and runs only when you confirm that exact command.
+**Discover** lists the mods in every marketplace you have added, and the mods published anywhere else on public
+GitHub (about 3,100). Both come from indexes modmgr's CI rebuilds daily, so they are there at once; anything else is
+checked while you work, search matches first. A community mod shows what it can do before you install it, as
+`claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
+installs from the marketplace in its own repository, which the install adds to your user settings first, and one
+whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `k` keeps
+only your own marketplaces' entries. A command a marketplace declares is shown whole, with
+its sha256, and runs only when you confirm that exact command.
 
 ```
 1: Installed   Discover   3: Dev   4: Health ▲1
@@ -127,7 +131,7 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
     5 enabled                          │
     updates checked never, every 6 ho… │
     detector: 5 mods found; 205 of 20… │
-    cache: 181 B                       │
+    cache: 185 B                       │
     A hook that fails is logged only … │
                                        │
                                        │
@@ -170,7 +174,7 @@ Set them with `claude plugin configure modmgr`:
 | Option | Default | |
 |---|---|---|
 | `updateCheckHours` | 6 | Hours between update checks; 0 turns them off. |
-| `detectRemote` | on | Read the daily catalogue index, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to tell mods apart. |
+| `detectRemote` | on | Read the daily catalogue and community indexes, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to find mods. |
 | `debugTimings` | off | Write how long each step took to the debug log (`--debug`). |
 
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off everything modmgr fetches. modmgr sends no telemetry.
@@ -184,6 +188,12 @@ and asks before anything new runs. [docs/SECURITY.md](docs/SECURITY.md) says wha
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/PERF.md](docs/PERF.md). The landing page is in `site/`
 (`pnpm site`).
+
+## Credits
+
+The community index finds mods the way [awesome-claude-code-mods](https://github.com/karanb192/awesome-claude-code-mods)
+(browse it at [mods.aidojo.si](https://mods.aidojo.si/)) does, and reads its list of candidate repositories (CC0) so a
+mod GitHub's search hasn't indexed yet is still found.
 
 ## License
 

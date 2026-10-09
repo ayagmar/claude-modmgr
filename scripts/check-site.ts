@@ -1,5 +1,6 @@
 // Checks the built site: every internal link and asset resolves in
-// site/dist, and what a first visit transfers stays under 100 KB, fonts aside.
+// site/dist, what a first visit transfers stays under 100 KB, fonts aside, and
+// the search's data (mods.json) under 400 KB gzipped.
 //
 //   pnpm --filter modmgr-site build && node scripts/check-site.ts
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -20,13 +21,22 @@ for (const ref of refs) {
     problems.push(`not under ${BASE}: ${ref}`)
     continue
   }
-  const path = join(dist, ref.slice(BASE.length).split('#')[0] || 'index.html')
+  const path = join(dist, ref.slice(BASE.length).split(/[?#]/)[0] || 'index.html')
   if (!existsSync(path)) problems.push(`missing: ${ref}`)
   // What a visit loads: not the pages and the sitemap it links to, and not fonts.
   else if (!/\.(woff2|html|xml)$/.test(path)) assets += statSync(path).size
 }
 for (const id of [...html.matchAll(/href="#([^"]+)"/g)].map(match => match[1])) {
   if (!html.includes(`id="${id}"`)) problems.push(`no element with id ${id}`)
+}
+// The search's data loads after the page does; it still has a ceiling.
+const MODS_BUDGET = 400 * 1024
+const modsFile = join(dist, 'mods.json')
+if (!existsSync(modsFile)) problems.push('missing: mods.json')
+else {
+  const mods = gzipSync(readFileSync(modsFile)).length
+  console.log(`mods.json ${statSync(modsFile).size} B (${mods} B gzipped), loaded after the page`)
+  if (mods > MODS_BUDGET) problems.push(`mods.json is ${mods} B gzipped, over ${MODS_BUDGET} B`)
 }
 const page = gzipSync(html).length
 const total = page + assets

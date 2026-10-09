@@ -1,107 +1,60 @@
 ---
-// The install line, as people copy it: the copy button appears with script.
+// The install line, as people copy it: the copy button is hidden without script.
+import { flagParts, INSTALL } from '../lib/present.ts'
+
 type Props = { id: string; label: string }
 const { id, label } = Astro.props
 
-const INSTALL = '/plugin install modmgr --marketplace ayagmar/claude-mods'
 // A flag stays with its value when the line wraps; built as one string, since
 // whitespace from the template would show inside the <pre>.
-const INSTALL_HTML = INSTALL.split(' --')
-  .map((part, index) => `<span class="keep">${index === 0 ? part : `--${part}`}</span>`)
+const INSTALL_HTML = flagParts(INSTALL)
+  .map(part => `<span class="keep">${part}</span>`)
   .join(' ')
 ---
 
-<div class="install">
-  <p class="label" id={`${id}-label`}>{label}</p>
-  <div class="line">
-    <pre aria-labelledby={`${id}-label`}><code id={id} set:html={INSTALL_HTML} /></pre>
-    <button class="copy" type="button" hidden data-copy={id}>Copy</button>
-  </div>
+<div class="install" data-copy-scope>
+  <p class="vh" id={`${id}-label`}>{label}</p>
+  <pre aria-labelledby={`${id}-label`}><code id={id} data-copy-text set:html={INSTALL_HTML} /></pre>
+  <button class="btn copy js-only" type="button" data-copy aria-label="Copy the install line">
+    <svg class="i" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copy</span>
+  </button>
 </div>
 
 <style>
-  .label {
-    margin: 0 0 0.5rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .line {
+  .install {
     display: flex;
-    align-items: stretch;
-    max-width: 44rem;
-    background: var(--term-bg);
-    color: var(--term-fg);
-    border-radius: 10px;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 10px 24px -12px rgb(0 0 0 / 0.45);
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 40rem;
+    margin-inline: auto;
+    padding: 0.5rem 0.5rem 0.5rem 1.1rem;
+    background: var(--field);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
   }
 
   pre {
     flex: 1;
     min-width: 0;
     margin: 0;
-    padding: 0.95rem 1.1rem;
-    font-size: clamp(0.88rem, 0.8rem + 0.3vw, 1rem);
+    font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem);
     line-height: 1.5;
-    /* The whole line, wrapped where it must: it is what people copy. A flag
-       stays with its value, never broken at its hyphens. */
+    text-align: left;
+    /* The whole line, wrapped where it must: it is what people copy. */
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
 
   pre::before {
     content: '> ';
-    color: var(--t-claude);
+    color: var(--accent-text);
   }
 
-  .line :global(.keep) {
+  .install :global(.keep) {
     white-space: nowrap;
   }
 
   .copy {
-    flex: none;
-    font: 650 0.95rem var(--sans);
-    color: var(--term-fg);
-    background: none;
-    border: 0;
-    border-left: 1px solid var(--term-rule);
-    border-radius: 0 10px 10px 0;
-    padding: 0 1.15rem;
-    cursor: pointer;
-  }
-
-  .copy:hover,
-  .copy[data-state='copied'] {
-    background: var(--cover);
-    color: var(--cover-ink);
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .copy {
-      transition:
-        transform 0.15s var(--ease),
-        background-color 0.2s var(--ease),
-        color 0.2s var(--ease);
-    }
-
-    .copy:active {
-      transform: scale(0.95);
-    }
-
-    .copy[data-state] {
-      animation: answer 0.4s var(--ease);
-    }
-  }
-
-  @keyframes answer {
-    from {
-      opacity: 0.4;
-      transform: scale(0.9);
-    }
-  }
-
-  .copy:focus-visible {
-    outline-color: var(--cover);
-    outline-offset: -3px;
+    height: 2.25rem;
   }
 </style>

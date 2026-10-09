@@ -35,13 +35,13 @@ describe('the catalogue around a selection', () => {
   it('matches in sort order and windows around the selected entry', () => {
     const all = matchAll(index, { text: '', sort: 'name' }, () => 'unknown')
     expect(all).toHaveLength(index.size)
-    const middle = all[100]?.item.entry.id
+    const middle = all[100]?.item.id
     const { rows, offset } = windowOf(all, middle, 50)
     expect(rows).toHaveLength(50)
     expect(offset).toBe(75)
     expect(rows[25]?.id).toBe(middle)
     expect(windowOf(all, 'nope@x', 50).offset).toBe(0)
-    expect(windowOf(all, all.at(-1)?.item.entry.id, 50).offset).toBe(all.length - 50)
+    expect(windowOf(all, all.at(-1)?.item.id, 50).offset).toBe(all.length - 50)
     expect(windowOf(all.slice(0, 3), undefined, 50).rows).toHaveLength(3)
   })
 
@@ -50,9 +50,7 @@ describe('the catalogue around a selection', () => {
     const mods = matchAll(index, { text: '', sort: 'installs', only: 'mod' }, kinds)
     expect(mods.every(match => match.kind === 'mod')).toBe(true)
     const aws = matchAll(index, { text: 'aws serverless', sort: 'name' }, kinds)
-    expect(aws.map(match => match.item.entry.id)).toContain(
-      'aws-serverless@claude-plugins-official',
-    )
+    expect(aws.map(match => match.item.id)).toContain('aws-serverless@claude-plugins-official')
   })
 
   it('says where an entry comes from', () => {
@@ -224,11 +222,12 @@ describe('what Discover draws', () => {
     const shown = { ...page, rows }
     expect(foundRow({ ...INITIAL_VIEW, found: rows[1]?.id ?? '' }, shown)).toBe(rows[1])
     expect(foundRow({ ...INITIAL_VIEW, found: 'gone@x' }, shown)).toBe(rows[0])
-    expect([nextSort('installs'), nextSort('name'), nextSort('marketplace')]).toEqual([
-      'name',
-      'marketplace',
-      'installs',
-    ])
+    expect([
+      nextSort('installs'),
+      nextSort('stars'),
+      nextSort('name'),
+      nextSort('marketplace'),
+    ]).toEqual(['stars', 'name', 'marketplace', 'installs'])
     expect(foundOfKey(foundKey('a@m'))).toBe('a@m')
     expect(foundOfKey('row:a@m')).toBeUndefined()
     expect(foundOfKey(undefined)).toBeUndefined()

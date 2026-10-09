@@ -1,11 +1,12 @@
 name: index
 
-# The hosted catalogue index: every remote entry of the official catalogues
-# classified (mod, command hooks, plain) at its pinned commit, so modmgr's
-# Discover knows their mods after one request. Built daily and force-pushed as
-# the single commit of the `catalog-index` branch, read from
-# raw.githubusercontent.com. Run it by hand once a new repository has it, so the
-# index exists before anyone installs.
+# The hosted indexes, read from raw.githubusercontent.com: v1.json classifies
+# every remote entry of the official catalogues (mod, command hooks, plain) at
+# its pinned commit; mods-v1.json lists the mods found across public GitHub
+# with what `claude plugin validate` reports for each. Discover knows them after
+# a request each. Built daily and force-pushed as the single commit of the
+# `catalog-index` branch. Run it by hand once a new repository has it, so the
+# indexes exist before anyone installs.
 on:
   schedule:
     - cron: '17 4 * * *'
@@ -19,14 +20,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Runs the CLI and fetches hundreds of files from catalogue repositories: it
-  # can read this repository and nothing more.
+  # Runs the CLI, fetches hundreds of files from catalogue repositories, and
+  # clones and validates every candidate mod repository (no mod code runs): its
+  # token can read and search public GitHub, and nothing more.
   build:
     if: github.repository == 'ayagmar/claude-modmgr'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: read
+    outputs:
+      mods: ${{ steps.mods.outcome }}
     env:
       CLAUDE_CODE_VERSION: 2.1.293
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
@@ -41,14 +45,20 @@ jobs:
       - run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
       # It reads the catalogues on a throwaway config and refuses to write a
       # file when much was left unclassified or a client would refuse it.
-      - run: node scripts/build-index.ts "$RUNNER_TEMP/v1.json"
+      - run: mkdir "$RUNNER_TEMP/out" && node scripts/build-index.ts "$RUNNER_TEMP/out/v1.json"
+      # A refused or failed community build keeps the published file (see publish).
+      - id: mods
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/build-mods.ts "$RUNNER_TEMP/out/mods-v1.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: catalog-index
-          path: ${{ runner.temp }}/v1.json
+          path: ${{ runner.temp }}/out/
           retention-days: 1
 
-  # Holds the write token and runs no third-party code: it only pushes the file.
+  # Holds the write token and runs no third-party code: it only pushes the files.
   publish:
     needs: build
     runs-on: ubuntu-latest
@@ -66,9 +76,21 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/publish"
           test -s v1.json
+          # No fresh community index: the published one stays.
+          if [ ! -s mods-v1.json ]; then
+            curl -fsSL --max-filesize 4194304 -o mods-v1.json \
+              "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/catalog-index/mods-v1.json" ||
+              rm -f mods-v1.json
+          fi
           git init -q -b catalog-index
           git add v1.json
+          if [ -s mods-v1.json ]; then git add mods-v1.json; fi
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -q -m "chore: catalogue index $(date -u +%F)"
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" catalog-index
+      - name: Fail when the community index wasn't rebuilt
+        if: needs.build.outputs.mods != 'success'
+        run: |
+          echo "::error::the community index build failed or was refused; the last one stays published"
+          exit 1

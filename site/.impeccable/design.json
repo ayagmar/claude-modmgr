@@ -1,0 +1,822 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T01:01:17+00:00",
+  "title": "Design System: modmgr",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "#0b0d10",
+        "tonalRamp": [
+          "#090b0e",
+          "#222428",
+          "#3d4044",
+          "#5b5e62",
+          "#7e8085",
+          "#9fa2a6",
+          "#c4c7cc",
+          "#ebeff3"
+        ],
+        "theme": "dark (default)"
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised Slate",
+        "canonical": "#111418",
+        "tonalRamp": [
+          "#090b0f",
+          "#212429",
+          "#3c4045",
+          "#5a5e63",
+          "#7d8186",
+          "#9ea2a7",
+          "#c3c8cd",
+          "#eaeff5"
+        ],
+        "theme": "dark (default)"
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Field Slate",
+        "canonical": "#15191e",
+        "tonalRamp": [
+          "#080b10",
+          "#20242a",
+          "#3c4046",
+          "#595e64",
+          "#7c8187",
+          "#9da2a9",
+          "#c2c8cf",
+          "#e9eff6"
+        ],
+        "theme": "dark (default)"
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover Slate",
+        "canonical": "#181c22",
+        "tonalRamp": [
+          "#080b11",
+          "#20242b",
+          "#3c4047",
+          "#595e65",
+          "#7b8188",
+          "#9da2aa",
+          "#c2c8d0",
+          "#e9eff8"
+        ],
+        "theme": "dark (default)"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#20252c",
+        "tonalRamp": [
+          "#070b11",
+          "#1f242b",
+          "#3b4048",
+          "#585e66",
+          "#7b8189",
+          "#9ca2ab",
+          "#c1c8d1",
+          "#e8eff9"
+        ],
+        "theme": "dark (default)"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#2c323a",
+        "tonalRamp": [
+          "#070b12",
+          "#1f242c",
+          "#3a4049",
+          "#585e67",
+          "#7a818a",
+          "#9ba2ac",
+          "#c0c8d2",
+          "#e7effa"
+        ],
+        "theme": "dark (default)"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Off-white Text",
+        "canonical": "#f5f5f4",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242423",
+          "#40403f",
+          "#5e5e5d",
+          "#80807f",
+          "#a1a1a0",
+          "#c7c7c6",
+          "#eeeeed"
+        ],
+        "theme": "dark (default)"
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "Secondary Text",
+        "canonical": "#a7abb1",
+        "tonalRamp": [
+          "#090b0f",
+          "#212429",
+          "#3d4045",
+          "#5a5e63",
+          "#7d8086",
+          "#9ea2a8",
+          "#c3c8ce",
+          "#eaeff5"
+        ],
+        "theme": "dark (default)"
+      },
+      "text-3": {
+        "role": "neutral",
+        "displayName": "Tertiary Text",
+        "canonical": "#8a9098",
+        "tonalRamp": [
+          "#070b11",
+          "#20242b",
+          "#3b4047",
+          "#595e66",
+          "#7b8189",
+          "#9ca2aa",
+          "#c2c8d0",
+          "#e9eff8"
+        ],
+        "theme": "dark (default)"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Claude Ember",
+        "canonical": "#d77757",
+        "tonalRamp": [
+          "#1b0300",
+          "#431101",
+          "#702202",
+          "#983e1e",
+          "#bf6242",
+          "#e58363",
+          "#fdb29a",
+          "#fee9e2"
+        ],
+        "theme": "both"
+      },
+      "accent-text": {
+        "role": "primary",
+        "displayName": "Ember Text",
+        "canonical": "#e8916f",
+        "tonalRamp": [
+          "#1a0400",
+          "#411301",
+          "#6d2601",
+          "#924322",
+          "#b96746",
+          "#de8866",
+          "#fdb397",
+          "#ffe9e1"
+        ],
+        "theme": "dark (default)"
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Ember Ink",
+        "canonical": "#1a0c06",
+        "tonalRamp": [
+          "#150703",
+          "#2f2019",
+          "#4d3b34",
+          "#6b5951",
+          "#8f7b73",
+          "#b19d93",
+          "#d8c2b9",
+          "#ffeae0"
+        ],
+        "theme": "both"
+      },
+      "accent-wash": {
+        "role": "primary",
+        "displayName": "Ember Wash",
+        "canonical": "rgb(215 119 87 / 0.14)",
+        "tonalRamp": [
+          "#1b0300",
+          "#431101",
+          "#702202",
+          "#983e1e",
+          "#bf6242",
+          "#e58363",
+          "#fdb29a",
+          "#fee9e2"
+        ],
+        "theme": "dark (default)"
+      },
+      "accent-ring": {
+        "role": "primary",
+        "displayName": "Ember Ring",
+        "canonical": "rgb(215 119 87 / 0.22)",
+        "tonalRamp": [
+          "#1b0300",
+          "#431101",
+          "#702202",
+          "#983e1e",
+          "#bf6242",
+          "#e58363",
+          "#fdb29a",
+          "#fee9e2"
+        ],
+        "theme": "dark (default)"
+      },
+      "bg-light": {
+        "role": "neutral",
+        "displayName": "Night Ground (light)",
+        "canonical": "#fbfbfa",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242423",
+          "#40403f",
+          "#5e5e5d",
+          "#80807f",
+          "#a1a1a0",
+          "#c7c7c6",
+          "#eeeeed"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "raised-light": {
+        "role": "neutral",
+        "displayName": "Raised Slate (light)",
+        "canonical": "#f4f4f2",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#80807e",
+          "#a1a1a0",
+          "#c7c7c5",
+          "#eeeeec"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "field-light": {
+        "role": "neutral",
+        "displayName": "Field Slate (light)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a1a1a1",
+          "#c7c7c7",
+          "#eeeeee"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "hover-light": {
+        "role": "neutral",
+        "displayName": "Hover Slate (light)",
+        "canonical": "#f1f1ef",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#80807e",
+          "#a1a1a0",
+          "#c7c7c5",
+          "#eeeeec"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "line-light": {
+        "role": "neutral",
+        "displayName": "Hairline (light)",
+        "canonical": "#e5e5e1",
+        "tonalRamp": [
+          "#0b0b09",
+          "#242421",
+          "#40403d",
+          "#5e5e5a",
+          "#80807d",
+          "#a2a29e",
+          "#c7c7c4",
+          "#efefeb"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "line-strong-light": {
+        "role": "neutral",
+        "displayName": "Strong Hairline (light)",
+        "canonical": "#d4d4cf",
+        "tonalRamp": [
+          "#0b0b08",
+          "#242421",
+          "#40403c",
+          "#5e5e5a",
+          "#80807c",
+          "#a2a29d",
+          "#c8c8c3",
+          "#efefea"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "text-light": {
+        "role": "neutral",
+        "displayName": "Off-white Text (light)",
+        "canonical": "#131417",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#232427",
+          "#3e4043",
+          "#5c5d61",
+          "#7f8084",
+          "#a0a1a5",
+          "#c6c7cb",
+          "#edeef3"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "text-2-light": {
+        "role": "neutral",
+        "displayName": "Secondary Text (light)",
+        "canonical": "#50545a",
+        "tonalRamp": [
+          "#080b10",
+          "#212429",
+          "#3c4046",
+          "#5a5e64",
+          "#7c8087",
+          "#9da2a9",
+          "#c3c8cf",
+          "#eaeff6"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "text-3-light": {
+        "role": "neutral",
+        "displayName": "Tertiary Text (light)",
+        "canonical": "#62676e",
+        "tonalRamp": [
+          "#080b11",
+          "#20242a",
+          "#3b4047",
+          "#595e65",
+          "#7b8188",
+          "#9da2aa",
+          "#c2c8d0",
+          "#e9eff7"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "accent-text-light": {
+        "role": "primary",
+        "displayName": "Ember Text (light)",
+        "canonical": "#a8461f",
+        "tonalRamp": [
+          "#1b0400",
+          "#421201",
+          "#6e2402",
+          "#9b3a10",
+          "#c35f39",
+          "#e9815b",
+          "#feb297",
+          "#ffe9e2"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "accent-wash-light": {
+        "role": "primary",
+        "displayName": "Ember Wash (light)",
+        "canonical": "rgb(215 119 87 / 0.16)",
+        "tonalRamp": [
+          "#1b0300",
+          "#431101",
+          "#702202",
+          "#983e1e",
+          "#bf6242",
+          "#e58363",
+          "#fdb29a",
+          "#fee9e2"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "accent-ring-light": {
+        "role": "primary",
+        "displayName": "Ember Ring (light)",
+        "canonical": "rgb(215 119 87 / 0.25)",
+        "tonalRamp": [
+          "#1b0300",
+          "#431101",
+          "#702202",
+          "#983e1e",
+          "#bf6242",
+          "#e58363",
+          "#fdb29a",
+          "#fee9e2"
+        ],
+        "theme": "light (prefers-color-scheme)"
+      },
+      "term-bg": {
+        "role": "terminal",
+        "displayName": "Terminal Ground",
+        "canonical": "#0d0f12",
+        "tonalRamp": [
+          "#090b0e",
+          "#222428",
+          "#3d4044",
+          "#5b5e62",
+          "#7e8084",
+          "#9fa2a6",
+          "#c4c7cc",
+          "#eceff3"
+        ],
+        "theme": "both"
+      },
+      "term-fg": {
+        "role": "terminal",
+        "displayName": "Terminal Foreground",
+        "canonical": "#dadcd6",
+        "tonalRamp": [
+          "#0a0c08",
+          "#232520",
+          "#3f403c",
+          "#5d5e59",
+          "#7f817c",
+          "#a0a29d",
+          "#c6c8c2",
+          "#edefe9"
+        ],
+        "theme": "both"
+      },
+      "term-line": {
+        "role": "terminal",
+        "displayName": "Terminal Line",
+        "canonical": "#262b31",
+        "tonalRamp": [
+          "#070c11",
+          "#20242a",
+          "#3b4047",
+          "#595e65",
+          "#7b8188",
+          "#9ca2aa",
+          "#c1c8d0",
+          "#e8eff7"
+        ],
+        "theme": "both"
+      },
+      "t-success": {
+        "role": "terminal",
+        "displayName": "Terminal Success",
+        "canonical": "#7cc48a",
+        "tonalRamp": [
+          "#001003",
+          "#002d0e",
+          "#064d20",
+          "#256e39",
+          "#4b925b",
+          "#6db57c",
+          "#93dca0",
+          "#c9fed2"
+        ],
+        "theme": "both"
+      },
+      "t-warning": {
+        "role": "terminal",
+        "displayName": "Terminal Warning",
+        "canonical": "#e3b65a",
+        "tonalRamp": [
+          "#120a00",
+          "#302100",
+          "#523c05",
+          "#77580c",
+          "#a37807",
+          "#c69a3c",
+          "#edc064",
+          "#feeccb"
+        ],
+        "theme": "both"
+      },
+      "t-error": {
+        "role": "terminal",
+        "displayName": "Terminal Error",
+        "canonical": "#ec7d74",
+        "tonalRamp": [
+          "#1f0001",
+          "#4a0306",
+          "#780f13",
+          "#9d3632",
+          "#c55a53",
+          "#eb7c73",
+          "#feb0a8",
+          "#ffe9e6"
+        ],
+        "theme": "both"
+      },
+      "t-claude": {
+        "role": "terminal",
+        "displayName": "Terminal Claude",
+        "canonical": "#e5926a",
+        "tonalRamp": [
+          "#190500",
+          "#3f1600",
+          "#6a2900",
+          "#90451c",
+          "#b76841",
+          "#dc8a62",
+          "#fdb491",
+          "#feeae0"
+        ],
+        "theme": "both"
+      },
+      "t-subtle": {
+        "role": "terminal",
+        "displayName": "Terminal Subtle",
+        "canonical": "#8e959a",
+        "tonalRamp": [
+          "#070c0f",
+          "#1f2529",
+          "#3b4145",
+          "#585f63",
+          "#7a8186",
+          "#9ba3a8",
+          "#c1c8ce",
+          "#e8f0f5"
+        ],
+        "theme": "both"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The hero headline only, two block lines."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings; the install heading steps up to clamp(2rem, 1.5rem + 2vw, 3rem)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Honesty-block item headings."
+      },
+      "row-name": {
+        "displayName": "Row name",
+        "purpose": "A mod's name in a result row."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Section intros and the install subhead."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; 0.875rem for row descriptions and detail lists."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons (550), chips, sort, count, pager, footer, facts."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Badges, tags, kbd, keyboard hints; detail labels at 600 in tertiary text."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Repos, command blocks, nav install button, window title, terminal frames; ligatures off."
+      }
+    },
+    "shadows": [
+      {
+        "name": "step-lift",
+        "value": "0 0 0 1px var(--line-strong), 0 1px 2px rgb(0 0 0 / 0.2)",
+        "purpose": "The active tab of the dialog stepper."
+      },
+      {
+        "name": "search-focus-ring",
+        "value": "0 0 0 3px var(--accent-ring)",
+        "purpose": "The search field while focused, with an accent border."
+      },
+      {
+        "name": "inset-hairline",
+        "value": "inset 0 0 0 1px var(--line)",
+        "purpose": "An open result row (a hairline, not elevation)."
+      },
+      {
+        "name": "inset-hairline-strong",
+        "value": "inset 0 0 0 1px var(--line-strong)",
+        "purpose": "The current page link (a hairline, not elevation)."
+      },
+      {
+        "name": "inset-focus",
+        "value": "inset 0 0 0 1px var(--accent)",
+        "purpose": "A result row whose summary has keyboard focus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The one easing curve for every transition and animation."
+      },
+      {
+        "name": "control-state",
+        "value": "0.15s",
+        "purpose": "Color, background, border and transform on buttons and step tabs; press scales to 0.96."
+      },
+      {
+        "name": "row-hover",
+        "value": "0.12s",
+        "purpose": "Background of result rows."
+      },
+      {
+        "name": "detail-open",
+        "value": "0.24s; opacity 0 to 1, translateY(-4px) to 0",
+        "purpose": "The inline detail panel when a row opens."
+      },
+      {
+        "name": "step-change",
+        "value": "0.4s; opacity 0 to 1, translateY(6px) to 0; caption delayed 0.06s",
+        "purpose": "Cross-fade between dialog frames."
+      },
+      {
+        "name": "copied-hold",
+        "value": "1.6s",
+        "purpose": "How long a copy button stays in its accent Copied state."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: no-preference",
+        "purpose": "All transitions and animations live inside this query."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrowest",
+        "value": "23.5rem",
+        "purpose": "Wordmark text hides (max-width)."
+      },
+      {
+        "name": "phone",
+        "value": "40rem",
+        "purpose": "Compact nav, no search hints, wrapped row head, two-line descriptions, icon-only Copy, scrolling dialog frame (max-width)."
+      },
+      {
+        "name": "honesty-grid",
+        "value": "56rem",
+        "purpose": "Honesty block becomes two columns (min-width)."
+      },
+      {
+        "name": "keys",
+        "value": "64rem",
+        "purpose": "Keyboard hint row appears in the results head (min-width)."
+      },
+      {
+        "name": "board",
+        "value": "68.75rem",
+        "purpose": "Results widen to a 76rem two-column board with the sticky datasheet; rows drop their actions and stop opening inline (min-width)."
+      }
+    ],
+    "themes": {
+      "default": "dark",
+      "light": "prefers-color-scheme: light re-tunes neutrals, accent-text, accent-wash and accent-ring; accent, accent-ink and terminal tokens are shared."
+    }
+  },
+  "components": [
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The only button style: outlined, quiet, accent only once the action is done.",
+      "html": "<button class=\"ds-btn\" type=\"button\"><svg class=\"ds-i\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect x=\"5.25\" y=\"5.25\" width=\"8.5\" height=\"8.5\" rx=\"1.75\"/><path d=\"M10.75 5.25V3.5A1.25 1.25 0 0 0 9.5 2.25h-6A1.25 1.25 0 0 0 2.25 3.5v6a1.25 1.25 0 0 0 1.25 1.25h1.75\"/></svg><span>Copy</span></button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:.4rem;height:2rem;padding:0 .7rem;font:550 .8125rem var(--sans);color:var(--text-2);background:transparent;border:1px solid var(--line-strong);border-radius:8px;cursor:pointer;transition:color .15s var(--ease),background-color .15s var(--ease),border-color .15s var(--ease),transform .15s var(--ease)}.ds-btn:hover{color:var(--text);background:var(--hover)}.ds-btn:active{transform:scale(.96)}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.ds-i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Copied Button",
+      "kind": "button",
+      "refersTo": "button-copied",
+      "description": "The quiet button for 1.6s after a successful copy.",
+      "html": "<button class=\"ds-btn-copied\" type=\"button\">Copied</button>",
+      "css": ".ds-btn-copied{display:inline-flex;align-items:center;height:2rem;padding:0 .7rem;font:550 .8125rem var(--sans);color:var(--accent-ink);background:var(--accent);border:1px solid var(--accent);border-radius:8px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "The large hero search with / and Ctrl K hints; accent border and 3px ring on focus.",
+      "html": "<div class=\"ds-field\"><svg class=\"ds-field-i\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"4.75\"/><path d=\"m10.5 10.5 3.75 3.75\"/></svg><input class=\"ds-field-input\" type=\"search\" placeholder=\"Search by name, description or repo\" aria-label=\"Search mods\"><span class=\"ds-hint\"><kbd class=\"ds-kbd\">/</kbd><kbd class=\"ds-kbd\">Ctrl K</kbd></span></div>",
+      "css": ".ds-field{position:relative;display:flex;align-items:center;height:3.5rem;max-width:46rem;background:var(--field);border:1px solid var(--line-strong);border-radius:14px}.ds-field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}.ds-field-i{position:absolute;left:1.1rem;width:1.2rem;height:1.2rem;fill:none;stroke:var(--text-3);stroke-width:1.6;stroke-linecap:round}.ds-field-input{flex:1;min-width:0;height:100%;padding:0 7rem 0 3.1rem;font:400 1.0625rem var(--sans);color:var(--text);background:transparent;border:0;outline:none;caret-color:var(--accent)}.ds-field-input::placeholder{color:var(--text-3)}.ds-hint{position:absolute;right:1rem;display:flex;gap:.3rem}.ds-kbd{display:inline-grid;place-items:center;min-width:1.45rem;height:1.35rem;padding:0 .3rem;font:400 .75rem/1 var(--mono);color:var(--text-2);background:var(--raised);border:1px solid var(--line-strong);border-radius:5px}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill checkbox; checked takes the accent wash and a check icon.",
+      "html": "<span class=\"ds-chip\"><input id=\"ds-c1\" type=\"checkbox\" checked><label for=\"ds-c1\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"m3 8.5 3.25 3.25L13 5\"/></svg>No network</label></span> <span class=\"ds-chip\"><input id=\"ds-c2\" type=\"checkbox\"><label for=\"ds-c2\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"m3 8.5 3.25 3.25L13 5\"/></svg>Passes validation</label></span>",
+      "css": ".ds-chip input{position:absolute;opacity:0;width:1px;height:1px}.ds-chip label{display:inline-flex;align-items:center;gap:.35rem;height:2rem;padding:0 .8rem;font:500 .8125rem var(--sans);color:var(--text-2);border:1px solid var(--line-strong);border-radius:999px;cursor:pointer}.ds-chip label:hover{color:var(--text);background:var(--hover)}.ds-chip svg{display:none;width:1em;height:1em;fill:none;stroke:var(--accent-text);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.ds-chip input:checked+label{color:var(--text);background:var(--accent-wash);border-color:rgb(215 119 87 / .55)}.ds-chip input:checked+label svg{display:block}.ds-chip input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}"
+    },
+    {
+      "name": "Slim Nav",
+      "kind": "nav",
+      "refersTo": "button-quiet",
+      "description": "3.5rem bar: mark and wordmark, three text links, mono copy install button.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-brand\" href=\"#\"><svg viewBox=\"0 0 32 32\" aria-hidden=\"true\"><rect width=\"32\" height=\"32\" rx=\"8\" fill=\"#d77757\"/><rect x=\"6\" y=\"9\" width=\"20\" height=\"14\" rx=\"2.5\" fill=\"#131517\"/><rect x=\"9.5\" y=\"13.5\" width=\"7\" height=\"5\" rx=\"1\" fill=\"none\" stroke=\"#d77757\" stroke-width=\"1.6\"/></svg>modmgr</a><nav class=\"ds-links\"><a href=\"#\">Source</a><a href=\"#\">Security</a><a href=\"#\">Changelog</a></nav><button class=\"ds-nav-install\" type=\"button\">/plugin install modmgr</button></header>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:1.75rem;height:3.5rem;padding:0 1rem;border-bottom:1px solid var(--line)}.ds-brand{display:inline-flex;align-items:center;gap:.55rem;font:650 1rem var(--sans);letter-spacing:-.015em;color:var(--text);text-decoration:none}.ds-brand svg{width:1.35rem;height:1.35rem}.ds-links{display:flex;gap:1.5rem;font:400 .875rem var(--sans)}.ds-links a{color:var(--text-2);text-decoration:none}.ds-links a:hover{color:var(--text)}.ds-nav-install{margin-left:auto;height:2rem;padding:0 .7rem;font:500 .8125rem var(--mono);color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:8px;cursor:pointer}.ds-nav-install:hover{background:var(--hover)}"
+    },
+    {
+      "name": "Result Row",
+      "kind": "card",
+      "refersTo": "result-row",
+      "description": "details/summary row: head line of facts over a full-width truncated description; opens inline.",
+      "html": "<details class=\"ds-row\"><summary><span class=\"ds-head\"><span class=\"ds-name\">ruflo-adr</span><span class=\"ds-repo\">ruvnet/ruflo</span><span class=\"ds-badges\"><span class=\"ds-badge\">Machine</span><span class=\"ds-badge\">Session</span><span class=\"ds-badge ds-notable\">1 notable</span></span><span class=\"ds-stars\">73k</span></span><span class=\"ds-desc\">ADR lifecycle management: create, index, reconcile, supersede, check compliance, and link Architecture Decision Records.</span></summary><div class=\"ds-detail\"><p class=\"ds-label\">Install</p><pre class=\"ds-cmd\">/plugin install ruflo-adr</pre></div></details>",
+      "css": ".ds-row{border-radius:10px;transition:background-color .12s var(--ease)}.ds-row:hover{background:var(--hover)}.ds-row[open]{background:var(--raised);box-shadow:inset 0 0 0 1px var(--line)}.ds-row summary{display:grid;gap:.2rem;padding:.7rem .75rem;list-style:none;cursor:pointer;border-radius:10px;outline:none}.ds-row summary::-webkit-details-marker{display:none}.ds-row:has(summary:focus-visible){background:var(--hover);box-shadow:inset 0 0 0 1px var(--accent)}.ds-head{display:flex;align-items:center;gap:.6rem;min-width:0}.ds-name{font:600 .9375rem var(--sans);letter-spacing:-.01em;color:var(--text)}.ds-repo{min-width:0;overflow:hidden;font:400 .8125rem var(--mono);color:var(--text-3);white-space:nowrap;text-overflow:ellipsis}.ds-badges{display:flex;gap:.3rem;margin-left:auto}.ds-badge{padding:0 .4rem;font:400 .75rem/1.25rem var(--sans);color:var(--text-2);background:var(--raised);border:1px solid var(--line);border-radius:5px;white-space:nowrap}.ds-notable{color:var(--text);border-color:var(--line-strong)}.ds-stars{min-width:3.25rem;text-align:right;font:400 .8125rem var(--sans);color:var(--text-2);font-variant-numeric:tabular-nums}.ds-desc{overflow:hidden;font:400 .875rem var(--sans);color:var(--text-2);white-space:nowrap;text-overflow:ellipsis}.ds-row[open] .ds-desc{white-space:normal}.ds-detail{padding:.6rem .75rem 1.1rem}.ds-label{margin:0 0 .4rem;font:600 .75rem var(--sans);color:var(--text-3)}.ds-cmd{margin:0;padding:.6rem .75rem;font:400 .8125rem/1.5 var(--mono);color:var(--text);background:var(--field);border:1px solid var(--line-strong);border-radius:8px;white-space:pre-wrap}"
+    },
+    {
+      "name": "Datasheet",
+      "kind": "custom",
+      "refersTo": "datasheet",
+      "description": "The selected mod beside the results on a wide screen: name, repo, its seven reaches as a chip's pins (filled where it reaches), notable lines, facts, and the install line behind an ember prompt with Copy (Enter on a row does the same) pinned to the panel's foot.",
+      "html": "<section class=\"ds-sheet\" aria-label=\"Selected mod\"><h3 class=\"ds-sheet-name\">turn-band</h3><a class=\"ds-sheet-repo\" href=\"#\">someone/mods/turn-band</a><p class=\"ds-sheet-label\">What it can reach</p><ol class=\"ds-pins\"><li class=\"on\"><span>Your machine</span></li><li><span>Network</span></li><li class=\"on\"><span>Session content</span></li><li><span>What the model sees</span></li><li><span>Tools and turns</span></li><li><span>Other plugins</span></li><li class=\"on\"><span>Display only</span></li></ol><pre class=\"ds-sheet-cmd\"><code>/plugin install turn-band --marketplace someone/mods</code></pre><button class=\"ds-sheet-copy\" type=\"button\">Copy</button></section>",
+      "css": ".ds-sheet{width:23rem;padding:1.125rem 1.125rem 1rem;background:var(--raised);border:1px solid var(--line);border-radius:12px;font:400 1rem/1.55 var(--sans);color:var(--text)}.ds-sheet-name{margin:0;font-size:1.25rem;font-weight:650;letter-spacing:-.02em;line-height:1.2}.ds-sheet-repo{display:block;margin-top:.3rem;font:400 .8125rem var(--mono);color:var(--text-3);text-decoration:none}.ds-sheet-label{margin:.875rem 0 .6rem;padding-top:.875rem;border-top:1px solid var(--line);font-size:.75rem;font-weight:600;color:var(--text-3)}.ds-pins{display:grid;grid-template-columns:minmax(0,1fr) 2rem minmax(0,1fr);grid-template-rows:repeat(4,1.5rem);grid-auto-flow:column;margin:0;padding:0;list-style:none;font-size:.75rem}.ds-pins::before{content:'';grid-column:2;grid-row:1/-1;background:var(--line-strong);border-radius:3px;-webkit-mask:radial-gradient(circle at 50% 0,transparent .32rem,#000 .36rem);mask:radial-gradient(circle at 50% 0,transparent .32rem,#000 .36rem)}.ds-pins li{display:flex;align-items:center;gap:.3rem;min-width:0;color:var(--text-3);white-space:nowrap}.ds-pins li:nth-child(-n+4){grid-column:1;justify-content:flex-end}.ds-pins li:nth-child(n+5){grid-column:3;flex-direction:row-reverse;justify-content:flex-end}.ds-pins li:nth-child(5){grid-row:1}.ds-pins li:nth-child(6){grid-row:2}.ds-pins li:nth-child(7){grid-row:3}.ds-pins li::after{content:'';flex:none;width:.6rem;height:.45rem;border:1px solid var(--text-3);border-radius:1.5px}.ds-pins li.on{color:var(--text);font-weight:550}.ds-pins li.on::after{background:var(--text);border-color:var(--text)}.ds-sheet-cmd{margin:1rem 0 .75rem;padding:.6rem .75rem;font:400 .8125rem/1.5 var(--mono);white-space:pre-wrap;background:var(--field);border:1px solid var(--line-strong);border-radius:8px;font-variant-ligatures:none}.ds-sheet-copy{height:2rem;padding:0 .7rem;font:550 .8125rem var(--sans);color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:8px;cursor:pointer}.ds-sheet-copy:hover{background:var(--hover)}.ds-sheet-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.ds-sheet-cmd::before{content:'> ';color:var(--accent-text)}"
+    },
+    {
+      "name": "Pager",
+      "kind": "nav",
+      "refersTo": "pager-current",
+      "description": "Range on the left, Prev / numbered links / Next on the right, under a hairline.",
+      "html": "<nav class=\"ds-pager\"><p class=\"ds-range\">41–80 of 2,692 mods</p><div class=\"ds-pages\"><a class=\"ds-pg\" href=\"#\">Prev</a><a class=\"ds-pg\" href=\"#\">1</a><a class=\"ds-pg\" href=\"#\" aria-current=\"page\">2</a><a class=\"ds-pg\" href=\"#\">3</a><span class=\"ds-pg\">…</span><a class=\"ds-pg\" href=\"#\">68</a><a class=\"ds-pg\" href=\"#\">Next</a></div></nav>",
+      "css": ".ds-pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem 1.5rem;padding:1rem .75rem 0;border-top:1px solid var(--line)}.ds-range{margin:0;font:400 .8125rem var(--sans);color:var(--text-2);font-variant-numeric:tabular-nums}.ds-pages{display:flex;gap:.25rem}.ds-pg{display:inline-grid;place-items:center;min-width:2rem;height:2rem;padding:0 .55rem;font:400 .8125rem var(--sans);font-variant-numeric:tabular-nums;color:var(--text-2);text-decoration:none;border-radius:7px}a.ds-pg:hover{color:var(--text);background:var(--hover)}.ds-pg[aria-current]{color:var(--text);background:var(--field);box-shadow:inset 0 0 0 1px var(--line-strong)}"
+    },
+    {
+      "name": "Dialog Stepper and Window",
+      "kind": "custom",
+      "refersTo": "terminal-window",
+      "description": "Segmented stepper over the always-dark terminal window that frames real /mods output.",
+      "html": "<div class=\"ds-steps\"><span class=\"ds-step ds-on\"><span class=\"ds-n\">1</span>Discover</span><span class=\"ds-step\"><span class=\"ds-n\">2</span>Review</span><span class=\"ds-step\"><span class=\"ds-n\">3</span>Installed</span></div><div class=\"ds-window\"><div class=\"ds-bar\"><span class=\"ds-dots\"><i></i><i></i><i></i></span><span class=\"ds-where\">claude · /mods</span><span></span></div><pre class=\"ds-pre\"><span style=\"color:var(--t-claude)\">❯</span> Discover  <span style=\"color:var(--t-success)\">●</span> turn-band   <span style=\"color:var(--t-subtle)\">runs programs</span></pre><p class=\"ds-cap\"><b>Discover</b> A community mod installs from the marketplace in its own repository.</p></div>",
+      "css": ".ds-steps{display:inline-flex;gap:.25rem;padding:.25rem;margin-bottom:1rem;background:var(--raised);border:1px solid var(--line);border-radius:10px}.ds-step{display:inline-flex;align-items:center;gap:.5rem;height:2rem;padding:0 .85rem 0 .6rem;font:550 .875rem var(--sans);color:var(--text-2);border-radius:7px;cursor:pointer;transition:color .15s var(--ease),background-color .15s var(--ease)}.ds-step:hover{color:var(--text)}.ds-on{color:var(--text);background:var(--field);box-shadow:0 0 0 1px var(--line-strong),0 1px 2px rgb(0 0 0 / .2)}.ds-n{display:inline-grid;place-items:center;width:1.15rem;height:1.15rem;font-size:.75rem;font-variant-numeric:tabular-nums;border:1px solid var(--line-strong);border-radius:50%}.ds-on .ds-n{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}.ds-window{background:var(--term-bg);border:1px solid var(--term-line);border-radius:12px;overflow:hidden}.ds-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:2.25rem;padding:0 .85rem;border-bottom:1px solid var(--term-line)}.ds-dots{display:flex;gap:.4rem}.ds-dots i{width:.65rem;height:.65rem;border-radius:50%;background:#2a2f36}.ds-where{font:500 .75rem var(--mono);color:var(--t-subtle)}.ds-pre{margin:0;padding:1.25rem;font:400 .9rem/1.5 var(--mono);color:var(--term-fg);font-variant-ligatures:none}.ds-cap{margin:0;padding:.9rem 1.25rem;font:400 .875rem var(--sans);color:var(--t-subtle);border-top:1px solid var(--term-line)}.ds-cap b{display:block;font-weight:550;color:var(--term-fg)}"
+    },
+    {
+      "name": "Install Line",
+      "kind": "custom",
+      "refersTo": "install-line",
+      "description": "The full mono install line behind an ember prompt, with its copy button.",
+      "html": "<div class=\"ds-install\"><pre class=\"ds-install-pre\"><code>/plugin install modmgr --marketplace ayagmar/claude-mods</code></pre><button class=\"ds-install-btn\" type=\"button\">Copy</button></div>",
+      "css": ".ds-install{display:flex;align-items:center;gap:.75rem;max-width:40rem;padding:.5rem .5rem .5rem 1.1rem;background:var(--field);border:1px solid var(--line-strong);border-radius:12px}.ds-install-pre{flex:1;min-width:0;margin:0;font:400 .9375rem/1.5 var(--mono);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font-variant-ligatures:none}.ds-install-pre::before{content:'> ';color:var(--accent-text)}.ds-install-btn{height:2.25rem;padding:0 .7rem;font:550 .8125rem var(--sans);color:var(--text-2);background:transparent;border:1px solid var(--line-strong);border-radius:8px;cursor:pointer}.ds-install-btn:hover{color:var(--text);background:var(--hover)}.ds-install-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Store at the Prompt",
+    "overview": "The page is a search tool before it is a page. A near-black ground, two or three surface steps above it, 1px hairlines, warm off-white type and a single Claude-orange accent: the category standard for developer tools, played straight and held to exact type and spacing. The first viewport is a slim nav, a centred two-line headline carrying the live mod count, a large search field focused on load, filter chips, and the first dense rows of results. Everything below (the `/mods` dialog, the honesty block, the install line) is set left on one section rhythm and stays as quiet as the results.\n\nDensity is a dev-tool list's, not a marketing page's: rows of about 70px, 13px meta type, tabular numbers, actions that stay dim until the row is pointed at or focused. Depth comes from surface steps and hairlines, never from shadow. Light mode, from `prefers-color-scheme`, is an equal re-tune of the same tokens, not an afterthought; the terminal window stays dark in both themes because the real terminal is dark.\n\nThe keyboard is a first-class path: `/` and Ctrl K (⌘K on Apple platforms) focus search, arrow keys move between rows, Enter opens one inline, `[` and `]` turn the page. Without script the page still paints the 40 most-starred mods, the rows still open (native `details`), the dialog stepper still switches (CSS radio group), and the nav's install button becomes a link to the install section.",
+    "keyCharacteristics": [
+      "Near-black ground with tonal surface steps and 1px hairlines; no ambient shadow.",
+      "One accent, Claude orange, for focus, matches, selected state and the copy confirmation.",
+      "Archivo Variable at normal width for everything read; JetBrains Mono for repos, commands, keys and the terminal.",
+      "Search-first first viewport, dense results list; a datasheet beside it on a wide screen, inline expansion on a narrow one.",
+      "Motion is short, eased on one curve, transform and opacity only, and gated on reduced-motion preference."
+    ],
+    "rules": [
+      {
+        "name": "The One Ember Rule",
+        "body": "Orange is the only hue in the UI chrome, and it means \"focused, matched, chosen or done\". It is never a resting background on a button, chip or section.",
+        "section": "colors"
+      },
+      {
+        "name": "The Terminal Stays Dark Rule",
+        "body": "The dialog window keeps its dark terminal palette in light mode; only the page around it re-tunes.",
+        "section": "colors"
+      },
+      {
+        "name": "The Typed-Literal Rule",
+        "body": "Mono only for what is typed, copied or shown by a terminal, always with ligatures off so `--flag` reads as typed.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Count Rule",
+        "body": "Every number that changes or lines up (count, range, stars, page numbers, step numbers) uses tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "A surface separates by one step of tone and one 1px line. If something seems to need a drop shadow, it needs a surface step instead.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** separate surfaces with one tonal step and a 1px hairline (`line` for structure, `line-strong` for controls).",
+      "**Do** keep orange to focus, search matches, checked chips, the active step and the copied state.",
+      "**Do** set repos, commands, keys and terminal output in JetBrains Mono with ligatures off, and everything else in Archivo Variable at normal width.",
+      "**Do** use tabular figures for counts, ranges, stars and page numbers.",
+      "**Do** animate only transform, opacity and color, on `cubic-bezier(0.16, 1, 0.3, 1)`, 0.12 to 0.4s, inside `prefers-reduced-motion: no-preference`.",
+      "**Do** keep every control reachable by keyboard and every core path (rows, stepper, install line) working without script.",
+      "**Do** re-tune neutrals for light mode at equal care and leave the terminal window dark."
+    ],
+    "donts": [
+      "**Don't** add drop shadows beyond the step lift and the search focus ring.",
+      "**Don't** fill a resting button, chip or section with the accent.",
+      "**Don't** add glows, gradient blobs, glass or icon feature cards.",
+      "**Don't** use mono for prose or Archivo for something a person types.",
+      "**Don't** introduce a second accent hue in the page chrome; the terminal tones stay inside the window."
+    ]
+  }
+}

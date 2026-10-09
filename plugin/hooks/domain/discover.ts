@@ -5,14 +5,17 @@
 import type {
   CatalogPage,
   CatalogRow,
+  CommunityFacts,
   Job,
   ReviewRequest,
   Scope,
   View,
 } from '../../types/index.d.ts'
-import { notableText } from './capabilities.ts'
-import { SORTS } from './catalog.ts'
+import { capabilitiesOf, notableText } from './capabilities.ts'
+import { installIdOf, SORTS } from './catalog.ts'
+import type { CommunityMod } from './community.ts'
 import { parseMarketplaceSource } from './ids.ts'
+import { sanitize } from './sanitize.ts'
 
 export const INSTALL_SCOPES = ['user', 'project', 'local'] as const
 export type InstallScope = (typeof INSTALL_SCOPES)[number]
@@ -69,6 +72,35 @@ export const installReview = (
     : { ...review, uninspected: true }
 }
 
+/**
+ * The review of installing a community mod (`i`): from the marketplace at its
+ * repository's root, which the install adds first. What it can do is known
+ * already, from the community index; modmgr reads it again once installed.
+ * Undefined for a mod no marketplace lists (it can't be installed by id).
+ */
+export const communityInstallReview = (
+  mod: CommunityMod,
+  scope: InstallScope,
+): ReviewRequest | undefined => {
+  const id = installIdOf(mod)
+  if (id === undefined) return undefined
+  const name = sanitize(mod.name, { max: 64 })
+  return {
+    action: 'install',
+    targets: [{ id, op: 'install', scope }],
+    notable: capabilitiesOf(mod).notable.map(notable => `${name}: ${notableText(notable)}`),
+    changesRepoFile: scope !== 'user',
+    source: mod.repo,
+    indexedAt: mod.commit,
+  }
+}
+
+/** A community mod's page on GitHub (its folder at the commit the index read). */
+export const communityLink = (facts: Pick<CommunityFacts, 'repo' | 'path' | 'commit'>): string =>
+  facts.path === ''
+    ? `https://github.com/${facts.repo}`
+    : `https://github.com/${facts.repo}/tree/${facts.commit}/${facts.path}`
+
 /** The same review at another scope (the review's Select). */
 export const withScope = (review: ReviewRequest, scope: Scope): ReviewRequest =>
   review.action !== 'install' || !isInstallScope(scope)
@@ -97,11 +129,13 @@ export const acceptReview = (job: Job): ReviewRequest | undefined => {
     sha256: shown.sha256,
     ...(shown.truncated === true ? { truncated: true } : {}),
   }
+  const source = job.args?.source
   return {
     action: job.kind,
     targets: [{ id: target, op: job.kind, ...(scope === undefined ? {} : { scope }) }],
     notable: [],
     changesRepoFile: scope === 'project' || scope === 'local',
+    ...(source === undefined ? {} : { source }),
     ...(shown.kind === 'entry_helper'
       ? { headersHelper: declared }
       : { declaredCommand: declared }),
@@ -160,7 +194,15 @@ export const foundOfKey = (key: string | undefined): string | undefined =>
 export const foundRow = (view: View, page: CatalogPage): CatalogRow | undefined =>
   page.rows.find(row => row.id === view.found) ?? page.rows[0]
 
-/** The next sort (`o`): installs → name → marketplace. */
+/** What the sort key says: installs, then stars for community mods. */
+export const SORT_LABEL: Readonly<Record<View['sort'], string>> = {
+  installs: 'popularity',
+  stars: 'stars',
+  name: 'name',
+  marketplace: 'source',
+}
+
+/** The next sort (`o`): popularity → stars → name → source. */
 export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'
 

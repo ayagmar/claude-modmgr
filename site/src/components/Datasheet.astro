@@ -1,0 +1,374 @@
+---
+// The selected mod, beside the results on a wide screen: what it is, what it
+// can reach drawn as a chip's pins, and its install line. The build writes it
+// for the first result; scripts/store.ts refills these same elements (by id,
+// with textContent) as the selection moves. Change both together.
+import {
+  CHECK_SHORT,
+  countText,
+  dayText,
+  flagParts,
+  installNoteOf,
+  notablesOf,
+  pinsOf,
+  sourceOf,
+} from '../lib/present.ts'
+import { installLineOf, linkOf, type Mod } from '../lib/search.ts'
+
+type Props = { mod: Mod }
+const { mod } = Astro.props
+const notables = notablesOf(mod)
+---
+
+<section class="sheet" id="sheet" aria-label="Selected mod" data-copy-scope>
+  <div class="sheet-in">
+    <h3 id="sheet-name">{mod.name}</h3>
+    <a class="sheet-repo" id="sheet-repo" href={linkOf(mod)}>{sourceOf(mod)}</a>
+    <p class="sheet-desc" id="sheet-desc">{mod.description}</p>
+
+    <div class="part">
+      <p class="label" id="sheet-reach-label">What it can reach</p>
+      <ol class="pins" id="sheet-pins" aria-labelledby="sheet-reach-label">
+        {
+          pinsOf(mod).map(pin => (
+            <li class={pin.on ? 'on' : undefined}>
+              <span class="pin">{pin.label}</span>
+              <span class="vh">{pin.on ? ': yes' : ': no'}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <div class="part">
+      <p class="label">Notable</p>
+      <ul class="sheet-notable" id="sheet-notable">
+        {
+          notables.length > 0 ? (
+            notables.map(text => (
+              <li>
+                <svg class="i" aria-hidden="true"><use href="#i-diamond"></use></svg>
+                {text}
+              </li>
+            ))
+          ) : (
+            <li class="none">Nothing notable</li>
+          )
+        }
+      </ul>
+    </div>
+
+    <dl class="specs part">
+      <div><dt>Validate</dt><dd id="sheet-check">{CHECK_SHORT[mod.check]}</dd></div>
+      <div><dt>Stars</dt><dd id="sheet-stars">{countText(mod.stars)}</dd></div>
+      <div><dt>Last push</dt><dd id="sheet-pushed">{dayText(mod.pushed)}</dd></div>
+      <div>
+        <dt>Installs</dt>
+        <dd id="sheet-from">{mod.plugin === undefined ? 'From a clone' : 'From its marketplace'}</dd>
+      </div>
+    </dl>
+
+    <div class="get part">
+      <p class="label" id="sheet-how">{mod.plugin === undefined ? 'Load it from a clone' : 'Install'}</p>
+      <pre class="cmd"><code id="sheet-install" data-copy-text>{flagParts(installLineOf(mod)).map((part, n) => <>{n > 0 && ' '}<span class="keep">{part}</span></>)}</code></pre>
+      <p class="sheet-note" id="sheet-note">{installNoteOf(mod)}</p>
+      <div class="sheet-acts">
+        <button
+          class="btn copy js-only"
+          id="sheet-copy"
+          type="button"
+          data-copy
+          aria-label={`Copy the install line for ${mod.name}`}
+        >
+          <svg class="i" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copy</span><kbd
+            class="key"
+            aria-hidden="true">Enter</kbd>
+        </button>
+        <a class="btn" id="sheet-gh" href={linkOf(mod)}>
+          <svg class="i" aria-hidden="true"><use href="#i-github"></use></svg>Open on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Only a wide screen has room beside the list; a narrow one opens rows inline. */
+  .sheet {
+    display: none;
+  }
+
+  @media (min-width: 68.75rem) {
+    .sheet {
+      position: sticky;
+      top: 1rem;
+      display: flex;
+      align-self: start;
+      min-height: min(41rem, calc(100vh - 2rem));
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+  }
+
+  .sheet[hidden] {
+    visibility: hidden;
+  }
+
+  /* A column whose install line sits at the foot, so Copy stays put as the selection moves. */
+  .sheet-in {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    padding: 1.125rem 1.125rem 1rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-repo {
+    align-self: start;
+    max-width: 100%;
+    margin-top: 0.3rem;
+    font: 400 0.8125rem var(--mono);
+    color: var(--text-3);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-repo:hover {
+    color: var(--text-2);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+  }
+
+  /* Four lines at most, so the figure below holds its place from one mod to the next. */
+  .sheet-desc {
+    display: -webkit-box;
+    min-height: 6em;
+    margin: 0.65rem 0 0;
+    overflow: hidden;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+
+  .part {
+    margin: 0;
+    padding-top: 0.875rem;
+    margin-top: 0.875rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .label {
+    margin: 0 0 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  /* The pins: a chip with pins 1–4 down its left side and 5–7 down its right,
+     each lead's pad filled where the mod reaches it. */
+  .pins {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr);
+    grid-template-rows: repeat(4, 1.5rem);
+    grid-auto-flow: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.75rem;
+  }
+
+  /* The package, with the notch that marks pin 1's end. */
+  .pins::before {
+    content: "";
+    grid-column: 2;
+    grid-row: 1 / -1;
+    background: var(--line-strong);
+    border-radius: 3px;
+    -webkit-mask: radial-gradient(circle at 50% 0, transparent 0.32rem, #000 0.36rem);
+    mask: radial-gradient(circle at 50% 0, transparent 0.32rem, #000 0.36rem);
+  }
+
+  .pins li {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    color: var(--text-3);
+  }
+
+  .pins li:nth-child(-n + 4) {
+    grid-column: 1;
+    justify-content: flex-end;
+  }
+
+  .pins li:nth-child(n + 5) {
+    grid-column: 3;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+  }
+
+  .pins li:nth-child(5) {
+    grid-row: 1;
+  }
+
+  .pins li:nth-child(6) {
+    grid-row: 2;
+  }
+
+  .pins li:nth-child(7) {
+    grid-row: 3;
+  }
+
+  .pin {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* The lead and its pad, against the package. */
+  .pins li::after {
+    content: "";
+    flex: none;
+    width: 0.6rem;
+    height: 0.45rem;
+    border: 1px solid var(--text-3);
+    border-radius: 1.5px;
+  }
+
+  .pins :global(li.on) {
+    color: var(--text);
+    font-weight: 550;
+  }
+
+  .pins :global(li.on)::after {
+    background: var(--text);
+    border-color: var(--text);
+  }
+
+  .sheet-notable {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sheet-notable :global(li) {
+    display: grid;
+    grid-template-columns: 0.6rem minmax(0, 1fr);
+    gap: 0.5rem;
+    font-weight: 500;
+  }
+
+  .sheet-notable :global(svg) {
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-top: 0.3rem;
+  }
+
+  .sheet-notable :global(li.none) {
+    display: block;
+    font-weight: 400;
+    color: var(--text-3);
+  }
+
+  .specs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+  }
+
+  dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  dd {
+    margin: 0.1rem 0 0;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* On a short screen the sheet scrolls inside itself; the install line and
+     Copy stay pinned to its foot. */
+  .get {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    margin-inline: -1.125rem;
+    margin-bottom: -1rem;
+    padding: 0.875rem 1.125rem 1rem;
+    background: var(--raised);
+  }
+
+  .cmd {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: var(--field);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+  }
+
+  /* A flag keeps its value; a part longer than the line still wraps inside itself. */
+  .cmd :global(.keep) {
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  .sheet-note {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--text-2);
+  }
+
+  .sheet-acts {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+  }
+
+  .sheet-acts .copy {
+    color: var(--text);
+  }
+
+  /* Enter on a row does what this button does. */
+  .key {
+    height: 1.2rem;
+    margin-right: -0.3rem;
+    font-size: 0.6875rem;
+  }
+
+  .copy[data-state] .key {
+    display: none;
+  }
+
+  /* The prompt, as on the install line: this is typed at Claude Code's prompt. */
+  .cmd :global(.keep:first-child)::before {
+    content: "> ";
+    color: var(--accent-text);
+  }
+</style>

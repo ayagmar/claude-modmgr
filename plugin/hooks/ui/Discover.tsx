@@ -6,7 +6,7 @@
 import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
-import { foundKey, inspectionLines } from '../domain/discover.ts'
+import { communityLink, foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
@@ -63,7 +63,12 @@ export const FoundRow = (
   const { Box, Text } = v.el
   const name = Math.max(8, how.columns - 2 - 1 - INSTALLS)
   const label = how.twin ? `${row.name} · ${row.marketplace}` : row.name
-  const installs = row.installs === undefined ? '' : formatCount(row.installs)
+  const installs =
+    row.stars !== undefined
+      ? `★${formatCount(row.stars)}`
+      : row.installs === undefined
+        ? ''
+        : formatCount(row.installs)
   const about = row.blurb === '' ? row.marketplace : row.blurb
   return (
     <Box key={`line:${row.id}`} flexDirection="column">
@@ -169,13 +174,19 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     row.notable === undefined
       ? undefined
       : inspectionLines({ notable: row.notable, hasModule: row.kind === 'mod' })
+  const { community } = row
   const origin = [
     row.marketplace,
     row.installs === undefined ? '' : `${formatCount(row.installs)} installs`,
+    row.stars === undefined
+      ? ''
+      : `${formatCount(row.stars)} ${row.stars === 1 ? 'star' : 'stars'}`,
   ]
     .filter(part => part !== '')
     .join(' · ')
   const source = `from ${row.source}`
+  // A community mod no marketplace lists can't be installed by id: its link is what to take.
+  const installable = community === undefined || community.installId !== undefined
   const head: Section = {
     rows: 3,
     el: (
@@ -188,7 +199,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
           {origin}
         </Text>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-          {how.readOnly
+          {how.readOnly || !installable
             ? null
             : KeyButton(v, {
                 action: 'install',
@@ -196,24 +207,39 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
                 label: 'install',
                 onPress: () => v.act.install(row.id),
               })}
-          {KeyButton(v, {
-            action: 'copy',
-            on: 'discover-detail',
-            label: 'copy id',
-            onPress: press => v.act.copy(row.id, press.surface),
-          })}
+          {community === undefined
+            ? KeyButton(v, {
+                action: 'copy',
+                on: 'discover-detail',
+                label: 'copy id',
+                onPress: press => v.act.copy(row.id, press.surface),
+              })
+            : KeyButton(v, {
+                action: 'copy',
+                on: 'discover-detail',
+                label: 'copy link',
+                onPress: press => v.act.copy(communityLink(community), press.surface),
+              })}
         </Box>
       </Box>
     ),
   }
+  const howTo = installable
+    ? []
+    : ['No marketplace lists it, so it installs from a clone:', 'claude --plugin-dir <its folder>']
   const about: Section = {
-    rows: (row.blurb === '' ? 0 : wrappedRows([row.blurb], how.columns)) + 1,
+    rows: (row.blurb === '' ? 0 : wrappedRows([row.blurb], how.columns)) + 1 + howTo.length,
     el: (
       <Box flexDirection="column">
         {row.blurb === '' ? null : <Text>{row.blurb}</Text>}
         <Text dimColor wrap="truncate-end">
           {source}
         </Text>
+        {howTo.map(line => (
+          <Text dimColor wrap="truncate-end">
+            {line}
+          </Text>
+        ))}
       </Box>
     ),
   }
@@ -229,8 +255,15 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     ) : notable.length === 0 ? (
       <Text dimColor>{GLYPH.ok} Nothing notable.</Text>
     ) : undefined
+  // Where the facts come from, for a community mod: the commit the index validated.
+  const read =
+    community === undefined
+      ? []
+      : [
+          `as validate read it at ${community.commit.slice(0, 7)}${community.check === 'warnings' ? ', with warnings' : ''}`,
+        ]
   const caps: Section = {
-    rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1),
+    rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1) + read.length,
     el: (
       <Box flexDirection="column">
         {Heading(v, 'What it can do')}
@@ -241,6 +274,11 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
               <Text>{line}</Text>
             </Box>
           ))}
+        {read.map(line => (
+          <Text dimColor wrap="truncate-end">
+            {line}
+          </Text>
+        ))}
       </Box>
     ),
   }

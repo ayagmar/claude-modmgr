@@ -19,6 +19,7 @@ import {
   parseToggleScope,
   type Scope,
   type Sha256,
+  splitPluginId,
   type ToggleScope,
 } from './ids.ts'
 import { fail, ok, type Result } from './result.ts'
@@ -39,6 +40,8 @@ export type CliCommand =
       readonly id: PluginId
       readonly scope: ToggleScope
       readonly acceptSha?: Sha256
+      /** Install from the marketplace at this source, added first when it isn't yet. */
+      readonly marketplace?: MarketplaceSource
     }
   | {
       readonly op: 'update'
@@ -113,7 +116,10 @@ export const argvOf = (command: CliCommand): string[] => {
       return [
         ...plugin,
         'install',
-        command.id,
+        // With a marketplace source the CLI takes the plugin's bare name.
+        ...(command.marketplace === undefined
+          ? [command.id]
+          : [splitPluginId(command.id).name, '--marketplace', command.marketplace]),
         ...scoped(command.scope),
         ...accepting(command.acceptSha),
         '--json',
@@ -196,11 +202,14 @@ export const commandOfJob = (job: Job): Result<CliCommand> => {
       if (!scope.ok) return scope
       const sha = optional(args.acceptSha, parseSha256)
       if (!sha.ok) return sha
+      const source = optional(args.source, parseMarketplaceSource)
+      if (!source.ok) return source
       return ok({
         op: 'install',
         id: id.value,
         scope: scope.value,
         ...(sha.value === undefined ? {} : { acceptSha: sha.value }),
+        ...(source.value === undefined ? {} : { marketplace: source.value }),
       })
     }
     case 'update': {
