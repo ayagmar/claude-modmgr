@@ -11,6 +11,7 @@ import {
   healthKey,
   healthLines,
   healthOfKey,
+  healthText,
   loadStates,
   loggedFailures,
   OWN_GROUP,
@@ -27,7 +28,7 @@ import {
   updateTo,
 } from '../../plugin/hooks/domain/updates.ts'
 import { statusLineOf, summaryOf } from '../../plugin/hooks/domain/view.ts'
-import type { DevState, HealthFacts, JobQueue, ModRow } from '../../plugin/types/index.d.ts'
+import type { HealthFacts, JobQueue, ModRow } from '../../plugin/types/index.d.ts'
 
 const SHA = 'a'.repeat(40)
 const OTHER = `${'b'.repeat(12)}${'c'.repeat(28)}`
@@ -167,7 +168,6 @@ const facts = (more: Partial<HealthFacts> = {}): HealthFacts => ({
 
 const input = (more: Partial<HealthInput> = {}): HealthInput => ({
   mods: [],
-  dev: INITIAL.dev,
   attention: INITIAL.attention,
   degraded: INITIAL.degraded,
   sync: INITIAL.sync,
@@ -179,11 +179,6 @@ const input = (more: Partial<HealthInput> = {}): HealthInput => ({
 
 describe('Health’s items', () => {
   it('shows seeded problems, worst first, each with its fix', () => {
-    const dev: DevState = {
-      rows: [{ key: '/dev/tb', name: 'tb', how: 'plugin-dir', path: '/dev/tb' }],
-      failures: { tb: { count: 2, lastReason: 'reload failed', lastAt: 1 } },
-      loading: false,
-    }
     const items = healthItemsOf(
       input({
         mods: [
@@ -191,7 +186,6 @@ describe('Health’s items', () => {
           row('grown', { capsNew: { since: '0.3.1', added: ['runs-programs'] } }),
           row('hurt', { problems: 2 }),
         ],
-        dev,
         facts: facts({ logged: { quiet: 'tool.call (Error)' } }),
       }),
     )
@@ -199,19 +193,14 @@ describe('Health’s items', () => {
     expect(mine.map(item => [item.group, item.tone, item.text, item.fixLabel])).toEqual([
       ['hurt', 'bad', 'validate finds 2 errors in it', 'see it'],
       ['quiet', 'bad', 'a hook failed: tool.call (Error) (debug log)', undefined],
-      ['tb', 'bad', '2 failures while it reloaded; last: reload failed', 'validate'],
       ['grown', 'warn', 'since 0.3.1 it can run programs', 'review it'],
       ['fresh', 'info', '1.2.0 is available', 'update'],
     ])
-    expect(mine.find(item => item.group === 'tb')?.fix).toEqual({
-      kind: 'validate',
-      key: '/dev/tb',
-    })
     expect(mine.find(item => item.group === 'fresh')?.fix).toEqual({
       kind: 'update',
       id: 'fresh@m',
     })
-    expect(problemCount(items)).toBe(3)
+    expect(problemCount(items)).toBe(2)
   })
 
   it('says modmgr’s own state', () => {
@@ -245,48 +234,50 @@ describe('Health’s items', () => {
       }),
     )
     const texts = items.map(
-      item => `${item.group}: ${item.text}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`,
+      item => `${item.group}: ${healthText(item)}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`,
     )
     expect(texts).toEqual([
       'Hook order: a then b rewrite each row (session.append).',
-      'modmgr itself: no claude CLI',
-      "modmgr itself: couldn't read the installed list: list ran past 30 s → try again",
-      'modmgr itself: changes wait for a plugin reload → reload',
-      "modmgr itself: modmgr's cache is full; what it knows is not saved → clear cache",
-      'modmgr itself: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
-      'modmgr itself: 1 enabled · 1 disabled · 1 managed',
-      'modmgr itself: updates checked 3 h ago, every 6 hours → check now',
-      'modmgr itself: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
-      'modmgr itself: A hook that fails is logged only in a session started with --debug → copy command',
+      'Status: CLI: no claude CLI',
+      "Status: Installed: couldn't read the list: list ran past 30 s → try again",
+      'Status: Reload: changes wait for a plugin reload → reload',
+      "Status: Cache: full: what modmgr learns isn't saved → clear cache",
+      'Status: Commands: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      'Status: Mods: 1 enabled · 1 disabled · 1 managed',
+      'Status: Updates: checked 3 h ago · every 6 h → check now',
+      'Status: Discover: 3 mods found in local catalogues (detectRemote is off in its options)',
+      'Status: Hook errors: seen only in a session started with --debug → copy command',
     ])
+  })
+
+  it('says when installed plugins could not be read, so are not listed, and reads them again', () => {
+    const items = healthItemsOf(input({ sync: { refreshing: false, skipped: 2, at: 1 } }))
+    expect(
+      items.map(item => `${healthText(item)}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`),
+    ).toContain("Installed: couldn't read 2 installed plugins, so they are not listed → read again")
+    expect(items.find(item => item.key === 'own:unread')?.fix).toEqual({ kind: 'refresh' })
   })
 
   it('says when updates were never checked, or are off; the detector’s budget; the cache', () => {
     const texts = (more: Partial<HealthFacts>) =>
       healthItemsOf(input({ facts: facts(more) })).map(item => item.text)
-    expect(texts({ updates: { every: 6 } })).toContain('updates checked never, every 6 hours')
+    expect(texts({ updates: { every: 6 } })).toContain('never checked · every 6 h')
     expect(texts({ updates: { every: 0, off: 'updateCheckHours is 0' } })).toContain(
-      'update checks are off: updateCheckHours is 0',
+      'checks are off: updateCheckHours is 0',
     )
-    expect(texts({})).toContain(
-      'detector: 3 mods found; 120 of 3,545 checked, 560 requests left this session',
-    )
+    expect(texts({})).toContain('3 mods found · 120 of 3,545 checked, 560 lookups left')
     const indexed = healthItemsOf(
       input({
         facts: facts({ at: 10 * 3_600_000 }),
         detect: { checked: 3545, total: 3545, found: 53, running: false, indexAt: 7 * 3_600_000 },
       }),
     )
-    expect(indexed.map(item => item.text)).toContain(
-      'detector: 53 mods found, from the catalogue index built 3 h ago; 3,545 of 3,545 checked, 560 requests left this session',
-    )
-    expect(texts({})).toContain('cache: 2 KB')
+    expect(indexed.map(item => item.text)).toContain('53 mods found · index 3 h old')
+    expect(texts({})).toContain('2 KB')
     const fresh = healthItemsOf(
       input({ detect: { checked: 0, total: 0, found: 0, running: false } }),
     )
-    expect(fresh.map(item => item.text)).toContain(
-      'detector: not run yet; it starts when Discover opens',
-    )
+    expect(fresh.map(item => item.text)).toContain('finds mods when Discover first opens')
     // A reload already queued is not owed.
     const queued = healthItemsOf(
       input({

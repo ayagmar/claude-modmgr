@@ -1,9 +1,10 @@
 // Builds the community index (plugin/hooks/domain/community.ts): every mod
 // found on public GitHub, with what `claude plugin validate` reports for it.
 // Candidates are the repositories GitHub search finds (scripts/mods/search.ts),
-// the ones the last published index listed, and the candidate list of
-// awesome-claude-code-mods (CC0), which holds repositories code search hasn't
-// indexed yet. Each is cloned shallow, its symbolic links checked out as plain
+// the ones the last published index listed, those of the mods the official
+// catalogues list (scripts/build-index.ts writes them), and the candidate list
+// of awesome-claude-code-mods (CC0), which holds repositories code search
+// hasn't indexed yet. Each is cloned shallow, its symbolic links checked out as plain
 // files, and read (scripts/mods/inspect.ts): no mod code runs. A repository
 // that can't be read this time keeps what the last index said of it. It
 // refuses to write a file that lost too many mods, so a bad run can't replace
@@ -11,7 +12,7 @@
 // that can only read; its logic takes the network and the checkout as
 // arguments, so a test runs it on fixtures.
 //
-//   GITHUB_TOKEN=… node scripts/build-mods.ts <out.json>
+//   GITHUB_TOKEN=… node scripts/build-mods.ts <out.json> [<mod-repos.txt>]
 
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -76,6 +77,11 @@ export type ModsDeps = {
   readonly fetchText: (url: string) => Promise<string | undefined>
   /** The mods a repository holds, or undefined when it couldn't be read this time. */
   readonly inspect: (repo: string, facts: RepoFacts) => Promise<CommunityMod[] | undefined>
+  /**
+   * The repositories of the mods the official catalogues list: read whether or
+   * not search finds them, so Discover has their stars and what they can do.
+   */
+  readonly catalogued: readonly string[]
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly log: (line: string) => void
@@ -190,6 +196,7 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
       if (isRepo(repo) && !candidates.has(key(repo))) candidates.set(key(repo), repo)
   }
   add((previous?.mods ?? []).map(mod => mod.repo))
+  add(deps.catalogued)
   add(seeds)
   add(found.filter(repo => !recent.includes(repo)))
   add([...new Set(recent)].slice(0, RECENT_MAX))
@@ -255,7 +262,7 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
   const text = communityText(deps.now(), published)
   deps.log(
     [
-      `candidates ${candidates.size} (seeds ${seeds.length}, last index ${new Set((previous?.mods ?? []).map(m => key(m.repo))).size}), public ${repos.size}`,
+      `candidates ${candidates.size} (catalogued ${deps.catalogued.length}, seeds ${seeds.length}, last index ${new Set((previous?.mods ?? []).map(m => key(m.repo))).size}), public ${repos.size}`,
       `mods ${mods.length} in ${new Set(mods.map(mod => key(mod.repo))).size} repositories; ${mods.filter(mod => mod.market).length} installable by marketplace; unread ${unread}`,
       `checks ${JSON.stringify(checks)}`,
       `published ${published.length}: ${mods.length - working.length} failing validate and ${working.length - published.length} copies left out`,
@@ -455,10 +462,10 @@ export const inspectRepo =
   }
 
 if (import.meta.main) {
-  const out = process.argv[2]
+  const [out, catalogued] = process.argv.slice(2)
   const token = process.env.GITHUB_TOKEN
   if (out === undefined || token === undefined || token === '') {
-    console.error('usage: GITHUB_TOKEN=… node scripts/build-mods.ts <out.json>')
+    console.error('usage: GITHUB_TOKEN=… node scripts/build-mods.ts <out.json> [<mod-repos.txt>]')
     process.exit(2)
   }
   const work = mkdtempSync(join(tmpdir(), 'modmgr-mods-'))
@@ -480,6 +487,7 @@ if (import.meta.main) {
       graphql: githubGraphql(token),
       fetchText,
       inspect: inspectRepo(work, env, line => console.error(line)),
+      catalogued: catalogued === undefined ? [] : parseRepoList(readFileSync(catalogued, 'utf8')),
       now: Date.now,
       sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
       log: line => console.error(line),

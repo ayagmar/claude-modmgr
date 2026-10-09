@@ -12,7 +12,7 @@ import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { drawPane } from '../../plugin/hooks/ui/Pane.tsx'
 import type { View } from '../../plugin/types/index.d.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { bumpTurnBand, fixtureCli, markMods } from '../services/cli-world.ts'
+import { bumpTurnBand, fixtureCli, fixtureManifests, markMods } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
 import { ELEMENTS, installJsx, type Line, render, tidy } from './render.ts'
 
@@ -54,6 +54,7 @@ type Frame = { readonly title: string; readonly caption: string; readonly lines:
 const frames = async (): Promise<Frame[]> => {
   installJsx()
   const w = world()
+  fixtureManifests(w.fs)
   fixtureCli(w.process)
     .when(['list', '--json', '--available'], out(catalogue()))
     .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
@@ -69,7 +70,7 @@ const frames = async (): Promise<Frame[]> => {
   const act = createActions(w.ports, rt)
   const draw = async (title: string, caption: string): Promise<Frame> => {
     const tree = await drawPane(
-      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act },
+      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act, ownRoot: '/modmgr' },
       { bodyColumns: COLUMNS, bodyRows: ROWS, isFocused: true },
     )
     return { title, caption, lines: render(tree, COLUMNS).map(tidy) }
@@ -104,7 +105,6 @@ const frames = async (): Promise<Frame[]> => {
   await act.install(SCRUB)
   shown.push(await draw('Review', 'Nothing runs before you read what will run, and where.'))
   await act.cancel()
-  await rt.dev.notice('redactor: tool.call hook failed: it threw')
   await act.tab('health')
   shown.push(await draw('Health', 'What needs you, worst first, each with a one-key fix.'))
   return shown

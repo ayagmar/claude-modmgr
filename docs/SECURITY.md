@@ -16,7 +16,7 @@ reload, or to stop launching it.
 |---|---|---|
 | **A hostile catalogue entry** | A look-alike name, a description with terminal escapes or bidi overrides, a plugin id shaped like a flag | Every id is checked against a strict pattern before it reaches a process (below). All untrusted text is sanitised and drawn as plain text, never Markdown. Every detail and review names the marketplace, and a list row does too when another entry shares its name. |
 | **A malicious mod** | A mod that reads your conversation and posts it somewhere, runs programs, or rewrites what the model reads | In every detail view, and **before install for an entry whose files are on disk** (a folder in its marketplace or its clone), modmgr shows the mod's **capabilities as facts** from `claude plugin validate --json` (what it hooks, what it calls, which environment variables it reads), grouped by reach, with the dangerous combinations called out ("Can read your conversation and send data out"). A remote entry is read once installed, and the install review says so. After an update it shows what was **added**. It does not block anything: you decide. |
-| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | An install runs without acceptance first; when the marketplace declares a command, nothing runs (the CLI enforces this) and the job stops. modmgr then shows the command **line for line with its sha256** (and says when sanitising removed hidden or control characters) on a review whose confirm key reads "run it and install". Confirming passes `--accept-command <sha256>`: the CLI runs the command only while it is still that very command, and otherwise shows the new one, which modmgr reviews again. modmgr never passes `-y`. |
+| **A compromised marketplace** | A marketplace changes the command it declares for an install, or its `headersHelper` | An install runs without acceptance first; when the marketplace declares a command, nothing runs (the CLI enforces this) and the job stops. modmgr then shows the command **line for line with its sha256**, every character of it reachable however short the pane, on a review whose confirm key reads "run it and install". A command holding hidden or control characters can't be shown as it is: the review says so and has it accepted in a terminal instead. Confirming passes `--accept-command <sha256>`: the CLI runs the command only while it is still that very command, and otherwise shows the new one, which modmgr reviews again. modmgr never passes `-y`. |
 | **modmgr's own bugs** | A crash in a hook, a corrupt store, an unreadable CLI answer | Every hook has a `.catch` that passes through, so a failing modmgr never blocks a session event. Errors are values, never thrown across layers. The store is shape-checked on every read and starts a key empty when it's unreadable. A CLI answer modmgr can't parse is reported, never guessed. |
 
 ## Trust boundaries worth knowing
@@ -106,7 +106,7 @@ files with `$.fs.read`, at paths inside that marketplace's folder (checked segme
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads
 plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`) and lists folders (`$.fs.list`) where mods under
 development live: this session's mods folder (under `CLAUDE_CONFIG_DIR`, or `~/.claude` from `HOME`, the only reason
-modmgr reads those two variables), where the session runs, and a folder a failure notice named. It never writes a
+modmgr reads those two variables), and where the session runs. It never writes a
 file: `p` (share) shows the marketplace file to write and copies the install line. `v` and `t` run `claude plugin
 validate` and `claude plugin test` on a dev mod's folder, which runs that mod's own tests: the person's code, on
 their key press. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
@@ -122,14 +122,9 @@ another session's) for `hook failed closed` lines, keeping only the plugin's nam
 engine logs no error text). modmgr never reads
 the CLI's internal files (`installed_plugins.json`, settings) or the project's settings.
 
-**Notices.** modmgr hooks `session.append` for notices only (`door: 'notice'`, the dim lines the model never reads),
-to count a hot-reloaded plugin's failures for Dev. A failure notice that names a module's file (`reload failed`, `did not load`) gives a folder; modmgr reads that
-folder's `plugin.json` once and lists it in Dev only when the manifest names the same plugin. The hook calls `next`
-first and returns the row the
-session stored, unchanged; its `.catch` passes through. The validator still reports it as a gating hook (any
-`session.append` hook is one), and a capability list built from event names, modmgr's own included, places it under
-"what the model sees": that is the event's reach, not what this hook does with it. `scripts/validate-plugin.ts` allows
-this gate with exactly that matcher and no other.
+**No hooks on what the model sees.** modmgr hooks no event that carries conversation rows (`session.append`,
+`prompt.*`) and never gates a tool, so nothing it runs can change what the model reads.
+`scripts/validate-plugin.ts` fails the build if a gating hook appears.
 
 **No telemetry.** modmgr never calls `$.telemetry`; `node scripts/validate-plugin.ts` fails the build if it does.
 

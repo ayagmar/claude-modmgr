@@ -34,17 +34,11 @@ import type {
 } from './ports.ts'
 import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
-import {
-  MODS_DESCRIPTION,
-  onNotice,
-  onSessionStart,
-  onTurnEnd,
-  onTurnStart,
-} from './services/lifecycle.ts'
+import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
-import { drawPane } from './ui/Pane.tsx'
+import { drawPane, overlayEnd, pageSize } from './ui/Pane.tsx'
 
 // One atom per key, its plugin and key spelled as literals (the validator lists
 // them) and a shape tag that changes with the key's type (domain/state.ts).
@@ -70,7 +64,7 @@ const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.
 const DEGRADED = atom({ plugin: 'modmgr', key: 'degraded' } as const, INITIAL.degraded, {
   shape: 'degraded/1',
 })
-const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/1' })
+const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/2' })
 const HEALTH = atom({ plugin: 'modmgr', key: 'health' } as const, INITIAL.health, {
   shape: 'health/1',
 })
@@ -151,6 +145,7 @@ function envPorts($: EngineInterface): EnvPort {
 function sessionPorts($: EngineInterface): SessionPort {
   return {
     root: () => $.session.root(),
+    ownRoot: async () => $.plugin.root,
     cwd: () => $.session.cwd(),
     id: () => $.session.id(),
     repo: () => $.session.repo(),
@@ -241,11 +236,18 @@ function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
           Box: table.Box,
           Text: table.Text,
           Button: table.Button,
+          Link: table.Link,
           Input: table.Input,
           Select: table.Select,
         }
-      : { Box: table.Box, Text: table.Text, Button: table.Button }
-  return { el, surface: e.surface, read: statePorts($).read, act: actionsOf($) }
+      : { Box: table.Box, Text: table.Text, Button: table.Button, Link: table.Link }
+  return {
+    el,
+    surface: e.surface,
+    read: statePorts($).read,
+    act: actionsOf($),
+    ownRoot: $.plugin.root,
+  }
 }
 
 // This module instance's services, built at its first `session.start` and
@@ -296,13 +298,6 @@ export const register: Register = (on, options) => {
     }
   }).catch((_$, e, next) => next(e))
 
-  // Observed only: what the session says when a hot-reloaded plugin fails (Dev).
-  on('session.append', { door: 'notice' }, async (_$, e, next) => {
-    const stored = await next(e)
-    onNotice(runtime, e.message.content)
-    return stored
-  }).catch((_$, e, next) => next(e))
-
   on('command.run', { command: 'mods' }, ($, e) =>
     modsCommand(
       {
@@ -315,6 +310,8 @@ export const register: Register = (on, options) => {
       },
       runtime,
       e.args,
+      // Only the fullscreen layout docks the dialog.
+      e.presentation.isFullscreen ? e.presentation.columns : undefined,
     ),
   ).catch(() => ({
     text: 'modmgr failed to answer; run with --debug for the reason.',
@@ -370,6 +367,17 @@ export const register: Register = (on, options) => {
     const [moved] = await Promise.all([next(e), selecting])
     if (moved.deny === undefined) noteRing(e.element)
     return moved
+  }).catch((_$, e, next) => next(e))
+
+  // The person's wheel over the dialog steps the selection, and Page Up and
+  // Page Down move it a page; over a tall overlay they scroll its lines. The pane
+  // windows both itself, so the engine has nothing of its own to scroll.
+  on('ui.scroll', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
+    if (e.origin.kind !== 'person') return next(e)
+    // A key moving more than a row is a page key: a page of items, not of the body's rows.
+    const page = e.pointer === undefined && Math.abs(e.by) > 1
+    await actionsOf($).scroll(page ? Math.sign(e.by) * pageSize() : e.by, overlayEnd())
+    return {}
   }).catch((_$, e, next) => next(e))
 
   // Esc pops an overlay, then brings the ring back to the list, then clears the

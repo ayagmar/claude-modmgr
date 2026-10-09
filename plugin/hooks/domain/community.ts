@@ -85,6 +85,17 @@ export const isProjectMod = (path: string): boolean =>
 export const communityKey = (mod: Pick<CommunityMod, 'repo' | 'path'>): string =>
   mod.path === '' ? mod.repo : `${mod.repo}/${mod.path}`
 
+/**
+ * A plugin's page on GitHub: its repository's at the root, else its folder at
+ * `commit` (a commit, a branch, or `HEAD` for the default branch).
+ */
+export const communityLink = (
+  mod: Pick<CommunityMod, 'repo' | 'path'> & { readonly commit: string },
+): string =>
+  mod.path === ''
+    ? `https://github.com/${mod.repo}`
+    : `https://github.com/${mod.repo}/tree/${mod.commit}/${mod.path}`
+
 const isCount = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 

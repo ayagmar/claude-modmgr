@@ -80,6 +80,7 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
         debug(`modmgr: store read ${key} failed: ${String(error)}`)
         continue
       }
+      if (dirty.has(key)) continue // set while it was read: the newer value wins
       const opened = openKey(key, stored)
       data = { ...data, [key]: opened.data }
       sizes[key] = bytesOf(opened.data)

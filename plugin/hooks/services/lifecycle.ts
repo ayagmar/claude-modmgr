@@ -31,9 +31,16 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
     })
   }
   await Promise.all([ports.command.registerMods(), takeQueue()])
-  // The reload that restarted this module applied what the batch changed.
+  // A module started again in the same session was reloaded with the session's
+  // plugins (a reload modmgr ran, or the person's /reload-plugins): what was
+  // owed is applied.
+  if (!fresh) {
+    await ports.state.update('attention', ({ reloadByHand: _, ...attention }) => ({
+      ...attention,
+      reloadPending: false,
+    }))
+  }
   if (reloaded) {
-    await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
     // Said for a while, as the runner's own echo is.
     await echoLine(ports, RELOADED_WITH_MODMGR)
   }
@@ -79,6 +86,7 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         pane => pane.id === PANE_ID && pane.isPlaced,
       )
       if (!how.fresh || shown) await rt.showTab((await ports.state.read('view')).tab)
+      await rt.chrome.retakeKeys()
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)
@@ -105,21 +113,4 @@ export const onTurnEnd = (
   if (rt === undefined || agentId !== undefined) return
   rt.turns.delete(turnId)
   rt.detector.setBusy(rt.turns.size > 0)
-}
-
-/**
- * A notice the session appended (`session.append`, door `notice`): while it
- * hot-reloads a folder, the engine says there when a plugin's hook or module
- * failed. Dev counts them; nothing is answered or changed.
- */
-export const onNotice = (
-  rt: Runtime | undefined,
-  content: readonly { readonly type: string; readonly [field: string]: unknown }[],
-): void => {
-  if (rt === undefined) return
-  for (const block of content) {
-    if (block.type === 'text' && typeof block.text === 'string') {
-      void rt.dev.notice(block.text).catch(() => undefined)
-    }
-  }
 }

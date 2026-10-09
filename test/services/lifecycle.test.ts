@@ -42,6 +42,22 @@ describe('onSessionStart', () => {
     expect(w.command.registered).toBe(2)
   })
 
+  it('counts a reload owed as applied when the module starts again in the same session', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    await onSessionStart(runtimeFor(w))
+    expect(w.state.values.attention.reloadPending).toBe(false)
+    // The session refused modmgr's reload; the person ran /reload-plugins.
+    w.state.values.attention = {
+      ...w.state.values.attention,
+      reloadPending: true,
+      reloadByHand: true,
+    }
+    await onSessionStart(runtimeFor(w, 'own2'))
+    expect(w.state.values.attention.reloadPending).toBe(false)
+    expect(w.state.values.attention.reloadByHand).toBeUndefined()
+  })
+
   it('applies stored preferences on a fresh session only', async () => {
     const stored = {
       prefs: { v: 1, data: { tab: 'health', sort: 'installs', firstRunDone: true } },

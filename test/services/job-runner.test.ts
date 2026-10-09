@@ -123,6 +123,23 @@ describe('a toggle batch', () => {
     expect(w.state.values.attention.reloadPending).toBe(true)
   })
 
+  it('a reload the desktop app answers with a refusal fails, asks the person to reload, and stays pending', async () => {
+    const { w, runner, ids } = setup()
+    w.command.reloadAnswer = async () =>
+      "/reload-plugins isn't available over a remote connection in this session."
+    await enqueue(
+      w.ports,
+      { id: 'b', specs: [{ kind: 'disable', target: 'turn-band@fixtures' }], reload: true },
+      ids,
+    )
+    await runAll(w, runner)
+    const reload = jobs(w)[1]
+    expect(reload?.state).toBe('failed')
+    expect(reload?.error?.message).toMatch(/^Run \/reload-plugins/)
+    expect(reload?.tail.at(-1)).toMatch(/^Run \/reload-plugins/)
+    expect(w.state.values.attention.reloadPending).toBe(true)
+  })
+
   it('cancels a reload whose batch changed nothing', async () => {
     const { w, runner, ids, settled } = setup()
     w.process.when(['disable'], out('', 1, 'nope'))
@@ -155,6 +172,55 @@ describe('a toggle batch', () => {
     )
     await runAll(w, runner)
     expect(states(w)).toEqual(['disable:ok', 'enable:ok', 'reload:ok'])
+    expect(w.command.reloads).toBe(1)
+  })
+
+  it('reloads once when any batch it covers changed something, whichever failed', async () => {
+    const FAILS = out('', 1, 'nope')
+    const ALREADY = out(runs['enable-again'].stdout, 1)
+    // Two batches queued before the reload runs: what each CLI write answers.
+    const twoBatches = async (first: ReturnType<typeof out> | undefined, second: typeof first) => {
+      const { w, runner, ids } = setup()
+      if (first !== undefined) w.process.when(['disable'], first)
+      if (second !== undefined) w.process.when(['enable'], second)
+      for (const [id, kind] of [
+        ['a', 'disable'],
+        ['b', 'enable'],
+      ] as const) {
+        await enqueue(
+          w.ports,
+          { id, specs: [{ kind, target: 'turn-band@fixtures' }], reload: true },
+          ids,
+        )
+      }
+      await runAll(w, runner)
+      return { reloads: w.command.reloads, states: states(w) }
+    }
+    expect(await twoBatches(FAILS, undefined)).toEqual({
+      reloads: 1,
+      states: ['disable:failed', 'enable:ok', 'reload:ok'],
+    })
+    expect(await twoBatches(undefined, FAILS)).toEqual({
+      reloads: 1,
+      states: ['disable:ok', 'enable:failed', 'reload:ok'],
+    })
+    expect((await twoBatches(FAILS, ALREADY)).reloads).toBe(0)
+  })
+
+  it('a batch after a reload that ran is judged on its own', async () => {
+    const { w, runner, ids } = setup()
+    const batch = async (id: string) =>
+      enqueue(
+        w.ports,
+        { id, specs: [{ kind: 'disable', target: 'turn-band@fixtures' }], reload: true },
+        ids,
+      )
+    await batch('a')
+    await runAll(w, runner)
+    w.process.when(['disable'], out('', 1, 'nope'))
+    await batch('b')
+    await runAll(w, runner)
+    expect(states(w)).toEqual(['disable:ok', 'reload:ok', 'disable:failed', 'reload:cancelled'])
     expect(w.command.reloads).toBe(1)
   })
 
@@ -428,6 +494,21 @@ describe('streamed test jobs', () => {
     await s.w.clock.advance(60_000)
     await s.runner.whenIdle()
     expect(jobs(s.w)[0]?.state).toBe('cancelled')
+    expect(s.w.process.killed).toBe(1)
+  })
+
+  it('kills a test still running at its ten minutes, and fails it saying so', async () => {
+    const s = await testJob()
+    s.w.process.spawnScript = {
+      chunks: [{ stream: 'stdout', text: 'started\n' }, { waitMs: 20 * 60_000 }],
+    }
+    s.runner.kick()
+    await s.w.clock.advance(10 * 60_000)
+    await s.runner.whenIdle()
+    expect(jobs(s.w)[0]).toMatchObject({
+      state: 'failed',
+      error: { kind: 'timeout', message: 'claude test ran past 600 s' },
+    })
     expect(s.w.process.killed).toBe(1)
   })
 })

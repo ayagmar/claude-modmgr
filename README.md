@@ -8,7 +8,10 @@ and what each one can do, and lets you find, install, switch off, update or remo
 /plugin install modmgr --marketplace ayagmar/claude-mods
 ```
 
-Then type `/mods`. Needs Claude Code 2.1.292 or newer, with the `claude` CLI on your path.
+Then type `/mods`. Needs a session on Claude Code 2.1.284 or newer, and the `claude` CLI on your path at 2.1.292 or
+newer (modmgr runs it to install, update and switch mods). The desktop app runs its own pinned Claude Code for its
+sessions, separate from the CLI on your path: when it is older than 2.1.284, modmgr doesn't load there until the app
+moves on to a newer one.
 
 ## What you get
 
@@ -33,15 +36,15 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
                                        │
                                        │ What it can do
                                        │ Network             http.fetch
-                                       │ Session content     env.get session.messages
-                                       │ What the model sees session.append
-                                       │ Display only        session.end
+                                       │ Session content     env.get  session.messages
+                                       │ What the model sees on session.append
+                                       │ Display only        on session.end
                                        │
                                        │ ✓ validates
                                        │
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-z: undo                                                              j: jobs  h: keys  esc close
+z: undo                                                              q: jobs  0: keys  esc close
 ```
 
 **A mod's detail** says what it hooks and calls, grouped by what that reaches (your machine, the network, the
@@ -67,14 +70,14 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                        │
                                        │ What it can do
                                        │ Your machine        process.run
-                                       │ What the model sees prompt.submit
-                                       │ Display only        turn.complete ui.render clock.now …
+                                       │ What the model sees on prompt.submit
+                                       │ Display only        on turn.complete  on ui.render
+                                       │                     clock.now  state.set  ui.toast
                                        │
                                        │ ✓ validates
                                        │
-                                       │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                      j: jobs  h: keys  esc back
+                                                                      q: jobs  0: keys  esc back
 ```
 
 **Discover** lists the mods in every marketplace you have added, and the mods published anywhere else on public
@@ -82,7 +85,7 @@ GitHub (about 3,000). Both come from indexes modmgr's CI rebuilds daily, so they
 checked while you work, search matches first. A community mod shows what it can do before you install it, as
 `claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
 installs from the marketplace in its own repository, which the install adds to your user settings first, and one
-whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `k` keeps
+whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `u` keeps
 only your own marketplaces' entries. A command a marketplace declares is shown whole, with
 its sha256, and runs only when you confirm that exact command.
 
@@ -121,32 +124,19 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 **Health** lists what needs you, worst first, each with a fix one key away:
 
 ```
-1: Installed   2: Discover   3: Dev   Health ▲2                                       r: refresh
-2 problems to look at
-  broken                               │ broken
-❯ ▲ validate finds 1 error in it       │
-  redactor                             │ ▲ validate finds 1 error in it
-  ▲ 1 failure while it reloaded; last… │
-  modmgr itself                        │ → see it
-    5 enabled                          │
-    updates checked never, every 6 ho… │
-    detector: 5 mods found; 205 of 20… │
-    cache: 185 B                       │
-    A hook that fails is logged only … │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
+1: Installed   2: Discover   3: Dev   Health ▲1                                       r: refresh
+▲ 1 problem to look at
+  broken
+❯ ▲ validate finds 1 error in it                                                        → see it
+  Status
+    Mods         5 enabled
+    Updates      never checked · every 6 h                                           → check now
+    Discover     5 mods found
+    Cache        185 B                                                                   → clear
+    Hook errors  seen only in a session started with --debug                      → copy command
+
 ────────────────────────────────────────────────────────────────────────────────────────────────
-l: reload                                                            j: jobs  h: keys  esc close
+s: reload                                                            q: jobs  0: keys  esc close
 ```
 
 Updates are checked every few hours while no turn is running (`updateCheckHours`, 0 turns them off).

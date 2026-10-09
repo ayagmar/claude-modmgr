@@ -7,7 +7,7 @@
 import type { CatalogKind, CatalogRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from './capabilities.ts'
 import type { CatalogEntry, CatalogSource } from './cli-results.ts'
-import { type CommunityMod, communityKey } from './community.ts'
+import { type CommunityMod, communityKey, communityLink, isRepo, isRepoPath } from './community.ts'
 import { githubRepo } from './detector.ts'
 import { sanitize } from './sanitize.ts'
 
@@ -33,7 +33,16 @@ type Indexed = {
   /** Lowercased `name description marketplace id`, the one string a query scans. */
   readonly haystack: string
 } & (
-  | { readonly entry: CatalogEntry; readonly mod?: undefined }
+  | {
+      readonly entry: CatalogEntry
+      readonly mod?: undefined
+      /** The community index's read of the same files: what it can do, before installing. */
+      readonly twin?: CommunityMod
+      /** Its repository's GitHub stars, as the community index counted them at any commit. */
+      readonly stars?: number
+      /** Its page on GitHub, where its files are there. */
+      readonly link?: string
+    }
   | { readonly entry?: undefined; readonly mod: CommunityMod }
 )
 
@@ -66,6 +75,29 @@ export const githubKeyOf = (source: CatalogSource): string | undefined => {
   return communityKey({ repo: repo.join('/'), path }).toLowerCase()
 }
 
+/** Where an entry's files are on GitHub: its repository and folder, and the commit it pins. */
+const githubPlaceOf = (
+  entry: CatalogEntry,
+  have: Have,
+): { readonly repo: string; readonly path: string; readonly commit: string } | undefined => {
+  const { source } = entry
+  const repo =
+    source.kind === 'github'
+      ? source.repo
+      : source.kind === 'url' || source.kind === 'git-subdir'
+        ? githubRepo(source.url)?.join('/')
+        : source.kind === 'relative'
+          ? have.marketplaceRepos?.get(entry.marketplace)
+          : undefined
+  const path =
+    source.kind === 'git-subdir' || source.kind === 'relative'
+      ? source.path.replace(/^\.?\/+|\/+$/g, '')
+      : ''
+  if (!isRepo(repo) || !isRepoPath(path)) return undefined
+  const commit = 'sha' in source ? source.sha : 'ref' in source ? source.ref : undefined
+  return { repo, path, commit: commit ?? 'HEAD' }
+}
+
 /** What the person has besides the catalogue: community mods they have are not offered. */
 export type Have = {
   /** Installed plugin ids. */
@@ -93,7 +125,8 @@ export const buildIndex = (
   have: Have = { installed: new Set() },
 ): CatalogIndex => {
   const byId = new Map<string, Indexed>()
-  const onGithub = new Set<string>()
+  // Each kept entry by where its files are on GitHub.
+  const onGithub = new Map<string, string>()
   // One entry per folder: two catalogues listing the same plugin (Anthropic's
   // official catalogue and its directory list hundreds alike) offer it once, from
   // the one that counts its installs.
@@ -111,14 +144,37 @@ export const buildIndex = (
     const name = sanitize(entry.name, { max: NAME_MAX })
     const blurb = sanitize(entry.description, { max: BLURB_MAX })
     const haystack = `${name} ${sanitize(entry.description, { max: 1000 })} ${entry.marketplace} ${entry.id}`
-    byId.set(entry.id, { id: entry.id, entry, name, blurb, haystack: haystack.toLowerCase() })
-    if (folder !== undefined) onGithub.add(folder)
+    const place = githubPlaceOf(entry, have)
+    byId.set(entry.id, {
+      id: entry.id,
+      entry,
+      name,
+      blurb,
+      haystack: haystack.toLowerCase(),
+      ...(place === undefined ? {} : { link: communityLink(place) }),
+    })
+    if (folder !== undefined) onGithub.set(folder, entry.id)
   }
   for (const mod of community) {
     const id = communityId(mod)
     const installId = installIdOf(mod)
     if (mod.check === 'failed' || byId.has(id)) continue
-    if (onGithub.has(communityKey(mod).toLowerCase())) continue
+    const listed = onGithub.get(communityKey(mod).toLowerCase())
+    if (listed !== undefined) {
+      // A catalogue entry of these files: its repository's stars, whatever the
+      // commit; and the index's read says what it can do, unless the entry pins
+      // another commit than the one read.
+      const item = byId.get(listed)
+      if (item?.entry === undefined) continue
+      const { source } = item.entry
+      const sha = 'sha' in source ? source.sha : undefined
+      byId.set(listed, {
+        ...item,
+        stars: mod.stars,
+        ...(sha === undefined || sha === mod.commit ? { twin: mod } : {}),
+      })
+      continue
+    }
     if (installId !== undefined && (byId.has(installId) || have.installed.has(installId))) continue
     const name = sanitize(mod.name, { max: NAME_MAX })
     const blurb = sanitize(mod.description, { max: BLURB_MAX })
@@ -127,14 +183,15 @@ export const buildIndex = (
   }
   const all = [...byId.values()]
   const name = [...all].sort(byName)
+  const turns = turnsOf(name)
   return {
     size: all.length,
     community: all.filter(item => item.mod !== undefined).length,
     byId,
     order: {
       name,
-      installs: [...name].sort(byPopularity(turnsOf(name))),
-      stars: [...name].sort(byStars),
+      installs: [...name].sort(byPopularity(turns)),
+      stars: [...name].sort(byStars(turns)),
       marketplace: [...name].sort((a, b) => originOf(a).localeCompare(originOf(b))),
     },
   }
@@ -173,13 +230,26 @@ const byPopularity =
     return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
   }
 
-/** Community mods by stars, as GitHub counts them; then the catalogue's entries, by installs. */
-const byStars = (a: Indexed, b: Indexed): number => {
-  if (a.mod !== undefined && b.mod !== undefined) return b.mod.stars - a.mod.stars
-  if (a.mod !== undefined) return -1
-  if (b.mod !== undefined) return 1
-  return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
-}
+/** A community mod's stars, or those of a catalogue entry's repository when the index counted them. */
+const starsOf = (item: Indexed): number | undefined =>
+  item.mod !== undefined ? item.mod.stars : item.stars
+
+/**
+ * Mods by stars, as GitHub counts them, a community repository's one at a time
+ * before any of its second; then the catalogue's entries with no count, by installs.
+ */
+const byStars =
+  (turns: ReadonlyMap<string, number>) =>
+  (a: Indexed, b: Indexed): number => {
+    const starsA = starsOf(a)
+    const starsB = starsOf(b)
+    if (starsA !== undefined && starsB !== undefined) {
+      return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || starsB - starsA
+    }
+    if (starsA !== undefined) return -1
+    if (starsB !== undefined) return 1
+    return (b.entry?.installs ?? -1) - (a.entry?.installs ?? -1)
+  }
 
 /** The marketplace an entry comes from, or the repository of a community mod. */
 const originOf = (item: Indexed): string =>
@@ -274,6 +344,11 @@ const toRow = (item: Indexed, kind: CatalogKind): CatalogRow => {
   }
   return {
     ...row,
+    ...(item.twin === undefined
+      ? {}
+      : { notable: capabilitiesOf(item.twin).notable, readAt: item.twin.commit }),
+    ...(item.stars === undefined ? {} : { stars: item.stars }),
+    ...(item.link === undefined ? {} : { link: item.link }),
     ...(entry.installs === undefined ? {} : { installs: entry.installs }),
     ...(entry.version === undefined ? {} : { version: sanitize(entry.version, { max: 20 }) }),
   }
@@ -289,6 +364,7 @@ const communityRow = (item: Indexed, mod: CommunityMod): CatalogRow => {
     kind: 'mod',
     blurb: item.blurb,
     source: item.id,
+    link: communityLink(mod),
     stars: mod.stars,
     notable: capabilitiesOf(mod).notable,
     community: {

@@ -9,11 +9,10 @@ import {
   windowOf,
 } from '../../plugin/hooks/domain/catalog.ts'
 import type { CatalogEntry } from '../../plugin/hooks/domain/cli-results.ts'
-import type { CommunityMod } from '../../plugin/hooks/domain/community.ts'
+import { type CommunityMod, communityLink } from '../../plugin/hooks/domain/community.ts'
 import {
   acceptReview,
   communityInstallReview,
-  communityLink,
   withScope,
 } from '../../plugin/hooks/domain/discover.ts'
 import { commandLine, specsOf } from '../../plugin/hooks/domain/view.ts'
@@ -91,7 +90,7 @@ describe('community mods in the catalogue index', () => {
     ])
   })
 
-  it('sorts by stars as GitHub counts them, and keeps only your marketplaces when asked', () => {
+  it('sorts by stars, one mod per repository before any second, and keeps only your marketplaces when asked', () => {
     const index = buildIndex(
       [entry('own@m', 5)],
       [
@@ -100,10 +99,11 @@ describe('community mods in the catalogue index', () => {
         mod('small/x', { stars: 5 }),
       ],
     )
+    // A repository's mods share its stars: its second waits behind every repository's first.
     expect(index.order.stars.map(item => item.id)).toEqual([
       'github.com/big/a/a',
-      'github.com/big/a/b',
       'github.com/small/x',
+      'github.com/big/a/b',
       'own@m',
     ])
     const mine = matchAll(index, { text: '', sort: 'stars', mine: true }, () => 'mod')
@@ -138,8 +138,8 @@ describe('installing a community mod', () => {
       action: 'install',
       targets: [{ id: 'guard@m', op: 'install', scope: 'user' }],
       notable: [
-        'guard: Can run programs or change files on your machine',
-        'guard: Can change what the model reads',
+        'Can run programs or change files on your machine',
+        'Can change what the model reads',
       ],
       changesRepoFile: false,
       source: 'o/guard',
@@ -223,5 +223,81 @@ describe('one entry per folder', () => {
   it("keeps both when a marketplace's repository is unknown, rather than guess", () => {
     const index = buildIndex([shared('directory'), shared('official', 8778)])
     expect(index.size).toBe(2)
+  })
+})
+
+describe('a catalogue entry the community index read', () => {
+  const remote = (sha?: string): CatalogEntry => ({
+    id: 'guard@directory' as CatalogEntry['id'],
+    name: 'guard',
+    description: '',
+    marketplace: 'directory',
+    source: { kind: 'github', repo: 'o/guard', ...(sha === undefined ? {} : { sha }) },
+  })
+  const rowOf = (entries: CatalogEntry[]) => {
+    const index = buildIndex(entries, [unlisted(mod('o/guard', { stars: 42 }))])
+    const matched = matchAll(index, { text: '', sort: 'installs' }, () => 'mod')
+    return windowOf(matched, 'guard@directory', 10).rows.find(row => row.id === 'guard@directory')
+  }
+
+  it('says what it can do before installing, from the read of the same files', () => {
+    expect(rowOf([remote()])).toMatchObject({
+      notable: ['runs-programs', 'changes-model-input'],
+      readAt: SHA,
+      stars: 42,
+      link: 'https://github.com/o/guard',
+    })
+  })
+
+  it('pinned at another commit, keeps its stars and says nothing of what it can do', () => {
+    const row = rowOf([remote('f'.repeat(40))])
+    expect(row?.stars).toBe(42)
+    expect(row?.notable).toBeUndefined()
+    expect(row?.readAt).toBeUndefined()
+  })
+
+  it('sorts by stars among the community’s mods, ahead of entries with no count', () => {
+    const index = buildIndex(
+      [remote('f'.repeat(40)), entry('plain@m', 900)],
+      [unlisted(mod('o/guard', { stars: 42 })), unlisted(mod('o/big', { stars: 99 }))],
+    )
+    expect(index.order.stars.map(item => item.id)).toEqual([
+      'github.com/o/big',
+      'guard@directory',
+      'plain@m',
+    ])
+  })
+})
+
+describe('where a catalogue entry is on GitHub', () => {
+  const linkOf = (source: CatalogEntry['source'], marketplaceRepos = new Map<string, string>()) => {
+    const index = buildIndex([{ ...entry('p@m'), source }], [], {
+      installed: new Set(),
+      marketplaceRepos,
+    })
+    return windowOf(
+      matchAll(index, { text: '', sort: 'name' }, () => 'mod'),
+      'p@m',
+    ).rows[0]?.link
+  }
+
+  it('links its repository, or its folder at the commit it pins', () => {
+    expect(linkOf({ kind: 'url', url: 'https://github.com/o/r.git', sha: SHA })).toBe(
+      'https://github.com/o/r',
+    )
+    expect(
+      linkOf({ kind: 'git-subdir', url: 'https://github.com/o/r.git', path: 'mods/p', sha: SHA }),
+    ).toBe(`https://github.com/o/r/tree/${SHA}/mods/p`)
+    expect(linkOf({ kind: 'relative', path: './plugins/p' }, new Map([['m', 'o/market']]))).toBe(
+      'https://github.com/o/market/tree/HEAD/plugins/p',
+    )
+  })
+
+  it('links nothing off GitHub or out of the repository', () => {
+    expect(linkOf({ kind: 'url', url: 'https://gitlab.com/o/r.git' })).toBeUndefined()
+    expect(linkOf({ kind: 'relative', path: './p' })).toBeUndefined()
+    expect(
+      linkOf({ kind: 'git-subdir', url: 'https://github.com/o/r.git', path: '../escape' }),
+    ).toBeUndefined()
   })
 })

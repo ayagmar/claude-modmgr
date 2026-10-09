@@ -232,6 +232,26 @@ test('from 80 body columns the detail sits beside the list with its keys and fol
   }
 })
 
+test('a desktop click on a row beside the detail selects it', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const ui = await $.ui.mount({
+    plugin: 'modmgr',
+    surface: 'desktop',
+    component: 'Pane',
+    requestId: 'modmgr',
+    props: PANE(120, 30),
+  })
+  // The terminal's ring selects as it lands; a click raises no focus first.
+  expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeUndefined()
+  await ui.press({ key: `row:${TURN_BAND}` })
+  await h.clock.advance(1)
+  await ui.redraw()
+  expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('help is generated from the keymap; the job log lists what ran', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
@@ -242,7 +262,8 @@ test('help is generated from the keymap; the job log lists what ran', async ($, 
       surface,
       component: 'Pane',
       requestId: 'modmgr',
-      props: PANE(),
+      // Tall enough for every key: a shorter pane scrolls them (test/demo/layout.test.ts).
+      props: PANE(64, 40),
     })
     await ui.press({ key: 'act:help' })
     await ui.redraw()
@@ -314,6 +335,16 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
     expect(await lines()).toContain('line:mod-199@m')
     expect(await ui.find({ type: 'Text', text: /^\d+–200 of 200$/ })).toBeDefined()
     await ui.press({ key: 'act:page.first' })
+    expect((h.read('view') as { selected: string }).selected).toBe('mod-000@m')
+    // Next and previous move a page of the rows shown, to the row after the window.
+    await ui.redraw()
+    const page = (await lines()).length
+    await ui.press({ key: 'act:page.next' })
+    expect((h.read('view') as { selected: string }).selected).toBe(
+      `mod-${String(page).padStart(3, '0')}@m`,
+    )
+    await ui.redraw()
+    await ui.press({ key: 'act:page.prev' })
     expect((h.read('view') as { selected: string }).selected).toBe('mod-000@m')
     await ui.unmount()
   }
@@ -503,6 +534,16 @@ test('without the CLI the dialog is read-only and says why', async ($, on) => {
     expect(await ui.find({ key: 'act:copy' })).toBeDefined()
     expect(await ui.find({ key: 'act:toggle' })).toBeUndefined()
     await ui.press({ key: 'act:back' })
+    await ui.unmount()
+  }
+})
+
+test('installed plugins it could not read are not called no mods', async ($, on) => {
+  host(on, { state: { mods: [], sync: { refreshing: false, at: 1, skipped: 3 } } })
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /Couldn't read 3 installed plugins/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /No mods installed yet/ })).toBeUndefined()
     await ui.unmount()
   }
 })

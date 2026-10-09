@@ -72,6 +72,22 @@ describe('selection and overlays', () => {
     await act.filter('x'.repeat(500))
     expect(w.state.values.view.query.length).toBe(100)
   })
+
+  it('steps the selection with the wheel, held at the ends, and not under an overlay', async () => {
+    const { w, act } = await setup()
+    const rows = w.state.values.mods.map(row => row.id)
+    await act.scroll(2)
+    expect(w.state.values.view.selected).toBe(rows[2])
+    expect(w.state.values.detail?.id).toBe(rows[2])
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${rows[2]}`)
+    await act.scroll(100)
+    expect(w.state.values.view.selected).toBe(rows.at(-1))
+    await act.scroll(-100)
+    expect(w.state.values.view.selected).toBe(rows[0])
+    await act.overlay('help')
+    await act.scroll(1)
+    expect(w.state.values.view.selected).toBe(rows[0])
+  })
 })
 
 describe('toggle → review → confirm → reload', () => {
@@ -108,6 +124,30 @@ describe('toggle → review → confirm → reload', () => {
     )
     expect(w.command.reloads).toBe(1)
     expect(w.state.values.queue.jobs.map(job => job.state)).toEqual(['ok', 'ok'])
+  })
+
+  it("gives the pane back the keys its reload took, and doesn't take the prompt's", async () => {
+    for (const held of [true, false]) {
+      const { w, act, drain } = await setup()
+      if (!held) {
+        w.ui.focused = false
+        w.ui.keysToPrompt()
+      }
+      // The engine's reload hands the keys to the prompt.
+      w.command.reloadAnswer = async () => {
+        w.ui.keysToPrompt()
+        return 'Reloaded: 1 plugin'
+      }
+      await act.toggle(TURN_BAND)
+      await act.apply()
+      await act.confirm()
+      w.ui.opens.length = 0
+      await drain()
+      await w.clock.advance(0)
+      expect(w.command.reloads).toBe(1)
+      expect(w.ui.opens.some(open => open.focus === true)).toBe(held)
+      expect(w.state.values.view.keysAfterReload).toBeUndefined()
+    }
   })
 
   it('a mixed mod turned off says what it also turns off', async () => {

@@ -72,18 +72,32 @@ export const rowsFor = (mods: number): number => Math.min(24, Math.max(14, mods 
 
 /** Columns a docked dialog asks for: room for the list and the detail side by side. */
 export const DOCK_COLUMNS = 96
+/** The fewest columns the dock asks for: the list and detail stack below SPLIT_MIN_COLUMNS. */
+const DOCK_MIN_COLUMNS = 48
+/** The columns the dock leaves the transcript beside it, where the terminal has them. */
+const TRANSCRIPT_COLUMNS = 72
+
+/**
+ * Columns the dock asks for in a terminal `columns` wide: DOCK_COLUMNS, less
+ * what the transcript would then lose below TRANSCRIPT_COLUMNS, never under
+ * DOCK_MIN_COLUMNS.
+ */
+export const dockColumnsFor = (columns: number): number =>
+  Math.min(DOCK_COLUMNS, Math.max(DOCK_MIN_COLUMNS, columns - TRANSCRIPT_COLUMNS))
 
 export const paneOpen = (how: {
   readonly focus: boolean
   readonly hold: boolean
   readonly mods: number
   readonly title?: string
+  /** The dock's columns: the view's `dock`, which `/mods` sets. */
+  readonly dock: number | undefined
 }): PaneOpen => ({
   id: PANE_ID,
   title: how.title ?? PANE_TITLE,
   closeOnEscape: true,
   rows: rowsFor(how.mods),
-  columns: DOCK_COLUMNS,
+  columns: how.dock ?? DOCK_COLUMNS,
   ...(how.focus ? { focus: true as const } : {}),
   ...(how.hold ? { holdToasts: true as const } : {}),
 })
@@ -128,7 +142,9 @@ export const windowAround = (count: number, index: number, size: number): Window
  * first row) while `index` moves inside it, and shifts only as far as needed
  * when `index` reaches its edge, keeping one row beyond the selection drawn. So
  * the highlight moves down a still list, as in any list, instead of the list
- * moving under it at every key. With no previous window it centres on `index`.
+ * moving under it at every key. An `index` past the window turns a page: it
+ * leads the window going down, ends it going up. With no previous window it
+ * centres on `index`.
  */
 export const windowFollowing = (
   previous: number | undefined,
@@ -142,7 +158,11 @@ export const windowFollowing = (
   const at = Math.min(Math.max(0, index), count - 1)
   const margin = rows >= 4 ? 1 : 0
   let start = Math.min(Math.max(0, previous), count - rows)
-  if (at < start + margin) start = at - margin
+  // A jump past the window (a page key, the next page) turns the page: the
+  // selection opens the new window, as a reader's page turns, not at its far edge.
+  if (at >= start + rows) start = at - margin
+  else if (at < start) start = at - (rows - 1 - margin)
+  else if (at < start + margin) start = at - margin
   else if (at > start + rows - 1 - margin) start = at - (rows - 1 - margin)
   start = Math.min(Math.max(0, start), count - rows)
   return { start, end: start + rows }
@@ -471,6 +491,46 @@ export const bytesLabel = (n: number): string =>
       : `${(n / 1048576).toFixed(1)} MB`
 
 /**
+ * The lines `[start, end)` a window of `rows` shows from line `at`, each line
+ * `heights[i]` rows tall. `last` is the furthest start that still fills the
+ * window, and `at` is held to it; one line always shows, however tall.
+ */
+export const lineWindow = (
+  heights: readonly number[],
+  rows: number,
+  at: number,
+): { start: number; end: number; last: number } => {
+  let last = heights.length
+  let tail = 0
+  while (last > 0 && tail + (heights[last - 1] ?? 0) <= rows) {
+    last -= 1
+    tail += heights[last] ?? 0
+  }
+  last = Math.min(last, Math.max(0, heights.length - 1))
+  const start = Math.max(0, Math.min(at, last))
+  let end = start
+  let used = 0
+  while (end < heights.length && (end === start || used + (heights[end] ?? 0) <= rows)) {
+    used += heights[end] ?? 0
+    end += 1
+  }
+  return { start, end, last }
+}
+
+/**
+ * `text` in rows of `width` characters, every one kept and in order: a command
+ * read row by row, where a wrapped Text would move whole words and a window
+ * could only show the line whole or not at all.
+ */
+export const cellRows = (text: string, width: number): string[] => {
+  const chars = [...text]
+  if (chars.length === 0) return ['']
+  const rows: string[] = []
+  for (let at = 0; at < chars.length; at += width) rows.push(chars.slice(at, at + width).join(''))
+  return rows
+}
+
+/**
  * Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's
  * height): words move whole to the next row, as the terminal wraps them, and
  * a word longer than the row is cut across rows.
@@ -525,8 +585,15 @@ export const footerRowsFor = (widths: readonly number[], columns: number, gap = 
 
 export const topOverlay = (view: View): Overlay | undefined => view.stack.at(-1)
 
-/** Pushes an overlay; one already on the stack moves to the top instead of repeating. */
-export const pushOverlay = (view: View, overlay: Overlay): View => ({
+/** How far `overlay` is scrolled: its first line in view below what it keeps. */
+export const scrolledAt = (view: View, overlay: Overlay | undefined): number =>
+  view.overlayAt !== undefined && view.overlayAt.overlay === overlay ? view.overlayAt.at : 0
+
+/**
+ * Pushes an overlay, scrolled to its start; one already on the stack moves to
+ * the top instead of repeating.
+ */
+export const pushOverlay = ({ overlayAt: _scrolled, ...view }: View, overlay: Overlay): View => ({
   ...view,
   stack: [...view.stack.filter(item => item !== overlay), overlay],
 })
@@ -678,6 +745,8 @@ export type Summary = {
   readonly reloading: boolean
   /** A reload is owed and none is queued: `[l reload]`. */
   readonly reloadOwed: boolean
+  /** The session lets only the person reload: they run /reload-plugins. */
+  readonly reloadByHand: boolean
   readonly updates: number
   /** Mods whose update added notable capabilities not yet seen. */
   readonly capsCount: number
@@ -692,6 +761,9 @@ export type Summary = {
   /** The CLI's answer to the last reload, or how a batch that needed none ended. */
   readonly echo?: string
 }
+
+const reloadOwedText = (summary: Summary): string =>
+  summary.reloadByHand ? 'run /reload-plugins to apply' : 'reload to apply'
 
 const updatesText = (n: number): string | undefined =>
   n > 0 ? plural(n, 'update', 'updates') : undefined
@@ -714,6 +786,7 @@ export const summaryOf = (input: {
     pending: queue.jobs.filter(job => NEEDS_RELOAD.has(job.kind) && isActive(job)).length,
     reloading: reloadJob?.state === 'running',
     reloadOwed: attention.reloadPending && reloadJob === undefined,
+    reloadByHand: attention.reloadByHand === true,
     updates: attention.updates,
     capsCount: mods.filter(row => row.capsNew !== undefined).length,
     ...(caps === undefined ? {} : { caps }),
@@ -747,14 +820,14 @@ export const bandOf = (
   const updates = updatesText(summary.updates)
   if (updates !== undefined) parts.push(updates)
   if (summary.caps !== undefined) parts.push(summary.caps)
-  if (summary.reloadOwed) parts.push('reload to apply')
+  if (summary.reloadOwed) parts.push(reloadOwedText(summary))
   if (parts.length === 0) {
     if (summary.echo === undefined) return undefined
     parts.push(summary.echo)
   }
   const text = `mods · ${parts.join(' · ')}`
   if (how.dismissed === text) return undefined
-  return { key: text, text, reload: summary.reloadOwed }
+  return { key: text, text, reload: summary.reloadOwed && !summary.reloadByHand }
 }
 
 /**
@@ -770,7 +843,7 @@ export const statusLineOf = (summary: Summary): string | undefined => {
   if (summary.pending > 0) return `applying ${summary.pending}…`
   if (running !== undefined) return `${describeJob(running)}…`
   if (summary.reloading) return 'reloading plugins…'
-  if (summary.reloadOwed) return 'reload to apply'
+  if (summary.reloadOwed) return reloadOwedText(summary)
   if (summary.newsDismissed) return undefined
   // The engine names the plugin before it (`modmgr: …`).
   return summary.caps ?? updatesText(summary.updates)

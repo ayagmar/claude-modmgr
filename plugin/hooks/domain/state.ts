@@ -46,7 +46,7 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   review: 'review/4',
   attention: 'attention/2',
   degraded: 'degraded/1',
-  dev: 'dev/1',
+  dev: 'dev/2',
   health: 'health/1',
 }
 
@@ -70,7 +70,7 @@ export const INITIAL: Readonly<ModmgrState> = {
   review: null,
   attention: { updates: 0, problems: 0, reloadPending: false, capsChanged: 0 },
   degraded: { process: false, network: false, acceptCommand: false },
-  dev: { rows: [], failures: {}, loading: false },
+  dev: { rows: [], loading: false },
   health: {
     chain: [],
     logged: {},

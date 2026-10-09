@@ -9,7 +9,9 @@ import { helpFor, type KeySurface } from '../domain/keymap.ts'
 import { hasHiddenCharacters, sanitize } from '../domain/sanitize.ts'
 import {
   bytesLabel,
+  cellRows,
   commandLine,
+  lineWindow,
   marketplaceOf,
   nameOf,
   partsLabel,
@@ -50,13 +52,12 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
   }
 }
 
-/** A line of the review and its text, from which the rows it wraps to are counted. */
-type Line = { readonly el: RenderElement; readonly text: string }
-
 /**
- * The review's lines (Pane clips a taller review to the body). The keys come
- * right under the heading, so a clipped review keeps them.
+ * A line of an overlay and its text, from which the rows it wraps to are
+ * counted; `rows` where it never wraps (a truncated row of columns).
  */
+type Line = { readonly el: RenderElement; readonly text: string; readonly rows?: number }
+
 /** What the review knows beyond the request: Claude Code refused an acceptance from here. */
 export type ReviewHow = { readonly refused: boolean }
 
@@ -69,18 +70,23 @@ const terminalCommand = (review: ReviewRequest): string | undefined => {
   return `claude plugin ${target.op === 'update' ? 'update' : 'install'} ${target.id}${scope}`
 }
 
+/**
+ * The review's lines. The heading and the keys come first: a review taller
+ * than its window keeps them and scrolls the rest.
+ */
 const reviewLines = (
   v: ViewPorts,
   review: ReviewRequest,
   rows: readonly ModRow[],
   how: ReviewHow,
+  columns: number,
 ): Line[] => {
-  const { Box, Text, Select } = v.el
+  const { Box, Text, Select, Link } = v.el
   const declared = review.declaredCommand ?? review.headersHelper
-  // Claude Code refuses an acceptance from this session: confirm would be refused again.
-  // Refused from this session, or too long to show whole: accepted
-  // in a terminal, never here.
-  const blocked = declared !== undefined && (how.refused || declared.truncated === true)
+  // Accepted in a terminal, never here: refused from this session, too long to
+  // show whole, or holding characters the review can't show as they are.
+  const hidden = declared !== undefined && hasHiddenCharacters(declared.text)
+  const blocked = declared !== undefined && (how.refused || declared.truncated === true || hidden)
   const terminal = blocked ? terminalCommand(review) : undefined
   // A mod being reinstalled is no longer a row: its id names it.
   const name = (id: string) =>
@@ -228,14 +234,21 @@ const reviewLines = (
     say('Undo (z) reinstalls it from its marketplace.')
   }
   if (review.action === 'install' && review.source !== undefined) {
+    // A repository the community index named: its page, to read before installing.
     const source = sanitize(review.source, { max: 120 })
-    say(`From the marketplace at github.com/${source}:`)
+    push(
+      <Text>
+        From the marketplace at{' '}
+        <Link href={`https://github.com/${source}`}>{`github.com/${source}`}</Link>:
+      </Text>,
+      `From the marketplace at github.com/${source}:`,
+    )
     say('the install adds it to your user settings first')
     say('(a clone; adding runs no plugin code).')
-    if (review.indexedAt !== undefined) {
-      say(`What it can do was read at ${review.indexedAt.slice(0, 7)}; modmgr`)
-      say('reads the installed version again.')
-    }
+  }
+  if (review.action === 'install' && review.indexedAt !== undefined) {
+    say(`What it can do was read at ${review.indexedAt.slice(0, 7)}; modmgr`)
+    say('reads the installed version again.')
   }
   if (review.action === 'install' && review.uninspected === true && declared === undefined) {
     if (review.unreadable !== undefined) {
@@ -255,19 +268,22 @@ const reviewLines = (
         : 'Its marketplace fetches the archive with this command:',
       TONE.warn,
     )
-    // Line for line, wrapped, never cut; what sanitising removed is said.
+    // Line for line, never cut, each line in rows of the window's width: a
+    // line taller than the window still scrolls into view a row at a time.
+    // What sanitising removed is said.
+    const width = Math.max(1, columns - 2)
     for (const line of sanitize(declared.text, { max: SHOWN_MAX, multiline: true }).split('\n')) {
-      push(<Text bold>{`  ${line}`}</Text>, `  ${line}`)
-    }
-    if (hasHiddenCharacters(declared.text)) {
-      say('It holds hidden or control characters, removed', TONE.bad)
-      say('above: read it in a terminal before accepting.', TONE.bad)
+      for (const row of cellRows(line, width)) push(<Text bold>{`  ${row}`}</Text>, `  ${row}`)
     }
     say(`sha256 ${declared.sha256.slice(0, 16)}…`)
     if (declared.truncated === true) {
       say('It is longer than modmgr shows, so it is not', TONE.bad)
       say('accepted here. Read and accept it in a terminal:', TONE.bad)
       say(terminal ?? '', TONE.bad)
+    } else if (hidden) {
+      say('It holds hidden or control characters, removed', TONE.bad)
+      say('above, so it is not accepted here. Read and', TONE.bad)
+      say(`accept it in a terminal: ${terminal ?? ''}`, TONE.bad)
     } else if (blocked) {
       say('Claude Code refuses to accept it from this session:', TONE.bad)
       say('accept it in /plugin, its details, or run this', TONE.bad)
@@ -304,40 +320,87 @@ const reviewLines = (
   for (const spec of specsOf(review)) {
     const line = commandLine(spec)
     if (line === undefined) continue
-    // One row each: cut at the frame, not wrapped.
+    // Whole, wrapped: a review shows what will run, never part of it.
     push(
-      <Text dimColor wrap="truncate-end">
-        {'  '}
-        {line}
-      </Text>,
-      '',
+      <Box paddingLeft={2}>
+        <Text dimColor>{line}</Text>
+      </Box>,
+      `  ${line}`,
     )
   }
   return lines
 }
 
-/** The rows the review draws at `columns`: each line's text, wrapped. */
-export const reviewRows = (
-  v: ViewPorts,
-  review: ReviewRequest,
-  rows: readonly ModRow[],
-  columns: number,
-  how: ReviewHow = { refused: false },
-): number =>
-  wrappedRows(
-    reviewLines(v, review, rows, how).map(line => line.text),
-    columns,
-  )
+/** The rows an overlay is given, and the first line below what it keeps it shows. */
+export type OverlayWindow = { readonly rows: number; readonly columns: number; readonly at: number }
 
+/** An overlay drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
+export type DrawnOverlay = {
+  readonly el: RenderElement
+  readonly rows: number
+  readonly page: number
+  readonly last: number
+}
+
+/**
+ * Lines in their window: whole when they fit, else the first `head` and last
+ * `foot` lines kept, the lines from `at` between them that fit, and a row
+ * saying where it stands. Every line is reachable, never clipped out of sight.
+ */
+const scrolled = (
+  v: ViewPorts,
+  lines: readonly Line[],
+  keep: { readonly head: number; readonly foot: number },
+  window: OverlayWindow,
+): DrawnOverlay => {
+  const { Box, Text } = v.el
+  const rowsOf = (line: Line) => line.rows ?? wrappedRows([line.text], window.columns)
+  const sum = (some: readonly Line[]) => some.reduce((total, line) => total + rowsOf(line), 0)
+  const head = lines.slice(0, keep.head)
+  const rest = lines.slice(keep.head, lines.length - keep.foot)
+  const foot = lines.slice(lines.length - keep.foot)
+  const total = sum(lines)
+  if (total <= window.rows) {
+    return {
+      el: <Box flexDirection="column">{lines.map(line => line.el)}</Box>,
+      rows: total,
+      page: rest.length,
+      last: 0,
+    }
+  }
+  const kept = sum(head) + sum(foot) + 1
+  const heights = rest.map(rowsOf)
+  const shown = lineWindow(heights, Math.max(1, window.rows - kept), window.at)
+  const where = `lines ${shown.start + 1}–${shown.end} of ${rest.length} · scroll or Page Up/Down`
+  return {
+    el: (
+      <Box flexDirection="column">
+        {head.map(line => line.el)}
+        {rest.slice(shown.start, shown.end).map(line => line.el)}
+        <Text dimColor wrap="truncate-end">
+          {where}
+        </Text>
+        {foot.map(line => line.el)}
+      </Box>
+    ),
+    rows: kept + heights.slice(shown.start, shown.end).reduce((total, rows) => total + rows, 0),
+    page: Math.max(1, shown.end - shown.start),
+    last: shown.last,
+  }
+}
+
+/**
+ * The review in its window, its heading and keys kept: what will run is
+ * always reachable.
+ */
 export const Review = (
   v: ViewPorts,
   review: ReviewRequest,
   rows: readonly ModRow[],
+  window: OverlayWindow,
   how: ReviewHow = { refused: false },
-): RenderElement => {
-  const { Box } = v.el
-  return <Box flexDirection="column">{reviewLines(v, review, rows, how).map(line => line.el)}</Box>
-}
+): DrawnOverlay =>
+  scrolled(v, reviewLines(v, review, rows, how, window.columns), { head: 2, foot: 0 }, window)
 
 /** The rows the marketplace form draws. */
 export const marketplaceRows = 5
@@ -373,19 +436,17 @@ const WELCOME_TABS = [
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const
 
-/** The rows the welcome draws at `columns`: heading, intro, the tabs, its key, blank rows between. */
-export const welcomeRows = (columns: number): number =>
-  1 + 1 + wrappedRows([WELCOME_INTRO], columns) + 1 + WELCOME_TABS.length + 1 + 1
-
-export const Welcome = (v: ViewPorts): RenderElement => {
+/** The welcome in its window: what modmgr is, each tab, and the key that starts, kept in view. */
+export const Welcome = (v: ViewPorts, window: OverlayWindow): DrawnOverlay => {
   const { Box, Button, Text } = v.el
-  return (
-    <Box flexDirection="column">
-      {Heading(v, 'modmgr: mods for Claude Code')}
-      <Text> </Text>
-      <Text>{WELCOME_INTRO}</Text>
-      <Text> </Text>
-      {WELCOME_TABS.map(([key, tab, what]) => (
+  const blank = (key: string): Line => ({ el: <Text key={key}> </Text>, text: '' })
+  const lines: Line[] = [
+    { el: Heading(v, 'modmgr: mods for Claude Code'), text: '', rows: 1 },
+    blank('welcome:gap:intro'),
+    { el: <Text key="welcome:intro">{WELCOME_INTRO}</Text>, text: WELCOME_INTRO },
+    blank('welcome:gap:tabs'),
+    ...WELCOME_TABS.map(([key, tab, what]) => ({
+      el: (
         <Box key={`welcome:${tab}`} flexDirection="row" gap={1}>
           <Text color={TONE.accent}>{key}</Text>
           <Box width={10} flexShrink={0}>
@@ -395,12 +456,21 @@ export const Welcome = (v: ViewPorts): RenderElement => {
             {what}
           </Text>
         </Box>
-      ))}
-      <Text> </Text>
-      {/* Pushed at start-up, not by a press: the ring starts here by itself. */}
-      <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
-    </Box>
-  )
+      ),
+      text: '',
+      rows: 1,
+    })),
+    blank('welcome:gap:start'),
+    {
+      // Pushed at start-up, not by a press: the ring starts here by itself.
+      el: (
+        <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
+      ),
+      text: '',
+      rows: 1,
+    },
+  ]
+  return scrolled(v, lines, { head: 1, foot: 1 }, window)
 }
 
 /** Cells one column of keys takes: the key, then what it does. */
@@ -409,14 +479,13 @@ const HELP_NOTE = 'Changes are staged with e and applied together with s; z undo
 
 type HelpRow = { readonly key: string; readonly label: string }
 
-/** Help's two groups: the keys that move (the engine's and the tabs'), then the actions. */
+/** Help's two groups: the keys that move (tabs, rows, pages), then the actions. */
 const helpGroups = (
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string>,
 ): { readonly move: HelpRow[]; readonly act: HelpRow[] } => {
   const rows = helpFor(surfaces, hidden)
-  const acts = (row: HelpRow) => /^[a-z]$/.test(row.key)
-  return { move: rows.filter(row => !acts(row)), act: rows.filter(acts) }
+  return { move: rows.filter(row => row.moves), act: rows.filter(row => !row.moves) }
 }
 
 /** The groups sit side by side when two columns fit. */
@@ -425,56 +494,61 @@ const helpSideBySide = (columns: number): boolean => columns >= 2 * HELP_COLUMN 
 const helpNote = (surfaces: readonly KeySurface[]): string | undefined =>
   surfaces.includes('installed') ? HELP_NOTE : undefined
 
-/** The rows help draws at `columns`: its heading, the groups, the note, blank rows between. */
-export const helpRows = (
-  surfaces: readonly KeySurface[],
-  hidden: ReadonlySet<string>,
-  columns: number,
-): number => {
-  const { move, act } = helpGroups(surfaces, hidden)
-  const note = helpNote(surfaces)
-  const groups = helpSideBySide(columns)
-    ? 1 + Math.max(move.length, act.length)
-    : 2 + move.length + 1 + act.length
-  return 2 + groups + (note === undefined ? 0 : 1 + wrappedRows([note], columns))
-}
-
+/** The keys in their window: what moves, then the actions, side by side where two columns fit. */
 export const Help = (
   v: ViewPorts,
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string>,
-  columns: number,
-): RenderElement => {
+  window: OverlayWindow,
+): DrawnOverlay => {
   const { Box, Text } = v.el
   const { move, act } = helpGroups(surfaces, hidden)
   const note = helpNote(surfaces)
-  const group = (title: string, rows: readonly HelpRow[]) => (
-    <Box key={`keys:${title}`} flexDirection="column" width={HELP_COLUMN} flexShrink={0}>
-      <Text bold>{title}</Text>
-      {rows.map(row => (
-        <Box flexDirection="row" gap={1}>
-          <Box width={7} flexShrink={0}>
-            <Text color={TONE.accent}>{row.key}</Text>
-          </Box>
-          <Text wrap="truncate-end">{row.label}</Text>
+  const cell = (row: HelpRow | undefined) => (
+    <Box flexDirection="row" gap={1} width={HELP_COLUMN} flexShrink={0}>
+      {row === undefined ? null : (
+        <Box width={7} flexShrink={0}>
+          <Text color={TONE.accent}>{row.key}</Text>
         </Box>
-      ))}
+      )}
+      {row === undefined ? null : <Text wrap="truncate-end">{row.label}</Text>}
     </Box>
   )
-  const side = helpSideBySide(columns)
-  return (
-    <Box flexDirection="column">
-      {Heading(v, 'Keys')}
-      <Text> </Text>
-      <Box flexDirection={side ? 'row' : 'column'} columnGap={2}>
-        {group('Move', move)}
-        {side ? null : <Text> </Text>}
-        {group('Actions', act)}
-      </Box>
-      {note === undefined ? null : <Text> </Text>}
-      {note === undefined ? null : <Text dimColor>{note}</Text>}
+  const title = (text: string) => (
+    <Box width={HELP_COLUMN} flexShrink={0}>
+      <Text bold>{text}</Text>
     </Box>
   )
+  const one = (el: RenderElement): Line => ({ el, text: '', rows: 1 })
+  const pair = (left: RenderElement, right: RenderElement) =>
+    one(
+      <Box flexDirection="row" columnGap={2}>
+        {left}
+        {right}
+      </Box>,
+    )
+  const blank = one(<Text> </Text>)
+  const groups: Line[] = helpSideBySide(window.columns)
+    ? [
+        pair(title('Move'), title('Actions')),
+        ...Array.from({ length: Math.max(move.length, act.length) }, (_, index) =>
+          pair(cell(move[index]), cell(act[index])),
+        ),
+      ]
+    : [
+        one(title('Move')),
+        ...move.map(row => one(cell(row))),
+        blank,
+        one(title('Actions')),
+        ...act.map(row => one(cell(row))),
+      ]
+  const lines: Line[] = [
+    one(Heading(v, 'Keys')),
+    blank,
+    ...groups,
+    ...(note === undefined ? [] : [blank, { el: <Text dimColor>{note}</Text>, text: note }]),
+  ]
+  return scrolled(v, lines, { head: 1, foot: 0 }, window)
 }
 
 const JOB_GLYPH: Readonly<Record<Job['state'], string>> = {
@@ -495,6 +569,30 @@ const JOB_TONE: Readonly<Record<Job['state'], string>> = {
   interrupted: TONE.bad,
 }
 
+/** What each job does, as the log names it. */
+const JOB_TITLE: Readonly<Record<Job['kind'], string>> = {
+  install: 'Install',
+  update: 'Update',
+  remove: 'Remove',
+  enable: 'Enable',
+  disable: 'Disable',
+  validate: 'Validate',
+  test: 'Test',
+  reload: 'Reload plugins',
+  'marketplace-add': 'Add marketplace',
+  'marketplace-update': 'Refresh marketplace',
+}
+
+/** How a job stands, in a word; one that changed nothing says so. */
+const jobStateText = (job: Job): string =>
+  job.state === 'ok'
+    ? job.unchanged === true
+      ? 'nothing to change'
+      : 'done'
+    : job.state === 'queued'
+      ? 'waiting'
+      : job.state
+
 /**
  * The newest jobs first, each with its error, and the running or failed one's
  * output tail under it, in as many lines as `rows` allows.
@@ -512,11 +610,11 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
     const own: RenderElement[] = [
       <Box flexDirection="row" gap={1}>
         <Text color={JOB_TONE[job.state]}>{JOB_GLYPH[job.state]}</Text>
-        <Text>{job.kind === 'reload' ? 'reload plugins' : job.kind}</Text>
+        <Text>{JOB_TITLE[job.kind]}</Text>
         {job.target === undefined ? null : (
           <Text dimColor>{sanitize(job.target, { max: 60 })}</Text>
         )}
-        <Text dimColor>{job.state}</Text>
+        <Text dimColor>{jobStateText(job)}</Text>
       </Box>,
     ]
     if (job.error !== undefined) {
@@ -560,7 +658,7 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
         : KeyButton(v, {
             action: 'cancel-job',
             on: 'jobs',
-            label: `cancel ${cancellable.kind}`,
+            label: `cancel ${JOB_TITLE[cancellable.kind].toLowerCase()}`,
             onPress: () => v.act.cancelJob(cancellable.id),
           })}
     </Box>

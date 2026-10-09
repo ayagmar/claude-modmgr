@@ -272,6 +272,9 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Redacts secrets from what the model reads and posts a …"
         }
       ],
       [
@@ -355,6 +358,14 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "claude",
+          "bold": true,
+          "text": "What it can do"
         }
       ],
       [
@@ -369,9 +380,8 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "tone": "claude",
-          "bold": true,
-          "text": "What it can do"
+          "dim": true,
+          "text": "/mods info redactor@fixtures explains each one."
         }
       ],
       [
@@ -428,7 +438,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on session.append"
+          "text": " on session.append"
         }
       ],
       [
@@ -451,16 +461,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on session.end"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": "1 hook or call"
         }
       ],
       [
@@ -499,6 +500,15 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
           "dim": true,
           "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
@@ -509,14 +519,14 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -768,6 +778,9 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Shows last-turn duration above the prompt."
         }
       ],
       [
@@ -813,15 +826,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         },
         {
           "text": " "
@@ -858,6 +862,14 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "tone": "claude",
+          "bold": true,
+          "text": "What it can do"
         }
       ],
       [
@@ -872,9 +884,8 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "tone": "claude",
-          "bold": true,
-          "text": "What it can do"
+          "dim": true,
+          "text": "/mods info turn-band@fixtures explains each one."
         }
       ],
       [
@@ -912,7 +923,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on prompt.submit"
+          "text": " on prompt.submit"
         }
       ],
       [
@@ -935,19 +946,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on turn.complete  on ui.render  cl"
-        },
-        {
-          "text": "…"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": "5 hooks and calls"
         }
       ],
       [
@@ -986,6 +985,24 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
           "dim": true,
           "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
@@ -996,14 +1013,14 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -1412,18 +1429,18 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "o: sort by stars  k: yours only  m: marketplace                      "
+          "text": "o: sort by stars  u: yours only  m: marketplace                      "
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -1757,14 +1774,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "  claude plugin install secret-scrub@fixtures --scope "
-        },
-        {
-          "text": "…"
+          "text": "claude plugin install secret-scrub@fixtures --scope"
         }
       ],
       [
@@ -1774,6 +1788,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": "   "
+        },
+        {
+          "dim": true,
+          "text": "user --json"
         }
       ],
       [
@@ -1877,7 +1898,7 @@ export const FRAMES: readonly Frame[] = [
           "tone": "claude",
           "bold": true,
           "underline": true,
-          "text": "Health ▲2"
+          "text": "Health ▲1"
         },
         {
           "text": "                                       "
@@ -1889,27 +1910,13 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "dim": true,
-          "text": "2 problems to look at"
+          "tone": "error",
+          "text": "▲ 1 problem to look at"
         }
       ],
       [
         {
           "text": "  "
-        },
-        {
-          "bold": true,
-          "text": "broken"
-        },
-        {
-          "text": "                               "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
         },
         {
           "bold": true,
@@ -1936,11 +1943,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "validate finds 1 error in it"
         },
         {
-          "text": "       "
+          "text": "                                                        "
         },
         {
-          "dim": true,
-          "text": "│"
+          "tone": "claude",
+          "text": "→ see it"
         }
       ],
       [
@@ -1949,59 +1956,26 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "redactor"
+          "text": "Status"
+        }
+      ],
+      [
+        {
+          "text": "  "
         },
         {
-          "text": "                             "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
+          "tone": "subtle",
           "text": " "
         },
         {
-          "tone": "error",
-          "text": "▲"
-        },
-        {
-          "text": " validate finds 1 error in it"
-        }
-      ],
-      [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "error",
-          "text": "▲"
-        },
-        {
-          "text": " 1 failure while it reloaded; last… "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "  "
+          "text": " "
         },
         {
           "bold": true,
-          "text": "modmgr itself"
+          "text": "Mods"
         },
         {
-          "text": "                        "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " → see it"
+          "text": "         5 enabled"
         }
       ],
       [
@@ -2013,11 +1987,18 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " 5 enabled                          "
+          "text": " "
         },
         {
-          "dim": true,
-          "text": "│"
+          "bold": true,
+          "text": "Updates"
+        },
+        {
+          "text": "      never checked · every 6 h                                           "
+        },
+        {
+          "tone": "claude",
+          "text": "→ check now"
         }
       ],
       [
@@ -2029,11 +2010,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " updates checked never, every 6 ho… "
+          "text": " "
         },
         {
-          "dim": true,
-          "text": "│"
+          "bold": true,
+          "text": "Discover"
+        },
+        {
+          "text": "     5 mods found"
         }
       ],
       [
@@ -2045,11 +2029,18 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " detector: 5 mods found; 203 of 20… "
+          "text": " "
         },
         {
-          "dim": true,
-          "text": "│"
+          "bold": true,
+          "text": "Cache"
+        },
+        {
+          "text": "        185 B                                                                   "
+        },
+        {
+          "tone": "claude",
+          "text": "→ clear"
         }
       ],
       [
@@ -2061,137 +2052,34 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " cache: 185 B                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "subtle",
           "text": " "
         },
         {
-          "text": " A hook that fails is logged only … "
+          "bold": true,
+          "text": "Hook errors"
         },
         {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
+          "text": "  seen only in a session started with --debug                      "
         },
         {
-          "dim": true,
-          "text": "│"
+          "tone": "claude",
+          "text": "→ copy command"
         }
       ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
       [
         {
           "dim": true,
@@ -2200,18 +2088,18 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "l: reload                                                            "
+          "text": "s: reload                                                            "
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "

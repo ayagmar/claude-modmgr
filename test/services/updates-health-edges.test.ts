@@ -1,10 +1,9 @@
 // The update scheduler's, Health's and Dev's edges over fake ports: checks
 // switched off, the version the CLI compares, check now, the debug log, a
-// hostile marketplace file, a notice's folder, the pinned selection.
+// hostile marketplace file, the pinned selection.
 import { describe, expect, it } from 'vitest'
 import type { InstalledEntry } from '../../plugin/hooks/domain/cli-results.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
-import { failureOf } from '../../plugin/hooks/domain/dev.ts'
 import { healthItemsOf } from '../../plugin/hooks/domain/health.ts'
 import type { AbsolutePath, PluginId } from '../../plugin/hooks/domain/ids.ts'
 import { INITIAL } from '../../plugin/hooks/domain/state.ts'
@@ -206,7 +205,6 @@ describe('this session’s debug log, and one too large to read', () => {
     })
     const items = healthItemsOf({
       mods: [],
-      dev: INITIAL.dev,
       attention: INITIAL.attention,
       degraded: INITIAL.degraded,
       sync: INITIAL.sync,
@@ -263,22 +261,6 @@ describe('a hostile marketplace file', () => {
     }
     expect(updateOf(installed, entries.get('long'))).toBeUndefined()
     expect(updateOf({ ...installed, id: 'odd@m' as PluginId }, entries.get('odd'))).toBeUndefined()
-  })
-})
-
-describe('the folder a notice names', () => {
-  it('may hold spaces, and is taken only from the notices that name a module’s file', () => {
-    expect(
-      failureOf(
-        'broken: reload failed, the previous version stays loaded: /home/me/My Mods/broken/hooks/register.ts, compiled line 3',
-      )?.folder,
-    ).toBe('/home/me/My Mods/broken')
-    expect(failureOf('broken: hooks module did not load: /a b/broken/hooks/r.ts')?.folder).toBe(
-      '/a b/broken',
-    )
-    const other = failureOf('foo: 3 errors were skipped by the thing at /tmp/evil/hooks/x.ts')
-    expect(other).toMatchObject({ name: 'foo' })
-    expect(other?.folder).toBeUndefined()
   })
 })
 

@@ -44,12 +44,13 @@ export type CapsNew = { since: string; added: string[] }
 export type ModDetail = ModRow & {
   description?: string
   root?: string
+  /** Its page, as its plugin.json names it (`homepage`, else `repository`): an https address. */
+  link?: string
   caps?: Capabilities
   mixedCounts?: { skills: number; agents: number; mcp: number }
   tokens?: number
   dataBytes?: number
   validate?: { errors: number; warnings: number; at: number }
-  dev?: { failures: number; lastReason?: string; lastAt?: number; test?: 'pass' | 'fail' }
 }
 
 export type CatalogKind = 'mod' | 'hooks' | 'plain' | 'unknown'
@@ -64,16 +65,20 @@ export type CatalogRow = {
   version?: string
   /** Where it comes from, in a few words. */
   source: string
-  /** What it can do, when modmgr read it before installing (a local source); notable ids. */
+  /** What it can do, read before installing (by modmgr for a local source, else by the community index); notable ids. */
   notable?: string[]
+  /** A remote entry the community index read: the commit `notable` comes from. */
+  readAt?: string
   /** Its files are on disk (a folder in its marketplace): modmgr can read it before installing. */
   local?: boolean
   /** A local entry modmgr couldn't read: why (`r` tries again). */
   unread?: string
   /** The selected row's whole description, when its list line (`blurb`) cut it short. */
   about?: string
-  /** A community mod's GitHub stars. */
+  /** Its repository's GitHub stars, as the community index counted them. */
   stars?: number
+  /** Its page on GitHub: the repository, or its folder there. */
+  link?: string
   /** A community mod: from a repository none of the person's marketplaces lists. */
   community?: CommunityFacts
 }
@@ -159,6 +164,12 @@ export type View = {
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
   notice?: string
+  /** The dock's columns `/mods` asked for, which every later open asks again. */
+  dock?: number
+  /** The pane held the keys when modmgr reloaded the plugins: the module after the reload gives them back. */
+  keysAfterReload?: true
+  /** The overlay on top scrolled by the wheel and the page keys: its first line in view below what it keeps. */
+  overlayAt?: { overlay: Overlay; at: number }
 }
 
 /** What a review would do to one mod. */
@@ -213,6 +224,8 @@ export type Attention = {
   updates: number
   problems: number
   reloadPending: boolean
+  /** The session refused modmgr's reload (the desktop app's): the person runs /reload-plugins. */
+  reloadByHand?: boolean
   capsChanged: number
   /** The band line the person dismissed; the band returns once its line changes. */
   dismissed?: string
@@ -292,15 +305,6 @@ export type DevRow = {
   enabled?: boolean
 }
 
-/** A plugin's failures the session reported while hot-reloading it. */
-export type DevFailures = {
-  count: number
-  lastReason: string
-  lastAt: number
-  /** Its folder, when a notice named a file of its hooks. */
-  folder?: string
-}
-
 /** How to share a dev mod (`p`), for the share overlay. */
 export type DevShare = {
   /** The row it is for. */
@@ -317,8 +321,6 @@ export type DevShare = {
 
 export type DevState = {
   rows: DevRow[]
-  /** By plugin name, as the session's notices name it. */
-  failures: Record<string, DevFailures>
   loading: boolean
   at?: number
   share?: DevShare

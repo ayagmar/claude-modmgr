@@ -72,30 +72,6 @@ for (const surface of SURFACES) {
   })
 }
 
-test('a failure the session reports while hot-reloading a folder is counted on its row', async ($, on) => {
-  const h = devHost(on)
-  await $.session.start(START)
-  await settle(h)
-  const ui = await mountPane($, 'terminal')
-  await ui.press({ key: 'act:tab.dev' })
-  await settle(h)
-  await $.session.append({
-    message: {
-      type: 'system',
-      content: [{ type: 'text', text: 'turn-band: tool.call hook failed: it threw' }],
-    },
-    door: 'notice',
-    origin: { kind: 'engine' },
-    uuid: 'notice-1',
-  })
-  await settle(h)
-  await ui.redraw()
-  expect(await ui.find({ type: 'Text', text: '▲1' })).toBeDefined()
-  expect(h.read('dev')).toMatchObject({
-    failures: { 'turn-band': { count: 1, lastReason: 'tool.call hook failed: it threw' } },
-  })
-})
-
 test('p says how to share a dev mod, and c copies the install line', async ($, on) => {
   const h = host(on, {
     env: { CLAUDE_CONFIG_DIR: '/cfg' },

@@ -31,6 +31,7 @@ import {
 import { sanitize } from '../domain/sanitize.ts'
 import {
   commandLine,
+  dockColumnsFor,
   paneOpen,
   removeReview,
   specsOf,
@@ -68,12 +69,14 @@ export const modsCommand = async (
   ports: CommandPorts,
   rt: CommandRuntime | undefined,
   args: string,
+  /** The terminal's width as the command runs (`e.presentation.columns`). */
+  columns?: number,
 ): Promise<CommandAnswer> => {
   const parsed = parseModsArgs(args)
   if (!parsed.ok) return { text: `${parsed.error.message}\n\n${USAGE}`, exitCode: 2 }
   const command = parsed.value
   if (command.kind === 'help') return { text: USAGE }
-  if (command.kind === 'open' && (await openDialog(ports))) {
+  if (command.kind === 'open' && (await openDialog(ports, columns))) {
     // A restored tab is read when the dialog shows it; not awaited (waiting on
     // anything but its own `$` calls runs down the hook's 10 s budget).
     if (rt !== undefined) void rt.showTab((await ports.state.read('view')).tab)
@@ -109,7 +112,7 @@ export const modsCommand = async (
     case 'list':
       return answer(listText(mods, { skipped: sync.skipped }))
     case 'info': {
-      const detail = rt.registry.detail(command.id)
+      const detail = await rt.registry.detail(command.id)
       if (detail === undefined) return answer(`${command.id} is not an installed mod.`, 1)
       const row = rowOf(command.id)
       return answer(
@@ -117,16 +120,15 @@ export const modsCommand = async (
       )
     }
     case 'doctor': {
-      // Health's facts are local reads (a few ms); Dev's rows aren't needed for its items.
+      // Health's facts are local reads (a few ms).
       await rt.health.refresh()
-      const [dev, attention, detect, queue, facts] = await Promise.all([
-        ports.state.read('dev'),
+      const [attention, detect, queue, facts] = await Promise.all([
         ports.state.read('attention'),
         ports.state.read('detect'),
         ports.state.read('queue'),
         ports.state.read('health'),
       ])
-      const items = healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
+      const items = healthItemsOf({ mods, attention, degraded, sync, detect, queue, facts })
       const problems = items.some(item => item.tone === 'bad')
       return { text: doctorText(items, command.json), ...(problems ? { exitCode: 1 } : {}) }
     }
@@ -297,18 +299,29 @@ const runWrites = async (
   return jobs
 }
 
-/** Opens the dialog; false when this session places no panes (a `-p` run, an older host). */
-const openDialog = async (ports: Pick<Ports, 'state' | 'ui'>): Promise<boolean> => {
+/**
+ * Opens the dialog, docked as wide as a terminal `columns` wide leaves the
+ * transcript room for (kept for every later open); false when this session
+ * places no panes (a `-p` run, an older host).
+ */
+const openDialog = async (
+  ports: Pick<Ports, 'state' | 'ui'>,
+  columns: number | undefined,
+): Promise<boolean> => {
   try {
-    const [mods, queue, attention] = await Promise.all([
+    const [mods, queue, attention, view] = await Promise.all([
       ports.state.read('mods'),
       ports.state.read('queue'),
       ports.state.read('attention'),
+      ports.state.read('view'),
     ])
+    const dock = columns === undefined ? view.dock : dockColumnsFor(columns)
+    if (dock !== undefined && dock !== view.dock)
+      await ports.state.update('view', next => ({ ...next, dock }))
     const busy = queue.jobs.some(isActive)
     const title = titleOf(summaryOf({ attention, queue, mods }))
     const opened = await ports.ui.open(
-      paneOpen({ focus: true, hold: !busy, mods: mods.length, title }),
+      paneOpen({ focus: true, hold: !busy, mods: mods.length, title, dock }),
     )
     return opened.isPlaced
   } catch {

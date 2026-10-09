@@ -1,12 +1,11 @@
 // Dev over fake ports: its sources (folder-marketplace, inline and
 // skills-dir installs, this session's mods folder, `--plugin-dir` plugins
-// found where the session runs or through a failure), validate and test as
-// jobs, the failures the session reports, sharing, and the actions around them.
+// found where the session runs), validate and test as jobs, sharing, and the
+// actions around them.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
-import { FAILURES_KEPT } from '../../plugin/hooks/services/dev.ts'
-import { background, onNotice } from '../../plugin/hooks/services/lifecycle.ts'
+import { background } from '../../plugin/hooks/services/lifecycle.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
 import { fixtureCli } from './cli-world.ts'
@@ -112,6 +111,40 @@ describe('Dev’s sources', () => {
     await rt.dev.refresh()
     expect(names(w)).toContain('plugin-dir tally')
     expect(names(w)).not.toContain('session-folder fresh')
+  })
+
+  it('lists modmgr itself run from its folder over an installed copy, and not the installed copy', async () => {
+    const CACHED = '/cfg/plugins/cache/ayagmar/modmgr/0.3.0'
+    const withInstalled = (w: World) =>
+      w.process.when(['list', '--json'], () => {
+        const list = JSON.parse(runs.list.stdout) as Array<Record<string, unknown>>
+        const installed = {
+          id: 'modmgr@ayagmar',
+          version: '0.3.0',
+          scope: 'user',
+          enabled: true,
+          installPath: CACHED,
+        }
+        return out(JSON.stringify([...list, installed]))
+      })
+    // Launched elsewhere: the session's folder doesn't hold modmgr.
+    const elsewhere = { root: '/work', cwd: '/work', id: 'session-1' }
+    const dev = await setup(withInstalled, { ...elsewhere, ownRoot: `${REPO}/plugin` })
+    await dev.rt.dev.refresh()
+    expect(names(dev.w)).toContain('plugin-dir modmgr')
+    expect(dev.w.state.values.dev.rows.find(row => row.name === 'modmgr')?.path).toBe(
+      `${REPO}/plugin`,
+    )
+
+    const installed = await setup(
+      w => {
+        withInstalled(w)
+        w.fs.files.set(`${CACHED}/.claude-plugin/plugin.json`, '{"name":"modmgr"}')
+      },
+      { ...elsewhere, ownRoot: CACHED },
+    )
+    await installed.rt.dev.refresh()
+    expect(names(installed.w)).not.toContain('plugin-dir modmgr')
   })
 
   it('lists what it can when the environment and the session refuse to say', async () => {
@@ -239,55 +272,6 @@ describe('validate and test (v, t)', () => {
   })
 })
 
-describe('failures the session reports', () => {
-  const broken = '/dev/broken2'
-  const notice = (text: string) => [{ type: 'text', text }]
-
-  it('counts a failing plugin, and a --plugin-dir folder it names joins Dev', async () => {
-    const { w, rt, act } = await setup(w => {
-      w.fs.files.set(`${broken}/.claude-plugin/plugin.json`, '{"name":"broken2"}')
-    })
-    await act.tab('dev')
-    onNotice(rt, notice(`broken2: hooks module did not load: ${broken}/hooks/register.ts, line 3`))
-    await w.clock.advance(0)
-    expect(w.state.values.dev.failures.broken2).toMatchObject({ count: 1, folder: broken })
-    expect(names(w)).toContain('plugin-dir broken2')
-    // Not failures: a reload's line, a non-text block.
-    onNotice(rt, notice('modmgr: reloaded (8 hooks: session.start)'))
-    onNotice(rt, [{ type: 'image' }])
-    onNotice(undefined, notice('x: failed'))
-    await w.clock.advance(0)
-    expect(Object.keys(w.state.values.dev.failures)).toEqual(['broken2'])
-  })
-
-  it('keeps the selection when a failing folder joins above it (found live)', async () => {
-    const { w, rt, act } = await setup(w => {
-      w.fs.files.set(`${broken}/.claude-plugin/plugin.json`, '{"name":"aaa"}')
-      // No mods folder: modmgr (--plugin-dir) is the first row.
-      w.fs.dirs.clear()
-    })
-    await act.tab('dev')
-    const shown = w.state.values.dev.rows[0]?.key
-    expect(shown).toBe(`${REPO}/plugin`)
-    expect(w.state.values.view.dev).toBe(shown)
-    onNotice(rt, notice(`aaa: hooks module did not load: ${broken}/hooks/register.ts`))
-    await w.clock.advance(0)
-    expect(w.state.values.dev.rows[0]?.name).toBe('aaa')
-    expect(w.state.values.view.dev).toBe(shown)
-  })
-
-  it('keeps the newest failing plugins only', async () => {
-    const { w, rt } = await setup()
-    for (let i = 0; i <= FAILURES_KEPT; i += 1) {
-      await w.clock.advance(1)
-      await rt.dev.notice(`p${i}: tool.call hook failed`)
-    }
-    const kept = Object.keys(w.state.values.dev.failures)
-    expect(kept).toHaveLength(FAILURES_KEPT)
-    expect(kept).not.toContain('p0')
-  })
-})
-
 describe('sharing (p)', () => {
   it('names the repository and finds the marketplace file at its root', async () => {
     const { w, act } = await setup(() => {}, {
@@ -347,7 +331,7 @@ describe('the pane on Dev', () => {
   it('reads Dev again when a reloaded modmgr starts with it showing', async () => {
     const { w, rt } = await setup()
     w.state.values.view = { ...w.state.values.view, tab: 'dev' }
-    w.state.values.dev = { rows: [], failures: {}, loading: false }
+    w.state.values.dev = { rows: [], loading: false }
     await background(rt, { fresh: false })
     expect(names(w)).toContain('env-dir qb')
   })

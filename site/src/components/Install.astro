@@ -6,10 +6,16 @@ import { flagParts, INSTALL } from '../lib/present.ts'
 type Props = { id: string; label: string; compact?: boolean }
 const { id, label, compact = false } = Astro.props
 
-// A flag stays with its value when the line wraps; built as one string, since
-// whitespace from the template would show inside the <pre>.
+// A flag stays with its value when the line wraps, and no word breaks inside
+// itself; built as one string, since whitespace from the template would show
+// inside the <pre>.
+const words = (part: string) =>
+  part
+    .split(' ')
+    .map(word => `<span class="word">${word}</span>`)
+    .join(' ')
 const INSTALL_HTML = flagParts(INSTALL)
-  .map(part => `<span class="keep">${part}</span>`)
+  .map(part => `<span class="keep">${words(part)}</span>`)
   .join(' ')
 ---
 
@@ -51,7 +57,8 @@ const INSTALL_HTML = flagParts(INSTALL)
     color: var(--accent-text);
   }
 
-  .install :global(.keep) {
+  .install :global(.keep),
+  .install :global(.word) {
     white-space: nowrap;
   }
 
@@ -73,5 +80,33 @@ const INSTALL_HTML = flagParts(INSTALL)
 
   .compact .copy {
     height: 2rem;
+  }
+
+  /* On a phone the line keeps the room: the button keeps its icon, and its label
+     for assistive tech, as the top bar's does. */
+  @media (max-width: 30rem) {
+    .compact .copy {
+      width: 2rem;
+      padding: 0;
+    }
+
+    .compact .copy span {
+      display: none;
+    }
+  }
+
+  /* Where a flag and its value no longer fit on a line together, the flag may
+     leave its value for the next line, at the space: the full line, with its
+     labelled button, on phones; the compact one on the narrowest. */
+  @media (max-width: 26rem) {
+    .install:not(.compact) :global(.keep) {
+      white-space: normal;
+    }
+  }
+
+  @media (max-width: 23.5rem) {
+    .compact :global(.keep) {
+      white-space: normal;
+    }
   }
 </style>

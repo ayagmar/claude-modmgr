@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type CatalogKind, matchAll } from '../../plugin/hooks/domain/catalog.ts'
 import {
   fromIndex,
   INDEX_MAX_BYTES,

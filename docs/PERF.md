@@ -31,6 +31,9 @@ plugins (four of them mods), the dialog inline at 116 body columns. Two sources:
 ## What changed to meet them
 
 - The catalogue's `list --json --available` and `marketplace list --json` run side by side (`services/catalog.ts`).
+- The catalogue is read behind the first tab the open dialog shows (`services/runtime.ts`), so Discover usually opens
+  on it; on 2026-10-09 that read was bound by `list --json --available` (0.71–0.77 s, 2 MB) beside the community index
+  (0.54 s, 2 MB).
 - `session.start` registers `/mods` and takes the job queue over side by side (`services/lifecycle.ts`).
 - `store.update` writes nothing when the change returns its input (each `$.store.set` rewrites the file).
 

@@ -114,7 +114,7 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
-  for (const [at, surface] of SURFACES.entries()) {
+  for (const surface of SURFACES) {
     const ui = await mountPane($, surface)
     // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
     if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })
@@ -155,14 +155,16 @@ const reviewState = (declared: { text: string; sha256: string; truncated?: boole
   },
 })
 
-test('a declared command with hidden characters says so; one too long, or refused here, goes to a terminal', async ($, on) => {
+test('a declared command with hidden characters is accepted in a terminal, not here', async ($, on) => {
+  // What the review shows is not what would run: sanitising removed a character.
   const hidden = `rm -rf /tmp/x${String.fromCharCode(0x202e)}harmless`
   const h = host(on, { state: reviewState({ text: hidden, sha256: SHA }) })
   await $.session.start(START)
   for (const surface of SURFACES) {
     const ui = await mountPane($, surface, PANE(64, 40))
     expect(await ui.find({ type: 'Text', text: /hidden or control characters/ })).toBeDefined()
-    expect((await ui.find({ key: 'act:confirm' }))?.props.label).toBe('run it and install')
+    expect(await ui.find({ key: 'act:confirm' })).toBeUndefined()
+    expect(await ui.find({ key: 'act:copy' })).toBeDefined()
     await ui.unmount()
   }
   expect(h.read('review')).toMatchObject({ action: 'install' })
@@ -243,6 +245,11 @@ test('from 100 body columns the selected entry’s detail sits beside the Discov
     expect(
       await ui.find({ type: 'Text', text: 'modmgr reads it once the mod is installed.' }),
     ).toBeDefined()
+    // Where it is on GitHub opens from the detail: its folder at the commit it pins.
+    const link = await ui.find({ type: 'Link', text: 'github.com/awslabs/agent-plugins' })
+    expect(link?.props.href).toBe(
+      'https://github.com/awslabs/agent-plugins/tree/097fe8ad56d8a1d5e2c81d7880adf145553cf244/plugins/aws-serverless',
+    )
     await ui.unmount()
   }
 })

@@ -7,7 +7,7 @@ import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
 import { isProjectMod } from '../domain/community.ts'
-import { communityLink, foundKey, inspectionLines } from '../domain/discover.ts'
+import { foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
@@ -15,6 +15,7 @@ import {
   Heading,
   HiddenRows,
   KeyButton,
+  ListButton,
   Pointer,
   type Section,
   Sections,
@@ -23,8 +24,8 @@ import {
   type ViewPorts,
 } from './kit.tsx'
 
-/** Cells for the install count at a row's end (`12.3k`). */
-const INSTALLS = 5
+/** Cells for the count at a row's end (`12.3k`, `★1.2k`). */
+const COUNT = 5
 
 /** An entry's Button: Enter opens the detail, or moves onto it beside the list. */
 const foundButton = (
@@ -36,18 +37,17 @@ const foundButton = (
     readonly focus: boolean
     readonly beside: boolean
   },
-): RenderElement => {
-  const { Button } = v.el
-  return (
-    <Button
-      key={foundKey(row.id)}
-      plain
-      label={sanitize(how.label, { max: how.max })}
-      {...(how.focus ? { autoFocus: true as const } : {})}
-      onPress={() => (how.beside ? v.act.toDetail() : v.act.openFound(row.id))}
-    />
+): RenderElement =>
+  ListButton(
+    v,
+    {
+      key: foundKey(row.id),
+      label: how.label,
+      open: () => v.act.openFound(row.id),
+      select: () => v.act.focusFound(row.id),
+    },
+    how,
   )
-}
 
 export const FoundRow = (
   v: ViewPorts,
@@ -59,17 +59,16 @@ export const FoundRow = (
     readonly beside: boolean
     /** Another entry has its name: its marketplace tells them apart. */
     readonly twin: boolean
+    /** The list is sorted by stars: a row with both counts shows its stars. */
+    readonly byStars: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
-  const name = Math.max(8, how.columns - 2 - 1 - INSTALLS)
+  const name = Math.max(8, how.columns - 2 - 1 - COUNT)
   const label = how.twin ? `${row.name} · ${row.marketplace}` : row.name
-  const installs =
-    row.stars !== undefined
-      ? `★${formatCount(row.stars)}`
-      : row.installs === undefined
-        ? ''
-        : formatCount(row.installs)
+  const stars = row.stars === undefined ? undefined : `★${formatCount(row.stars)}`
+  const installs = row.installs === undefined ? undefined : formatCount(row.installs)
+  const count = (how.byStars ? (stars ?? installs) : (installs ?? stars)) ?? ''
   const about = row.blurb === '' ? row.marketplace : row.blurb
   return (
     <Box key={`line:${row.id}`} flexDirection="column">
@@ -78,8 +77,8 @@ export const FoundRow = (
         <Box width={name} flexShrink={0}>
           {foundButton(v, row, { label, max: name, focus: how.focus, beside: how.beside })}
         </Box>
-        <Box width={INSTALLS} flexShrink={0} justifyContent="flex-end">
-          <Text dimColor>{installs}</Text>
+        <Box width={COUNT} flexShrink={0} justifyContent="flex-end">
+          <Text dimColor>{count}</Text>
         </Box>
       </Box>
       <Box paddingLeft={2} height={1} overflow="hidden">
@@ -151,6 +150,7 @@ export const FoundList = (
       {page.rows.slice(how.window.start, how.window.end).map(row =>
         FoundRow(v, row, {
           twin: (named.get(row.name) ?? 0) > 1,
+          byStars: how.view.sort === 'stars',
           columns: how.columns,
           focus: row.id === how.focusId,
           beside: how.beside,
@@ -170,7 +170,7 @@ export type FoundDetailHow = {
 
 /** The head, what it says it is, and what it can do: the detail's sections. */
 const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Section[] => {
-  const { Box, Text } = v.el
+  const { Box, Text, Link } = v.el
   const notable =
     row.notable === undefined
       ? undefined
@@ -185,7 +185,6 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
   ]
     .filter(part => part !== '')
     .join(' · ')
-  const source = `from ${row.source}`
   // A community mod no marketplace lists can't be installed by id: its link is what to take.
   const installable = community === undefined || community.installId !== undefined
   const head: Section = {
@@ -219,7 +218,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
                 action: 'copy',
                 on: 'discover-detail',
                 label: 'copy link',
-                onPress: press => v.act.copy(communityLink(community), press.surface),
+                onPress: press => v.act.copy(row.link ?? row.source, press.surface),
               })}
         </Box>
       </Box>
@@ -242,8 +241,9 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     el: (
       <Box flexDirection="column">
         {described === '' ? null : <Text>{described}</Text>}
+        {/* Its page on GitHub opens from here: a link on every surface. */}
         <Text dimColor wrap="truncate-end">
-          {source}
+          from {row.link === undefined ? row.source : <Link href={row.link}>{row.source}</Link>}
         </Text>
         {howTo.map(line => (
           <Text dimColor wrap="truncate-end">
@@ -265,13 +265,16 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     ) : notable.length === 0 ? (
       <Text dimColor>{GLYPH.ok} Nothing notable.</Text>
     ) : undefined
-  // Where the facts come from, for a community mod: the commit the index validated.
+  // Where the facts come from, for a community mod or a remote entry the
+  // community index read: the commit it validated. A local read is modmgr's own.
   const read =
-    community === undefined
-      ? []
-      : [
+    community !== undefined
+      ? [
           `as validate read it at ${community.commit.slice(0, 7)}${community.check === 'warnings' ? ', with warnings' : ''}`,
         ]
+      : row.readAt !== undefined && row.local !== true
+        ? [`as validate read it at ${row.readAt.slice(0, 7)}, in the community index`]
+        : []
   const caps: Section = {
     rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1) + read.length,
     el: (

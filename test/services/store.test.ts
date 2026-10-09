@@ -72,6 +72,22 @@ describe('store.load', () => {
     expect(store.get('prefs').tab).toBe('health')
   })
 
+  it('keeps a value set while its key is being read, and writes that one', async () => {
+    const w = world({
+      store: { prefs: { v: 1, data: { tab: 'dev', sort: 'installs', firstRunDone: false } } },
+    })
+    const store = createStore(w.ports)
+    const loading = store.load()
+    // The first session's choices, made before the stored ones came back.
+    store.set('prefs', { tab: 'discover', sort: 'stars', firstRunDone: true })
+    await loading
+    expect(store.get('prefs')).toEqual({ tab: 'discover', sort: 'stars', firstRunDone: true })
+    await store.flush()
+    expect(w.store.data.get('prefs')).toMatchObject({
+      data: { tab: 'discover', sort: 'stars', firstRunDone: true },
+    })
+  })
+
   it('survives an unreadable store', async () => {
     const w = world()
     w.store.failGets = true

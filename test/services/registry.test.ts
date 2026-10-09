@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { lruSet } from '../../plugin/hooks/domain/lru.ts'
+import { CAPS } from '../../plugin/hooks/domain/store-schema.ts'
 import { createRegistry, VALIDATE_CONCURRENCY } from '../../plugin/hooks/services/registry.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
@@ -76,6 +78,34 @@ describe('registry.refresh', () => {
     expect(together).toBe(VALIDATE_CONCURRENCY)
   })
 
+  it('lists every installed mod however full the cache of analyses is', async () => {
+    const { w, registry, store } = setup()
+    await registry.refresh()
+    // The cache at its cap, this install's analyses its oldest, two of them to read
+    // again: storing those two evicts the two oldest, which this refresh still lists.
+    store.update('validate', cache => {
+      const [first, ...rest] = Object.keys(cache)
+      const value = cache[first ?? '']
+      if (value === undefined) throw new Error('an analysis')
+      let next = { ...cache }
+      for (const key of rest.slice(-2)) delete next[key]
+      for (let n = 0; Object.keys(next).length < CAPS.validate; n += 1) {
+        next = lruSet(next, `other-plugin-${n}`, value, CAPS.validate)
+      }
+      return next
+    })
+    await registry.refresh()
+    expect(w.state.values.mods.map(row => row.name)).toEqual(FIXTURE_MODS)
+    expect(w.state.values.sync.skipped).toBe(0)
+    // Each listed mod still has its detail and its place in the hook order.
+    for (const row of w.state.values.mods) {
+      w.state.values.view = { ...w.state.values.view, selected: row.id }
+      await registry.select(row.id)
+      expect(w.state.values.detail?.id).toBe(row.id)
+    }
+    expect(registry.listed().every(({ mod }) => mod !== undefined)).toBe(true)
+  })
+
   it('skips entries it can not inspect, and says so', async () => {
     const { w, registry } = setup()
     w.process.when(['validate'], { throws: 'boom' })
@@ -128,9 +158,17 @@ describe('registry.refresh', () => {
 })
 
 describe('registry.select', () => {
+  it("shows the first row's detail before the selection ever moves", async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    expect(w.state.values.detail?.id).toBe(w.state.values.mods[0]?.id)
+  })
+
   it('writes the selected mod detail and refreshes it', async () => {
     const { w, registry } = setup()
     await registry.refresh()
+    // As every action does: the view's selection, then its detail.
+    w.state.values.view = { ...w.state.values.view, selected: 'turn-band@fixtures' }
     await registry.select('turn-band@fixtures')
     expect(w.state.values.detail).toMatchObject({
       id: 'turn-band@fixtures',
@@ -145,6 +183,54 @@ describe('registry.select', () => {
     await registry.select('nosuch@x')
     expect(w.state.values.detail).toBeNull()
     expect(registry.entry('turn-band@fixtures')?.version).toBe('0.3.1')
+  })
+
+  it('says what the mod is and links its page, as its plugin.json gives them', async () => {
+    const { w, registry } = setup()
+    const manifest = (folder: string) =>
+      `/tmp/modmgr-fixtures/mkt/${folder}/.claude-plugin/plugin.json`
+    w.fs.files.set(
+      manifest('turn-band'),
+      JSON.stringify({
+        name: 'turn-band',
+        description: '  Shows the turn above the prompt. ',
+        homepage: 'http://example.com',
+        repository: { type: 'git', url: 'git+https://github.com/o/turn-band.git' },
+      }),
+    )
+    w.fs.files.set(
+      manifest('redactor'),
+      JSON.stringify({ name: 'redactor', homepage: 'javascript:alert(1)' }),
+    )
+    await registry.refresh()
+    await registry.select('turn-band@fixtures')
+    expect(w.state.values.detail).toMatchObject({
+      description: 'Shows the turn above the prompt.',
+      link: 'https://github.com/o/turn-band',
+    })
+    await registry.select('redactor@fixtures')
+    expect(w.state.values.detail).not.toHaveProperty('link')
+    expect(w.state.values.detail).not.toHaveProperty('description')
+  })
+
+  it("never shows one mod's plugin.json on another chosen while it was read", async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    w.fs.files.set(
+      '/tmp/modmgr-fixtures/mkt/turn-band/.claude-plugin/plugin.json',
+      JSON.stringify({ description: 'Shows the turn.' }),
+    )
+    let release = () => {}
+    const read = w.fs.read
+    w.fs.read = path => new Promise<string>(resolve => (release = () => resolve(read(path))))
+    const slow = registry.select('turn-band@fixtures')
+    await settle()
+    w.fs.read = read
+    await registry.select('redactor@fixtures')
+    release()
+    await slow
+    expect(w.state.values.detail).toMatchObject({ id: 'redactor@fixtures' })
+    expect(w.state.values.detail).not.toHaveProperty('description')
   })
 
   it('keeps the row shown selected when a new one sorts above it (found live)', async () => {

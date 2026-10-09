@@ -83,6 +83,26 @@ describe('a remembered tab costs nothing until the dialog shows it', () => {
     await w.clock.advance(10)
     expect(available()).toBe(1)
   })
+
+  it('reads the catalogue behind another tab once /mods opens, so Discover opens on it', async () => {
+    const { w, rt } = await setup({
+      prefs: { v: 1, data: { tab: 'installed', firstRunDone: true } },
+    })
+    w.process.when(['list', '--json', '--available'], out(runs['list-available'].stdout))
+    w.process.when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
+    const available = () => w.process.calls.filter(call => call.argv.includes('--available')).length
+    // A reload shows the remembered tab with the dialog closed: nothing is read for it.
+    await background(rt, { fresh: false })
+    await w.clock.advance(10)
+    expect(available()).toBe(0)
+    expect(await modsCommand(w.ports, rt, '')).toEqual({})
+    await w.clock.advance(10)
+    expect(available()).toBe(1)
+    await rt.showTab('health')
+    await rt.showTab('discover')
+    expect(available()).toBe(1)
+    expect(w.state.values.catalogPage.total).toBeGreaterThan(0)
+  })
 })
 
 describe('a text update of a repository-marketplace mod', () => {

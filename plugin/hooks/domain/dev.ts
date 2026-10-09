@@ -3,13 +3,12 @@
 // what the session reported while hot-reloading it, and how to share it.
 // services/dev.ts gathers the inputs; every decision lives here.
 
-import type { DevFailures, DevHow, DevRow, Job, JobState, Origin } from '../../types/index.d.ts'
+import type { DevHow, DevRow, Job, JobState, Origin } from '../../types/index.d.ts'
 import type { InstalledEntry } from './cli-results.ts'
 import { safeSegments } from './detector.ts'
-import { isPluginName, parseAbsolutePath, splitPluginId } from './ids.ts'
+import { isPluginName, splitPluginId } from './ids.ts'
 import { isRecord, parseJson, str } from './json.ts'
 import { originOf, rootOf, runningVersion } from './mods.ts'
-import { sanitize } from './sanitize.ts'
 
 /** A Dev row's Button key: what `ui.focus` and `ui.press` name. */
 export const DEV_PREFIX = 'dev:'
@@ -84,6 +83,11 @@ export type DevSources = {
   readonly sessionFolder: readonly Found[]
   /** The folders found for plugins the CLI doesn't list (`--plugin-dir`), by name. */
   readonly located: ReadonlyMap<string, Found>
+  /**
+   * modmgr itself, when it runs from a folder other than its installed copy's
+   * (`--plugin-dir` over an installed modmgr: the CLI lists only the install).
+   */
+  readonly own?: Found
 }
 
 /** The name part of a plugin as a command names it (`modmgr`, `spawner@inline`). */
@@ -101,10 +105,9 @@ const bareName = (plugin: string): string => {
  */
 export const unlistedPlugins = (
   commandPlugins: readonly string[],
-  failing: readonly string[],
   known: ReadonlySet<string>,
 ): string[] =>
-  [...new Set([...commandPlugins.map(bareName), ...failing])]
+  [...new Set(commandPlugins.map(bareName))]
     .filter(name => isPluginName(name) && !known.has(name))
     .sort()
 
@@ -160,6 +163,10 @@ export const devRowsOf = (sources: DevSources): DevRow[] => {
       ...(loaded.has(name) ? { enabled: true } : {}),
     })
   }
+  const own = sources.own
+  if (own !== undefined && !rows.some(row => row.path === own.path)) {
+    rows.push({ key: own.path, ...rowOfFound(own), how: 'plugin-dir', enabled: true })
+  }
   return rows.sort(byPlace)
 }
 
@@ -177,6 +184,40 @@ export const manifestOf = (text: string): { name: string; version?: string } | u
   if (name === undefined || !isPluginName(name)) return undefined
   const version = str(value, 'version')
   return version === undefined ? { name } : { name, version: version.slice(0, 64) }
+}
+
+/** An https address a link can open: a host, then a path of URL characters (RFC 3986's, but `'`). */
+const LINKABLE =
+  /^https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?(?:\/[A-Za-z0-9\-._~:/?#[\]@!$&()*+,;=%]*)?$/
+
+/** What a `plugin.json` says of its plugin, for its detail. */
+export type About = { readonly description?: string; readonly link?: string }
+
+/**
+ * What a `plugin.json` says its plugin is, and where it lives: its
+ * `homepage`, else its `repository` (a URL, or `{ url }` as npm writes it),
+ * when that is an https address. A `git+https://….git` repository reads as
+ * its page.
+ */
+export const manifestAboutOf = (text: string): About => {
+  const value = parseJson(text)
+  if (!isRecord(value)) return {}
+  const description = str(value, 'description')?.trim().slice(0, 300)
+  const repository = isRecord(value.repository)
+    ? str(value.repository, 'url')
+    : str(value, 'repository')
+  const link = [str(value, 'homepage'), repository]
+    .map(candidate =>
+      candidate
+        ?.trim()
+        .replace(/^git\+/, '')
+        .replace(/\.git$/, ''),
+    )
+    .find(url => url !== undefined && url.length <= 300 && LINKABLE.test(url))
+  return {
+    ...(description === undefined || description === '' ? {} : { description }),
+    ...(link === undefined ? {} : { link }),
+  }
 }
 
 /**
@@ -291,64 +332,6 @@ export const testMark = (job: Job | undefined): RunMark | undefined => {
   if (job.state === 'ok') return { text: '✓ tests', tone: 'ok' }
   if (job.state === 'failed') return { text: '✗ tests', tone: 'bad' }
   return { text: `tests ${job.state}`, tone: 'muted' }
-}
-
-// ---- what the session reported --------------------------------------------------
-
-const NOTICE = /^([a-z0-9][a-z0-9._-]{0,63})(?:@[a-z0-9][a-z0-9._-]{0,63})?: ([\s\S]+)$/
-/** The words the engine's notices use for a hook or module that didn't work. */
-const FAILURE = /\b(?:fail(?:s|ed)?|refused|skipped|threw|not loaded|did not load|errors?)\b/i
-
-/**
- * The plugin folder a hooks file's path names (`: <folder>/hooks/<file>`), the
- * folder allowed to hold spaces.
- */
-const HOOKS_FILE = /:\s(\/.+?)\/hooks\/[^\s/:`'"]+/
-/**
- * The notices that name a module's file (`broken: reload failed, the previous
- * version stays loaded: <folder>/hooks/register.ts, …`): only these say where a plugin is.
- */
-const NAMES_FOLDER = /\b(?:reload failed|did not load)\b/
-
-export type Failure = { readonly name: string; readonly reason: string; readonly folder?: string }
-
-/**
- * A session notice that says a plugin's hook or module failed:
- * `<plugin>: <what happened>` (the engine's reference, §Drawing), with the plugin's
- * folder when the notice names a file of its hooks (a module that didn't
- * load or reload does). Undefined for any other notice (a reload's line, a
- * command's output).
- */
-export const failureOf = (text: string): Failure | undefined => {
-  const match = NOTICE.exec(text.trim())
-  const name = match?.[1]
-  const reason = match?.[2]
-  if (name === undefined || reason === undefined || !FAILURE.test(reason)) return undefined
-  const folder = NAMES_FOLDER.test(reason) ? HOOKS_FILE.exec(reason)?.[1] : undefined
-  const checked = folder === undefined ? undefined : parseAbsolutePath(folder)
-  return {
-    name,
-    reason: sanitize(reason, { max: 300 }),
-    ...(checked?.ok === true ? { folder: checked.value } : {}),
-  }
-}
-
-/** Counts one more failure of `name`. */
-export const recordFailure = (
-  failures: Readonly<Record<string, DevFailures>>,
-  failure: Failure,
-  at: number,
-): Record<string, DevFailures> => {
-  const folder = failure.folder ?? failures[failure.name]?.folder
-  return {
-    ...failures,
-    [failure.name]: {
-      count: (failures[failure.name]?.count ?? 0) + 1,
-      lastReason: failure.reason,
-      lastAt: at,
-      ...(folder === undefined ? {} : { folder }),
-    },
-  }
 }
 
 // ---- sharing (the engine's reference, §Sharing a mod) --------------------------

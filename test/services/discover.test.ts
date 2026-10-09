@@ -89,6 +89,40 @@ describe('the catalogue', () => {
     expect(rt.catalog.folderOf('nosuch@x')).toBeUndefined()
   })
 
+  it('keeps the ring on the row it selected when the window around it moves', async () => {
+    // More mods than one window: a ring move near its edge moves the window,
+    // and the engine keeps the ring at its place among the rows, not on its row.
+    const many = Array.from({ length: PAGE_SIZE + 50 }, (_, n) => ({
+      ...COMMUNITY_MOD,
+      repo: `owner${n}/mod${n}`,
+      name: `mod${String(n).padStart(3, '0')}`,
+    }))
+    const { w, act } = await setup(world =>
+      world.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, many) }),
+    )
+    await act.tab('discover')
+    await act.filter('')
+    const before = w.state.values.catalogPage
+    const far = before.rows[PAGE_SIZE - 10]?.id
+    if (far === undefined) throw new Error('a full window')
+    await act.focusFound(far)
+    expect(w.state.values.catalogPage.offset).not.toBe(before.offset)
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:found:${far}`)
+  })
+
+  it("steps Discover's selection with the wheel", async () => {
+    const { w, act, rt } = await setup()
+    await act.tab('discover')
+    markMods(rt.store, rt.catalog)
+    await act.filter('')
+    const first = w.state.values.catalogPage.rows.map(row => row.id)
+    await act.scroll(5)
+    expect(w.state.values.view.found).toBe(first[5])
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:found:${first[5]}`)
+    await act.scroll(-1)
+    expect(w.state.values.view.found).toBe(first[4])
+  })
+
   it('searches, sorts and moves its window with the selection', async () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')
@@ -147,9 +181,7 @@ describe('the catalogue', () => {
     )
     await act.install()
     expect(w.state.values.review?.action).toBe('install')
-    expect(w.state.values.review?.notable).toContain(
-      'agent-sdk-dev: Starts model calls (costs tokens)',
-    )
+    expect(w.state.values.review?.notable).toContain('Starts model calls (costs tokens)')
     expect(w.state.values.review?.uninspected).toBeUndefined()
     // Read once per version.
     await rt.catalog.inspect(SDK)
@@ -304,13 +336,34 @@ describe('installing', () => {
     expect(w.state.values.review).toMatchObject({
       action: 'install',
       targets: [{ id: 'band@band-mods', op: 'install', scope: 'user' }],
-      notable: ['band: Can read your conversation or files and send data out'],
+      notable: ['Can read your conversation or files and send data out'],
       source: 'alice/band',
     })
     await act.confirm()
     await drain()
     expect(argvs()).toContain('install band --marketplace alice/band --scope user --json')
     expect(w.command.reloads).toBe(1)
+  })
+
+  it("reviews what a remote entry can do from the community index's read of its files", async () => {
+    const read = {
+      ...COMMUNITY_MOD,
+      repo: 'awslabs/agent-plugins',
+      path: 'plugins/aws-serverless',
+      commit: '097fe8ad56d8a1d5e2c81d7880adf145553cf244',
+      name: 'aws-serverless',
+    }
+    const { w, act } = await setup(world =>
+      world.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, [read]) }),
+    )
+    await act.tab('discover')
+    await act.install(AWS)
+    expect(w.state.values.review).toMatchObject({
+      action: 'install',
+      notable: ['Can read your conversation or files and send data out'],
+      indexedAt: read.commit,
+    })
+    expect(w.state.values.review?.uninspected).toBeUndefined()
   })
 
   it('a declared command stops the install; v shows it verbatim; y accepts that very command', async () => {

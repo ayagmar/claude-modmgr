@@ -5,10 +5,12 @@ import {
   batchLineOf,
   closedView,
   commandLine,
+  dockColumnsFor,
   escapeStep,
   filterRows,
   latestBatch,
   layoutFor,
+  lineWindow,
   pagerLabel,
   paneOpen,
   partsLabel,
@@ -79,7 +81,7 @@ describe('layout and opening', () => {
   })
 
   it('opens as a dialog, holding toasts only when asked', () => {
-    expect(paneOpen({ focus: true, hold: true, mods: 2 })).toEqual({
+    expect(paneOpen({ focus: true, hold: true, mods: 2, dock: undefined })).toEqual({
       id: 'modmgr',
       title: 'mods',
       closeOnEscape: true,
@@ -88,13 +90,22 @@ describe('layout and opening', () => {
       focus: true,
       holdToasts: true,
     })
-    expect(paneOpen({ focus: false, hold: false, mods: 2, title: 'mods · 2' })).toEqual({
+    expect(paneOpen({ focus: false, hold: false, mods: 2, title: 'mods · 2', dock: 52 })).toEqual({
       id: 'modmgr',
       title: 'mods · 2',
       closeOnEscape: true,
       rows: 14,
-      columns: 96,
+      columns: 52,
     })
+  })
+
+  it('docks narrower in a narrower terminal, leaving the transcript readable', () => {
+    // Wide: list and detail side by side.
+    expect(dockColumnsFor(240)).toBe(96)
+    // 124 columns: 96 would leave the transcript 28; it keeps 72.
+    expect(dockColumnsFor(124)).toBe(52)
+    // Where it can't keep 72, the dialog still gets enough to stack in.
+    expect(dockColumnsFor(110)).toBe(48)
   })
 
   it('names rows by key and reads them back', () => {
@@ -458,9 +469,25 @@ describe('a list that scrolls at its edges', () => {
     expect(windowFollowing(46, 100, 46, 10)).toEqual({ start: 45, end: 55 })
   })
 
+  it('turns a page when the selection jumps past the window: it leads the next, ends the previous', () => {
+    expect(windowFollowing(46, 100, 64, 10)).toEqual({ start: 63, end: 73 })
+    expect(windowFollowing(46, 100, 37, 10)).toEqual({ start: 29, end: 39 })
+  })
+
   it('jumps to the first or last page and fits a short list whole', () => {
     expect(windowFollowing(46, 100, 99, 10)).toEqual({ start: 90, end: 100 })
     expect(windowFollowing(46, 100, 0, 10)).toEqual({ start: 0, end: 10 })
     expect(windowFollowing(3, 5, 4, 10)).toEqual({ start: 0, end: 5 })
+  })
+})
+
+describe('a review window', () => {
+  it('stops at the last full window, however far it is scrolled', () => {
+    expect(lineWindow([1, 1, 2, 1, 1], 3, 99)).toEqual({ start: 3, end: 5, last: 3 })
+    expect(lineWindow([1, 1, 2, 1, 1], 3, 0)).toEqual({ start: 0, end: 2, last: 3 })
+  })
+
+  it('shows a line taller than the window rather than none', () => {
+    expect(lineWindow([1, 9, 1], 3, 1)).toEqual({ start: 1, end: 2, last: 2 })
   })
 })

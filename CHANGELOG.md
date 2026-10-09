@@ -7,6 +7,81 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-09
+
+### Added
+- Every list pages: `‹ prev` and `next ›` beside the pager, Page Up and Page Down, a page of items at a time; the
+  selection opens the new page.
+- Vim's keys: `j` and `k` step the selection as the arrows do, `h` and `l` move to the previous and next tab; the
+  mouse wheel steps the selection on every tab, Health included.
+- Dev lists modmgr itself when it runs from a folder (`--plugin-dir`) over an installed copy.
+- Discover says what a remote catalogue entry can do before you install it when the community index read the same
+  files, and at which commit; modmgr still reads the installed version again.
+- A mod's detail in Discover links its page on GitHub, and a community mod's install review the repository it
+  installs from: the desktop app opens it on a click, and terminals that support links (OSC 8) on a click too.
+- An installed mod's detail and `/mods info` say what it is and link its page, as its `plugin.json` gives them
+  (`description`, and `homepage` else `repository`).
+- A marketplace's mod shows its repository's GitHub stars, as a community mod does, and sorts among them by stars;
+  the count at a row's end is the one the list is sorted by.
+- The community index reads every mod the official catalogues list, including those GitHub search hasn't found, so
+  Discover knows their stars and what they can do.
+
+### Changed
+- Discover opens on its catalogue: the slowest read (about a second) starts when `/mods` first shows another tab.
+- Keys moved to make room for vim's: jobs is `q`, the key list `0`, reload `s`, Discover's "yours only" `u`, and the
+  job log cancels with `d`. The key list groups every key that moves apart from the actions.
+- Health reads as a status page: each of modmgr's own rows is named (Mods, Updates, Discover, Cache, Hook errors) in
+  plain words, and the line under the tabs says in color whether anything needs you.
+- A mod's detail too short for every name and explanation counts the hooks and calls that only draw instead of
+  listing every name, and names `/mods info <id>`, which explains each one.
+- The terminal's "ctrl+x tab to use these keys" stands out while the prompt has the keys.
+- A review shows each command it will run whole, wrapped, instead of cutting it at the dialog's edge; an install's
+  review no longer repeats the mod's name before each thing it can do.
+- The job log names each job in words (Refresh marketplace, Reload plugins) and says done, waiting or nothing to
+  change instead of the job's internal kind and state.
+- A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`
+  CLI it runs still needs 2.1.292 or newer.
+- The desktop app draws the dialog as a desktop layout: the detail is a card beside the list instead of a column of
+  `│`, the header no longer overlaps the rows under it, and names and rules wrap instead of being cut.
+- In a fullscreen terminal the dock leaves the transcript about 72 columns, up to 96 for the dialog, instead of always
+  asking for 96.
+- Health is a full-width checklist: each item reads whole with its fix on the row, and Enter opens one.
+- A tab with nothing to list (Dev with no mods under development) gives its text the whole body.
+- A mod's detail wraps what it can do beside each reach instead of cutting the list at the edge.
+- Discover's sort by stars takes one mod per repository first, as sorting by popularity does, so one repository's many
+  mods no longer fill the first pages.
+- modmgr no longer hooks the session's notice lines, so its own capability list no longer says it "can change what
+  the model reads". Dev no longer counts a mod's reload failures as they happen; Health still names hook failures
+  from the debug log (`--debug`), and `v` validates a mod under development.
+- modmgr's own detail says why it needs what it can do: it runs only the `claude` CLI, and it reads plugin manifests
+  and fetches the daily indexes, sending nothing it reads.
+
+### Fixed
+- After an install, update or toggle reloads the plugins, the dialog keeps the keys it held instead of leaving them
+  to the prompt, where the next keys typed landed in the message box.
+- In the desktop app a click on a row beside the detail selects it.
+- The Installed detail loads for the first row when the selection never moved, instead of reading "Reading what it
+  can do…" until a key is pressed.
+- In the desktop app, whose sessions refuse a plugin's `/reload-plugins`, a batch says the reload failed and asks you
+  to run `/reload-plugins`, instead of reporting the changes applied.
+- A review taller than the pane scrolls with the wheel and Page Up/Down, its heading and keys kept, instead of
+  cutting off its last lines, where the commands it runs are; a declared command scrolls a row at a time, so a
+  single line longer than the pane is read to its end before it can be accepted. The key list and the first
+  session's welcome scroll the same way in a short pane, the welcome's start key always in view.
+- A declared command holding hidden or control characters is accepted in a terminal, not in the review, which can't
+  show it as it is.
+- In Discover the ring stays on the selected row when moving it scrolls the list, instead of landing rows away from
+  the selection and its detail.
+- Installed lists every installed mod however many plugins modmgr has read before, instead of dropping the oldest
+  from the list, their detail and the hook order once its cache filled; installed plugins it couldn't read are named
+  on the tab and in Health, with a way to read them again, instead of reading "No mods installed yet".
+- A change queued while another batch waits for its reload is applied by that one reload even when the first batch
+  failed or changed nothing, instead of the reload being dropped and the change waiting for a reload by hand.
+- A tab, sort or welcome choice made while modmgr is still reading its saved preferences at start-up is kept,
+  instead of the older saved values replacing it.
+- Dev's `t` stops a mod's tests still running after ten minutes and says they ran past their time, as every other
+  command modmgr runs already did, instead of waiting on them until cancelled.
+
 ## [0.3.0] - 2026-10-09
 
 ### Added

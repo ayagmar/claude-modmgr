@@ -10,7 +10,7 @@ import { capabilitiesOf } from '../domain/capabilities.ts'
 import { acknowledge, type CapsSighting, capsNewOf, recordCaps } from '../domain/caps-history.ts'
 import type { ChainMod } from '../domain/chain.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
-import type { Listed } from '../domain/dev.ts'
+import { type About, joinPath, type Listed, manifestAboutOf } from '../domain/dev.ts'
 import { splitPluginId } from '../domain/ids.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
@@ -35,7 +35,7 @@ import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export const VALIDATE_CONCURRENCY = 3
 
-export type RegistryPorts = CliPorts & Pick<Ports, 'state'>
+export type RegistryPorts = CliPorts & Pick<Ports, 'state' | 'fs'>
 
 export type RefreshSummary = {
   readonly mods: number
@@ -55,8 +55,8 @@ export type Registry = {
   refresh(via?: CliPorts): Promise<Result<RefreshSummary>>
   /** Shows a mod's detail (`undefined` clears it). */
   select(id: string | undefined): Promise<void>
-  /** A mod's detail from the last refresh, without showing it (`/mods info`). */
-  detail(id: string): ModDetail | undefined
+  /** A mod's detail from the last refresh with what its plugin.json says, without showing it (`/mods info`). */
+  detail(id: string): Promise<ModDetail | undefined>
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
   /**
@@ -95,7 +95,14 @@ export const createRegistry = (
   timing: Timing = NO_TIMING,
 ): Registry => {
   let entries = new Map<string, InstalledEntry>()
+  // The listed entries' analyses as of the last refresh, whatever the bounded
+  // cache has since evicted: what the rows, details and hook order read.
+  let analyses = new Map<string, Analysis>()
   let loaded = false
+  const listedAnalysis = (entry: InstalledEntry): Analysis | undefined => {
+    const key = analysisKey(entry)
+    return key === undefined ? undefined : analyses.get(key)
+  }
   let running: Promise<Result<RefreshSummary>> | undefined
   let again = false
 
@@ -118,8 +125,7 @@ export const createRegistry = (
 
   const analysisFor = (id: string | undefined) => {
     const entry = id === undefined ? undefined : entries.get(id)
-    const key = entry === undefined ? undefined : analysisKey(entry)
-    const analysis = key === undefined ? undefined : store.get('validate')[key]
+    const analysis = entry === undefined ? undefined : listedAnalysis(entry)
     return entry === undefined || analysis === undefined ? undefined : { entry, analysis }
   }
 
@@ -132,9 +138,38 @@ export const createRegistry = (
     return rest as T
   }
 
+  // What each installed root@version's plugin.json says of it, read once, as its analysis is.
+  const abouts = new Map<string, About>()
+
   const detailOf = (id: string | undefined): ModDetail | null => {
     const found = analysisFor(id)
-    return found === undefined ? null : withNews(modDetail(found.entry, found.analysis))
+    if (found === undefined) return null
+    const key = analysisKey(found.entry)
+    const about = key === undefined ? undefined : abouts.get(key)
+    return withNews({ ...modDetail(found.entry, found.analysis), ...about })
+  }
+
+  /** Reads what `id`'s plugin.json says, once per root@version; false when there is nothing new to read. */
+  const readAbout = async (id: string | undefined): Promise<boolean> => {
+    const entry = id === undefined ? undefined : entries.get(id)
+    const key = entry === undefined ? undefined : analysisKey(entry)
+    const root = entry === undefined ? undefined : rootOf(entry)
+    if (key === undefined || root === undefined || abouts.has(key)) return false
+    const text = await ports.fs
+      .read(joinPath(root, '.claude-plugin/plugin.json'))
+      .catch(() => undefined)
+    abouts.set(key, text === undefined ? {} : manifestAboutOf(text))
+    return true
+  }
+
+  /** Writes `id`'s detail, then again with what its plugin.json says, if it is still the one shown. */
+  const writeDetail = async (id: string | undefined): Promise<void> => {
+    const detail = detailOf(id)
+    await ports.state.update('detail', () => detail)
+    if (detail === null || !(await readAbout(id))) return
+    await ports.state.update('detail', current =>
+      current?.id === detail.id ? detailOf(detail.id) : current,
+    )
   }
 
   const writeNews = async (mods: readonly ModRow[]): Promise<void> => {
@@ -167,24 +202,30 @@ export const createRegistry = (
     })
     const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(cli, entry, now))
 
+    // This refresh's analyses decide its rows: the cache keeps a bounded share
+    // for the next one, and what storing evicts is still listed now.
+    const read = new Map<string, Analysis>()
     let validate = store.get('validate')
     for (const [index, entry] of misses.entries()) {
       const analysis = fresh[index]
       const key = analysisKey(entry)
       if (analysis !== undefined && key !== undefined) {
+        read.set(key, analysis)
         validate = lruSet(validate, key, analysis, CAPS.validate)
       }
     }
     const rows: ModRow[] = []
     const sightings: CapsSighting[] = []
+    const current = new Map<string, Analysis>()
     let unread = 0
     for (const entry of listed.value.items) {
       const key = analysisKey(entry)
-      const analysis = key === undefined ? undefined : validate[key]
+      const analysis = key === undefined ? undefined : (read.get(key) ?? cache[key])
       if (key === undefined || analysis === undefined) {
         unread += 1
         continue
       }
+      current.set(key, analysis)
       validate = lruTouch(validate, key)
       if (!analysis.mod) continue
       const to = updateTo(store.get('updates'), entry)
@@ -200,6 +241,7 @@ export const createRegistry = (
     const history = recordCaps(store.get('capsHistory'), sightings)
     if (history.changed) store.set('capsHistory', history.history)
     entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
+    analyses = current
     loaded = true
 
     const mods = sortRows(rows).map(withNews)
@@ -216,7 +258,11 @@ export const createRegistry = (
       )
     }
     await ports.state.update('mods', () => mods)
-    await ports.state.update('detail', detail => detailOf(detail?.id))
+    // The detail is the row shown selected: a dialog opened on its first row,
+    // the selection never moved, still has one. Read last, so a move made
+    // while this refresh ran is the one shown.
+    const latest = await ports.state.read('view')
+    await writeDetail(selectedRow(latest, mods)?.id)
     await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
@@ -254,10 +300,13 @@ export const createRegistry = (
       return running
     },
     async select(id) {
-      await ports.state.update('detail', () => detailOf(id))
+      await writeDetail(id)
     },
     entry: id => entries.get(id),
-    detail: id => detailOf(id) ?? undefined,
+    async detail(id) {
+      await readAbout(id)
+      return detailOf(id) ?? undefined
+    },
     facts(id) {
       const found = analysisFor(id)
       if (found === undefined) {
@@ -283,17 +332,11 @@ export const createRegistry = (
     },
     isLoaded: () => loaded,
     listed() {
-      const cache = store.get('validate')
-      return [...entries.values()].map(entry => {
-        const key = analysisKey(entry)
-        return { entry, mod: key === undefined ? undefined : cache[key]?.mod }
-      })
+      return [...entries.values()].map(entry => ({ entry, mod: listedAnalysis(entry)?.mod }))
     },
     chainMods() {
-      const cache = store.get('validate')
       return [...entries.values()].flatMap(entry => {
-        const key = analysisKey(entry)
-        const analysis = key === undefined ? undefined : cache[key]
+        const analysis = listedAnalysis(entry)
         if (analysis?.mod !== true) return []
         return [
           {
@@ -307,6 +350,7 @@ export const createRegistry = (
     },
     forget(root) {
       const prefix = `${root.replace(/\/+$/, '')}@`
+      analyses = new Map([...analyses].filter(([key]) => !key.startsWith(prefix)))
       const cache = store.get('validate')
       const kept = Object.fromEntries(
         Object.entries(cache).filter(([key]) => !key.startsWith(prefix)),

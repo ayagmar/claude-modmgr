@@ -6,51 +6,34 @@
 // detail draws compactly), so the header and footer never scroll away.
 // Everything drawn comes from `$.state`.
 
-import type { RenderElement, UiPressArgument } from 'claude-code'
+import type { RenderElement } from 'claude-code'
 import type { Overlay, View } from '../../types/index.d.ts'
-import { devRowOf } from '../domain/dev.ts'
-import {
-  awaitingAcceptance,
-  detectLine,
-  foundRow,
-  nextSort,
-  SORT_LABEL,
-} from '../domain/discover.ts'
-import { healthItemsOf, healthLines, problemCount } from '../domain/health.ts'
+import { awaitingAcceptance } from '../domain/discover.ts'
+import { healthItemsOf, problemCount } from '../domain/health.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
   batchLineOf,
   FILTER_KEY,
-  filterRows,
   footerRowsFor,
   layoutFor,
   listColumnsFor,
   pagerLabel,
-  selectedRow,
+  scrolledAt,
   stagedIds,
-  type Window,
-  whyNoRemove,
-  whyNoUpdate,
-  windowFollowing,
 } from '../domain/view.ts'
-import { Detail, detailRows } from './Detail.tsx'
-import { DevDetail, DevList, devDetailRows, Share, shareRows } from './Dev.tsx'
-import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
-import { HealthItemDetail, HealthList, healthDetailRows } from './Health.tsx'
-import { List } from './Installed.tsx'
-import { GLYPH, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
+import { Share, shareRows } from './Dev.tsx'
+import { GLYPH, HiddenRows, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
 import {
+  type DrawnOverlay,
   Help,
-  helpRows,
   Jobs,
   MarketplaceForm,
   marketplaceRows,
   Review,
-  reviewRows,
   Welcome,
-  welcomeRows,
 } from './overlays.tsx'
+import { type Key, tabView } from './tabs.tsx'
 
 export type PaneFrame = {
   readonly bodyColumns: number
@@ -61,32 +44,19 @@ export type PaneFrame = {
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
 const NOT_YET: ReadonlySet<string> = new Set()
 
-/**
- * Where each list's window starts, by surface and list, kept between draws: a
- * list scrolls only when the selection reaches its edge (`windowFollowing`), so
- * the window has to remember where it was. A module's memory, like the
- * catalogue's; a reload starts each list centred on its selection again.
- */
-const scrolled = new Map<string, number>()
-
-const follow = (v: ViewPorts, list: string, count: number, index: number, size: number): Window => {
-  const key = `${v.surface}:${list}`
-  const window = windowFollowing(scrolled.get(key), count, index, size)
-  scrolled.set(key, window.start)
-  return window
-}
-
 /** From this many body rows the search field is drawn in a box. */
 const BOXED_FIELD_MIN_ROWS = 18
 
-/** A key of the moment: what it does, where its hotkey is bound, what it says. */
-type Key = {
-  readonly action: string
-  readonly on: KeySurface
-  readonly label: string
-  /** Gets the press: a copy targets the surface it came from. */
-  readonly onPress: (press: UiPressArgument) => void
-}
+/**
+ * What Page Up and Page Down move by: the items one page of the list drawn
+ * last holds, or the lines in view of the overlay on top.
+ */
+let lastPage = 1
+export const pageSize = (): number => lastPage
+
+/** The furthest line the overlay drawn last scrolls to; 0 when it fits. */
+let overlayLast = 0
+export const overlayEnd = (): number => overlayLast
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
   const [
@@ -117,11 +87,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     v.read('health'),
   ])
   const { Box, Button, Text, Input } = v.el
-  const discover = view.tab === 'discover'
-  const dev = view.tab === 'dev'
-  const health = view.tab === 'health'
-  const installed = !discover && !dev && !health
-  const surface: KeySurface = discover ? 'discover' : dev ? 'dev' : health ? 'health' : 'installed'
+  const installed = view.tab === 'installed'
   const layout = layoutFor(frame.bodyColumns)
   // A review overlay whose review was just taken (confirm) is already gone: the
   // tree drawn in between must be the final one, or the focus ring set on a row
@@ -129,53 +95,46 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const stack = review === null ? view.stack.filter(item => item !== 'review') : view.stack
   const top = stack.at(-1)
   const readOnly = degraded.process
-  // A missing CLI concerns both tabs; network use only Discover.
+  // A missing CLI concerns every tab; network use only Discover.
   const warning = degraded.process
     ? degraded.reason
-    : discover && degraded.network
+    : view.tab === 'discover' && degraded.network
       ? 'Network use is off: only local catalogues are checked for mods.'
       : undefined
   const status = batchLineOf(queue, attention.lastReload !== undefined)
   const terminal = v.surface === 'terminal'
-  const listColumns = layout === 'split' ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
+  // A terminal row is one cell high. A desktop's Buttons stand taller than its
+  // line, so a row held to one there draws over the next.
+  const oneRow = terminal ? { height: 1, overflow: 'hidden' as const } : {}
+  const split = layout === 'split'
   // Help, the job log and the welcome are about the whole dialog: they take the
   // whole body (beside the list, the welcome's key would lose the ring to a row).
   const wide = top === 'help' || top === 'jobs' || top === 'welcome'
-  const showList = (layout === 'split' && !wide) || top === undefined
+  const showList = (split && !wide) || top === undefined
 
-  // Installed: rows, the selection, what is staged.
-  const rows = filterRows(mods, view.query)
-  const selected = selectedRow(view, mods)
-  const changing = stagedIds(view, mods)
-  const staged = changing.size
-  const showStaged = installed && staged > 0 && !readOnly && top !== 'review'
-  // Discover: the window of rows `$.state` holds, and the selection in it.
-  const found = foundRow(view, page)
-  // Dev: its rows, and what validate, test and the session said of them.
-  const devRow = devRowOf(view.dev, devState.rows)
-  const devHow = { jobs: queue.jobs, failures: devState.failures }
-  // Health: every item, from state alone, and the one selected.
-  const items = healthItemsOf({
-    mods,
-    dev: devState,
-    attention,
-    degraded,
-    sync,
-    detect,
-    queue,
-    facts,
-  })
-  const item = items.find(each => each.key === view.health) ?? items[0]
+  // Health's items count on its tab's label whichever tab is shown.
+  const items = healthItemsOf({ mods, attention, degraded, sync, detect, queue, facts })
   const problems = problemCount(items)
-
-  const fieldShown = discover
-    ? Input !== undefined && showList && (page.total > 0 || view.search !== '')
-    : Input !== undefined && showList && installed && mods.length > 0
+  const tab = tabView(
+    v,
+    { view, mods, detail, queue, sync, degraded, page, detect, dev: devState, items },
+    {
+      // Beside the list the detail draws its own keys (toggle, install, validate…);
+      // stacked, the footer carries them until Enter opens the detail.
+      itemKeys: !split && top === undefined,
+      showList,
+      readOnly,
+      bodyColumns: frame.bodyColumns,
+    },
+    problems,
+  )
+  const beside = split && tab.beside
+  const listColumns = beside ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
+  const field = Input === undefined ? undefined : tab.field
+  // What is staged shows under Installed's list.
+  const staged = installed ? stagedIds(view, mods).size : 0
+  const showStaged = staged > 0 && !readOnly && top !== 'review'
   const stopped = readOnly ? undefined : awaitingAcceptance(queue.jobs)
-  const split = layout === 'split'
-  // Beside the list the detail draws its own keys (toggle, install, validate…);
-  // stacked, the footer carries them until Enter opens the detail.
-  const itemKeys = !split && top === undefined
 
   const tabs: readonly { readonly tab: View['tab']; readonly label: string }[] = [
     { tab: 'installed', label: 'Installed' },
@@ -195,67 +154,23 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // belongs (tabs, refresh, search, pager, footer): a hotkey needs a Button,
   // and every Button is a stop of the Tab ring, so none is hidden.
   const keys: Key[] = []
-  const add = (key: Omit<Key, 'on'> & { readonly on?: KeySurface }) =>
-    keys.push({ on: surface, ...key })
-  if (top === undefined && installed && !readOnly) {
-    const updatable = mods.filter(row => whyNoUpdate(row) === undefined).length
-    if (itemKeys && selected !== undefined) {
-      add({ action: 'toggle', label: 'toggle', onPress: () => v.act.toggle() })
-      if (whyNoUpdate(selected) === undefined)
-        add({ action: 'update', label: 'update', onPress: () => v.act.update() })
-      if (whyNoRemove(selected) === undefined)
-        add({ action: 'remove', label: 'remove', onPress: () => v.act.remove() })
-    }
-    if (updatable > 1)
-      add({ action: 'update-all', label: 'update all', onPress: () => v.act.updateAll() })
-    add({ action: 'undo', label: 'undo', onPress: () => v.act.undo() })
-  }
-  if (top === undefined && discover) {
-    if (itemKeys && !readOnly && found !== undefined)
-      add({ action: 'install', label: 'install', onPress: () => v.act.install() })
-    // It says what pressing it does next.
-    add({
-      action: 'sort',
-      label: `sort by ${SORT_LABEL[nextSort(view.sort)]}`,
-      onPress: () => v.act.cycleSort(),
-    })
-    add({
-      action: 'mine',
-      label: view.mine === true ? 'all of GitHub' : 'yours only',
-      onPress: () => v.act.toggleMine(),
-    })
-    if (!readOnly)
-      add({
-        action: 'marketplace-add',
-        label: 'marketplace',
-        onPress: () => v.act.addMarketplace(),
+  if (top === undefined) {
+    keys.push(...tab.keys)
+    if (narrowHeader)
+      keys.push({
+        action: 'refresh',
+        on: tab.surface,
+        label: 'refresh',
+        onPress: () => v.act.refresh(),
       })
-  }
-  if (top === undefined && dev) {
-    if (itemKeys && devRow !== undefined) {
-      const path = devRow.path
-      if (!readOnly) {
-        add({ action: 'validate', label: 'validate', onPress: () => v.act.devRun('validate') })
-        add({ action: 'test', label: 'test', onPress: () => v.act.devRun('test') })
-        add({ action: 'share', label: 'share', onPress: () => v.act.share() })
-      }
-      add({
-        action: 'copy',
-        label: 'copy path',
-        onPress: press => v.act.copy(path, press.surface),
+    // A waiting command is reviewed from a tab whose keys leave `v` to it.
+    if (stopped !== undefined && tab.offersAccept)
+      keys.push({
+        action: 'accept',
+        on: tab.surface,
+        label: 'review the command',
+        onPress: () => v.act.acceptShown(),
       })
-    }
-    if (!readOnly) add({ action: 'reload', label: 'reload', onPress: () => v.act.reload() })
-  }
-  if (top === undefined && health && !readOnly) {
-    add({ action: 'reload', label: 'reload', onPress: () => v.act.reload() })
-  }
-  if (top === undefined && narrowHeader) {
-    add({ action: 'refresh', label: 'refresh', onPress: () => v.act.refresh() })
-  }
-  // `v` is Dev's validate: a waiting command is reviewed from Installed or Discover.
-  if (top === undefined && stopped !== undefined && !dev) {
-    add({ action: 'accept', label: 'review the command', onPress: () => v.act.acceptShown() })
   }
   // Jobs and keys go over any view; a review or the marketplace form holds the keys.
   const general: Key[] =
@@ -267,7 +182,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ]
   const closeLabel =
     top === undefined ? (terminal ? 'esc close' : 'close') : terminal ? 'esc back' : 'back'
-  const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use the keys'
+  const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use these keys'
 
   // Rows the list may take: the body less every other line drawn. The footer's
   // keys wrap in what the jobs, keys and close group leaves them (a hotkey is
@@ -278,11 +193,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     [...keys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
     Math.max(1, frame.bodyColumns - rightColumns - 2),
   )
-  const boxedField = fieldShown && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
+  const boxedField = field !== undefined && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
     2 +
     (warning === undefined ? 0 : 1) +
-    (fieldShown ? (boxedField ? 3 : 1) : 0) +
+    (field === undefined ? 0 : boxedField ? 3 : 1) +
     (view.notice === undefined ? 0 : 1) +
     (status === undefined ? 0 : 1) +
     1 +
@@ -290,25 +205,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // Under the list, one line holds what is staged and the pager. The pager's
   // keys come after the field in the Tab ring: drawn above it, their coming
   // and going as the search narrows moved the ring off the field.
-  const itemCount = health
-    ? items.length
-    : dev
-      ? devState.rows.length
-      : discover
-        ? page.matched
-        : rows.length
-  // The rows the whole list takes: Health's group names, Discover's two rows an entry.
-  const fullRows = health
-    ? itemCount +
-      items.filter((each, index) => index === 0 || items[index - 1]?.group !== each.group).length
-    : discover
-      ? itemCount * 2
-      : itemCount
-  const paging = showList && fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
+  const paging =
+    ((beside && !wide) || top === undefined) &&
+    tab.fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
   // Too narrow for both, the pager wraps under what is staged (its widest label counted).
   const stagedWidth = `${staged} staged changes  s: review and apply`.length
-  const widestPager = pagerLabel({ start: itemCount - 1, end: itemCount }, itemCount) ?? ''
-  const pagerWidth = `${widestPager}  g: first  b: last`.length
+  const widestPager = pagerLabel({ start: tab.count - 1, end: tab.count }, tab.count) ?? ''
+  const pagerWidth = `${widestPager}  ‹ prev  next ›  g: first  b: last`.length
   const underRows = showStaged
     ? paging
       ? footerRowsFor([stagedWidth, pagerWidth], frame.bodyColumns)
@@ -319,144 +222,74 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const listRows = Math.max(3, frame.bodyRows - chrome - underRows)
 
   // The list, windowed around the selection, and its pager.
-  let list: RenderElement
-  let pager: string | undefined
-  if (health) {
-    const shown = healthLines(items, item === undefined ? 0 : items.indexOf(item), listRows)
-    pager = pagerLabel(shown.items, items.length)
-    list = HealthList(v, shown.lines, {
-      columns: listColumns,
-      focusKey: item?.key,
-      stacked: !split,
-      before: items.slice(0, shown.items.start),
-      after: items.slice(shown.items.end),
-    })
-  } else if (dev) {
-    const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)
-    const window = follow(v, 'dev', devState.rows.length, at, listRows)
-    pager = pagerLabel(window, devState.rows.length)
-    list = DevList(v, devState.rows, {
-      ...devHow,
-      columns: listColumns,
-      window,
-      focusKey: devRow?.key,
-      loading: devState.loading && devState.at === undefined,
-      beside: split,
-    })
-  } else if (discover) {
-    // Each entry takes two rows: its name, then what it says it does.
-    const at = found === undefined ? 0 : page.rows.indexOf(found)
-    const window = follow(
-      v,
-      `discover@${page.offset}`,
-      page.rows.length,
-      at,
-      Math.floor(listRows / 2),
-    )
-    list = FoundList(v, page, {
-      view,
-      columns: listColumns,
-      window,
-      focusId: found?.id,
-      networkOff: degraded.network,
-      checking: detect.running,
-      beside: split,
-    })
-    pager =
-      page.matched > window.end - window.start
-        ? pagerLabel(
-            { start: page.offset + window.start, end: page.offset + window.end },
-            page.matched,
-          )
-        : undefined
-  } else {
-    const window = follow(
-      v,
-      'installed',
-      rows.length,
-      selected === undefined ? 0 : rows.indexOf(selected),
-      listRows,
-    )
-    pager = pagerLabel(window, rows.length)
-    list = List(v, rows, {
-      view,
-      staged: changing,
-      columns: listColumns,
-      window,
-      focusId: selected?.id,
-      loading: sync.at === undefined && sync.error === undefined,
-      total: mods.length,
-      beside: split,
-    })
-  }
+  const { el: list, pager } = tab.list(listRows, { columns: listColumns, beside })
+  const perPage = Math.max(1, Math.floor(listRows / tab.itemRows))
+  lastPage = perPage
 
   const under = stack.at(-2)
-  const detailSurface: KeySurface = discover
-    ? 'discover-detail'
-    : dev
-      ? 'dev-detail'
-      : health
-        ? 'health'
-        : 'detail'
   const surfaceOf = (overlay: Overlay | undefined): KeySurface =>
     overlay === undefined
-      ? surface
+      ? tab.surface
       : overlay === 'detail'
-        ? detailSurface
+        ? tab.detailSurface
         : overlay === 'share'
           ? 'share'
           : overlay === 'review'
             ? 'review'
             : overlay === 'jobs'
               ? 'jobs'
-              : surface
+              : tab.surface
   // Beside the list the detail's keys are mounted too.
   // Help takes the whole body: the detail beside the list isn't drawn under it.
   const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
   const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
-    if (which === 'review' && review !== null) return Review(v, review, mods, { refused })
-    if (which === 'help') return Help(v, helpSurfaces, NOT_YET, frame.bodyColumns)
+    if (which === top && drawn !== undefined) return drawn.el
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     if (which === 'marketplace') return MarketplaceForm(v)
     if (which === 'share') return Share(v, devState.share)
-    if (which === 'welcome') return Welcome(v)
     return null
   }
 
-  // Beside the list: what the list, the divider and their gaps leave.
-  const detailColumns = split ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns
-  const sized = { readOnly, rows: listRows, columns: detailColumns }
-  const detailHow = { ...sized, row: selected, detail, staged: changing, view }
-  const detailView = () =>
-    discover
-      ? FoundDetail(v, found, sized)
-      : dev
-        ? DevDetail(v, devRow, { ...devHow, ...sized })
-        : health
-          ? HealthItemDetail(v, item)
-          : Detail(v, detailHow)
+  // Beside the list: what the list, the divider and their gaps leave; off the
+  // terminal, inside the card's border and padding.
+  const card = beside && !terminal ? 2 : 0
+  const sized = {
+    readOnly,
+    rows: listRows - card,
+    columns: beside ? frame.bodyColumns - listColumns - 3 - card : frame.bodyColumns,
+  }
+  // The review, help or welcome in the window it has, beside the list or over
+  // it; the page keys and the wheel scroll it.
+  const at = scrolledAt(view, top)
+  const whole = { rows: listRows, columns: frame.bodyColumns, at }
+  const drawn: DrawnOverlay | undefined =
+    top === 'review' && review !== null
+      ? Review(
+          v,
+          review,
+          mods,
+          beside && !wide ? { rows: sized.rows, columns: sized.columns, at } : whole,
+          { refused },
+        )
+      : top === 'help'
+        ? Help(v, helpSurfaces, NOT_YET, whole)
+        : top === 'welcome'
+          ? Welcome(v, whole)
+          : undefined
+  overlayLast = drawn?.last ?? 0
+  if (drawn !== undefined) lastPage = drawn.page
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
-    which === 'review' && review !== null
-      ? reviewRows(v, review, mods, frame.bodyColumns, { refused })
-      : which === 'help'
-        ? helpRows(helpSurfaces, NOT_YET, frame.bodyColumns)
-        : which === 'marketplace'
-          ? marketplaceRows
-          : which === 'share'
-            ? shareRows(devState.share, frame.bodyColumns)
-            : which === 'welcome'
-              ? welcomeRows(frame.bodyColumns)
-              : which === 'detail'
-                ? discover
-                  ? foundDetailRows(v, found, sized)
-                  : dev
-                    ? devDetailRows(v, devRow, { ...devHow, ...sized })
-                    : health
-                      ? healthDetailRows(item, frame.bodyColumns)
-                      : detailRows(v, detailHow)
-                : 0
+    which === top && drawn !== undefined
+      ? drawn.rows
+      : which === 'marketplace'
+        ? marketplaceRows
+        : which === 'share'
+          ? shareRows(devState.share, frame.bodyColumns)
+          : which === 'detail'
+            ? tab.detailRows(sized)
+            : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (
@@ -470,39 +303,51 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     )
 
   const body =
-    split && !wide ? (
-      // Clipped to the list's rows, so the header and footer stay in view; the
-      // whole detail is one Enter away. The detail beside the list carries its keys.
+    beside && !wide ? (
+      // Clipped to the list's rows, so the header and footer stay in view; a
+      // compact detail names /mods info for the rest. The detail beside the list carries its keys.
       <Box flexDirection="row" columnGap={1} height={listRows} overflow="hidden">
         <Box flexDirection="column" width={listColumns} flexShrink={0} overflow="hidden">
           <Box flexDirection="column" flexShrink={0}>
             {list}
           </Box>
         </Box>
-        <Box flexDirection="column" width={1} flexShrink={0}>
-          {Array.from({ length: listRows }, (_, index) => (
-            <Text key={`divider:${index}`} dimColor>
-              │
-            </Text>
-          ))}
-        </Box>
-        <Box flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden">
+        {terminal ? (
+          <Box flexDirection="column" width={1} flexShrink={0}>
+            {Array.from({ length: listRows }, (_, index) => (
+              <Text key={`divider:${index}`} dimColor>
+                │
+              </Text>
+            ))}
+          </Box>
+        ) : null}
+        <Box
+          flexDirection="column"
+          flexGrow={1}
+          flexShrink={1}
+          overflow="hidden"
+          {...(terminal ? {} : { borderStyle: 'round', borderDimColor: true, paddingX: 1 })}
+        >
           <Box flexDirection="column" flexShrink={0}>
-            {overlay(top) ?? detailView()}
+            {overlay(top) ?? tab.detail(sized)}
           </Box>
         </Box>
       </Box>
     ) : top === undefined ? (
       list
     ) : top === 'detail' ? (
-      clipped(detailView(), overlayRows(top))
+      clipped(tab.detail(sized), overlayRows(top))
     ) : (
       clipped(overlay(top) ?? list, overlayRows(top))
     )
 
+  // h and l: the tab beside the one shown, round the ends.
+  const stepTab = (by: number) => {
+    const at = tabs.findIndex(each => each.tab === view.tab)
+    return tabs[(at + by + tabs.length) % tabs.length]?.tab ?? view.tab
+  }
   const button = (key: Key) =>
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress })
-  const on = mods.filter(row => row.enabled).length
   // The tab shown is a title; the others are its number keys.
   const tabRow = tabs.map(({ tab, label }) =>
     view.tab === tab ? (
@@ -523,63 +368,23 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       </Box>
     ),
   )
-  const failing = devState.rows.filter(row => devState.failures[row.name] !== undefined).length
-  const updates = mods.filter(row => row.updateTo !== undefined).length
-  const count = (n: number, one: string, many: string) =>
-    `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
-  const meta = health
-    ? problems === 0
-      ? 'Nothing needs you.'
-      : `${count(problems, 'problem', 'problems')} to look at`
-    : dev
-      ? [
-          count(devState.rows.length, 'mod', 'mods') + ' under development',
-          failing === 0 ? '' : `${failing} failing`,
-        ]
-          .filter(part => part !== '')
-          .join(' · ')
-      : discover
-        ? [
-            view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,
-            detectLine(detect) ?? '',
-            page.community === 0 || view.mine === true
-              ? ''
-              : `${page.community.toLocaleString('en-US')} from GitHub`,
-          ]
-            .filter(part => part !== '')
-            .join(' · ')
-        : [
-            `${on} of ${count(mods.length, 'mod', 'mods')} on`,
-            updates === 0 ? '' : count(updates, 'update', 'updates'),
-          ]
-            .filter(part => part !== '')
-            .join(' · ')
-  const stale = discover ? page.loading : dev ? devState.loading : sync.refreshing
-  // The mods Discover can list: with `k`, only your marketplaces' (what the detector found).
-  const listed = detect.found + (view.mine === true ? 0 : page.community)
-  const field =
-    fieldShown && Input !== undefined ? (
+  const fieldRow =
+    field !== undefined && Input !== undefined ? (
       <Box flexDirection="row" flexGrow={1}>
         <Text dimColor>⌕ </Text>
         <Box flexGrow={1}>
           <Input
             key={FILTER_KEY}
-            placeholder={
-              discover
-                ? listed === 0
-                  ? 'Search mods'
-                  : `Search ${count(listed, 'mod', 'mods')}`
-                : `Filter ${count(mods.length, 'mod', 'mods')}`
-            }
-            value={discover ? view.search : view.query}
+            placeholder={field.placeholder}
+            value={field.value}
             onInput={value => v.act.filter(value)}
             onSubmit={value => v.act.filter(value)}
           />
         </Box>
         {KeyButton(v, {
           action: 'filter',
-          on: surface,
-          label: discover ? 'search' : 'filter',
+          on: tab.surface,
+          label: field.label,
           dim: true,
           onPress: () => v.act.focusFilter(),
         })}
@@ -588,12 +393,12 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
 
   return (
     <Box flexDirection="column" height={frame.bodyRows}>
-      <Box flexDirection="row" justifyContent="space-between" height={1} overflow="hidden">
+      <Box flexDirection="row" justifyContent="space-between" {...oneRow}>
         <Box flexDirection="row" columnGap={narrowHeader ? 2 : 3} flexShrink={1}>
           {tabRow}
         </Box>
         <Box flexDirection="row" columnGap={1} flexShrink={0}>
-          {stale ? (
+          {tab.stale ? (
             <Text dimColor>{GLYPH.stale}</Text>
           ) : installed && sync.error !== undefined ? (
             <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh</Text>
@@ -601,7 +406,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {top === undefined && !narrowHeader
             ? KeyButton(v, {
                 action: 'refresh',
-                on: surface,
+                on: tab.surface,
                 label: 'refresh',
                 dim: true,
                 onPress: () => v.act.refresh(),
@@ -609,22 +414,30 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             : null}
         </Box>
       </Box>
-      <Box height={1} overflow="hidden">
-        <Text dimColor wrap="truncate-end">
-          {meta}
-        </Text>
+      <Box {...oneRow}>
+        {tab.metaTone === undefined ? (
+          <Text dimColor wrap="truncate-end">
+            {tab.meta}
+          </Text>
+        ) : (
+          <Text color={TONE[tab.metaTone]} wrap="truncate-end">
+            {tab.meta}
+          </Text>
+        )}
       </Box>
       {warning === undefined ? null : (
         <Text color={TONE.warn} wrap="truncate-end">
           {sanitize(warning, { max: 300 })}
         </Text>
       )}
-      {field === null ? null : boxedField ? (
-        <Box borderStyle="round" borderDimColor paddingX={1} flexDirection="row">
-          {field}
+      {fieldRow === null ? null : boxedField ? (
+        <Box borderStyle="round" borderDimColor paddingX={1} flexDirection="row" width="100%">
+          {fieldRow}
         </Box>
       ) : (
-        <Box flexDirection="row">{field}</Box>
+        <Box flexDirection="row" width="100%">
+          {fieldRow}
+        </Box>
       )}
       <Box flexDirection="column" flexGrow={1}>
         {body}
@@ -651,8 +464,26 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
               <Text dimColor>{pager}</Text>
               {top === undefined
                 ? KeyButton(v, {
+                    action: 'page.prev',
+                    on: tab.surface,
+                    label: '‹ prev',
+                    dim: true,
+                    onPress: () => v.act.scroll(-perPage),
+                  })
+                : null}
+              {top === undefined
+                ? KeyButton(v, {
+                    action: 'page.next',
+                    on: tab.surface,
+                    label: 'next ›',
+                    dim: true,
+                    onPress: () => v.act.scroll(perPage),
+                  })
+                : null}
+              {top === undefined
+                ? KeyButton(v, {
                     action: 'page.first',
-                    on: surface,
+                    on: tab.surface,
                     label: 'first',
                     dim: true,
                     onPress: () => v.act.edge('first'),
@@ -661,7 +492,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
               {top === undefined
                 ? KeyButton(v, {
                     action: 'page.last',
-                    on: surface,
+                    on: tab.surface,
                     label: 'last',
                     dim: true,
                     onPress: () => v.act.edge('last'),
@@ -677,19 +508,22 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         </Text>
       )}
       {status === undefined ? null : (
-        <Text
-          color={status.tone === 'error' ? TONE.bad : status.tone === 'ok' ? TONE.ok : TONE.accent}
-          wrap="truncate-end"
-        >
-          {status.tone === 'error' ? GLYPH.failed : status.tone === 'ok' ? GLYPH.ok : GLYPH.stale}{' '}
-          {status.text}
-        </Text>
+        <Box {...oneRow}>
+          <Text
+            color={
+              status.tone === 'error' ? TONE.bad : status.tone === 'ok' ? TONE.ok : TONE.accent
+            }
+            wrap="truncate-end"
+          >
+            {`${status.tone === 'error' ? GLYPH.failed : status.tone === 'ok' ? GLYPH.ok : GLYPH.stale} ${status.text}`}
+          </Text>
+        </Box>
       )}
       {Rule(v, frame.bodyColumns)}
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap" flexShrink={1}>
           {keys.map(button)}
-          {hint === undefined ? null : <Text dimColor>{hint}</Text>}
+          {hint === undefined ? null : <Text color={TONE.warn}>{hint}</Text>}
         </Box>
         <Box flexDirection="row" columnGap={2} flexShrink={0}>
           {general.map(key => KeyButton(v, { ...key, dim: true }))}
@@ -706,6 +540,36 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           )}
         </Box>
       </Box>
+      {/* Vim's keys: j and k step the selection as the arrows do, h and l
+          the tabs. Last, so they come after every stop the ring walks to. */}
+      {top === undefined
+        ? HiddenRows(v, [
+            KeyButton(v, {
+              action: 'row.next',
+              on: tab.surface,
+              label: 'next row',
+              onPress: () => v.act.scroll(1),
+            }),
+            KeyButton(v, {
+              action: 'row.prev',
+              on: tab.surface,
+              label: 'previous row',
+              onPress: () => v.act.scroll(-1),
+            }),
+            KeyButton(v, {
+              action: 'tab.prev',
+              on: 'pane',
+              label: 'previous tab',
+              onPress: () => v.act.tab(stepTab(-1)),
+            }),
+            KeyButton(v, {
+              action: 'tab.next',
+              on: 'pane',
+              label: 'next tab',
+              onPress: () => v.act.tab(stepTab(1)),
+            }),
+          ])
+        : null}
     </Box>
   )
 }

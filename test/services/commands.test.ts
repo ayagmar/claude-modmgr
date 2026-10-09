@@ -95,6 +95,15 @@ describe('/mods as text', () => {
     expect(listed.text?.split('\n')[0]).toBe('5 mods (5 on)')
   })
 
+  it('docks narrower in a narrow fullscreen terminal, and later opens keep that width', async () => {
+    const { w, rt } = await setup()
+    await modsCommand(w.ports, rt, '', 124)
+    expect(w.ui.opens.at(-1)?.columns).toBe(52)
+    // An open that knows no terminal width (the main screen) keeps the dock it had.
+    await modsCommand(w.ports, rt, '')
+    expect(w.ui.opens.at(-1)?.columns).toBe(52)
+  })
+
   it('answers help, usage errors and an unstarted modmgr', async () => {
     const { w } = await setup()
     expect(await modsCommand(w.ports, undefined, 'help')).toEqual({ text: USAGE })
@@ -129,6 +138,17 @@ describe('/mods as text', () => {
     expect(report.problems).toBeGreaterThan(0)
     expect(doctor.exitCode).toBe(1)
     expect((await run('doctor')).text).toMatch(/^\d+ problems?\n/)
+  })
+
+  it('details a mod with what its plugin.json says it is, and its page', async () => {
+    const { run } = await setup(w =>
+      w.fs.files.set(
+        '/tmp/modmgr-fixtures/mkt/turn-band/.claude-plugin/plugin.json',
+        JSON.stringify({ description: 'Shows the turn.', homepage: 'https://turn.example' }),
+      ),
+    )
+    const info = (await run('info turn-band@fixtures')).text ?? ''
+    expect(info.split('\n').slice(2, 4)).toEqual(['Shows the turn.', 'https://turn.example'])
   })
 
   it('says what a write would run without --yes, and runs it with', async () => {

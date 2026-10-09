@@ -5,11 +5,12 @@
 
 import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
+import { sanitize } from '../domain/sanitize.ts'
 import type { StatePort } from '../ports.ts'
 import type { Actions } from '../services/actions.ts'
 
 /** The elements every surface has, plus `Input` where the surface takes typing (not mobile). */
-export type El = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'> & {
+export type El = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button' | 'Link'> & {
   readonly Input?: Elements['terminal']['Input']
   /** A one-of-several picker, where the surface takes typing (not mobile). */
   readonly Select?: Elements['terminal']['Select']
@@ -20,6 +21,8 @@ export type ViewPorts = {
   readonly surface: RenderSurface
   readonly read: StatePort['read']
   readonly act: Actions
+  /** modmgr's own folder (`$.plugin.root`): its own detail says why it needs what it can do. */
+  readonly ownRoot: string
 }
 
 export const GLYPH = {
@@ -74,8 +77,44 @@ export const KeyButton = (
 
 /** The selection's mark at a row's start: drawn whether or not the pane holds the keys. */
 export const Pointer = (v: ViewPorts, on: boolean): RenderElement => {
-  const { Text } = v.el
-  return on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>
+  const { Box, Text } = v.el
+  // One cell wide whatever it holds: a desktop's proportional font draws ❯
+  // wider than a space, which pushed the selected row out of line.
+  return (
+    <Box width={1} flexShrink={0}>
+      {on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>}
+    </Box>
+  )
+}
+
+/** What a list row's Button names and does: open its detail, or select it. */
+export type ListItem = {
+  readonly key: string
+  readonly label: string
+  readonly open: () => Promise<void>
+  readonly select: () => Promise<void>
+}
+
+/** A list row's Button: its name; Enter opens the detail, or moves onto it beside the list. */
+export const ListButton = (
+  v: ViewPorts,
+  item: ListItem,
+  how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
+): RenderElement => {
+  const { Button } = v.el
+  return (
+    <Button
+      key={item.key}
+      plain
+      label={sanitize(item.label, { max: how.max })}
+      {...(how.focus ? { autoFocus: true as const } : {})}
+      // Beside the detail: the terminal's ring already selected the row, so a
+      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
+      onPress={press =>
+        !how.beside ? item.open() : press.surface === 'terminal' ? v.act.toDetail() : item.select()
+      }
+    />
+  )
 }
 
 /**
@@ -100,7 +139,12 @@ export const HiddenRows = (
 /** A dim rule across `columns`. */
 export const Rule = (v: ViewPorts, columns: number): RenderElement => {
   const { Text } = v.el
-  return <Text dimColor>{'─'.repeat(Math.max(0, columns))}</Text>
+  // Cut, not wrapped: a desktop's glyph is wider than its cell.
+  return (
+    <Text dimColor wrap="truncate-end">
+      {'─'.repeat(Math.max(0, columns))}
+    </Text>
+  )
 }
 
 /** A section heading: bold, in the accent the tab title has. */
@@ -146,7 +190,7 @@ export const LabelRow = (
 ): RenderElement => {
   const { Box, Text } = v.el
   return (
-    <Box flexDirection="row" gap={1}>
+    <Box flexDirection="row" gap={1} alignItems="flex-start">
       <Box width={width} flexShrink={0}>
         <Text dimColor wrap="truncate-end">
           {label}

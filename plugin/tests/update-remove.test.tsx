@@ -84,6 +84,42 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`a review taller than a short pane scrolls to what it runs, keys kept, on ${surface}`, async ($, on) => {
+    const h = host(on)
+    await $.session.start(START)
+    await h.clock.advance(1)
+    const ui = await mountPane($, surface, PANE(64, 12))
+    await focusRow($, QUIET)
+    await ui.redraw()
+    await ui.press({ key: 'act:remove' })
+    await ui.redraw()
+    const runs = { type: 'Text', text: /claude plugin uninstall quiet-bash@fixtures/ } as const
+    expect(await ui.find(runs)).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /^lines 1–\d+ of \d+/ })).toBeDefined()
+    // Page Down, more times than it takes: the review stops at its end.
+    for (let press = 0; press < 5; press += 1) {
+      await $.ui.scroll({
+        component: 'Pane',
+        requestId: 'modmgr',
+        offset: 0,
+        by: 10,
+        bodyRows: 12,
+        contentRows: 12,
+        origin: { kind: 'person' },
+      })
+    }
+    await ui.redraw()
+    expect(await ui.find(runs)).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Remove quiet-bash' })).toBeDefined()
+    await ui.press({ key: 'act:confirm' })
+    await h.clock.advance(1)
+    await h.clock.advance(1500)
+    expect(h.argvs).toContain(
+      'plugin uninstall quiet-bash@fixtures --scope user --keep-data --json',
+    )
+    await ui.unmount()
+  })
+
   test(`u updates a mod from a git marketplace, on ${surface}`, async ($, on) => {
     const h = host(on, {
       cli: args =>
@@ -307,7 +343,47 @@ test('a hook and a call of one name read apart', async ($, on) => {
   })
   await $.session.start(START)
   const ui = await mountPane($, 'terminal', PANE(90, 40))
-  expect(await ui.find({ type: 'Text', text: 'on command.run' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'on\u00a0command.run' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'command.run' })).toBeDefined()
   await ui.unmount()
 })
+
+/** The folder holding plugin.json: what the module's `$.plugin.root` names. */
+// The runner gives modules `import.meta.url`; the plugin's types (no runtime lib) don't say so.
+const PLUGIN_ROOT = new URL('..', (import.meta as { readonly url: string }).url).pathname
+
+for (const own of [true, false]) {
+  test(`modmgr's own detail says why it needs what it can do${own ? '' : ', a namesake from elsewhere does not'}`, async ($, on) => {
+    const self = { ...ROW, id: 'modmgr@ayagmar', name: 'modmgr', capsNew: undefined }
+    host(on, {
+      state: {
+        mods: [self],
+        detail: {
+          ...self,
+          root: own ? PLUGIN_ROOT : '/elsewhere/modmgr',
+          caps: {
+            events: [],
+            calls: ['process.run', 'fs.read', 'http.fetch'],
+            envReads: [],
+            reach: ['machine', 'network'],
+            notable: ['runs-programs', 'reads-and-sends'],
+          },
+        },
+        view: {
+          tab: 'installed',
+          stack: [],
+          query: '',
+          sort: 'name',
+          staged: {},
+          selected: self.id,
+        },
+      },
+    })
+    await $.session.start(START)
+    const ui = await mountPane($, 'terminal', PANE(110, 50))
+    const why = await ui.find({ type: 'Text', text: 'Why modmgr needs these' })
+    if (own) expect(why).toBeDefined()
+    else expect(why).toBeUndefined()
+    await ui.unmount()
+  })
+}

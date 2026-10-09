@@ -44,14 +44,14 @@ describe('keymap', () => {
 
   it('finds hotkeys by action and surface', () => {
     expect(hotkeyFor('toggle', 'installed')).toBe('e')
-    expect(hotkeyFor('reload', 'band')).toBe('l')
+    expect(hotkeyFor('reload', 'band')).toBe('s')
     expect(hotkeyFor('install', 'installed')).toBeUndefined()
     expect(hotkeyFor('move', 'pane')).toBeUndefined()
   })
 
   it('generates help: engine keys first, one row per action', () => {
     const rows = helpFor(['pane', 'installed', 'detail'])
-    expect(rows[0]).toEqual({ key: '↑↓ tab', label: 'move' })
+    expect(rows[0]).toEqual({ key: '↑↓ tab', label: 'move', moves: true })
     expect(rows.filter(row => row.label === 'enable/disable')).toHaveLength(1)
     expect(rows.map(row => row.key)).toContain('s')
     expect(rows.map(row => row.key)).not.toContain('i')

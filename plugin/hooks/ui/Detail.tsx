@@ -7,7 +7,13 @@
 
 import type { RenderElement } from 'claude-code'
 import type { ModDetail, ModRow, View } from '../../types/index.d.ts'
-import { groupByReach, type Notable, notableOf, type ReachGroup } from '../domain/capabilities.ts'
+import {
+  groupByReach,
+  type Notable,
+  type NotableId,
+  notableOf,
+  type ReachGroup,
+} from '../domain/capabilities.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
   bytesLabel,
@@ -31,6 +37,18 @@ import {
 
 /** The reach groups that are only drawing: named on one line, not explained. */
 const QUIET = new Set(['display'])
+
+/** What modmgr does with each of its own notable capabilities (docs/SECURITY.md has the rest). */
+const OWN_WHY: Readonly<Partial<Record<NotableId, string>>> = {
+  'runs-programs':
+    'It runs the claude CLI and nothing else: every install, update, enable and validate goes through it.',
+  'reads-and-sends':
+    'It reads plugin manifests and its own debug log, and fetches the daily mod indexes from raw.githubusercontent.com. Nothing it reads is sent.',
+}
+const OWN_WHY_MORE = 'docs/SECURITY.md lists all it reads, fetches and stores.'
+
+const sameFolder = (a: string, b: string): boolean =>
+  a.replace(/\/+$/, '') === b.replace(/\/+$/, '')
 
 /** Cells at most for the capability table's group and name columns. */
 const LABEL_MAX = 20
@@ -115,18 +133,24 @@ const notableSection = (
   }
 }
 
-/** A hook reads `on <event>`, as a module spells it, so it never passes for the call of that name. */
+/**
+ * A hook reads `on <event>`, as a module spells it, so it never passes for the
+ * call of that name; the space doesn't break, so a wrapped list never parts them.
+ */
 const itemName = (item: ReachGroup['items'][number]): string =>
-  item.kind === 'event' ? `on ${item.name}` : item.name
+  item.kind === 'event' ? `on\u00a0${item.name}` : item.name
 
 /**
  * Everything it hooks and calls, grouped by reach. In the full form each group
  * is named on its own row and each item follows, its name in a column, then
  * what it does, wrapped under itself; a group that only draws lists its names.
- * Compactly, a table: the reach in the first column, the names beside it.
+ * Compactly, the command that explains each one, as the full form would,
+ * then a table: the reach in the first column, the names beside it. The
+ * command comes first, as a detail cut short is cut at its end.
  */
 const reachSection = (
   v: ViewPorts,
+  id: string,
   groups: readonly ReachGroup[],
   full: boolean,
   columns: number,
@@ -146,20 +170,33 @@ const reachSection = (
   }
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
+    // A group that only draws is counted: its names are noise beside the reach
+    // that matters, and the full detail and /mods info still list them.
+    const said = (group: ReachGroup) =>
+      QUIET.has(group.reach)
+        ? `${group.items.length} ${group.items.length === 1 ? 'hook or call' : 'hooks and calls'}`
+        : names(group)
     const label = Math.min(LABEL_MAX, Math.max(...groups.map(g => g.label.length)))
+    // The names wrap beside the label: a cut list hid what the mod reaches.
+    const beside = columns - label - 1
+    const more = `/mods info ${id} explains each one.`
     return {
-      rows: 1 + groups.length,
+      rows:
+        1 +
+        wrappedRows([more], columns) +
+        groups.reduce((sum, group) => sum + wrappedRows([said(group)], beside), 0),
       el: (
         <Box flexDirection="column">
           {heading}
+          <Text dimColor>{more}</Text>
           {groups.map(group =>
             LabelRow(
               v,
               group.label,
               label,
-              <Text dimColor={QUIET.has(group.reach)} wrap="truncate-end">
-                {names(group)}
-              </Text>,
+              <Box width={beside} flexShrink={1}>
+                <Text dimColor={QUIET.has(group.reach)}>{said(group)}</Text>
+              </Box>,
             ),
           )}
         </Box>
@@ -210,6 +247,36 @@ const reachSection = (
   }
 }
 
+/**
+ * What the mod says it is, wrapped (a line in the compact form), and its page,
+ * a link every surface opens.
+ */
+const aboutSection = (
+  v: ViewPorts,
+  detail: ModDetail,
+  full: boolean,
+  columns: number,
+): Section | undefined => {
+  const { Box, Text, Link } = v.el
+  const said = detail.description === undefined ? '' : sanitize(detail.description, { max: 300 })
+  const { link } = detail
+  if (said === '' && link === undefined) return undefined
+  return {
+    rows:
+      (said === '' ? 0 : full ? wrappedRows([said], columns) : 1) + (link === undefined ? 0 : 1),
+    el: (
+      <Box flexDirection="column">
+        {said === '' ? null : full ? <Text>{said}</Text> : <Text wrap="truncate-end">{said}</Text>}
+        {link === undefined ? null : (
+          <Text dimColor wrap="truncate-end">
+            from <Link href={link}>{link.replace(/^https:\/\//, '')}</Link>
+          </Text>
+        )}
+      </Box>
+    ),
+  }
+}
+
 /** The sections under the head, in `form`. */
 const bodySections = (
   v: ViewPorts,
@@ -226,7 +293,8 @@ const bodySections = (
   const added = detail.capsNew?.added ?? []
   const fresh = notable.filter(item => added.includes(item.id))
   const old = notable.filter(item => !added.includes(item.id))
-  const sections: Section[] = []
+  const about = aboutSection(v, detail, full, columns)
+  const sections: Section[] = about === undefined ? [] : [about]
   if (fresh.length > 0 && detail.capsNew !== undefined) {
     const heading = (
       <Text bold color={TONE.warn}>
@@ -238,8 +306,31 @@ const bodySections = (
   if (old.length > 0) {
     sections.push(notableSection(v, Heading(v, 'Notable'), old, TONE.accent, full, columns))
   }
+  // modmgr's own row (its folder, not its name, which any plugin can take) says why.
+  const own = detail.root !== undefined && sameFolder(detail.root, v.ownRoot)
+  const why = own ? notable.flatMap(item => OWN_WHY[item.id] ?? []) : []
+  if (why.length > 0) {
+    const lines = [...why, OWN_WHY_MORE]
+    sections.push({
+      rows: 1 + wrappedRows(lines, columns),
+      el: (
+        <Box flexDirection="column">
+          {Heading(v, 'Why modmgr needs these')}
+          {lines.map(line => (
+            <Text dimColor>{line}</Text>
+          ))}
+        </Box>
+      ),
+    })
+  }
   sections.push(
-    reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full, columns),
+    reachSection(
+      v,
+      sanitize(detail.id, { max: 130 }),
+      detail.caps === undefined ? [] : groupByReach(detail.caps),
+      full,
+      columns,
+    ),
   )
 
   const extras: string[] = []

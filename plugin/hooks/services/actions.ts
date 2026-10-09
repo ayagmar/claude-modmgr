@@ -42,6 +42,7 @@ import {
   pushOverlay,
   removeReview,
   rowKey,
+  scrolledAt,
   selectedRow,
   specsOf,
   stagedChanges,
@@ -127,6 +128,11 @@ export type Actions = {
   focusFilter(): Promise<void>
   /** Moves the selection to the first or last row the filter shows, and the ring with it. */
   edge(which: 'first' | 'last'): Promise<void>
+  /**
+   * The wheel, j and k, the page keys: moves the selection `by` rows (negative: up),
+   * the ring with it; over a review, its lines, no further than `last`.
+   */
+  scroll(by: number, last?: number): Promise<void>
   copy(text: string, surface?: RenderSurface): Promise<void>
   /** Opens the dialog from the band. */
   openPane(): Promise<void>
@@ -226,7 +232,9 @@ export const createActions = (
     ])
     const idle = how.idle ?? holdsToasts(queue, view)
     const title = titleOf(summaryOf({ attention, queue, mods }))
-    await ui.open(paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title }))
+    await ui.open(
+      paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title, dock: view.dock }),
+    )
   }
 
   /** Queues a batch and its reload; `when` guards it against a queue that moved since it was read. */
@@ -308,6 +316,52 @@ export const createActions = (
     await rt.catalog.show()
   }
 
+  /**
+   * Moves the selection to the row `choose` picks, given how many rows the tab
+   * lists and the selected one's index (held to the ends), and the ring with it.
+   * Health's few items have no rows to page through.
+   */
+  const moveSelection = async (choose: (count: number, at: number) => number): Promise<void> => {
+    const pick = (count: number, at: number) => Math.max(0, Math.min(count - 1, choose(count, at)))
+    const view = await state.read('view')
+    if (view.tab === 'health') {
+      const items = await healthItems()
+      const current = items.findIndex(each => each.key === view.health)
+      const item = items[pick(items.length, Math.max(0, current))]
+      if (item === undefined || item === items[current]) return
+      await setView(shown => ({ ...quiet(shown), health: item.key }))
+      await ui.focus(PANE_ID, healthKey(item.key)).catch(() => undefined)
+      return
+    }
+    if (view.tab === 'dev') {
+      const { rows } = await state.read('dev')
+      const current = devRowOf(view.dev, rows)
+      const row = rows[pick(rows.length, current === undefined ? 0 : rows.indexOf(current))]
+      if (row === undefined || row === current) return
+      await setView(shown => ({ ...quiet(shown), dev: row.key }))
+      await ui.focus(PANE_ID, devKey(row.key)).catch(() => undefined)
+      return
+    }
+    if (view.tab === 'discover') {
+      await rt?.catalog.load()
+      const id = rt?.catalog.pick(view.found, pick)
+      if (id === undefined || id === view.found) return
+      await setView(shown => ({ ...quiet(shown), found: id }))
+      await showCatalog()
+      await ui.focus(PANE_ID, foundKey(id)).catch(() => undefined)
+      return
+    }
+    const mods = await state.read('mods')
+    const rows = filterRows(mods, view.query)
+    const current = selectedRow(view, mods)
+    const row = rows[pick(rows.length, current === undefined ? 0 : rows.indexOf(current))]
+    if (row === undefined || row === current) return
+    await setView(shown => ({ ...quiet(shown), selected: row.id }))
+    await select(row.id)
+    // The row may be drawn only after the redraw this write causes; focus awaits it.
+    await ui.focus(PANE_ID, rowKey(row.id)).catch(() => undefined)
+  }
+
   /** The ring onto what an overlay offers first: its safe default (review: cancel). */
   const ringToOverlay = async (): Promise<void> => {
     const view = await state.read('view')
@@ -331,15 +385,15 @@ export const createActions = (
   /** Puts a review on top, the ring on its safe default (cancel). */
   const openReview = async (review: ReviewRequest): Promise<void> => {
     await state.update('review', () => review)
+    // A new review starts at its top.
     await setView(current => pushOverlay(quiet(current), 'review'))
     await ringToOverlay()
   }
 
   /** Health's items as the pane draws them. */
   const healthItems = async (): Promise<HealthItem[]> => {
-    const [mods, dev, attention, degraded, sync, detect, queue, facts] = await Promise.all([
+    const [mods, attention, degraded, sync, detect, queue, facts] = await Promise.all([
       state.read('mods'),
-      state.read('dev'),
       state.read('attention'),
       state.read('degraded'),
       state.read('sync'),
@@ -347,7 +401,7 @@ export const createActions = (
       state.read('queue'),
       state.read('health'),
     ])
-    return healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
+    return healthItemsOf({ mods, attention, degraded, sync, detect, queue, facts })
   }
 
   /** The welcome on the stack is being left: it isn't said again. */
@@ -400,7 +454,6 @@ export const createActions = (
       const { tab } = await state.read('view')
       if (tab === 'discover') return ringTo('act:install', 'act:copy')
       if (tab === 'dev') return ringTo('act:validate', 'act:copy')
-      if (tab === 'health') return ringTo('act:fix')
       return ringTo('act:toggle', 'act:copy')
     }),
 
@@ -607,32 +660,20 @@ export const createActions = (
     }),
 
     edge: safely('edge', async which => {
-      const { tab } = await state.read('view')
-      if (tab === 'dev') {
-        const { rows } = await state.read('dev')
-        const row = which === 'first' ? rows[0] : rows.at(-1)
-        if (row === undefined) return
-        await setView(current => ({ ...quiet(current), dev: row.key }))
-        await ui.focus(PANE_ID, devKey(row.key)).catch(() => undefined)
+      await moveSelection(count => (which === 'first' ? 0 : count - 1))
+    }),
+
+    scroll: safely('scroll', async (by, last = 0) => {
+      const view = await state.read('view')
+      const top = topOverlay(view)
+      // Over an overlay the wheel scrolls it, as far as its last line; the list isn't under it.
+      if (top !== undefined) {
+        const from = scrolledAt(view, top)
+        const at = Math.max(0, Math.min(last, from + by))
+        if (at !== from) await setView(current => ({ ...current, overlayAt: { overlay: top, at } }))
         return
       }
-      if (tab === 'discover') {
-        await rt?.catalog.load()
-        const id = rt?.catalog.edge(which)
-        if (id === undefined) return
-        await setView(current => ({ ...quiet(current), found: id }))
-        await showCatalog()
-        await ui.focus(PANE_ID, foundKey(id)).catch(() => undefined)
-        return
-      }
-      const [view, mods] = await Promise.all([state.read('view'), state.read('mods')])
-      const rows = filterRows(mods, view.query)
-      const row = which === 'first' ? rows[0] : rows.at(-1)
-      if (row === undefined) return
-      await setView(current => ({ ...quiet(current), selected: row.id }))
-      await select(row.id)
-      // The row may be drawn only after the redraw this write causes; focus awaits it.
-      await ui.focus(PANE_ID, rowKey(row.id)).catch(() => undefined)
+      await moveSelection((_count, at) => at + by)
     }),
 
     copy: safely('copy', async (text, surface) => {
@@ -649,8 +690,15 @@ export const createActions = (
     focusFound: safely('focus found', async id => {
       const view = await state.read('view')
       if (view.found === id) return
+      const { offset } = await state.read('catalogPage')
       await setView(current => ({ ...quiet(current), found: id }))
       await showCatalog()
+      // The window around the selection moved: the engine keeps the ring at its
+      // place among the rows, now another row's, so it goes back onto this one.
+      // Not awaited: this runs inside the ring's own move.
+      if ((await state.read('catalogPage')).offset !== offset) {
+        void ui.focus(PANE_ID, foundKey(id)).catch(() => undefined)
+      }
       // A local entry beside the list (the split) says what it can do too: read in
       // the background, never on the ring's path; the redraw follows.
       void rt?.catalog.inspect(id)
@@ -815,9 +863,6 @@ export const createActions = (
           return
         case 'update':
           await actions.update(fix.id)
-          return
-        case 'validate':
-          await actions.devRun('validate', fix.key)
           return
         case 'copy':
           await actions.copy(fix.text)

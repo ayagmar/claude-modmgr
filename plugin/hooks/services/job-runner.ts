@@ -11,11 +11,12 @@
 // - every run starts from a clock timer, never inside a `command.run` hook
 //   (`/reload-plugins` rejects there: it would wait on the turn the hook holds).
 
-import { argvOf, commandOfJob } from '../domain/argv.ts'
+import { argvOf, commandOfJob, TIMEOUTS } from '../domain/argv.ts'
 import {
   appendTail,
   cancelQueued,
   claim,
+  coveredBy,
   enqueueBatch,
   type Finish,
   finish,
@@ -34,7 +35,7 @@ import type { ModmgrError } from '../domain/result.ts'
 import { sanitize, tailLines } from '../domain/sanitize.ts'
 import type { HistoryEntry } from '../domain/store-schema.ts'
 import { parseValidateReport } from '../domain/validate-report.ts'
-import { doneText, isWork } from '../domain/view.ts'
+import { doneText, isWork, PANE_ID } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, runOp } from './cli.ts'
 import type { StoreService } from './store.ts'
@@ -46,6 +47,9 @@ export const TAIL_FLUSH_MS = 100
 
 /** How long the band echoes a reload's answer. */
 export const RELOAD_ECHO_MS = 8000
+
+/** How the engine words a reload it refuses (seen on 2.1.293 under the desktop app). */
+const RELOAD_REFUSED = /isn['’]t available/i
 
 export type RunnerOptions = {
   /** This module's queue owner id. */
@@ -251,7 +255,22 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
 
   const reload = async (): Promise<Outcome> => {
     try {
+      // A reload takes the keys from the pane: the module it starts gives them back.
+      const held = (await ports.ui.panes()).some(pane => pane.id === PANE_ID && pane.isFocused)
+      if (held) await ports.state.update('view', view => ({ ...view, keysAfterReload: true }))
       const text = await ports.command.reloadPlugins()
+      // A session the desktop app drives refuses a plugin's reload in words
+      // alone ("/reload-plugins isn't available over a remote connection"),
+      // though the person's own /reload-plugins works: nothing was applied.
+      if (text !== undefined && RELOAD_REFUSED.test(text)) {
+        await ports.state.update('attention', attention => ({
+          ...attention,
+          reloadPending: true,
+          reloadByHand: true,
+        }))
+        const ask = 'Run /reload-plugins to apply the changes: this session lets only you reload.'
+        return failed({ kind: 'rejected', message: ask }, [sanitize(text, { max: 200 }), ask])
+      }
       // Always something to echo: the status line's "applied" shows while it does.
       const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
@@ -269,8 +288,11 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
   }
 
-  /** `claude plugin test`, streamed: its tail reaches the job at most every TAIL_FLUSH_MS. */
-  const test = async (job: Job, argv: string[]): Promise<Outcome> => {
+  /**
+   * `claude plugin test`, streamed: its tail reaches the job at most every
+   * TAIL_FLUSH_MS. A spawn has no timeout of its own: past `timeoutMs` the child is killed.
+   */
+  const test = async (job: Job, argv: string[], timeoutMs: number): Promise<Outcome> => {
     let cwd: string | undefined
     try {
       cwd = await ports.session.root()
@@ -280,7 +302,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     let pending: string[] = []
     let partial = ''
     let lastFlush = 0
-    let stopped = false
+    let ended: 'cancelled' | 'timeout' | undefined
     const flush = async (): Promise<void> => {
       if (pending.length === 0) return
       const lines = pending
@@ -290,13 +312,18 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
     // A child that can't start rejects the first pull, below.
     const stream = ports.process.spawn(argv, cwd === undefined ? {} : { cwd })
-    stopCurrent = {
-      id: job.id,
-      stop: () => {
-        stopped = true
-        void stream.return({ code: null, signal: 'SIGTERM' })
-      },
+    const kill = (why: 'cancelled' | 'timeout') => {
+      ended ??= why
+      void stream.return({ code: null, signal: 'SIGTERM' })
     }
+    stopCurrent = { id: job.id, stop: () => kill('cancelled') }
+    const deadline = ports.clock.after(timeoutMs, () => kill('timeout'))
+    const stoppedOutcome = (): Outcome | undefined =>
+      ended === 'cancelled'
+        ? { finish: { cancelled: true }, tail: [] }
+        : ended === 'timeout'
+          ? failed({ kind: 'timeout', message: `claude test ran past ${timeoutMs / 1000} s` })
+          : undefined
     try {
       let step = await stream.next()
       while (step.done !== true) {
@@ -308,16 +335,17 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       }
       if (partial !== '') pending.push(partial)
       await flush()
-      if (stopped) return { finish: { cancelled: true }, tail: [] }
+      const stopped = stoppedOutcome()
+      if (stopped !== undefined) return stopped
       const { code } = step.value
       return code === 0
         ? succeeded([])
         : failed({ kind: 'cli-failed', message: `tests failed (exit ${code ?? 'signal'})` })
     } catch (error) {
       await flush()
-      if (stopped) return { finish: { cancelled: true }, tail: [] }
-      return failed({ kind: 'unavailable', message: String(error) })
+      return stoppedOutcome() ?? failed({ kind: 'unavailable', message: String(error) })
     } finally {
+      deadline.cancel()
       stopCurrent = undefined
     }
   }
@@ -326,7 +354,9 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     if (job.kind === 'reload') return reload()
     if (job.kind === 'test') {
       const command = commandOfJob(job)
-      return command.ok ? test(job, argvOf(command.value)) : failed(command.error)
+      return command.ok
+        ? test(job, argvOf(command.value), TIMEOUTS[command.value.op])
+        : failed(command.error)
     }
     return runJob(ports, job, options.isInstalled)
   }
@@ -343,8 +373,8 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       if (next.kind === 'reload') {
         if (!reloadIsUseful(queue.jobs, next)) {
           await writeQueue(jobs => finish(jobs, next.id, now, { cancelled: true }))
-          // A batch that changed nothing still says so.
-          const work = queue.jobs.filter(job => job.batch === next.batch && isWork(job))
+          // Batches that changed nothing still say so.
+          const work = coveredBy(queue.jobs, next).filter(isWork)
           if (work.some(job => job.state === 'ok')) await echo(doneText(work))
           continue
         }

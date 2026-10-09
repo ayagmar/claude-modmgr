@@ -1,12 +1,14 @@
 // A fake `claude` answering from the captured fixtures (test/domain/fixtures),
 // so service tests run against real CLI output.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { planProbe, probeKey } from '../../plugin/hooks/domain/detector.ts'
 import { lruSetMany } from '../../plugin/hooks/domain/lru.ts'
 import { CAPS, type DetectEntry } from '../../plugin/hooks/domain/store-schema.ts'
 import type { Catalog } from '../../plugin/hooks/services/catalog.ts'
 import type { StoreService } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { type FakeProcess, out } from './fakes.ts'
+import { type FakeFs, type FakeProcess, out } from './fakes.ts'
 
 const basename = (path: string): string => path.split('/').filter(Boolean).at(-1) ?? ''
 
@@ -42,6 +44,18 @@ export const fixtureCli = (process: FakeProcess): FakeProcess =>
     .when(['install'], out(runs['install-ok-user'].stdout))
 
 export const FIXTURE_MODS = ['broken', 'quiet-bash', 'redactor', 'spawner', 'turn-band']
+
+/** Each fixture mod's plugin.json (test/fixture-mods), where `list --json` says its folder is. */
+export const fixtureManifests = (fs: FakeFs): FakeFs => {
+  for (const name of [...FIXTURE_MODS, 'plain-skill']) {
+    const text = readFileSync(
+      join(import.meta.dirname, '..', 'fixture-mods', name, '.claude-plugin', 'plugin.json'),
+      'utf8',
+    )
+    fs.files.set(`/tmp/modmgr-fixtures/mkt/${name}/.claude-plugin/plugin.json`, text)
+  }
+  return fs
+}
 
 /**
  * A fixture update: turn-band's folder moves to 0.4.0 and its module now

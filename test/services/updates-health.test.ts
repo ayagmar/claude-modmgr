@@ -266,6 +266,25 @@ describe('Health', () => {
     expect(w.state.values.view.health).toBe('own:load')
   })
 
+  it('steps through its items with the keys, the ring with the selection', async () => {
+    const { w, rt, act } = await setup({
+      store: {
+        updates: { v: 1, data: { at: 1, found: { [SDK]: { from: '1.0.0', to: '1.2.0' } } } },
+      },
+    })
+    await rt.registry.refresh()
+    await act.tab('health')
+    await act.edge('first')
+    const first = w.state.values.view.health
+    await act.scroll(1)
+    const second = w.state.values.view.health
+    expect(second).toBeDefined()
+    expect(second).not.toBe(first)
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:health:${second}`)
+    await act.scroll(-1)
+    expect(w.state.values.view.health).toBe(first)
+  })
+
   it('opens a mod’s detail on Installed to see what it can do now', async () => {
     const { w, rt, act } = await setup()
     w.state.values.mods = w.state.values.mods.map(row =>
@@ -281,23 +300,16 @@ describe('Health', () => {
     })
   })
 
-  it('reloads, refreshes and validates from its items', async () => {
+  it('reloads and refreshes from its items', async () => {
     const { w, act, drain } = await setup()
     w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
     w.state.values.sync = { ...w.state.values.sync, error: { kind: 'timeout', message: 'slow' } }
-    w.state.values.dev = {
-      rows: [{ key: '/dev/qb', name: 'qb', how: 'env-dir', path: '/dev/qb' }],
-      failures: { qb: { count: 1, lastReason: 'failed', lastAt: 1 } },
-      loading: false,
-    }
-    await act.fix('qb:failures')
-    expect(w.state.values.queue.jobs.at(-1)).toMatchObject({
-      kind: 'validate',
-      args: { path: '/dev/qb' },
-    })
     await act.fix('own:reload')
     expect(w.state.values.queue.jobs.some(job => job.kind === 'reload')).toBe(true)
-    const lists = () => w.process.calls.filter(call => call.argv[2] === 'list').length
+    // The installed list; Discover's catalogue (`--available`) may be read behind it.
+    const lists = () =>
+      w.process.calls.filter(call => call.argv[2] === 'list' && !call.argv.includes('--available'))
+        .length
     const before = lists()
     w.state.values.view = { ...w.state.values.view, tab: 'health' }
     await act.fix('own:sync')

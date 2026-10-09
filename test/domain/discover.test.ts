@@ -98,7 +98,7 @@ describe('the install review', () => {
     expect(read).toEqual({
       action: 'install',
       targets: [{ id: 'a@m', op: 'install', scope: 'user', version: '1.0.0' }],
-      notable: ['a: Can run programs or change files on your machine'],
+      notable: ['Can run programs or change files on your machine'],
       changesRepoFile: false,
     })
     expect(installReview({ id: 'a@m', name: 'a' }, 'user', undefined)).toMatchObject({
