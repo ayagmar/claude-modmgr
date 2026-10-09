@@ -175,6 +175,55 @@ describe('a toggle batch', () => {
     expect(w.command.reloads).toBe(1)
   })
 
+  it('reloads once when any batch it covers changed something, whichever failed', async () => {
+    const FAILS = out('', 1, 'nope')
+    const ALREADY = out(runs['enable-again'].stdout, 1)
+    // Two batches queued before the reload runs: what each CLI write answers.
+    const twoBatches = async (first: ReturnType<typeof out> | undefined, second: typeof first) => {
+      const { w, runner, ids } = setup()
+      if (first !== undefined) w.process.when(['disable'], first)
+      if (second !== undefined) w.process.when(['enable'], second)
+      for (const [id, kind] of [
+        ['a', 'disable'],
+        ['b', 'enable'],
+      ] as const) {
+        await enqueue(
+          w.ports,
+          { id, specs: [{ kind, target: 'turn-band@fixtures' }], reload: true },
+          ids,
+        )
+      }
+      await runAll(w, runner)
+      return { reloads: w.command.reloads, states: states(w) }
+    }
+    expect(await twoBatches(FAILS, undefined)).toEqual({
+      reloads: 1,
+      states: ['disable:failed', 'enable:ok', 'reload:ok'],
+    })
+    expect(await twoBatches(undefined, FAILS)).toEqual({
+      reloads: 1,
+      states: ['disable:ok', 'enable:failed', 'reload:ok'],
+    })
+    expect((await twoBatches(FAILS, ALREADY)).reloads).toBe(0)
+  })
+
+  it('a batch after a reload that ran is judged on its own', async () => {
+    const { w, runner, ids } = setup()
+    const batch = async (id: string) =>
+      enqueue(
+        w.ports,
+        { id, specs: [{ kind: 'disable', target: 'turn-band@fixtures' }], reload: true },
+        ids,
+      )
+    await batch('a')
+    await runAll(w, runner)
+    w.process.when(['disable'], out('', 1, 'nope'))
+    await batch('b')
+    await runAll(w, runner)
+    expect(states(w)).toEqual(['disable:ok', 'reload:ok', 'disable:failed', 'reload:cancelled'])
+    expect(w.command.reloads).toBe(1)
+  })
+
   it('records finished jobs in the history, without output', async () => {
     const { w, runner, ids, store } = setup()
     await enqueue(

@@ -16,6 +16,7 @@ import {
   appendTail,
   cancelQueued,
   claim,
+  coveredBy,
   enqueueBatch,
   type Finish,
   finish,
@@ -361,8 +362,8 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       if (next.kind === 'reload') {
         if (!reloadIsUseful(queue.jobs, next)) {
           await writeQueue(jobs => finish(jobs, next.id, now, { cancelled: true }))
-          // A batch that changed nothing still says so.
-          const work = queue.jobs.filter(job => job.batch === next.batch && isWork(job))
+          // Batches that changed nothing still say so.
+          const work = coveredBy(queue.jobs, next).filter(isWork)
           if (work.some(job => job.state === 'ok')) await echo(doneText(work))
           continue
         }

@@ -65,6 +65,8 @@ All notable changes to this project are documented here. The format follows
 - Installed lists every installed mod however many plugins modmgr has read before, instead of dropping the oldest
   from the list, their detail and the hook order once its cache filled; installed plugins it couldn't read are named
   on the tab and in Health, with a way to read them again, instead of reading "No mods installed yet".
+- A change queued while another batch waits for its reload is applied by that one reload even when the first batch
+  failed or changed nothing, instead of the reload being dropped and the change waiting for a reload by hand.
 
 ## [0.3.0] - 2026-10-09
 

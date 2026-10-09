@@ -90,15 +90,24 @@ export const nextRunnable = (jobs: readonly Job[]): Job | undefined => {
 }
 
 /**
- * A queued reload whose batch changed nothing (every job failed, was
+ * The jobs a queued reload applies: every one queued since the last reload
+ * that ran or was dropped, from each batch coalesced into it, as a reload
+ * already queued moves behind a new batch.
+ */
+export const coveredBy = (jobs: readonly Job[], reload: Job): Job[] => {
+  const at = jobs.findIndex(job => job.id === reload.id)
+  const before = at === -1 ? jobs : jobs.slice(0, at)
+  const after = before.findLastIndex(job => job.kind === 'reload' && !isActive(job))
+  return before.slice(after + 1)
+}
+
+/**
+ * A queued reload whose batches changed nothing (every job failed, was
  * cancelled or found it already so) is pointless; the runner cancels it instead of running it.
  */
 export const reloadIsUseful = (jobs: readonly Job[], reload: Job): boolean => {
-  const others = jobs.filter(job => job.kind !== 'reload' && NEEDS_RELOAD.has(job.kind))
-  const sameBatch =
-    reload.batch === undefined ? others : others.filter(job => job.batch === reload.batch)
-  const relevant = sameBatch.length > 0 ? sameBatch : others
-  return relevant.some(job => job.state === 'ok' && job.unchanged !== true) || relevant.length === 0
+  const covered = coveredBy(jobs, reload).filter(job => NEEDS_RELOAD.has(job.kind))
+  return covered.length === 0 || covered.some(job => job.state === 'ok' && job.unchanged !== true)
 }
 
 export const start = (jobs: readonly Job[], id: string, now: number): Job[] =>
