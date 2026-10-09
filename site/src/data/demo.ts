@@ -935,10 +935,23 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on turn.complete  on ui.render  cl"
+          "text": "on turn.complete  on ui.render "
+        }
+      ],
+      [
+        {
+          "text": "                                       "
         },
         {
-          "text": "…"
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": "                     "
+        },
+        {
+          "dim": true,
+          "text": "clock.now  state.set  ui.toast"
         }
       ],
       [
@@ -964,15 +977,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "✓ validates"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [

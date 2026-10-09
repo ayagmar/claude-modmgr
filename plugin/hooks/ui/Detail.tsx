@@ -168,8 +168,10 @@ const reachSection = (
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
     const label = Math.min(LABEL_MAX, Math.max(...groups.map(g => g.label.length)))
+    // The names wrap beside the label: a cut list hid what the mod reaches.
+    const beside = columns - label - 1
     return {
-      rows: 1 + groups.length,
+      rows: 1 + groups.reduce((sum, group) => sum + wrappedRows([names(group)], beside), 0),
       el: (
         <Box flexDirection="column">
           {heading}
@@ -178,12 +180,9 @@ const reachSection = (
               v,
               group.label,
               label,
-              <Text
-                dimColor={QUIET.has(group.reach)}
-                wrap={v.surface === 'terminal' ? 'truncate-end' : 'wrap'}
-              >
-                {names(group)}
-              </Text>,
+              <Box width={beside} flexShrink={1}>
+                <Text dimColor={QUIET.has(group.reach)}>{names(group)}</Text>
+              </Box>,
             ),
           )}
         </Box>
