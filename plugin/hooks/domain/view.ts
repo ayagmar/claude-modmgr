@@ -123,6 +123,31 @@ export const windowAround = (count: number, index: number, size: number): Window
   return { start, end: start + rows }
 }
 
+/**
+ * A window of `size` rows over `count` that stays where it was (`previous`, its
+ * first row) while `index` moves inside it, and shifts only as far as needed
+ * when `index` reaches its edge, keeping one row beyond the selection drawn. So
+ * the highlight moves down a still list, as in any list, instead of the list
+ * moving under it at every key. With no previous window it centres on `index`.
+ */
+export const windowFollowing = (
+  previous: number | undefined,
+  count: number,
+  index: number,
+  size: number,
+): Window => {
+  const rows = Math.max(1, Math.floor(size))
+  if (count <= rows) return { start: 0, end: Math.max(0, count) }
+  if (previous === undefined) return windowAround(count, index, rows)
+  const at = Math.min(Math.max(0, index), count - 1)
+  const margin = rows >= 4 ? 1 : 0
+  let start = Math.min(Math.max(0, previous), count - rows)
+  if (at < start + margin) start = at - margin
+  else if (at > start + rows - 1 - margin) start = at - (rows - 1 - margin)
+  start = Math.min(Math.max(0, start), count - rows)
+  return { start, end: start + rows }
+}
+
 /** `6–15 of 40`, or undefined when every row shows. */
 export const pagerLabel = (window: Window, count: number): string | undefined =>
   window.start === 0 && window.end >= count

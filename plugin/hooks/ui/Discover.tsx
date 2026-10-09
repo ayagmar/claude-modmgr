@@ -6,6 +6,7 @@
 import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
+import { isProjectMod } from '../domain/community.ts'
 import { communityLink, foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
@@ -224,14 +225,23 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       </Box>
     ),
   }
-  const howTo = installable
-    ? []
-    : ['No marketplace lists it, so it installs from a clone:', 'claude --plugin-dir <its folder>']
+  const described = row.about ?? row.blurb
+  const howTo = [
+    ...(community !== undefined && isProjectMod(community.path)
+      ? [`Kept in ${community.repo}'s .claude folder: a mod that project uses itself.`]
+      : []),
+    ...(installable
+      ? []
+      : [
+          'No marketplace lists it, so it installs from a clone:',
+          'claude --plugin-dir <its folder>',
+        ]),
+  ]
   const about: Section = {
-    rows: (row.blurb === '' ? 0 : wrappedRows([row.blurb], how.columns)) + 1 + howTo.length,
+    rows: (described === '' ? 0 : wrappedRows([described], how.columns)) + 1 + howTo.length,
     el: (
       <Box flexDirection="column">
-        {row.blurb === '' ? null : <Text>{row.blurb}</Text>}
+        {described === '' ? null : <Text>{described}</Text>}
         <Text dimColor wrap="truncate-end">
           {source}
         </Text>

@@ -53,7 +53,7 @@ const DETAIL = atom({ plugin: 'modmgr', key: 'detail' } as const, INITIAL.detail
   shape: 'detail/2',
 })
 const CATALOG_PAGE = atom({ plugin: 'modmgr', key: 'catalogPage' } as const, INITIAL.catalogPage, {
-  shape: 'catalogPage/3',
+  shape: 'catalogPage/4',
 })
 const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect, {
   shape: 'detect/2',

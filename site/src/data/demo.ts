@@ -409,7 +409,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "Session content"
         },
         {
-          "text": "     env.get session.messages"
+          "text": "     env.get  session.messages"
         }
       ],
       [
@@ -428,7 +428,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " session.append"
+          "text": " on session.append"
         }
       ],
       [
@@ -451,7 +451,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "session.end"
+          "text": "on session.end"
         }
       ],
       [
@@ -912,7 +912,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " prompt.submit"
+          "text": " on prompt.submit"
         }
       ],
       [
@@ -935,7 +935,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "turn.complete ui.render clock.now "
+          "text": "on turn.complete  on ui.render  cl"
         },
         {
           "text": "…"
@@ -2045,7 +2045,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " detector: 5 mods found; 205 of 20… "
+          "text": " detector: 5 mods found; 203 of 20… "
         },
         {
           "dim": true,

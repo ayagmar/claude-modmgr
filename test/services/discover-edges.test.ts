@@ -301,6 +301,6 @@ describe('a reloaded modmgr with Discover showing', () => {
     const rt = createRuntime(w.ports, DEFAULT_CONFIG, 'own')
     await background(rt, { fresh: false })
     expect(rt.catalog.isLoaded()).toBe(true)
-    expect(w.state.values.catalogPage.total).toBe(201)
+    expect(w.state.values.catalogPage.total).toBe(199)
   })
 })

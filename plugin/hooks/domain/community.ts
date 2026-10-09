@@ -74,6 +74,13 @@ export const isRepoPath = (value: unknown): value is string =>
   (value === '' ||
     value.split('/').every(segment => SEGMENT.test(segment) && segment !== '.' && segment !== '..'))
 
+/**
+ * A mod kept in its repository's `.claude` folder: one that project uses for
+ * itself, loaded from a clone rather than published for others.
+ */
+export const isProjectMod = (path: string): boolean =>
+  path === '.claude' || path.startsWith('.claude/')
+
 /** One string to name a mod by: `owner/repo` or `owner/repo/path`. */
 export const communityKey = (mod: Pick<CommunityMod, 'repo' | 'path'>): string =>
   mod.path === '' ? mod.repo : `${mod.repo}/${mod.path}`

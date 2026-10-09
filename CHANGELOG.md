@@ -7,6 +7,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Discover's detail says when a community mod is kept in its repository's `.claude` folder: a mod that project uses
+  itself, loaded from a clone.
+
+### Changed
+- Lists move their highlight down a still list and scroll only at the edge, instead of keeping the selection centred
+  and moving every row at each key.
+- Discover's detail shows a mod's whole description, not the line the list draws.
+- A mod's detail wraps what each hook and call does instead of cutting it, and a hook reads `on <event>`, so it is
+  never taken for the call of the same name.
+
+### Fixed
+- Discover lists a plugin two catalogues share (Anthropic's official catalogue and its directory list about 250
+  alike) once, from the catalogue that counts its installs.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

@@ -70,6 +70,16 @@ export const githubKeyOf = (source: CatalogSource): string | undefined => {
 export type Have = {
   /** Installed plugin ids. */
   readonly installed: ReadonlySet<string>
+  /** Each GitHub marketplace's `owner/repo`, by name: where its `./folder` entries live. */
+  readonly marketplaceRepos?: ReadonlyMap<string, string>
+}
+
+/** Where an entry's files are on GitHub, a marketplace's own folders included. */
+const folderKeyOf = (entry: CatalogEntry, have: Have): string | undefined => {
+  if (entry.source.kind !== 'relative') return githubKeyOf(entry.source)
+  const repo = have.marketplaceRepos?.get(entry.marketplace)
+  const path = entry.source.path.replace(/^\.?\/+|\/+$/g, '')
+  return repo === undefined ? undefined : communityKey({ repo, path }).toLowerCase()
 }
 
 /**
@@ -84,14 +94,25 @@ export const buildIndex = (
 ): CatalogIndex => {
   const byId = new Map<string, Indexed>()
   const onGithub = new Set<string>()
+  // One entry per folder: two catalogues listing the same plugin (Anthropic's
+  // official catalogue and its directory list hundreds alike) offer it once, from
+  // the one that counts its installs.
+  const kept = new Map<string, CatalogEntry>()
+  for (const entry of entries) {
+    const key = folderKeyOf(entry, have)
+    if (key === undefined) continue
+    const held = kept.get(key)
+    if (held === undefined || (entry.installs ?? -1) > (held.installs ?? -1)) kept.set(key, entry)
+  }
   for (const entry of entries) {
     if (byId.has(entry.id)) continue
+    const folder = folderKeyOf(entry, have)
+    if (folder !== undefined && kept.get(folder) !== entry) continue
     const name = sanitize(entry.name, { max: NAME_MAX })
     const blurb = sanitize(entry.description, { max: BLURB_MAX })
     const haystack = `${name} ${sanitize(entry.description, { max: 1000 })} ${entry.marketplace} ${entry.id}`
     byId.set(entry.id, { id: entry.id, entry, name, blurb, haystack: haystack.toLowerCase() })
-    const key = githubKeyOf(entry.source)
-    if (key !== undefined) onGithub.add(key)
+    if (folder !== undefined) onGithub.add(folder)
   }
   for (const mod of community) {
     const id = communityId(mod)

@@ -48,6 +48,10 @@ const setup = async (w: World = world()) => {
   return { w, store, catalog }
 }
 
+/** The remote entries the catalogue lists: a plugin two catalogues share is listed once. */
+const listedRemote = (entries: readonly { id: string }[]): number =>
+  entries.filter(entry => remoteIndex().has(entry.id)).length
+
 const indexGets = (w: World) => w.http.gets.filter(url => url === INDEX_URL).length
 
 describe('the hosted index', () => {
@@ -56,7 +60,7 @@ describe('the hosted index', () => {
     w.http.answers.set(INDEX_URL, { status: 200, text: indexText(9, remoteIndex()) })
     const sync = createIndexSync(w.ports, { store })
     const given = await sync.sync(catalog.entries())
-    expect(given).toBe(remoteIndex().size)
+    expect(given).toBe(listedRemote(catalog.entries()))
     expect(store.get('detect')[AWS]?.[1]).toBe('mod')
     expect(store.get('catalogIndex')).toEqual({ at: START, built: 9 })
     expect(sync.built()).toBe(9)
@@ -122,7 +126,7 @@ describe('the hosted index', () => {
     const { w, store, catalog } = await setup(world({ env: { MODMGR_INDEX_URL: TRIAL } }))
     w.http.answers.set(TRIAL, { status: 200, text: indexText(9, remoteIndex()) })
     const sync = createIndexSync(w.ports, { store })
-    expect(await sync.sync(catalog.entries())).toBe(remoteIndex().size)
+    expect(await sync.sync(catalog.entries())).toBe(listedRemote(catalog.entries()))
     await sync.sync(catalog.entries())
     expect(w.http.gets.filter(url => url === TRIAL)).toHaveLength(2)
     expect(indexGets(w)).toBe(0)

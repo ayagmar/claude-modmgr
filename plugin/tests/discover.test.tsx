@@ -300,3 +300,44 @@ for (const mine of [false, true]) {
     await ui.unmount()
   })
 }
+
+test("a project's own mod says where it is kept", async ($, on) => {
+  const row = {
+    id: 'github.com/kun/firstmate/.claude/mods/calm',
+    name: 'calm',
+    marketplace: 'kun/firstmate',
+    kind: 'mod',
+    blurb: 'A calm band.',
+    source: 'github.com/kun/firstmate/.claude/mods/calm',
+    stars: 3,
+    notable: [],
+    community: {
+      repo: 'kun/firstmate',
+      path: '.claude/mods/calm',
+      commit: 'a'.repeat(40),
+      check: 'passed',
+    },
+  }
+  host(on, {
+    state: {
+      view: {
+        tab: 'discover',
+        stack: [],
+        query: '',
+        search: '',
+        sort: 'installs',
+        staged: {},
+        found: row.id,
+      },
+      catalogPage: { rows: [row], total: 1, community: 1, matched: 1, offset: 0, loading: false },
+    },
+  })
+  const ui = await mountPane($, 'terminal', PANE(120, 30))
+  expect(
+    await ui.find({
+      type: 'Text',
+      text: "Kept in kun/firstmate's .claude folder: a mod that project uses itself.",
+    }),
+  ).toBeDefined()
+  await ui.unmount()
+})
