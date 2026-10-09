@@ -118,8 +118,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     },
     problems,
   )
-  // With nothing to select there is nothing to show beside the list: it takes the body.
-  const beside = split && tab.count > 0
+  const beside = split && tab.beside
   const listColumns = beside ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
   const field = Input === undefined ? undefined : tab.field
   // What is staged shows under Installed's list.
@@ -196,7 +195,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // Under the list, one line holds what is staged and the pager. The pager's
   // keys come after the field in the Tab ring: drawn above it, their coming
   // and going as the search narrows moved the ring off the field.
-  const paging = showList && tab.fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
+  const paging =
+    ((beside && !wide) || top === undefined) &&
+    tab.fullRows > frame.bodyRows - chrome - (showStaged ? 1 : 0)
   // Too narrow for both, the pager wraps under what is staged (its widest label counted).
   const stagedWidth = `${staged} staged changes  s: review and apply`.length
   const widestPager = pagerLabel({ start: tab.count - 1, end: tab.count }, tab.count) ?? ''

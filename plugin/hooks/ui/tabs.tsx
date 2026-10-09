@@ -97,6 +97,8 @@ export type TabView = {
   readonly meta: string
   /** A refresh is running for what the tab shows. */
   readonly stale: boolean
+  /** The detail stands beside the list when the body is wide enough. */
+  readonly beside: boolean
   /** Items in the list, and the rows the whole list would take. */
   readonly count: number
   readonly fullRows: number
@@ -172,6 +174,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       .filter(part => part !== '')
       .join(' · '),
     stale: sync.refreshing,
+    beside: rows.length > 0,
     count: rows.length,
     fullRows: rows.length,
     list: (size, frame) => {
@@ -246,6 +249,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       .filter(part => part !== '')
       .join(' · '),
     stale: page.loading,
+    beside: page.matched > 0,
     count: page.matched,
     // Each entry takes two rows: its name, then what it says it does.
     fullRows: page.matched * 2,
@@ -306,6 +310,7 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     field: undefined,
     meta: `${count(rows.length, 'mod', 'mods')} under development`,
     stale: d.dev.loading,
+    beside: rows.length > 0,
     count: rows.length,
     fullRows: rows.length,
     list: (size, frame) => {
@@ -346,6 +351,8 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
         : `${count(problems, 'problem', 'problems')} to look at`,
     // Its items follow the installed list.
     stale: d.sync.refreshing,
+    // Its items are sentences: the list takes the body, Enter opens one whole.
+    beside: false,
     count: items.length,
     // Each group's name takes a row of its own.
     fullRows:
