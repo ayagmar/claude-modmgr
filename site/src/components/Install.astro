@@ -1,14 +1,14 @@
 ---
 // The install line, as people copy it: the copy button is hidden without script.
-import { INSTALL } from '../lib/present.ts'
+import { flagParts, INSTALL } from '../lib/present.ts'
 
 type Props = { id: string; label: string }
 const { id, label } = Astro.props
 
 // A flag stays with its value when the line wraps; built as one string, since
 // whitespace from the template would show inside the <pre>.
-const INSTALL_HTML = INSTALL.split(' --')
-  .map((part, index) => `<span class="keep">${index === 0 ? part : `--${part}`}</span>`)
+const INSTALL_HTML = flagParts(INSTALL)
+  .map(part => `<span class="keep">${part}</span>`)
   .join(' ')
 ---
 

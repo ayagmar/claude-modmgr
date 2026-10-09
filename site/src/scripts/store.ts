@@ -3,17 +3,23 @@
 // the first sign of use after the page has loaded (or at once when the URL
 // asks for a search), is parsed and indexed once, and every keystroke searches
 // it in memory. Only one page of rows is ever in the DOM, and rows are built
-// with DOM APIs and textContent: descriptions are untrusted text.
+// with DOM APIs and textContent: descriptions are untrusted text. On a wide
+// screen the selected row's mod fills the datasheet beside the list.
 import {
   badgesOf,
   CHECK_SHORT,
   CHECK_TEXT,
+  countText,
   dayText,
   FILTERS,
+  flagParts,
+  installNoteOf,
   notablesOf,
   PAGE_SIZE,
+  pinsOf,
   rangeText,
   reachesOf,
+  sourceOf,
 } from '../lib/present.ts'
 import {
   type Data,
@@ -132,7 +138,7 @@ const marked = (text: string, terms: readonly string[]): Node[] => {
   return nodes
 }
 
-const rowOf = (mod: Mod, terms: readonly string[]): HTMLLIElement => {
+const rowOf = (i: number, mod: Mod, terms: readonly string[]): HTMLLIElement => {
   const name = el('span', 'name')
   name.append(...marked(mod.name, terms))
   const repo = el('span', 'repo')
@@ -155,7 +161,9 @@ const rowOf = (mod: Mod, terms: readonly string[]): HTMLLIElement => {
   }
   const stars = el('span', 'stars')
   stars.append(icon('star'), shortCount(mod.stars), el('span', 'vh', ' stars'))
-  head.append(badges, stars)
+  const meta = el('span', 'meta')
+  meta.append(badges, stars)
+  head.append(meta)
 
   const desc = el('span', 'desc')
   desc.append(...marked(mod.description, terms))
@@ -192,13 +200,7 @@ const rowOf = (mod: Mod, terms: readonly string[]): HTMLLIElement => {
   how.append(
     el('p', 'label', mod.plugin === undefined ? 'Load it from a clone' : 'Install'),
     cmd,
-    el(
-      'p',
-      'quiet',
-      mod.plugin === undefined
-        ? `${mod.repo} has no marketplace at its root: clone it and load the folder with --plugin-dir.`
-        : `Adds the marketplace in ${mod.repo} to your user settings, then installs ${mod.plugin}.`,
-    ),
+    el('p', 'quiet', installNoteOf(mod)),
     facts,
   )
   const detail = el('div', 'detail')
@@ -222,6 +224,7 @@ const rowOf = (mod: Mod, terms: readonly string[]): HTMLLIElement => {
 
   const li = el('li', 'mod')
   li.dataset.copyScope = ''
+  li.dataset.i = String(i)
   li.append(details, acts)
   return li
 }
@@ -283,6 +286,94 @@ const renderEmpty = (): HTMLLIElement => {
   return li
 }
 
+// --- The datasheet, as components/Datasheet.astro writes it -----------------
+
+const wide = matchMedia('(min-width: 68.75rem)')
+const sheet = document.getElementById('sheet')
+const part = <T extends HTMLElement = HTMLElement>(id: string): T => find<T>(`#sheet-${id}`)
+const sheetParts =
+  sheet === null
+    ? undefined
+    : {
+        name: part('name'),
+        repo: part<HTMLAnchorElement>('repo'),
+        desc: part('desc'),
+        pins: part('pins'),
+        notable: part('notable'),
+        check: part('check'),
+        stars: part('stars'),
+        pushed: part('pushed'),
+        from: part('from'),
+        how: part('how'),
+        install: part('install'),
+        note: part('note'),
+        copy: part('copy'),
+        gh: part<HTMLAnchorElement>('gh'),
+      }
+
+const fillSheet = (mod: Mod): void => {
+  if (sheetParts === undefined) return
+  const parts = sheetParts
+  parts.name.textContent = mod.name
+  parts.repo.textContent = sourceOf(mod)
+  parts.repo.href = linkOf(mod)
+  parts.desc.textContent = mod.description
+  pinsOf(mod).forEach((pin, n) => {
+    const li = parts.pins.children[n]
+    li?.classList.toggle('on', pin.on)
+    if (li?.lastElementChild) li.lastElementChild.textContent = pin.on ? ': yes' : ': no'
+  })
+  const notables = notablesOf(mod)
+  parts.notable.replaceChildren(
+    ...(notables.length === 0
+      ? [el('li', 'none', 'Nothing notable')]
+      : notables.map(text => {
+          const li = el('li')
+          li.append(icon('diamond'), text)
+          return li
+        })),
+  )
+  parts.check.textContent = CHECK_SHORT[mod.check]
+  parts.stars.textContent = countText(mod.stars)
+  parts.pushed.textContent = dayText(mod.pushed)
+  parts.from.textContent = mod.plugin === undefined ? 'From a clone' : 'From its marketplace'
+  parts.how.textContent = mod.plugin === undefined ? 'Load it from a clone' : 'Install'
+  parts.install.replaceChildren(
+    ...flagParts(installLineOf(mod)).flatMap((part, n) => [
+      ...(n === 0 ? [] : [' ']),
+      el('span', 'keep', part),
+    ]),
+  )
+  parts.note.textContent = installNoteOf(mod)
+  parts.copy.setAttribute('aria-label', `Copy the install line for ${mod.name}`)
+  parts.gh.href = linkOf(mod)
+}
+
+/** The row the datasheet shows: the first of a page until another is chosen.
+ *  Selection follows focus, so it goes unannounced; the class is for the eye.
+ *  The datasheet swaps at once, as a list's detail pane does. */
+let selected = list.querySelector<HTMLLIElement>('li.mod.sel') ?? undefined
+/** Settles true once the datasheet shows the selected row's mod. */
+let shown = Promise.resolve(true)
+
+const select = (row: HTMLLIElement): void => {
+  if (row === selected) return
+  selected?.classList.remove('sel')
+  selected = row
+  row.classList.add('sel')
+  const i = Number(row.dataset.i)
+  // Before the index has loaded, the prerendered page's rows wait for it.
+  shown = (index === undefined ? load() : Promise.resolve(index)).then(
+    ready => {
+      const mod = ready.mods[i]
+      if (selected !== row || mod === undefined) return false
+      fillSheet(mod)
+      return true
+    },
+    () => false,
+  )
+}
+
 // --- Loading and searching ---------------------------------------------------
 
 let index: Index | undefined
@@ -316,8 +407,12 @@ const render = (ready: Index, focus: boolean): void => {
   list.replaceChildren(
     ...(page.total === 0
       ? [renderEmpty()]
-      : page.items.map(i => rowOf(ready.mods[i] as Mod, terms))),
+      : page.items.map(i => rowOf(i, ready.mods[i] as Mod, terms))),
   )
+  selected = undefined
+  if (sheet !== null) sheet.hidden = page.total === 0
+  const top = list.querySelector<HTMLLIElement>('li.mod')
+  if (top !== null) select(top)
   count.textContent = rangeText(page)
   renderPager(page)
   history.replaceState(null, '', urlOf(state))
@@ -381,7 +476,8 @@ const openFirst = (): void => {
   const summary = firstSummary()
   if (summary === null) return
   const details = summary.parentElement
-  if (details instanceof HTMLDetailsElement) details.open = true
+  // A wide screen shows it in the datasheet, as focusing the row selects it.
+  if (details instanceof HTMLDetailsElement && !wide.matches) details.open = true
   summary.focus()
 }
 
@@ -432,14 +528,70 @@ list.addEventListener('keydown', event => {
     goTo(state.page + (event.key === 'PageDown' ? 1 : -1))
     return
   }
-  if (target.tagName !== 'SUMMARY' || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) {
+  if (target.tagName !== 'SUMMARY') return
+  // On a wide screen Enter copies the selected mod's install line, as the datasheet's Copy does.
+  if (event.key === 'Enter' && wide.matches && sheetParts !== undefined) {
+    event.preventDefault()
+    const { copy } = sheetParts
+    shown.then(ok => ok && copy.click())
     return
   }
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
   event.preventDefault()
   const all = summaries()
   const at = all.indexOf(target as HTMLElement) + (event.key === 'ArrowDown' ? 1 : -1)
   if (at < 0) input.focus()
   else all[at]?.focus()
+})
+
+const rowAt = (target: EventTarget | null): HTMLLIElement | null =>
+  target instanceof Element ? target.closest<HTMLLIElement>('li.mod') : null
+
+// Focus, a click or a tap selects a row. On a wide screen the datasheet shows
+// it, so the row doesn't open as well.
+list.addEventListener('focusin', event => {
+  const row = rowAt(event.target)
+  if (row !== null) select(row)
+})
+
+list.addEventListener('click', event => {
+  const row = rowAt(event.target)
+  if (row === null) return
+  if (wide.matches && (event.target as Element).closest('summary') !== null) event.preventDefault()
+  select(row)
+})
+
+// A mouse resting on a row selects it after a moment, so sweeping across the
+// list to the datasheet doesn't flick through every row on the way. Only the
+// pointer moving counts: rows scrolling under a still pointer change nothing.
+let hovered: HTMLLIElement | null = null
+let intent = 0
+list.addEventListener('pointermove', event => {
+  if (event.pointerType !== 'mouse' || !wide.matches) return
+  const row = rowAt(event.target)
+  if (row === hovered) return
+  hovered = row
+  clearTimeout(intent)
+  if (row !== null) intent = window.setTimeout(() => select(row), 120)
+})
+list.addEventListener('pointerleave', () => {
+  hovered = null
+  clearTimeout(intent)
+})
+
+// Escape in the datasheet goes back to the row it shows.
+sheet?.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return
+  event.preventDefault()
+  selected?.querySelector('summary')?.focus()
+})
+
+// Widening the window hands an open row over to the datasheet.
+wide.addEventListener('change', () => {
+  if (!wide.matches) return
+  for (const details of list.querySelectorAll('details[open]')) {
+    if (details instanceof HTMLDetailsElement) details.open = false
+  }
 })
 
 const typing = (target: EventTarget | null): boolean =>

@@ -44,6 +44,20 @@ export const SORT_LABEL = {
   name: 'Name',
 } as const
 
+/** A command split before each flag, so a flag can stay with its value when the line wraps. */
+export const flagParts = (line: string): string[] =>
+  line.split(' --').map((part, n) => (n === 0 ? part : `--${part}`))
+
+/** What the install line does, in a sentence. */
+export const installNoteOf = (mod: Pick<Mod, 'repo' | 'plugin'>): string =>
+  mod.plugin === undefined
+    ? `${mod.repo} has no marketplace at its root: clone it and load the folder with --plugin-dir.`
+    : `Adds the marketplace in ${mod.repo} to your user settings, then installs ${mod.plugin}.`
+
+/** Where in its repository a mod lives: `owner/repo`, or `owner/repo/path`. */
+export const sourceOf = (mod: Pick<Mod, 'repo' | 'path'>): string =>
+  mod.path === '' ? mod.repo : `${mod.repo}/${mod.path}`
+
 const DAY = 24 * 60 * 60 * 1000
 
 /** What it reaches, in capabilities.ts's words and order. */
@@ -51,6 +65,13 @@ export const reachesOf = (mod: Pick<Mod, 'reach'>): string[] =>
   REACH_ORDER.filter(reach => (mod.reach & REACH_BITS[reach]) !== 0).map(
     reach => REACH_LABEL[reach],
   )
+
+/** All seven reaches, in order, and whether it has each: the datasheet's pins. */
+export const pinsOf = (mod: Pick<Mod, 'reach'>): { label: string; on: boolean }[] =>
+  REACH_ORDER.map(reach => ({
+    label: REACH_LABEL[reach],
+    on: (mod.reach & REACH_BITS[reach]) !== 0,
+  }))
 
 /** REACH_LABEL, short enough for a badge on a row. */
 const BADGE: Readonly<Record<ReachName, string>> = {

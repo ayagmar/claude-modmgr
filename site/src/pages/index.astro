@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css'
 import { MIN_CLAUDE_VERSION } from '../../../plugin/hooks/domain/version.ts'
+import Datasheet from '../components/Datasheet.astro'
 import Dialog from '../components/Dialog.astro'
 import Icons from '../components/Icons.astro'
 import Install from '../components/Install.astro'
@@ -29,6 +30,7 @@ const CHANGELOG = `${REPO}/blob/main/CHANGELOG.md`
 const data = await modsData()
 const index = indexOf(data.rows.map(toMod))
 const first = pageOf(search(index, { text: '', sort: 'relevance' }), 1, PAGE_SIZE)
+const top = first.items[0] === undefined ? undefined : index.mods[first.items[0]]
 const total = countText(index.mods.length)
 const built = dayText(Math.floor(data.at / (24 * 60 * 60 * 1000)))
 const title = 'modmgr: search mods for Claude Code'
@@ -129,58 +131,63 @@ const description = `Search ${total} mods for Claude Code found across public Gi
 
       <section class="results" aria-labelledby="results-title">
         <div class="wrap">
-          <div class="results-head" id="results-head">
-            <h2 id="results-title" class="vh">Mods</h2>
-            <p id="count" class="count" aria-live="polite">{rangeText(first)}</p>
-            <noscript>
-              <p class="count">The {PAGE_SIZE} most-starred. Search, filters and the other pages need JavaScript.</p>
-            </noscript>
-            <p class="keys js-only" aria-hidden="true">
-              <kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> open <kbd>[</kbd><kbd>]</kbd> page
-            </p>
-            <label class="sort js-only">
-              <span>Sort</span>
-              <select id="sort" name="sort">
-                {SORTS.map(sort => <option value={sort}>{SORT_LABEL[sort]}</option>)}
-              </select>
-            </label>
-          </div>
-          <ol id="results" class="list">
-            {first.items.map(i => <ModRow mod={index.mods[i] as Mod} />)}
-          </ol>
-          <nav id="pager" class="pager js-only" aria-label="Result pages">
-            <p class="range">{rangeText(first)}</p>
-            <div class="pages">
-              <span class="pg" aria-disabled="true">Prev</span>
-              {
-                pageLinks(1, first.pages).map(n =>
-                  n === 0 ? (
-                    <span class="gap">…</span>
-                  ) : (
-                    <a
-                      class="pg"
-                      href={n === 1 ? `${base}/` : `${base}/?page=${n}`}
-                      data-page={n}
-                      aria-current={n === 1 ? 'page' : undefined}
-                    >
-                      {n}
-                    </a>
-                  ),
-                )
-              }
-              {
-                first.pages > 1 ? (
-                  <a class="pg" href={`${base}/?page=2`} data-page="2" aria-label="Next page">
-                    Next
-                  </a>
-                ) : (
-                  <span class="pg" aria-disabled="true">
-                    Next
-                  </span>
-                )
-              }
+          <div class="board">
+            <div class="board-main">
+              <div class="results-head" id="results-head">
+                <h2 id="results-title" class="vh">Mods</h2>
+                <p id="count" class="count" aria-live="polite">{rangeText(first)}</p>
+                <noscript>
+                  <p class="count">The {PAGE_SIZE} most-starred. Search, filters and the other pages need JavaScript.</p>
+                </noscript>
+                <p class="keys js-only" aria-hidden="true">
+                  <kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> <span class="k-narrow">open</span><span class="k-wide">copy</span> <kbd>[</kbd><kbd>]</kbd> page
+                </p>
+                <label class="sort js-only">
+                  <span>Sort</span>
+                  <select id="sort" name="sort">
+                    {SORTS.map(sort => <option value={sort}>{SORT_LABEL[sort]}</option>)}
+                  </select>
+                </label>
+              </div>
+              <ol id="results" class="list">
+                {first.items.map((i, n) => <ModRow mod={index.mods[i] as Mod} i={i} selected={n === 0} />)}
+              </ol>
+              <nav id="pager" class="pager js-only" aria-label="Result pages">
+                <p class="range">{rangeText(first)}</p>
+                <div class="pages">
+                  <span class="pg" aria-disabled="true">Prev</span>
+                  {
+                    pageLinks(1, first.pages).map(n =>
+                      n === 0 ? (
+                        <span class="gap">…</span>
+                      ) : (
+                        <a
+                          class="pg"
+                          href={n === 1 ? `${base}/` : `${base}/?page=${n}`}
+                          data-page={n}
+                          aria-current={n === 1 ? 'page' : undefined}
+                        >
+                          {n}
+                        </a>
+                      ),
+                    )
+                  }
+                  {
+                    first.pages > 1 ? (
+                      <a class="pg" href={`${base}/?page=2`} data-page="2" aria-label="Next page">
+                        Next
+                      </a>
+                    ) : (
+                      <span class="pg" aria-disabled="true">
+                        Next
+                      </span>
+                    )
+                  }
+                </div>
+              </nav>
             </div>
-          </nav>
+            {top !== undefined && <Datasheet mod={top} />}
+          </div>
           <p class="about">
             modmgr's CI rebuilds this index every day from mods found across public GitHub,
             reading each one with <code>claude plugin validate</code>, which reads the source and
@@ -559,6 +566,10 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     }
   }
 
+  .k-wide {
+    display: none;
+  }
+
   .sort {
     display: inline-flex;
     align-items: center;
@@ -714,6 +725,39 @@ const description = `Search ${total} mods for Claude Code found across public Gi
   .list :global(.notables svg) {
     width: 0.6rem;
     height: 0.6rem;
+  }
+
+  /* Badges and stars travel together. On a phone they fall into the head's own
+     wrapping; from 40rem they sit right of the name and repo, and when the line
+     can't hold them they move down a line whole, the repo keeping at least 6rem. */
+  .list :global(.meta) {
+    display: contents;
+  }
+
+  @media (min-width: 40rem) {
+    .list :global(.head) {
+      flex-wrap: wrap;
+      row-gap: 0.3rem;
+    }
+
+    .list :global(.name) {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .list :global(.repo) {
+      flex: 1 0 6rem;
+    }
+
+    .list :global(.meta) {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 0.6rem;
+      margin-left: auto;
+    }
   }
 
   .list :global(mark) {
@@ -894,6 +938,63 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     .list :global(.detail) {
       grid-template-columns: minmax(0, 1fr);
       padding-inline: 0.5rem;
+    }
+  }
+
+  /* A wide screen sets the selected mod's datasheet beside the list, which then
+     drops its row actions: Copy and GitHub live on the datasheet. */
+  @media (min-width: 68.75rem) {
+    .results > .wrap {
+      width: min(100% - 2rem, 76rem);
+      max-width: none;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) clamp(21.5rem, 4rem + 22vw, 23rem);
+      column-gap: 1.75rem;
+    }
+
+    .list :global(.acts) {
+      display: none;
+    }
+
+    .k-narrow {
+      display: none;
+    }
+
+    .k-wide {
+      display: inline;
+    }
+
+    /* Without script a row still opens inline here; the datasheet steps aside
+       for it rather than go on naming another mod. */
+    .board:has(details[open]) > :global(.sheet) {
+      visibility: hidden;
+    }
+
+    .list:has(details[open]) :global(.mod.sel:not(:has(details[open]))) {
+      background: none;
+      box-shadow: none;
+    }
+
+    .list :global(summary) {
+      padding-right: 0.75rem;
+    }
+
+    /* The selected row steps up a surface past a hovered one, so a pointer
+       resting elsewhere never reads as a second choice. */
+    .list :global(.mod:hover) {
+      background: var(--raised);
+    }
+
+    .list :global(.mod.sel) {
+      background: var(--field);
+      box-shadow: inset 0 0 0 1px var(--line-strong);
+    }
+
+    .list :global(.mod.sel:has(summary:focus-visible)) {
+      box-shadow: inset 0 0 0 1px var(--accent);
     }
   }
 

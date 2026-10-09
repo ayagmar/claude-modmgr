@@ -6,18 +6,21 @@ import {
   CHECK_SHORT,
   CHECK_TEXT,
   dayText,
+  installNoteOf,
   notablesOf,
   reachesOf,
 } from '../lib/present.ts'
 import { installLineOf, linkOf, type Mod, shortCount } from '../lib/search.ts'
 
-type Props = { mod: Mod }
-const { mod } = Astro.props
+/** `i` is the mod's place in the index, as the browser's copy numbers it; the
+ *  selected row is the one the datasheet shows. */
+type Props = { mod: Mod; i: number; selected: boolean }
+const { mod, i, selected } = Astro.props
 const notables = notablesOf(mod)
 const reaches = reachesOf(mod)
 ---
 
-<li class="mod" data-copy-scope>
+<li class:list={['mod', { sel: selected }]} data-copy-scope data-i={i}>
   <details name="mod">
     <summary>
       <span class="head">
@@ -25,19 +28,21 @@ const reaches = reachesOf(mod)
         <span class="repo">{mod.repo}</span>
         {mod.plugin === undefined && <span class="tag">Clone</span>}
         {mod.check !== 0 && <span class="tag">{CHECK_SHORT[mod.check]}</span>}
-        <span class="badges">
-          {badgesOf(mod).map(badge => <span class="badge" title={badge.full}>{badge.short}</span>)}
-          {
-            notables.length > 0 && (
-              <span class="badge notable">
-                <svg class="i" aria-hidden="true"><use href="#i-diamond"></use></svg>
-                {notables.length} notable
-              </span>
-            )
-          }
-        </span>
-        <span class="stars">
-          <svg class="i" aria-hidden="true"><use href="#i-star"></use></svg>{shortCount(mod.stars)}<span class="vh"> stars</span>
+        <span class="meta">
+          <span class="badges">
+            {badgesOf(mod).map(badge => <span class="badge" title={badge.full}>{badge.short}</span>)}
+            {
+              notables.length > 0 && (
+                <span class="badge notable">
+                  <svg class="i" aria-hidden="true"><use href="#i-diamond"></use></svg>
+                  {notables.length} notable
+                </span>
+              )
+            }
+          </span>
+          <span class="stars">
+            <svg class="i" aria-hidden="true"><use href="#i-star"></use></svg>{shortCount(mod.stars)}<span class="vh"> stars</span>
+          </span>
         </span>
       </span>
       <span class="desc">{mod.description}</span>
@@ -71,13 +76,7 @@ const reaches = reachesOf(mod)
       <div>
         <p class="label">{mod.plugin === undefined ? 'Load it from a clone' : 'Install'}</p>
         <pre class="cmd"><code data-copy-text>{installLineOf(mod)}</code></pre>
-        <p class="quiet">
-          {
-            mod.plugin === undefined
-              ? `${mod.repo} has no marketplace at its root: clone it and load the folder with --plugin-dir.`
-              : `Adds the marketplace in ${mod.repo} to your user settings, then installs ${mod.plugin}.`
-          }
-        </p>
+        <p class="quiet">{installNoteOf(mod)}</p>
         <p class="facts">
           {CHECK_TEXT[mod.check]} · last push {dayText(mod.pushed)} · <a href={linkOf(mod)}>Open on GitHub</a>
         </p>
