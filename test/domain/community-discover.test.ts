@@ -139,8 +139,8 @@ describe('installing a community mod', () => {
       action: 'install',
       targets: [{ id: 'guard@m', op: 'install', scope: 'user' }],
       notable: [
-        'guard: Can run programs or change files on your machine',
-        'guard: Can change what the model reads',
+        'Can run programs or change files on your machine',
+        'Can change what the model reads',
       ],
       changesRepoFile: false,
       source: 'o/guard',

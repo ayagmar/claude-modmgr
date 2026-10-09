@@ -160,9 +160,7 @@ describe('the catalogue', () => {
     )
     await act.install()
     expect(w.state.values.review?.action).toBe('install')
-    expect(w.state.values.review?.notable).toContain(
-      'agent-sdk-dev: Starts model calls (costs tokens)',
-    )
+    expect(w.state.values.review?.notable).toContain('Starts model calls (costs tokens)')
     expect(w.state.values.review?.uninspected).toBeUndefined()
     // Read once per version.
     await rt.catalog.inspect(SDK)
@@ -317,7 +315,7 @@ describe('installing', () => {
     expect(w.state.values.review).toMatchObject({
       action: 'install',
       targets: [{ id: 'band@band-mods', op: 'install', scope: 'user' }],
-      notable: ['band: Can read your conversation or files and send data out'],
+      notable: ['Can read your conversation or files and send data out'],
       source: 'alice/band',
     })
     await act.confirm()

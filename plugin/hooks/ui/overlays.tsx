@@ -304,14 +304,8 @@ const reviewLines = (
   for (const spec of specsOf(review)) {
     const line = commandLine(spec)
     if (line === undefined) continue
-    // One row each: cut at the frame, not wrapped.
-    push(
-      <Text dimColor wrap="truncate-end">
-        {'  '}
-        {line}
-      </Text>,
-      '',
-    )
+    // Whole, wrapped: a review shows what will run, never part of it.
+    push(<Text dimColor>{`  ${line}`}</Text>, `  ${line}`)
   }
   return lines
 }

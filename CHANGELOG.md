@@ -23,6 +23,9 @@ All notable changes to this project are documented here. The format follows
   plain words, and the line under the tabs says in color whether anything needs you.
 - A mod's detail counts the hooks and calls that only draw instead of listing every name; Enter still lists them.
 - The terminal's "ctrl+x tab to use these keys" stands out while the prompt has the keys.
+- A review shows each command it will run whole, wrapped, instead of cutting it at the dialog's edge; an install's
+  review no longer repeats the mod's name before each thing it can do.
+- On a desktop, Discover's descriptions start where their names do.
 - The job log names each job in words (Refresh marketplace, Reload plugins) and says done, waiting or nothing to
   change instead of the job's internal kind and state.
 - A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`

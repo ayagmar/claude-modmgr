@@ -15,7 +15,6 @@ import { capabilitiesOf, notableText } from './capabilities.ts'
 import { installIdOf, SORTS } from './catalog.ts'
 import type { CommunityMod } from './community.ts'
 import { parseMarketplaceSource } from './ids.ts'
-import { sanitize } from './sanitize.ts'
 
 export const INSTALL_SCOPES = ['user', 'project', 'local'] as const
 export type InstallScope = (typeof INSTALL_SCOPES)[number]
@@ -63,7 +62,8 @@ export const installReview = (
         ...(entry.version === undefined ? {} : { version: entry.version }),
       },
     ],
-    notable: (inspection?.notable ?? []).map(id => `${entry.name}: ${notableText(id)}`),
+    // One mod: the heading names it, so its lines don't.
+    notable: (inspection?.notable ?? []).map(notableText),
     changesRepoFile: scope !== 'user',
   }
   if (inspection !== undefined) return review
@@ -84,11 +84,10 @@ export const communityInstallReview = (
 ): ReviewRequest | undefined => {
   const id = installIdOf(mod)
   if (id === undefined) return undefined
-  const name = sanitize(mod.name, { max: 64 })
   return {
     action: 'install',
     targets: [{ id, op: 'install', scope }],
-    notable: capabilitiesOf(mod).notable.map(notable => `${name}: ${notableText(notable)}`),
+    notable: capabilitiesOf(mod).notable.map(notableText),
     changesRepoFile: scope !== 'user',
     source: mod.repo,
     indexedAt: mod.commit,
