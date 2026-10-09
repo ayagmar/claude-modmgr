@@ -81,7 +81,9 @@ pnpm --filter modmgr-site dev
 ```
 
 The page's mod search is built from the published community index (`mods-v1.json`); `MODS_INDEX=<file>` builds it
-from a local one instead (the output of `scripts/build-mods.ts`). A build that can read neither fails.
+from a local one instead (the output of `scripts/build-mods.ts`). A build that can read neither fails. CI builds the
+page from `test/site/fixtures/mods-v1.json`, 120 made-up mods, so the gate never waits on the published index; only
+the Pages deploy reads the real one.
 
 ## Releasing
 
