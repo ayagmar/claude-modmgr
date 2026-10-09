@@ -62,14 +62,15 @@ export type Key = {
 
 /** How the Pane has laid the body out, which the tab's list and keys follow. */
 export type TabFrame = {
-  readonly split: boolean
   /** No overlay is up and the list is drawn alone: the footer carries the item's keys. */
   readonly itemKeys: boolean
   readonly showList: boolean
   readonly readOnly: boolean
-  readonly listColumns: number
   readonly bodyColumns: number
 }
+
+/** Where the list is drawn: its columns, and whether the detail stands beside it. */
+export type ListFrame = { readonly columns: number; readonly beside: boolean }
 
 /** The search or filter field above the list. */
 export type TabField = {
@@ -100,7 +101,10 @@ export type TabView = {
   readonly count: number
   readonly fullRows: number
   /** The list in `rows` rows, and its pager when it doesn't all show. */
-  readonly list: (rows: number) => {
+  readonly list: (
+    rows: number,
+    frame: ListFrame,
+  ) => {
     readonly el: RenderElement
     readonly pager: string | undefined
   }
@@ -170,7 +174,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     stale: sync.refreshing,
     count: rows.length,
     fullRows: rows.length,
-    list: size => {
+    list: (size, frame) => {
       const window = follow(
         v,
         'installed',
@@ -182,12 +186,12 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         el: List(v, rows, {
           view,
           staged,
-          columns: f.listColumns,
+          columns: frame.columns,
           window,
           focusId: selected?.id,
           loading: sync.at === undefined && sync.error === undefined,
           total: mods.length,
-          beside: f.split,
+          beside: frame.beside,
         }),
         pager: pagerLabel(window, rows.length),
       }
@@ -245,7 +249,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     count: page.matched,
     // Each entry takes two rows: its name, then what it says it does.
     fullRows: page.matched * 2,
-    list: size => {
+    list: (size, frame) => {
       const at = found === undefined ? 0 : page.rows.indexOf(found)
       const window = follow(
         v,
@@ -257,12 +261,12 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       return {
         el: FoundList(v, page, {
           view,
-          columns: f.listColumns,
+          columns: frame.columns,
           window,
           focusId: found?.id,
           networkOff: degraded.network,
           checking: detect.running,
-          beside: f.split,
+          beside: frame.beside,
         }),
         pager:
           page.matched > window.end - window.start
@@ -304,16 +308,16 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     stale: d.dev.loading,
     count: rows.length,
     fullRows: rows.length,
-    list: size => {
+    list: (size, frame) => {
       const window = follow(v, 'dev', rows.length, row === undefined ? 0 : rows.indexOf(row), size)
       return {
         el: DevList(v, rows, {
           ...how,
-          columns: f.listColumns,
+          columns: frame.columns,
           window,
           focusKey: row?.key,
           loading: d.dev.loading && d.dev.at === undefined,
-          beside: f.split,
+          beside: frame.beside,
         }),
         pager: pagerLabel(window, rows.length),
       }
@@ -347,13 +351,13 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
     fullRows:
       items.length +
       items.filter((each, index) => index === 0 || items[index - 1]?.group !== each.group).length,
-    list: size => {
+    list: (size, frame) => {
       const shown = healthLines(items, item === undefined ? 0 : items.indexOf(item), size)
       return {
         el: HealthList(v, shown.lines, {
-          columns: f.listColumns,
+          columns: frame.columns,
           focusKey: item?.key,
-          stacked: !f.split,
+          stacked: !frame.beside,
           before: items.slice(0, shown.items.start),
           after: items.slice(shown.items.end),
         }),

@@ -91,3 +91,17 @@ describe('the line under the list', () => {
     }
   })
 })
+
+describe('a tab with nothing to select', () => {
+  it('gives the body to what it says, with no detail beside it', async () => {
+    const { w, act, draw } = await setup()
+    await act.tab('dev')
+    w.state.values.dev = { ...w.state.values.dev, rows: [] }
+    const lines = await draw(96, 12)
+    expect(lines.some(line => line.includes('No mods under development in this session.'))).toBe(
+      true,
+    )
+    expect(lines.join('\n')).not.toMatch(/Select a mod/)
+    expect(lines.some(line => line.includes('│'))).toBe(false)
+  })
+})

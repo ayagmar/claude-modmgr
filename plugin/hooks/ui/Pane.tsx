@@ -97,7 +97,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // line, so a row held to one there draws over the next.
   const oneRow = terminal ? { height: 1, overflow: 'hidden' as const } : {}
   const split = layout === 'split'
-  const listColumns = split ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
   // Help, the job log and the welcome are about the whole dialog: they take the
   // whole body (beside the list, the welcome's key would lose the ring to a row).
   const wide = top === 'help' || top === 'jobs' || top === 'welcome'
@@ -110,17 +109,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     v,
     { view, mods, detail, queue, sync, degraded, page, detect, dev: devState, items },
     {
-      split,
       // Beside the list the detail draws its own keys (toggle, install, validate…);
       // stacked, the footer carries them until Enter opens the detail.
       itemKeys: !split && top === undefined,
       showList,
       readOnly,
-      listColumns,
       bodyColumns: frame.bodyColumns,
     },
     problems,
   )
+  // With nothing to select there is nothing to show beside the list: it takes the body.
+  const beside = split && tab.count > 0
+  const listColumns = beside ? listColumnsFor(frame.bodyColumns) : frame.bodyColumns
   const field = Input === undefined ? undefined : tab.field
   // What is staged shows under Installed's list.
   const staged = installed ? stagedIds(view, mods).size : 0
@@ -211,7 +211,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const listRows = Math.max(3, frame.bodyRows - chrome - underRows)
 
   // The list, windowed around the selection, and its pager.
-  const { el: list, pager } = tab.list(listRows)
+  const { el: list, pager } = tab.list(listRows, { columns: listColumns, beside })
 
   const under = stack.at(-2)
   const surfaceOf = (overlay: Overlay | undefined): KeySurface =>
@@ -244,7 +244,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const sized = {
     readOnly,
     rows: listRows,
-    columns: split ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns,
+    columns: beside ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns,
   }
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
@@ -274,7 +274,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     )
 
   const body =
-    split && !wide ? (
+    beside && !wide ? (
       // Clipped to the list's rows, so the header and footer stay in view; the
       // whole detail is one Enter away. The detail beside the list carries its keys.
       <Box flexDirection="row" columnGap={1} height={listRows} overflow="hidden">
