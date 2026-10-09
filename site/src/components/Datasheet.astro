@@ -9,8 +9,10 @@ import {
   dayText,
   flagParts,
   installNoteOf,
+  isProjectMod,
   notablesOf,
   pinsOf,
+  projectNoteOf,
   sourceOf,
 } from '../lib/present.ts'
 import { installLineOf, linkOf, type Mod } from '../lib/search.ts'
@@ -72,6 +74,7 @@ const notables = notablesOf(mod)
       <p class="label" id="sheet-how">{mod.plugin === undefined ? 'Load it from a clone' : 'Install'}</p>
       <pre class="cmd"><code id="sheet-install" data-copy-text>{flagParts(installLineOf(mod)).map((part, n) => <>{n > 0 && ' '}<span class="keep">{part}</span></>)}</code></pre>
       <p class="sheet-note" id="sheet-note">{installNoteOf(mod)}</p>
+      <p class="sheet-note" id="sheet-project" hidden={!isProjectMod(mod)}>{projectNoteOf(mod)}</p>
       <div class="sheet-acts">
         <button
           class="btn copy js-only"
@@ -84,8 +87,24 @@ const notables = notablesOf(mod)
             class="key"
             aria-hidden="true">Enter</kbd>
         </button>
-        <a class="btn" id="sheet-gh" href={linkOf(mod)}>
-          <svg class="i" aria-hidden="true"><use href="#i-github"></use></svg>Open on GitHub
+        <button
+          class="btn js-only"
+          id="sheet-link"
+          type="button"
+          data-copy
+          data-copy-link
+          aria-label={`Copy link to ${mod.name}`}
+        >
+          <svg class="i" aria-hidden="true"><use href="#i-link"></use></svg><span>Copy link</span>
+        </button>
+        <a
+          class="btn gh"
+          id="sheet-gh"
+          href={linkOf(mod)}
+          aria-label={`${mod.name} on GitHub`}
+          title="Open on GitHub"
+        >
+          <svg class="i" aria-hidden="true"><use href="#i-github"></use></svg>
         </a>
       </div>
     </div>
@@ -291,7 +310,9 @@ const notables = notablesOf(mod)
     color: var(--text-3);
   }
 
+  /* Its own gap below, since the install part's auto margin is none when the sheet is full. */
   .specs {
+    margin-bottom: 0.875rem;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem 1rem;
@@ -353,6 +374,11 @@ const notables = notablesOf(mod)
 
   .sheet-acts .copy {
     color: var(--text);
+  }
+
+  .gh {
+    width: 2rem;
+    padding: 0;
   }
 
   /* Enter on a row does what this button does. */

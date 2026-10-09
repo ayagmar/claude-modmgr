@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The landing page says up front that modmgr is a Claude Code plugin, with its install line to copy, above the search.
+- The landing page shows 20, 40 or 100 mods a page (`per=` in the URL); changing it keeps the first mod in view on screen.
+- A link can name a mod (`?mod=owner/repo/path`): the page opens on the page holding it, with it selected, and
+  Copy link in its detail copies that link.
+- Mods kept in a repository's `.claude` folder are marked Project mod: the mod that project uses for itself.
+
+### Changed
+- The landing page shows 20 mods a page by default (was 40).
+
 ### Fixed
 - Link previews (Discord, Slack, X) show the current social card: its URL changes whenever the card does.
 

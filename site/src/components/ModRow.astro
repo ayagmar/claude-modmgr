@@ -7,25 +7,31 @@ import {
   CHECK_TEXT,
   dayText,
   installNoteOf,
+  isProjectMod,
   notablesOf,
+  projectNoteOf,
   reachesOf,
+  sourceOf,
 } from '../lib/present.ts'
 import { installLineOf, linkOf, type Mod, shortCount } from '../lib/search.ts'
 
-/** `i` is the mod's place in the index, as the browser's copy numbers it; the
- *  selected row is the one the datasheet shows. */
+/** `i` is the mod's place in the index, as the browser's copy numbers it, and
+ *  `data-key` what a `?mod=` link names it by; the selected row is the one the
+ *  datasheet shows. */
 type Props = { mod: Mod; i: number; selected: boolean }
 const { mod, i, selected } = Astro.props
 const notables = notablesOf(mod)
 const reaches = reachesOf(mod)
+const project = isProjectMod(mod)
 ---
 
-<li class:list={['mod', { sel: selected }]} data-copy-scope data-i={i}>
+<li class:list={['mod', { sel: selected }]} data-copy-scope data-i={i} data-key={sourceOf(mod)}>
   <details name="mod">
     <summary>
       <span class="head">
         <span class="name">{mod.name}</span>
         <span class="repo">{mod.repo}</span>
+        {project && <span class="tag">Project mod</span>}
         {mod.plugin === undefined && <span class="tag">Clone</span>}
         {mod.check !== 0 && <span class="tag">{CHECK_SHORT[mod.check]}</span>}
         <span class="meta">
@@ -77,9 +83,13 @@ const reaches = reachesOf(mod)
         <p class="label">{mod.plugin === undefined ? 'Load it from a clone' : 'Install'}</p>
         <pre class="cmd"><code data-copy-text>{installLineOf(mod)}</code></pre>
         <p class="quiet">{installNoteOf(mod)}</p>
+        {project && <p class="quiet">{projectNoteOf(mod)}</p>}
         <p class="facts">
           {CHECK_TEXT[mod.check]} · last push {dayText(mod.pushed)} · <a href={linkOf(mod)}>Open on GitHub</a>
         </p>
+        <button class="btn share js-only" type="button" data-copy data-copy-link aria-label={`Copy link to ${mod.name}`}>
+          <svg class="i" aria-hidden="true"><use href="#i-link"></use></svg><span>Copy link</span>
+        </button>
       </div>
     </div>
   </details>
