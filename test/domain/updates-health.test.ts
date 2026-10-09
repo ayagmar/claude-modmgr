@@ -11,6 +11,7 @@ import {
   healthKey,
   healthLines,
   healthOfKey,
+  healthText,
   loadStates,
   loggedFailures,
   OWN_GROUP,
@@ -233,48 +234,42 @@ describe('Health’s items', () => {
       }),
     )
     const texts = items.map(
-      item => `${item.group}: ${item.text}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`,
+      item => `${item.group}: ${healthText(item)}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`,
     )
     expect(texts).toEqual([
       'Hook order: a then b rewrite each row (session.append).',
-      'modmgr itself: no claude CLI',
-      "modmgr itself: couldn't read the installed list: list ran past 30 s → try again",
-      'modmgr itself: changes wait for a plugin reload → reload',
-      "modmgr itself: modmgr's cache is full; what it knows is not saved → clear cache",
-      'modmgr itself: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
-      'modmgr itself: 1 enabled · 1 disabled · 1 managed',
-      'modmgr itself: updates checked 3 h ago, every 6 hours → check now',
-      'modmgr itself: detector: local catalogues only (detectRemote is off in its options); 3 mods found',
-      'modmgr itself: A hook that fails is logged only in a session started with --debug → copy command',
+      'Status: CLI: no claude CLI',
+      "Status: Installed: couldn't read the list: list ran past 30 s → try again",
+      'Status: Reload: changes wait for a plugin reload → reload',
+      "Status: Cache: full: what modmgr learns isn't saved → clear cache",
+      'Status: Commands: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      'Status: Mods: 1 enabled · 1 disabled · 1 managed',
+      'Status: Updates: checked 3 h ago · every 6 h → check now',
+      'Status: Discover: 3 mods found in local catalogues (detectRemote is off in its options)',
+      'Status: Hook errors: seen only in a session started with --debug → copy command',
     ])
   })
 
   it('says when updates were never checked, or are off; the detector’s budget; the cache', () => {
     const texts = (more: Partial<HealthFacts>) =>
       healthItemsOf(input({ facts: facts(more) })).map(item => item.text)
-    expect(texts({ updates: { every: 6 } })).toContain('updates checked never, every 6 hours')
+    expect(texts({ updates: { every: 6 } })).toContain('never checked · every 6 h')
     expect(texts({ updates: { every: 0, off: 'updateCheckHours is 0' } })).toContain(
-      'update checks are off: updateCheckHours is 0',
+      'checks are off: updateCheckHours is 0',
     )
-    expect(texts({})).toContain(
-      'detector: 3 mods found; 120 of 3,545 checked, 560 requests left this session',
-    )
+    expect(texts({})).toContain('3 mods found · 120 of 3,545 checked, 560 lookups left')
     const indexed = healthItemsOf(
       input({
         facts: facts({ at: 10 * 3_600_000 }),
         detect: { checked: 3545, total: 3545, found: 53, running: false, indexAt: 7 * 3_600_000 },
       }),
     )
-    expect(indexed.map(item => item.text)).toContain(
-      'detector: 53 mods found, from the catalogue index built 3 h ago; 3,545 of 3,545 checked, 560 requests left this session',
-    )
-    expect(texts({})).toContain('cache: 2 KB')
+    expect(indexed.map(item => item.text)).toContain('53 mods found · index 3 h old')
+    expect(texts({})).toContain('2 KB')
     const fresh = healthItemsOf(
       input({ detect: { checked: 0, total: 0, found: 0, running: false } }),
     )
-    expect(fresh.map(item => item.text)).toContain(
-      'detector: not run yet; it starts when Discover opens',
-    )
+    expect(fresh.map(item => item.text)).toContain('finds mods when Discover first opens')
     // A reload already queued is not owed.
     const queued = healthItemsOf(
       input({

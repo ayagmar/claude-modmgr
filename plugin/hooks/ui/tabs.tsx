@@ -34,7 +34,7 @@ import { DevDetail, DevList, devDetailRows } from './Dev.tsx'
 import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
 import { HealthItemDetail, HealthList, healthDetailRows } from './Health.tsx'
 import { List } from './Installed.tsx'
-import type { ViewPorts } from './kit.tsx'
+import { GLYPH, type ViewPorts } from './kit.tsx'
 
 /** Everything the dialog reads from `$.state`, read once per draw. */
 export type PaneData = {
@@ -95,6 +95,9 @@ export type TabView = {
   readonly field: TabField | undefined
   /** The line under the tabs. */
   readonly meta: string
+  /** The line says how things stand (Health): drawn in that tone, not dim. */
+  readonly metaTone?: 'ok' | 'bad'
+
   /** A refresh is running for what the tab shows. */
   readonly stale: boolean
   /** The detail stands beside the list when the body is wide enough. */
@@ -351,8 +354,9 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
     field: undefined,
     meta:
       problems === 0
-        ? 'Nothing needs you.'
-        : `${count(problems, 'problem', 'problems')} to look at`,
+        ? `${GLYPH.ok} Nothing needs you`
+        : `${GLYPH.problem} ${count(problems, 'problem', 'problems')} to look at`,
+    metaTone: problems === 0 ? 'ok' : 'bad',
     // Its items follow the installed list.
     stale: d.sync.refreshing,
     // Its items are sentences: the list takes the body, Enter opens one whole.

@@ -4,7 +4,7 @@
 
 import type { Job, ModDetail, ModRow } from '../../types/index.d.ts'
 import { groupByReach, notableOf } from './capabilities.ts'
-import type { HealthItem } from './health.ts'
+import { type HealthItem, healthText } from './health.ts'
 import { type PluginId, parsePluginId, parseToggleScope, type ToggleScope } from './ids.ts'
 import { NEEDS_RELOAD } from './jobs.ts'
 import { isRecord, parseJson } from './json.ts'
@@ -93,6 +93,7 @@ export const doctorText = (items: readonly HealthItem[], json: boolean): string 
         items: items.map(item => ({
           group: item.group,
           tone: item.tone,
+          ...(item.label === undefined ? {} : { label: item.label }),
           text: item.text,
           ...(item.fixLabel === undefined ? {} : { fix: item.fixLabel }),
         })),
@@ -113,7 +114,7 @@ export const doctorText = (items: readonly HealthItem[], json: boolean): string 
       lines.push(group)
     }
     const fix = item.fixLabel === undefined ? '' : `  (in /mods → Health: ${item.fixLabel})`
-    lines.push(`  ${TONE_GLYPH[item.tone]} ${item.text}${fix}`)
+    lines.push(`  ${TONE_GLYPH[item.tone]} ${healthText(item)}${fix}`)
   }
   return lines.join('\n')
 }

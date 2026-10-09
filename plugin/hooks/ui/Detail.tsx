@@ -167,11 +167,17 @@ const reachSection = (
   }
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
+    // A group that only draws is counted: its names are noise beside the reach
+    // that matters, and the full detail still lists them.
+    const said = (group: ReachGroup) =>
+      QUIET.has(group.reach)
+        ? `${group.items.length} ${group.items.length === 1 ? 'hook or call' : 'hooks and calls'}`
+        : names(group)
     const label = Math.min(LABEL_MAX, Math.max(...groups.map(g => g.label.length)))
     // The names wrap beside the label: a cut list hid what the mod reaches.
     const beside = columns - label - 1
     return {
-      rows: 1 + groups.reduce((sum, group) => sum + wrappedRows([names(group)], beside), 0),
+      rows: 1 + groups.reduce((sum, group) => sum + wrappedRows([said(group)], beside), 0),
       el: (
         <Box flexDirection="column">
           {heading}
@@ -181,7 +187,7 @@ const reachSection = (
               group.label,
               label,
               <Box width={beside} flexShrink={1}>
-                <Text dimColor={QUIET.has(group.reach)}>{names(group)}</Text>
+                <Text dimColor={QUIET.has(group.reach)}>{said(group)}</Text>
               </Box>,
             ),
           )}

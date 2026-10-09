@@ -31,6 +31,8 @@ export type HealthItem = {
   /** The mod it concerns, or modmgr's own heading. */
   readonly group: string
   readonly tone: HealthTone
+  /** A status row's name (`Updates`), drawn in a column before its text. */
+  readonly label?: string
   readonly text: string
   readonly fix?: HealthFix
   /** What the fix does, in a word or two. */
@@ -38,7 +40,7 @@ export type HealthItem = {
 }
 
 /** modmgr's own heading (apart from an installed mod named modmgr), and the hook-order notes'. */
-export const OWN_GROUP = 'modmgr itself'
+export const OWN_GROUP = 'Status'
 export const ORDER_GROUP = 'Hook order'
 
 /** A Health item's Button key: what `ui.focus` and `ui.press` name. */
@@ -46,6 +48,10 @@ export const HEALTH_PREFIX = 'health:'
 export const healthKey = (key: string): string => `${HEALTH_PREFIX}${key}`
 export const healthOfKey = (key: string | undefined): string | undefined =>
   key?.startsWith(HEALTH_PREFIX) === true ? key.slice(HEALTH_PREFIX.length) : undefined
+
+/** An item as one line: its label, if any, before its text. */
+export const healthText = (item: HealthItem): string =>
+  item.label === undefined ? item.text : `${item.label}: ${item.text}`
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
 
@@ -146,13 +152,19 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   const items: HealthItem[] = []
   const own = (item: Omit<HealthItem, 'group'>) => items.push({ ...item, group: OWN_GROUP })
   if (degraded.process) {
-    own({ key: 'own:process', tone: 'bad', text: sanitize(degraded.reason ?? '', { max: 300 }) })
+    own({
+      key: 'own:process',
+      tone: 'bad',
+      label: 'CLI',
+      text: sanitize(degraded.reason ?? '', { max: 300 }),
+    })
   }
   if (sync.error !== undefined) {
     own({
       key: 'own:sync',
       tone: 'bad',
-      text: `couldn't read the installed list: ${sanitize(sync.error.message, { max: 160 })}`,
+      label: 'Installed',
+      text: `couldn't read the list: ${sanitize(sync.error.message, { max: 160 })}`,
       fix: { kind: 'refresh' },
       fixLabel: 'try again',
     })
@@ -164,13 +176,15 @@ const ownItems = (input: HealthInput): HealthItem[] => {
         ? {
             key: 'own:reload',
             tone: 'warn',
-            text: 'changes wait for /reload-plugins: this session lets only you reload',
+            label: 'Reload',
+            text: 'changes wait for you to run /reload-plugins',
             fix: { kind: 'copy', text: '/reload-plugins' },
             fixLabel: 'copy command',
           }
         : {
             key: 'own:reload',
             tone: 'warn',
+            label: 'Reload',
             text: 'changes wait for a plugin reload',
             fix: { kind: 'reload' },
             fixLabel: 'reload',
@@ -181,7 +195,8 @@ const ownItems = (input: HealthInput): HealthItem[] => {
     own({
       key: 'own:cache',
       tone: 'bad',
-      text: "modmgr's cache is full; what it knows is not saved",
+      label: 'Cache',
+      text: "full: what modmgr learns isn't saved",
       fix: { kind: 'clear-cache' },
       fixLabel: 'clear cache',
     })
@@ -190,21 +205,23 @@ const ownItems = (input: HealthInput): HealthItem[] => {
     own({
       key: 'own:accept',
       tone: 'info',
+      label: 'Commands',
       text: 'Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
     })
   }
   const counts = loadStates(input.mods)
-  if (counts !== undefined) own({ key: 'own:load', tone: 'info', text: counts })
+  if (counts !== undefined) own({ key: 'own:load', tone: 'info', label: 'Mods', text: counts })
   const updates = facts.updates
   // Said once the facts are in (the first frame has none, and would say "every 0 hours").
   if (facts.at !== undefined)
     own({
       key: 'own:updates',
       tone: 'info',
+      label: 'Updates',
       text:
         updates.off !== undefined
-          ? `update checks are off: ${updates.off}`
-          : `updates checked ${updates.at === undefined || facts.at === undefined ? 'never' : agoLabel(facts.at - updates.at)}, every ${plural(updates.every, 'hour', 'hours')}`,
+          ? `checks are off: ${updates.off}`
+          : `${updates.at === undefined || facts.at === undefined ? 'never checked' : `checked ${agoLabel(facts.at - updates.at)}`} · every ${updates.every} h`,
       ...(updates.off === undefined
         ? { fix: { kind: 'check-updates' as const }, fixLabel: 'check now' }
         : {}),
@@ -214,22 +231,29 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   const index =
     detect.indexAt === undefined || facts.at === undefined
       ? ''
-      : `, from the catalogue index built ${agoLabel(facts.at - detect.indexAt)}`
+      : ` · index ${agoLabel(facts.at - detect.indexAt).replace(' ago', ' old')}`
+  // How far checking got, said only while it hasn't finished.
+  const checking =
+    detect.checked < detect.total
+      ? ` · ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${left} lookups left`
+      : ''
   own({
     key: 'own:detector',
     tone: 'info',
+    label: 'Discover',
     text:
       detect.total === 0
-        ? 'detector: not run yet; it starts when Discover opens'
+        ? 'finds mods when Discover first opens'
         : facts.detector.remote
-          ? `detector: ${detect.found} mods found${index}; ${detect.checked.toLocaleString('en-US')} of ${detect.total.toLocaleString('en-US')} checked, ${left} requests left this session`
-          : `detector: local catalogues only (${facts.detector.why ?? 'remote checks are off'}); ${detect.found} mods found`,
+          ? `${plural(detect.found, 'mod', 'mods')} found${index}${checking}`
+          : `${plural(detect.found, 'mod', 'mods')} found in local catalogues (${facts.detector.why ?? 'remote checks are off'})`,
   })
   if (!facts.cache.full) {
     own({
       key: 'own:cache',
       tone: 'info',
-      text: `cache: ${bytesLabel(facts.cache.bytes)}`,
+      label: 'Cache',
+      text: bytesLabel(facts.cache.bytes),
       fix: { kind: 'clear-cache' },
       fixLabel: 'clear',
     })
@@ -239,6 +263,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
     own({
       key: 'own:debug',
       tone: 'warn',
+      label: 'Hook errors',
       text: "this session's debug log is too large to read here (over 4 MiB)",
       fix: { kind: 'copy', text: `grep 'hook failed closed' ${log.path}` },
       fixLabel: 'copy a search',
@@ -248,7 +273,8 @@ const ownItems = (input: HealthInput): HealthItem[] => {
     own({
       key: 'own:debug',
       tone: 'info',
-      text: 'A hook that fails is logged only in a session started with --debug',
+      label: 'Hook errors',
+      text: 'seen only in a session started with --debug',
       fix: { kind: 'copy', text: 'claude --debug' },
       fixLabel: 'copy command',
     })

@@ -5,7 +5,13 @@
 // debug log supplied are sanitised by domain/health.ts and drawn as Text.
 
 import type { RenderElement } from 'claude-code'
-import { type HealthItem, type HealthLine, type HealthTone, healthKey } from '../domain/health.ts'
+import {
+  type HealthItem,
+  type HealthLine,
+  type HealthTone,
+  healthKey,
+  healthText,
+} from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { wrappedRows } from '../domain/view.ts'
 import { GLYPH, HiddenRows, Pointer, TONE, type ViewPorts } from './kit.tsx'
@@ -36,15 +42,26 @@ export const HealthRow = (
   how: {
     readonly columns: number
     readonly focus: boolean
+    /** The label column's cells: the widest label in the list, 0 with none. */
+    readonly labelWidth: number
   },
 ): RenderElement => {
   const { Box, Text } = v.el
   const fix = item.fixLabel === undefined ? undefined : `→ ${item.fixLabel}`
-  const text = Math.max(10, how.columns - 4 - (fix === undefined ? 0 : fix.length + 1))
+  // One cell clear after the widest label, so it never runs into its text.
+  const label = item.label === undefined ? 0 : how.labelWidth + 2
+  const text = Math.max(10, how.columns - 4 - label - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>
       {Pointer(v, how.focus)}
       <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
+      {item.label === undefined ? null : (
+        <Box width={how.labelWidth + 1} flexShrink={0}>
+          <Text bold wrap="truncate-end">
+            {item.label}
+          </Text>
+        </Box>
+      )}
       {/* One row per item (the window counts them): the detail has the whole text. */}
       <Box width={text} height={1} flexShrink={1} overflow="hidden">
         {healthButton(v, item, how.focus)}
@@ -70,6 +87,12 @@ export const HealthList = (
   },
 ): RenderElement => {
   const { Box, Text } = v.el
+  const all = [
+    ...how.before,
+    ...lines.flatMap(line => (line.kind === 'item' ? [line.item] : [])),
+    ...how.after,
+  ]
+  const labelWidth = Math.max(0, ...all.map(item => item.label?.length ?? 0))
   const hidden = (shown: readonly HealthItem[]) =>
     HiddenRows(
       v,
@@ -89,6 +112,7 @@ export const HealthList = (
           HealthRow(v, line.item, {
             columns: how.columns,
             focus: line.item.key === how.focusKey,
+            labelWidth,
           })
         ),
       )}
@@ -102,7 +126,7 @@ export const healthDetailRows = (item: HealthItem | undefined, columns: number):
   item === undefined
     ? 1
     : 2 +
-      wrappedRows([sanitize(item.text, { max: 300 })], columns - 2) +
+      wrappedRows([sanitize(healthText(item), { max: 300 })], columns - 2) +
       (item.fixLabel === undefined ? 0 : 2)
 
 /** The item Enter opened, in full: its words wrapped, its fix a button. */
@@ -116,7 +140,7 @@ export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): Re
       <Text> </Text>
       <Box flexDirection="row" gap={1}>
         <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
-        <Text>{sanitize(item.text, { max: 300 })}</Text>
+        <Text>{sanitize(healthText(item), { max: 300 })}</Text>
       </Box>
       {label === undefined ? null : <Text> </Text>}
       {label === undefined ? null : (
