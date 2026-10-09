@@ -364,7 +364,6 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
         el: HealthList(v, shown.lines, {
           columns: frame.columns,
           focusKey: item?.key,
-          stacked: !frame.beside,
           before: items.slice(0, shown.items.start),
           after: items.slice(shown.items.end),
         }),

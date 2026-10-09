@@ -1,7 +1,7 @@
 // Health: one row per item, grouped by mod (its name on a row
 // of its own above its items), worst first, then hook order and modmgr's own
-// state. An item with a fix is a Button whose press runs it, the fix named
-// after it; every row takes the ring so the arrows walk the list. Words a plugin or the
+// state, at the body's width. Each item is a Button whose press opens it, its
+// fix named after it; every row takes the ring so the arrows walk the list. Words a plugin or the
 // debug log supplied are sanitised by domain/health.ts and drawn as Text.
 
 import type { RenderElement } from 'claude-code'
@@ -16,20 +16,16 @@ const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone:
   info: { glyph: ' ', tone: TONE.muted },
 }
 
-/** An item's Button: stacked, Enter opens it whole; beside the detail, moves onto its fix. */
-const healthButton = (
-  v: ViewPorts,
-  item: HealthItem,
-  how: { readonly focus: boolean; readonly stacked: boolean },
-): RenderElement => {
+/** An item's Button: Enter opens it whole. */
+const healthButton = (v: ViewPorts, item: HealthItem, focus: boolean): RenderElement => {
   const { Button } = v.el
   return (
     <Button
       key={healthKey(item.key)}
       plain
       label={sanitize(item.text, { max: 300 })}
-      {...(how.focus ? { autoFocus: true as const } : {})}
-      onPress={() => (how.stacked ? v.act.openHealth(item.key) : v.act.toDetail())}
+      {...(focus ? { autoFocus: true as const } : {})}
+      onPress={() => v.act.openHealth(item.key)}
     />
   )
 }
@@ -40,13 +36,10 @@ export const HealthRow = (
   how: {
     readonly columns: number
     readonly focus: boolean
-    /** Stacked: Enter opens the item whole (its row is clipped); split: moves onto its fix. */
-    readonly stacked: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
-  // Beside the list the detail names the fix: the row keeps its room for the words.
-  const fix = item.fixLabel === undefined || !how.stacked ? undefined : `→ ${item.fixLabel}`
+  const fix = item.fixLabel === undefined ? undefined : `→ ${item.fixLabel}`
   const text = Math.max(10, how.columns - 4 - (fix === undefined ? 0 : fix.length + 1))
   return (
     <Box key={`line:${item.key}`} flexDirection="row" gap={1}>
@@ -54,7 +47,7 @@ export const HealthRow = (
       <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
       {/* One row per item (the window counts them): the detail has the whole text. */}
       <Box width={text} height={1} flexShrink={1} overflow="hidden">
-        {healthButton(v, item, { focus: how.focus, stacked: how.stacked })}
+        {healthButton(v, item, how.focus)}
       </Box>
       {fix === undefined ? null : (
         <Text color={TONE.accent} wrap="truncate-end">
@@ -72,7 +65,6 @@ export const HealthList = (
   how: {
     readonly columns: number
     readonly focusKey: string | undefined
-    readonly stacked: boolean
     readonly before: readonly HealthItem[]
     readonly after: readonly HealthItem[]
   },
@@ -81,7 +73,7 @@ export const HealthList = (
   const hidden = (shown: readonly HealthItem[]) =>
     HiddenRows(
       v,
-      shown.map(item => healthButton(v, item, { focus: false, stacked: how.stacked })),
+      shown.map(item => healthButton(v, item, false)),
     )
   return (
     <Box flexDirection="column">
@@ -97,7 +89,6 @@ export const HealthList = (
           HealthRow(v, line.item, {
             columns: how.columns,
             focus: line.item.key === how.focusKey,
-            stacked: how.stacked,
           })
         ),
       )}
@@ -114,11 +105,7 @@ export const healthDetailRows = (item: HealthItem | undefined, columns: number):
       wrappedRows([sanitize(item.text, { max: 300 })], columns - 2) +
       (item.fixLabel === undefined ? 0 : 2)
 
-/**
- * The selected item in full, its words wrapped, its fix a button: beside the
- * list in the split (Enter on the row moves onto the fix), or pushed by Enter
- * when stacked.
- */
+/** The item Enter opened, in full: its words wrapped, its fix a button. */
 export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): RenderElement => {
   const { Box, Button, Text } = v.el
   if (item === undefined) return <Text dimColor>{GLYPH.ok} Nothing needs you.</Text>

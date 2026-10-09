@@ -401,7 +401,6 @@ export const createActions = (
       const { tab } = await state.read('view')
       if (tab === 'discover') return ringTo('act:install', 'act:copy')
       if (tab === 'dev') return ringTo('act:validate', 'act:copy')
-      if (tab === 'health') return ringTo('act:fix')
       return ringTo('act:toggle', 'act:copy')
     }),
 
