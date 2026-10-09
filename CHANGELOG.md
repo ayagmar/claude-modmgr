@@ -56,7 +56,12 @@ All notable changes to this project are documented here. The format follows
 - In the desktop app, whose sessions refuse a plugin's `/reload-plugins`, a batch says the reload failed and asks you
   to run `/reload-plugins`, instead of reporting the changes applied.
 - A review taller than the pane scrolls with the wheel and Page Up/Down, its heading and keys kept, instead of
-  cutting off its last lines, where the commands it runs are.
+  cutting off its last lines, where the commands it runs are; a declared command scrolls a row at a time, so a
+  single line longer than the pane is read to its end before it can be accepted.
+- A declared command holding hidden or control characters is accepted in a terminal, not in the review, which can't
+  show it as it is.
+- In Discover the ring stays on the selected row when moving it scrolls the list, instead of landing rows away from
+  the selection and its detail.
 
 ## [0.3.0] - 2026-10-09
 

@@ -9,6 +9,7 @@ import { helpFor, type KeySurface } from '../domain/keymap.ts'
 import { hasHiddenCharacters, sanitize } from '../domain/sanitize.ts'
 import {
   bytesLabel,
+  cellRows,
   commandLine,
   lineWindow,
   marketplaceOf,
@@ -75,13 +76,14 @@ const reviewLines = (
   review: ReviewRequest,
   rows: readonly ModRow[],
   how: ReviewHow,
+  columns: number,
 ): Line[] => {
   const { Box, Text, Select } = v.el
   const declared = review.declaredCommand ?? review.headersHelper
-  // Claude Code refuses an acceptance from this session: confirm would be refused again.
-  // Refused from this session, or too long to show whole: accepted
-  // in a terminal, never here.
-  const blocked = declared !== undefined && (how.refused || declared.truncated === true)
+  // Accepted in a terminal, never here: refused from this session, too long to
+  // show whole, or holding characters the review can't show as they are.
+  const hidden = declared !== undefined && hasHiddenCharacters(declared.text)
+  const blocked = declared !== undefined && (how.refused || declared.truncated === true || hidden)
   const terminal = blocked ? terminalCommand(review) : undefined
   // A mod being reinstalled is no longer a row: its id names it.
   const name = (id: string) =>
@@ -256,19 +258,22 @@ const reviewLines = (
         : 'Its marketplace fetches the archive with this command:',
       TONE.warn,
     )
-    // Line for line, wrapped, never cut; what sanitising removed is said.
+    // Line for line, never cut, each line in rows of the window's width: a
+    // line taller than the window still scrolls into view a row at a time.
+    // What sanitising removed is said.
+    const width = Math.max(1, columns - 2)
     for (const line of sanitize(declared.text, { max: SHOWN_MAX, multiline: true }).split('\n')) {
-      push(<Text bold>{`  ${line}`}</Text>, `  ${line}`)
-    }
-    if (hasHiddenCharacters(declared.text)) {
-      say('It holds hidden or control characters, removed', TONE.bad)
-      say('above: read it in a terminal before accepting.', TONE.bad)
+      for (const row of cellRows(line, width)) push(<Text bold>{`  ${row}`}</Text>, `  ${row}`)
     }
     say(`sha256 ${declared.sha256.slice(0, 16)}…`)
     if (declared.truncated === true) {
       say('It is longer than modmgr shows, so it is not', TONE.bad)
       say('accepted here. Read and accept it in a terminal:', TONE.bad)
       say(terminal ?? '', TONE.bad)
+    } else if (hidden) {
+      say('It holds hidden or control characters, removed', TONE.bad)
+      say('above, so it is not accepted here. Read and', TONE.bad)
+      say(`accept it in a terminal: ${terminal ?? ''}`, TONE.bad)
     } else if (blocked) {
       say('Claude Code refuses to accept it from this session:', TONE.bad)
       say('accept it in /plugin, its details, or run this', TONE.bad)
@@ -343,7 +348,7 @@ export const Review = (
   how: ReviewHow = { refused: false },
 ): DrawnReview => {
   const { Box, Text } = v.el
-  const lines = reviewLines(v, review, rows, how)
+  const lines = reviewLines(v, review, rows, how, window.columns)
   const pinned = lines.slice(0, PINNED)
   const rest = lines.slice(PINNED)
   const heights = rest.map(line => wrappedRows([line.text], window.columns))

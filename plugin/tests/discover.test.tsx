@@ -155,14 +155,16 @@ const reviewState = (declared: { text: string; sha256: string; truncated?: boole
   },
 })
 
-test('a declared command with hidden characters says so; one too long, or refused here, goes to a terminal', async ($, on) => {
+test('a declared command with hidden characters is accepted in a terminal, not here', async ($, on) => {
+  // What the review shows is not what would run: sanitising removed a character.
   const hidden = `rm -rf /tmp/x${String.fromCharCode(0x202e)}harmless`
   const h = host(on, { state: reviewState({ text: hidden, sha256: SHA }) })
   await $.session.start(START)
   for (const surface of SURFACES) {
     const ui = await mountPane($, surface, PANE(64, 40))
     expect(await ui.find({ type: 'Text', text: /hidden or control characters/ })).toBeDefined()
-    expect((await ui.find({ key: 'act:confirm' }))?.props.label).toBe('run it and install')
+    expect(await ui.find({ key: 'act:confirm' })).toBeUndefined()
+    expect(await ui.find({ key: 'act:copy' })).toBeDefined()
     await ui.unmount()
   }
   expect(h.read('review')).toMatchObject({ action: 'install' })

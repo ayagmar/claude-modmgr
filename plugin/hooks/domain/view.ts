@@ -518,6 +518,19 @@ export const lineWindow = (
 }
 
 /**
+ * `text` in rows of `width` characters, every one kept and in order: a command
+ * read row by row, where a wrapped Text would move whole words and a window
+ * could only show the line whole or not at all.
+ */
+export const cellRows = (text: string, width: number): string[] => {
+  const chars = [...text]
+  if (chars.length === 0) return ['']
+  const rows: string[] = []
+  for (let at = 0; at < chars.length; at += width) rows.push(chars.slice(at, at + width).join(''))
+  return rows
+}
+
+/**
  * Rows `texts` wrap to at `columns`, each at least one (a wrapped Text's
  * height): words move whole to the next row, as the terminal wraps them, and
  * a word longer than the row is cut across rows.

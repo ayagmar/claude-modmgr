@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
-import { drawPane } from '../../plugin/hooks/ui/Pane.tsx'
+import { drawPane, reviewEnd } from '../../plugin/hooks/ui/Pane.tsx'
 import { runs } from '../domain/fixtures/cli-runs.ts'
 import { fixtureCli, markMods } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
@@ -105,5 +105,30 @@ describe('a tab with nothing to select', () => {
     )
     expect(lines.join('\n')).not.toMatch(/Select a mod/)
     expect(lines.some(line => line.includes('│'))).toBe(false)
+  })
+})
+
+describe('a review taller than the pane', () => {
+  // What is drawn, not what is in the tree: the pane clips what doesn't fit.
+  it('scrolls a declared command one line long row by row, to its last character', async () => {
+    const { w, act, draw } = await setup()
+    w.state.values.review = {
+      action: 'install',
+      targets: [{ id: 'cmdmod@cmdmkt', op: 'install', scope: 'user' }],
+      notable: [],
+      changesRepoFile: false,
+      declaredCommand: { text: `printf '%s' ${'a'.repeat(850)}; echo Z`, sha256: 'f'.repeat(64) },
+    }
+    w.state.values.view = { ...w.state.values.view, stack: ['review'] }
+    let frame = await draw(64, 12)
+    expect(frame.some(line => line.includes('run it and install'))).toBe(true)
+    let seen = false
+    for (let step = 0; step < 60 && !seen; step += 1) {
+      await act.scroll(1, reviewEnd())
+      frame = await draw(64, 12)
+      // The command's last character: no other line of the frame ends in Z.
+      seen = frame.some(line => line.trimEnd().endsWith('Z'))
+    }
+    expect(seen).toBe(true)
   })
 })
