@@ -232,6 +232,26 @@ test('from 80 body columns the detail sits beside the list with its keys and fol
   }
 })
 
+test('a desktop click on a row beside the detail selects it', async ($, on) => {
+  const h = host(on)
+  await $.session.start(START)
+  await h.clock.advance(1)
+  const ui = await $.ui.mount({
+    plugin: 'modmgr',
+    surface: 'desktop',
+    component: 'Pane',
+    requestId: 'modmgr',
+    props: PANE(120, 30),
+  })
+  // The terminal's ring selects as it lands; a click raises no focus first.
+  expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeUndefined()
+  await ui.press({ key: `row:${TURN_BAND}` })
+  await h.clock.advance(1)
+  await ui.redraw()
+  expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('help is generated from the keymap; the job log lists what ran', async ($, on) => {
   const h = host(on)
   await $.session.start(START)

@@ -68,7 +68,15 @@ const devButton = (
       plain
       label={sanitize(row.name, { max: how.max })}
       {...(how.focus ? { autoFocus: true as const } : {})}
-      onPress={() => (how.beside ? v.act.toDetail() : v.act.openDev(row.key))}
+      // Beside the detail: the terminal's ring already selected the row, so a
+      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
+      onPress={press =>
+        !how.beside
+          ? v.act.openDev(row.key)
+          : press.surface === 'terminal'
+            ? v.act.toDetail()
+            : v.act.focusDev(row.key)
+      }
     />
   )
 }

@@ -53,7 +53,15 @@ const rowButton = (
       plain
       label={sanitize(row.name, { max: how.max })}
       {...(how.focus ? { autoFocus: true as const } : {})}
-      onPress={() => (how.beside ? v.act.toDetail() : v.act.open(row.id))}
+      // Beside the detail: the terminal's ring already selected the row, so a
+      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
+      onPress={press =>
+        !how.beside
+          ? v.act.open(row.id)
+          : press.surface === 'terminal'
+            ? v.act.toDetail()
+            : v.act.focusRow(row.id)
+      }
     />
   )
 }

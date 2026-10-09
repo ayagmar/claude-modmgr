@@ -44,7 +44,15 @@ const foundButton = (
       plain
       label={sanitize(how.label, { max: how.max })}
       {...(how.focus ? { autoFocus: true as const } : {})}
-      onPress={() => (how.beside ? v.act.toDetail() : v.act.openFound(row.id))}
+      // Beside the detail: the terminal's ring already selected the row, so a
+      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
+      onPress={press =>
+        !how.beside
+          ? v.act.openFound(row.id)
+          : press.surface === 'terminal'
+            ? v.act.toDetail()
+            : v.act.focusFound(row.id)
+      }
     />
   )
 }
