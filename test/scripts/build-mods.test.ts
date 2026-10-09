@@ -494,6 +494,35 @@ describe('buildMods', () => {
     expect(await buildMods(empty.built)).toEqual({ refused: 'no mods found: nothing written' })
   })
 
+  it('publishes one copy of a plugin copied across repositories, and no mod validate refuses', async () => {
+    const caps = { events: ['ui.render'], calls: ['ui.status'] }
+    const { built, logs } = deps({
+      seeds: 'author/band\ncopier/dotfiles\nother/band\nbroken/mod\nbare/one\nbare/two\n',
+      meta: { 'author/band': { stargazerCount: 40 } },
+      inspect: repo => {
+        if (repo === 'broken/mod') return [found(repo, { check: 'failed' }), found('ok/x')]
+        if (repo.startsWith('bare/')) return [found(repo, { name: 'same' })]
+        return [
+          found(repo, {
+            name: 'band',
+            ...caps,
+            ...(repo === 'other/band' ? { calls: ['http.fetch'] } : {}),
+          }),
+        ]
+      },
+    })
+    const result = await buildMods(built)
+    const parsed = 'text' in result ? parseCommunity(result.text) : undefined
+    expect(parsed?.ok && parsed.value.mods.map(mod => `${mod.repo} ${mod.name}`).sort()).toEqual([
+      'author/band band',
+      'bare/one same',
+      'bare/two same',
+      'ok/x x',
+      'other/band band',
+    ])
+    expect(logs.join('\n')).toMatch(/published 5: 1 failing validate and 1 copies left out/)
+  })
+
   it('refuses an index where most mods fail validate, as when validate itself broke', async () => {
     const { built } = deps({
       seeds: 'a/one\nb/two\nc/three\n',

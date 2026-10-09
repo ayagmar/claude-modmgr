@@ -22,6 +22,7 @@ import {
   COMMUNITY_MAX_BYTES,
   COMMUNITY_URL,
   type CommunityMod,
+  communityKey,
   communityText,
   isRepo,
   parseCommunity,
@@ -126,6 +127,31 @@ const pool = async <T>(items: readonly T[], limit: number, work: (item: T) => Pr
   await Promise.all(Array.from({ length: limit }, worker))
 }
 
+/**
+ * One mod per plugin copied across repositories: the same name hooking and
+ * calling the same things is the same mod, and the most starred copy (its
+ * author's, as a rule) is the one kept. GitHub doesn't mark a copied folder as
+ * a fork. A mod whose validate found nothing to compare is never merged.
+ */
+export const withoutCopies = (mods: readonly CommunityMod[]): CommunityMod[] => {
+  const best = new Map<string, CommunityMod>()
+  const kept: CommunityMod[] = []
+  for (const mod of mods) {
+    if (mod.events.length === 0 && mod.calls.length === 0) {
+      kept.push(mod)
+      continue
+    }
+    const print = JSON.stringify([mod.name, mod.events, mod.calls, mod.envReads])
+    const held = best.get(print)
+    const wins =
+      held === undefined ||
+      mod.stars > held.stars ||
+      (mod.stars === held.stars && communityKey(mod) < communityKey(held))
+    if (wins) best.set(print, mod)
+  }
+  return [...kept, ...best.values()]
+}
+
 export const buildMods = async (deps: ModsDeps): Promise<Built> => {
   const started = deps.now()
   const previousText = await deps.fetchText(COMMUNITY_URL)
@@ -221,14 +247,18 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
     )
   })
 
-  const text = communityText(deps.now(), mods)
   const checks: Record<string, number> = {}
   for (const mod of mods) checks[mod.check] = (checks[mod.check] ?? 0) + 1
+  // What a client can use: a mod validate refuses won't load, and a copy adds nothing.
+  const working = mods.filter(mod => mod.check !== 'failed')
+  const published = withoutCopies(working)
+  const text = communityText(deps.now(), published)
   deps.log(
     [
       `candidates ${candidates.size} (seeds ${seeds.length}, last index ${new Set((previous?.mods ?? []).map(m => key(m.repo))).size}), public ${repos.size}`,
       `mods ${mods.length} in ${new Set(mods.map(mod => key(mod.repo))).size} repositories; ${mods.filter(mod => mod.market).length} installable by marketplace; unread ${unread}`,
       `checks ${JSON.stringify(checks)}`,
+      `published ${published.length}: ${mods.length - working.length} failing validate and ${working.length - published.length} copies left out`,
       `search requests ${searcher.requests()}, ${((deps.now() - started) / 1000).toFixed(0)} s`,
       `size ${text.length} B (${gzipSync(text).length} B gzipped)`,
     ].join('\n'),
@@ -238,8 +268,8 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
     return { refused: `${checks.failed} of ${mods.length} mods fail validate: nothing written` }
   }
   const before = previous?.mods.length ?? 0
-  if (mods.length < before * (1 - MAX_DROP)) {
-    return { refused: `${mods.length} mods against ${before} last time: nothing written` }
+  if (published.length < before * (1 - MAX_DROP)) {
+    return { refused: `${published.length} mods against ${before} last time: nothing written` }
   }
   // What clients would refuse is never published.
   const check = parseCommunity(text)
