@@ -86,6 +86,7 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
         pane => pane.id === PANE_ID && pane.isPlaced,
       )
       if (!how.fresh || shown) await rt.showTab((await ports.state.read('view')).tab)
+      await rt.chrome.retakeKeys()
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

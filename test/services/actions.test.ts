@@ -126,6 +126,30 @@ describe('toggle → review → confirm → reload', () => {
     expect(w.state.values.queue.jobs.map(job => job.state)).toEqual(['ok', 'ok'])
   })
 
+  it("gives the pane back the keys its reload took, and doesn't take the prompt's", async () => {
+    for (const held of [true, false]) {
+      const { w, act, drain } = await setup()
+      if (!held) {
+        w.ui.focused = false
+        w.ui.keysToPrompt()
+      }
+      // The engine's reload hands the keys to the prompt.
+      w.command.reloadAnswer = async () => {
+        w.ui.keysToPrompt()
+        return 'Reloaded: 1 plugin'
+      }
+      await act.toggle(TURN_BAND)
+      await act.apply()
+      await act.confirm()
+      w.ui.opens.length = 0
+      await drain()
+      await w.clock.advance(0)
+      expect(w.command.reloads).toBe(1)
+      expect(w.ui.opens.some(open => open.focus === true)).toBe(held)
+      expect(w.state.values.view.keysAfterReload).toBeUndefined()
+    }
+  })
+
   it('a mixed mod turned off says what it also turns off', async () => {
     const { w, rt } = await setup()
     // No fixture mod carries skills: the registry's facts say this one does.

@@ -160,6 +160,8 @@ export type View = {
   notice?: string
   /** The dock's columns `/mods` asked for, which every later open asks again. */
   dock?: number
+  /** The pane held the keys when modmgr reloaded the plugins: the module after the reload gives them back. */
+  keysAfterReload?: true
 }
 
 /** What a review would do to one mod. */

@@ -34,7 +34,7 @@ import type { ModmgrError } from '../domain/result.ts'
 import { sanitize, tailLines } from '../domain/sanitize.ts'
 import type { HistoryEntry } from '../domain/store-schema.ts'
 import { parseValidateReport } from '../domain/validate-report.ts'
-import { doneText, isWork } from '../domain/view.ts'
+import { doneText, isWork, PANE_ID } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, runOp } from './cli.ts'
 import type { StoreService } from './store.ts'
@@ -254,6 +254,9 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
 
   const reload = async (): Promise<Outcome> => {
     try {
+      // A reload takes the keys from the pane: the module it starts gives them back.
+      const held = (await ports.ui.panes()).some(pane => pane.id === PANE_ID && pane.isFocused)
+      if (held) await ports.state.update('view', view => ({ ...view, keysAfterReload: true }))
       const text = await ports.command.reloadPlugins()
       // A session the desktop app drives refuses a plugin's reload in words
       // alone ("/reload-plugins isn't available over a remote connection"),

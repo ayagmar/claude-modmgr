@@ -14,6 +14,8 @@ export type Chrome = {
   schedule(): void
   /** Syncs now. */
   sync(): Promise<void>
+  /** Gives the pane back the keys a reload modmgr ran took from it. */
+  retakeKeys(): Promise<void>
 }
 
 export const createChrome = (
@@ -84,5 +86,27 @@ export const createChrome = (
       })
     },
     sync,
+    async retakeKeys() {
+      const view = await ports.state.read('view')
+      if (view.keysAfterReload !== true) return
+      await ports.state.update('view', ({ keysAfterReload: _, ...rest }) => rest)
+      const pane = (await ports.ui.panes()).find(item => item.id === PANE_ID)
+      if (pane?.isPlaced !== true || pane.isFocused) return
+      const [attention, queue, mods] = await Promise.all([
+        ports.state.read('attention'),
+        ports.state.read('queue'),
+        ports.state.read('mods'),
+      ])
+      const title = titleOf(summaryOf({ attention, queue, mods }))
+      await ports.ui.open(
+        paneOpen({
+          focus: true,
+          hold: holdsToasts(queue, view),
+          mods: mods.length,
+          title,
+          dock: view.dock,
+        }),
+      )
+    },
   }
 }

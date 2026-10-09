@@ -119,6 +119,8 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     if (job.kind === 'update' && job.unchanged === true && job.target !== undefined) {
       updater.forget(job.target)
     }
+    // A reload that left this module running (or failed) gives the keys back here.
+    if (job.kind === 'reload') void chrome.retakeKeys()
   }
   const runner = createRunner(ports, {
     owner,
