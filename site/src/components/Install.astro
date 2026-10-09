@@ -95,7 +95,15 @@ const INSTALL_HTML = flagParts(INSTALL)
     }
   }
 
-  /* The narrowest phones: a flag may leave its value for the next line, at the space. */
+  /* Where a flag and its value no longer fit on a line together, the flag may
+     leave its value for the next line, at the space: the full line, with its
+     labelled button, on phones; the compact one on the narrowest. */
+  @media (max-width: 26rem) {
+    .install:not(.compact) :global(.keep) {
+      white-space: normal;
+    }
+  }
+
   @media (max-width: 23.5rem) {
     .compact :global(.keep) {
       white-space: normal;
