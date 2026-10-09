@@ -38,6 +38,7 @@ export const FILTERS = [
 /** The sort menu's words for search.ts's SORTS. */
 export const SORT_LABEL = {
   relevance: 'Best match',
+  popular: 'Popular',
   stars: 'Most stars',
   recent: 'Recently pushed',
   name: 'Name',

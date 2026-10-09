@@ -74,17 +74,44 @@ export type Index = {
   /** Lowercased `name`, then the rest a query scans, per mod. */
   readonly names: readonly string[]
   readonly haystacks: readonly string[]
+  /** Each mod's turn within its repository (0 for its first, in name order). */
+  readonly turns: readonly number[]
 }
 
-export const indexOf = (mods: readonly Mod[]): Index => ({
-  mods,
-  names: mods.map(mod => mod.name.toLowerCase()),
-  haystacks: mods.map(mod =>
-    `${mod.name} ${mod.description} ${mod.repo} ${mod.path}`.toLowerCase(),
-  ),
-})
+/**
+ * A repository's mods share its stars, so one that ships dozens would fill the
+ * top of the popular order on its own: each repository gives one mod a turn.
+ * Discover orders community mods the same way (plugin/hooks/domain/catalog.ts).
+ */
+const turnsOf = (mods: readonly Mod[], names: readonly string[]): number[] => {
+  const byName = mods
+    .map((_, i) => i)
+    .sort((a, b) => (names[a] as string).localeCompare(names[b] as string) || a - b)
+  const seen = new Map<string, number>()
+  const turns = mods.map(() => 0)
+  for (const i of byName) {
+    const repo = (mods[i] as Mod).repo.toLowerCase()
+    const turn = seen.get(repo) ?? 0
+    turns[i] = turn
+    seen.set(repo, turn + 1)
+  }
+  return turns
+}
 
-export const SORTS = ['relevance', 'stars', 'recent', 'name'] as const
+export const indexOf = (mods: readonly Mod[]): Index => {
+  const names = mods.map(mod => mod.name.toLowerCase())
+  return {
+    mods,
+    names,
+    haystacks: mods.map(mod =>
+      `${mod.name} ${mod.description} ${mod.repo} ${mod.path}`.toLowerCase(),
+    ),
+    turns: turnsOf(mods, names),
+  }
+}
+
+/** `relevance` with no words is `popular`: by stars, one mod per repository first. */
+export const SORTS = ['relevance', 'popular', 'stars', 'recent', 'name'] as const
 export type Sort = (typeof SORTS)[number]
 
 export type Query = {
@@ -132,11 +159,15 @@ export const search = (index: Index, query: Query): number[] => {
   }
   const mods = index.mods
   const byStars = (a: number, b: number) => (mods[b] as Mod).stars - (mods[a] as Mod).stars || a - b
-  const sort = query.sort === 'relevance' && terms.length === 0 ? 'stars' : query.sort
+  const sort = query.sort === 'relevance' && terms.length === 0 ? 'popular' : query.sort
   if (sort === 'relevance') {
     const first = terms[0] ?? ''
     const ranks = new Map(matched.map(i => [i, rankOf(index.names[i] as string, first)]))
     return matched.sort((a, b) => (ranks.get(a) ?? 3) - (ranks.get(b) ?? 3) || byStars(a, b))
+  }
+  if (sort === 'popular') {
+    const turns = index.turns
+    return matched.sort((a, b) => (turns[a] as number) - (turns[b] as number) || byStars(a, b))
   }
   if (sort === 'stars') return matched.sort(byStars)
   if (sort === 'recent') {

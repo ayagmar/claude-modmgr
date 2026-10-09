@@ -81,6 +81,22 @@ describe('search', () => {
     ])
   })
 
+  it('takes one mod per repository first in the popular order, and plain stars when asked', () => {
+    const shared = indexOf(
+      [
+        row('b', { repo: 'big/mods', stars: 90 }),
+        row('a', { repo: 'big/mods', stars: 90 }),
+        row('c', { repo: 'big/mods', stars: 90 }),
+        row('solo', { repo: 'small/solo', stars: 4 }),
+      ].map(toMod),
+    )
+    const order = (sort: 'popular' | 'stars' | 'relevance') =>
+      search(shared, { text: '', sort }).map(i => shared.mods[i]?.name)
+    expect(order('popular')).toEqual(['a', 'solo', 'b', 'c'])
+    expect(order('relevance')).toEqual(order('popular'))
+    expect(order('stars')).toEqual(['b', 'a', 'c', 'solo'])
+  })
+
   it('filters by what a mod reaches, how it installs and whether it validates', () => {
     const query = { text: '', sort: 'stars' as const }
     expect(
