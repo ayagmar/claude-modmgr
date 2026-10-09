@@ -90,15 +90,10 @@ export const FoundRow = (
           <Text dimColor>{installs}</Text>
         </Box>
       </Box>
-      {/* Laid out as the name's row is, so it starts where the name does on a
-          desktop too, whose gap is not a padding cell. */}
-      <Box flexDirection="row" gap={1} height={1} overflow="hidden">
-        {Pointer(v, false)}
-        <Box flexShrink={1}>
-          <Text dimColor wrap="truncate-end">
-            {sanitize(about, { max: 200 })}
-          </Text>
-        </Box>
+      <Box paddingLeft={2} height={1} overflow="hidden">
+        <Text dimColor wrap="truncate-end">
+          {sanitize(about, { max: 200 })}
+        </Text>
       </Box>
     </Box>
   )
