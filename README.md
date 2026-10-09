@@ -8,7 +8,10 @@ and what each one can do, and lets you find, install, switch off, update or remo
 /plugin install modmgr --marketplace ayagmar/claude-mods
 ```
 
-Then type `/mods`. Needs Claude Code 2.1.292 or newer, with the `claude` CLI on your path.
+Then type `/mods`. Needs a session on Claude Code 2.1.284 or newer, and the `claude` CLI on your path at 2.1.292 or
+newer (modmgr runs it to install, update and switch mods). The desktop app runs its own pinned Claude Code for its
+sessions, separate from the CLI on your path: when it is older than 2.1.284, modmgr doesn't load there until the app
+moves on to a newer one.
 
 ## What you get
 

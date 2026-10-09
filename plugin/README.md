@@ -34,6 +34,7 @@ change reviewed first and undoable.
 
 The full threat model is in [docs/SECURITY.md](https://github.com/ayagmar/claude-modmgr/blob/main/docs/SECURITY.md).
 
-Needs Claude Code 2.1.292 or newer. MIT licensed. Source, issues and the landing page:
+Needs a session on Claude Code 2.1.284 or newer (the desktop app runs its own pinned one) and the `claude` CLI on
+your path at 2.1.292 or newer. MIT licensed. Source, issues and the landing page:
 [github.com/ayagmar/claude-modmgr](https://github.com/ayagmar/claude-modmgr) ·
 [ayagmar.github.io/claude-modmgr](https://ayagmar.github.io/claude-modmgr/).
