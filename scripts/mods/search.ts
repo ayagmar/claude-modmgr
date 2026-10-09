@@ -1,9 +1,11 @@
 // Finds repositories that may hold mods through GitHub's search API: code
 // search for the files a mod has, repository search for the topics and words
-// mod authors use. GitHub answers at most 1,000 results per query, so a query
-// past that is split (code by file size, repositories by push date) until each
-// part fits. Requests go one at a time with a pause, and a rate limit waits for
-// the time GitHub names. The method follows awesome-claude-code-mods'
+// mod authors use. GitHub answers at most 1,000 results per query. A recent
+// repository query past that is split by push date until each part fits; a code
+// query reads its first 1,000 only, since code search allows an Actions token
+// few requests, and a repository found once stays a candidate through the
+// published index. Requests go one at a time with a pause, and a rate limit
+// waits for the time GitHub names. The method follows awesome-claude-code-mods'
 // (github.com/karanb192/awesome-claude-code-mods, CC0).
 
 export type SearchKind = 'code' | 'repositories'
@@ -47,10 +49,8 @@ export const RECENT_QUERIES = [
 
 const PER_PAGE = 100
 const CAP = 1000
-/** GitHub doesn't index code files larger than this. */
-const MAX_FILE_BYTES = 384 * 1024
-/** Search allows 10 code and 30 repository requests a minute. */
-export const PAUSE_MS: Readonly<Record<SearchKind, number>> = { code: 6500, repositories: 2200 }
+/** Search allows 10 code and 30 repository requests a minute, and fewer in bursts. */
+export const PAUSE_MS: Readonly<Record<SearchKind, number>> = { code: 10_000, repositories: 2200 }
 const ATTEMPTS = 5
 /** What all rate-limit waits of one build may add up to. */
 const WAIT_BUDGET_MS = 20 * 60 * 1000
@@ -97,15 +97,6 @@ export const createSearcher = (deps: SearchDeps) => {
     return repos
   }
 
-  const bySize = async (query: string, lo: number, hi: number): Promise<string[]> => {
-    const scoped = `${query} size:${lo}..${hi}`
-    const found = await whole('code', scoped)
-    if (found !== undefined) return found
-    if (lo === hi) throw new Error(`code search "${scoped}" is still past ${CAP} results`)
-    const mid = Math.floor((lo + hi) / 2)
-    return [...(await bySize(query, lo, mid)), ...(await bySize(query, mid + 1, hi))]
-  }
-
   const byPush = async (query: string, from: number, to: number): Promise<string[]> => {
     const scoped = `${query} pushed:${iso(from)}..${iso(to)}`
     const found = await whole('repositories', scoped)
@@ -116,9 +107,13 @@ export const createSearcher = (deps: SearchDeps) => {
   }
 
   return {
-    /** Repositories with a file a code query matches. */
+    /** Repositories with a file a code query matches, among its first 1,000 results. */
     async code(query: string): Promise<string[]> {
-      return (await whole('code', query)) ?? bySize(query, 0, MAX_FILE_BYTES - 1)
+      const first = await page('code', query, 1)
+      const repos = [...first.repos]
+      const pages = Math.ceil(Math.min(first.total, CAP) / PER_PAGE)
+      for (let n = 2; n <= pages; n += 1) repos.push(...(await page('code', query, n)).repos)
+      return repos
     },
     /** Repositories a repository query matches, pushed between `from` and `to` when given. */
     async repositories(query: string, window?: { from: number; to: number }): Promise<string[]> {

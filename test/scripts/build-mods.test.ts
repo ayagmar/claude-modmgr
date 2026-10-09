@@ -281,14 +281,10 @@ describe('the searcher', () => {
     expect(sleeps).toEqual([PAUSE_MS.code])
   })
 
-  it('splits a code query past the cap by file size', async () => {
-    const { search, asked } = searcher((_k, query) => {
-      if (!query.includes('size:')) return page(1500, [])
-      if (query.endsWith('size:0..393215')) return page(1500, [])
-      return page(1, [query.endsWith('size:0..196607') ? 'a/small' : 'b/large'])
-    })
-    expect(await search.code('q')).toEqual(['a/small', 'b/large'])
-    expect(asked.at(-1)).toBe('code q size:196608..393215 #1')
+  it('reads a code query past the cap only to its first 1,000 results: ten requests', async () => {
+    const { search, asked } = searcher((_k, _q, n) => page(1776, [`a/r${n}`]))
+    expect(await search.code('q')).toHaveLength(10)
+    expect(asked.at(-1)).toBe('code q #10')
   })
 
   it('splits a repository query by push date, and refuses an unsplit one past the cap', async () => {
@@ -305,8 +301,6 @@ describe('the searcher', () => {
     await expect(tight.search.repositories('x', { from: 0, to: 30_000 })).rejects.toThrow(
       /still past/,
     )
-    const flat = searcher(() => page(5000, []))
-    await expect(flat.search.code('x')).rejects.toThrow(/still past 1000/)
   })
 
   it('waits out a rate limit, retries an incomplete page, and gives up on other errors', async () => {
