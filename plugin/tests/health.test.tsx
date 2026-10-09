@@ -67,10 +67,8 @@ test('Health’s reload fix queues a reload, and its own state says the cache an
   await ui.press({ key: 'act:tab.health' })
   await settle(h)
   await ui.redraw()
-  expect(
-    await ui.find({ type: 'Button', text: /^updates checked never, every 6 hours$/ }),
-  ).toBeDefined()
-  expect(await ui.find({ type: 'Button', text: /^cache: / })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: /^never checked · every 6 h$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Cache$/ })).toBeDefined()
   // The ring on the item selects it; beside the list, Enter on the row moves
   // onto the detail's fix, and the fix runs it.
   await $.ui.focus({
