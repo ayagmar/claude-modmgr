@@ -99,6 +99,7 @@ spacing:
   section: "clamp(4rem, 2.5rem + 5vw, 7.5rem)"
   wrap: "68rem"
   results: "60rem"
+  board: "76rem"
 components:
   button-quiet:
     backgroundColor: "transparent"
@@ -144,6 +145,24 @@ components:
     backgroundColor: "{colors.hover}"
   result-row-open:
     backgroundColor: "{colors.raised}"
+  result-row-selected:
+    backgroundColor: "{colors.field}"
+  datasheet:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.lg}"
+    padding: "1.125rem 1.125rem 1rem"
+    width: "clamp(21.5rem, 4rem + 22vw, 23rem)"
+  datasheet-chip:
+    backgroundColor: "{colors.line-strong}"
+    rounded: "{rounded.mark}"
+    width: "2rem"
+  datasheet-pin-on:
+    backgroundColor: "{colors.text}"
+    textColor: "{colors.text}"
+  datasheet-pin-off:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-3}"
   badge:
     backgroundColor: "{colors.raised}"
     textColor: "{colors.text-2}"
@@ -217,13 +236,13 @@ The page is a search tool before it is a page. A near-black ground, two or three
 
 Density is a dev-tool list's, not a marketing page's: rows of about 70px, 13px meta type, tabular numbers, actions that stay dim until the row is pointed at or focused. Depth comes from surface steps and hairlines, never from shadow. Light mode, from `prefers-color-scheme`, is an equal re-tune of the same tokens, not an afterthought; the terminal window stays dark in both themes because the real terminal is dark.
 
-The keyboard is a first-class path: `/` and Ctrl K (⌘K on Apple platforms) focus search, arrow keys move between rows, Enter opens one inline, `[` and `]` turn the page. Without script the page still paints the 40 most-starred mods, the rows still open (native `details`), the dialog stepper still switches (CSS radio group), and the nav's install button becomes a link to the install section.
+The keyboard is a first-class path: `/` and Ctrl K (⌘K on Apple platforms) focus search, arrow keys move between rows, Enter opens one inline (on a wide screen, where the datasheet already shows the focused row, Enter copies its install line; Escape inside the datasheet returns to the row), `[` and `]` turn the page. Without script the page still paints the first 40 mods, the rows still open (native `details`), the datasheet shows the first of them and steps aside (keeping its space) while another row is open inline, the dialog stepper still switches (CSS radio group), and the nav's install button becomes a link to the install section.
 
 **Key Characteristics:**
 - Near-black ground with tonal surface steps and 1px hairlines; no ambient shadow.
 - One accent, Claude orange, for focus, matches, selected state and the copy confirmation.
 - Archivo Variable at normal width for everything read; JetBrains Mono for repos, commands, keys and the terminal.
-- Search-first first viewport, dense results list, inline expansion.
+- Search-first first viewport, dense results list; a datasheet beside it on a wide screen, inline expansion on a narrow one.
 - Motion is short, eased on one curve, transform and opacity only, and gated on reduced-motion preference.
 
 ## Colors
@@ -239,7 +258,7 @@ A cool near-black neutral ramp carrying one warm accent; the light theme swaps t
 ### Neutral
 - **Night Ground** (`bg` / `bg-light`): the page.
 - **Raised Slate** (`raised` / `raised-light`): the open result row, badges, inline code, `kbd`, the stepper track, and the full-width honesty band.
-- **Field Slate** (`field` / `field-light`): anything you type into or that holds a command: search field, sort select, command block, install line, current page, active step tab. In light mode it is pure white, the lightest surface.
+- **Field Slate** (`field` / `field-light`): anything you type into or that holds a command: search field, sort select, command block, install line, current page, active step tab; also the selected row beside the datasheet, one step above a hovered row. In light mode it is pure white, the lightest surface.
 - **Hover Slate** (`hover` / `hover-light`): pointer and keyboard hover on rows, chips, quiet buttons and page links.
 - **Hairline** (`line` / `line-light`): section borders, nav and footer borders, open-row inset, badge borders, quiet actions at rest.
 - **Strong Hairline** (`line-strong` / `line-strong-light`): borders of interactive controls (buttons, chips, select, field, tags, kbd), dividers between honesty items, link underlines.
@@ -281,15 +300,15 @@ A cool near-black neutral ramp carrying one warm accent; the light theme swaps t
 
 ## Layout
 
-One centred column: `min(100% - 2rem, 68rem)`, narrowed to 60rem for the results so rows stay scannable. The hero, the search (max 46rem) and the install section are centred; the results, the dialog section and the honesty block are left-aligned with headings at max 40rem.
+One centred column: `min(100% - 2rem, 68rem)`, narrowed to 60rem for the results so rows stay scannable. From 68.75rem the results widen to a 76rem board of two columns: the list (`minmax(0, 1fr)`) and the datasheet (`clamp(21.5rem, 4rem + 22vw, 23rem)`), 1.75rem apart. The hero, the search (max 46rem) and the install section are centred; the results, the dialog section and the honesty block are left-aligned with headings at max 40rem.
 
 Rhythm: the nav is 3.5rem tall; controls are 2rem tall (buttons, chips, select, page links, step tabs) except the 3.5rem search field and the 2.25rem install copy button. Rows and the results head share a 0.75rem horizontal inset so text aligns from count to description. The three lower sections share `clamp(4rem, 2.5rem + 5vw, 7.5rem)` block padding; the honesty block becomes a two-column grid (`1fr 1.5fr`) from 56rem. The inline detail panel is a two-column grid (`1fr 1.35fr`) that collapses to one column on phones.
 
-Breakpoints observed: 40rem (phone: nav install shrinks to an icon, search hints hide, row head wraps with repo and badges on their own lines, description clamps to two lines, Copy becomes icon-only, the dialog frame scrolls sideways and opens on its detail column), 23.5rem (wordmark text hides), 56rem (honesty grid), 64rem (keyboard hint row appears).
+Breakpoints observed: 68.75rem (the results board and its datasheet; rows drop their Copy and GitHub actions and no longer open inline), 40rem (phone: nav install shrinks to an icon, search hints hide, row head wraps with repo and badges on their own lines, description clamps to two lines, Copy becomes icon-only, the dialog frame scrolls sideways and opens on its detail column), 23.5rem (wordmark text hides), 56rem (honesty grid), 64rem (keyboard hint row appears).
 
 ## Elevation & Depth
 
-Flat. Depth is carried by tonal surface steps (ground, raised, field, hover) and 1px hairlines, including inset hairlines drawn with `box-shadow: inset 0 0 0 1px` on the open row, the focused row (accent) and the current page. Only two real lifts exist, both state responses.
+Flat. Depth is carried by tonal surface steps (ground, raised, field, hover) and 1px hairlines, including inset hairlines drawn with `box-shadow: inset 0 0 0 1px` on the open row, the selected row (strong hairline), the focused row (accent) and the current page. Only two real lifts exist, both state responses.
 
 ### Shadow Vocabulary
 - **Step lift** (`box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px rgb(0 0 0 / 0.2)`): the active tab of the dialog stepper.
@@ -310,7 +329,7 @@ Quiet and outlined; the accent appears only once the action has happened.
 - **Default:** secondary-text label at 0.8125rem/550 with a 1em stroked SVG icon; icon-only variants are 2rem square.
 - **Hover / Focus:** text brightens and the hover surface fills; 2px accent outline at 2px offset on focus; presses scale to 0.96.
 - **Copied:** for 1.6s the button fills accent with accent-ink text and its label reads "Copied" ("Select it" if the clipboard refuses), announced through a polite status region.
-- **Row actions:** Copy and GitHub sit at the row's top right, dimmed (tertiary text, hairline border) at rest and brought up on row hover, focus or open.
+- **Row actions:** below 68.75rem, Copy and GitHub sit at the row's top right (above it they live on the datasheet), dimmed (tertiary text, hairline border) at rest and brought up on row hover, focus or open.
 - **Nav install:** the same quiet button in mono, reading `/plugin install modmgr` and copying the full line; icon-only on phones.
 
 ### Chips
@@ -329,10 +348,18 @@ Slim 3.5rem bar with a bottom hairline: brand mark and lowercase wordmark at 650
 The head carries the live range ("1–40 of N mods", polite live region, tabular), the keyboard hint row from 64rem, and the sort. The pager sits under a hairline: range on the left, Prev, numbered 2rem links with ellipsis gaps and Next on the right; the current page is a field surface with an inset strong hairline, disabled ends fade to 60%.
 
 ### Result rows
-Native `details`/`summary`, one open at a time. The head line holds name, repo in mono (truncates first), Clone or validation tags (outlined), reach badges (raised fill, hairline; the notable badge gets a strong hairline, full text and a diamond icon) pushed right, then stars with a star icon. The description runs the full width below on one truncated line, so every row cuts at the same place. Hover and keyboard focus fill the hover surface; focus adds an inset accent hairline; open fills raised with an inset hairline.
+Native `details`/`summary`, one open at a time. The head line holds name (one line from 40rem, with an ellipsis only when the row can't hold it), repo in mono (takes what is left and truncates, keeping at least 6rem), Clone or validation tags (outlined), then reach badges (raised fill, hairline; the notable badge gets a strong hairline, full text and a diamond icon) and stars with a star icon, pushed right as one group. When the line can't hold that group it moves down a line whole, still right-aligned (a few rows at 1440, more at tablet widths); a reach badge is never dropped. The description runs the full width below on one truncated line, so every row cuts at the same place. Hover and keyboard focus fill the hover surface; focus adds an inset accent hairline; open fills raised with an inset hairline. On a wide screen hover drops to the raised surface and the selected row steps up to the field surface with an inset strong hairline, so a resting pointer never reads as a second choice.
 
 ### Inline detail panel
 Opens under the row's head with a 0.24s fade and 4px rise. Left column: "What it can reach" in words, then notable lines each led by a diamond. Right column: the install line in a mono command block, a sentence on what it does, and facts (validation, last push, GitHub link). Labels are 0.75rem/600 tertiary text, sentence case.
+
+### Datasheet
+On a wide screen the selected mod sits beside the list in a sticky panel (`section`, labelled "Selected mod"; its changes go unannounced): raised surface, 1px hairline, 12px radius, 1rem from the viewport top, at least `min(41rem, 100vh - 2rem)` tall so it holds its frame from one mod to the next, scrolling inside itself when the screen is shorter. Selection follows focus and arrow keys, a click or tap, and a mouse resting 120ms on a row (only the pointer moving counts); the panel swaps at once, with no fade, as a detail pane does. It reads top to bottom: the name (1.25rem/650), the repo path in tertiary mono, the description clamped to four lines in a fixed four-line box, then parts split by hairlines.
+- **What it can reach:** the seven reaches as a chip's pins, drawn in CSS: a 2rem package in the strong-hairline tone with a pin-1 notch, pins 1–4 (`REACH_LABEL` order) down its left and 5–7 down its right, each a 0.6rem pad on a lead against the package. A reached pin fills its pad and sets its label in primary text at 550; the rest are hollow pads in tertiary text. Each pin says ": yes" or ": no" to assistive tech.
+- **Notable:** the dialog's lines, each led by a diamond, or "Nothing notable" in tertiary text.
+- **Facts:** a two-column `dl` (Validate, Stars, Last push, Installs) with caption labels and tabular values.
+- **Install:** pinned to the panel's foot (sticky inside its scroll): the command block behind the ember `> ` prompt, with each flag kept with its value when it wraps, the sentence on what it does, then Copy (primary text, carrying an `Enter` key since Enter on a row does the same) and Open on GitHub as quiet buttons.
+Below 68.75rem it is not shown; rows open inline instead.
 
 ### The `/mods` dialog window (signature)
 A segmented stepper (Discover, Review, Installed) over a terminal window. The stepper is a raised track with 7px tabs; the active tab lifts onto the field surface and its numbered disc fills accent. The window is the terminal palette with a 2.25rem title bar (three muted dots, `claude · /mods` centred in mono) and a hairline below. Its frame is real dialog output in a `pre` whose font size fits the frame's columns to the window width (a cell is 0.6em; capped at 1.1rem); glyphs outside the font are pinned to one cell. On phones the frame stays at 0.6rem, scrolls sideways and opens on its detail column. A caption bar under a terminal hairline names the step. Switching steps cross-fades the frame (0.4s) with the caption following 60ms later.

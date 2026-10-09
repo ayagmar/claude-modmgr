@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-08T16:29:35+00:00",
+  "generatedAt": "2026-10-09T01:01:17+00:00",
   "title": "Design System: modmgr",
   "extensions": {
     "colorMeta": {
@@ -671,6 +671,11 @@
         "name": "keys",
         "value": "64rem",
         "purpose": "Keyboard hint row appears in the results head (min-width)."
+      },
+      {
+        "name": "board",
+        "value": "68.75rem",
+        "purpose": "Results widen to a 76rem two-column board with the sticky datasheet; rows drop their actions and stop opening inline (min-width)."
       }
     ],
     "themes": {
@@ -728,6 +733,14 @@
       "css": ".ds-row{border-radius:10px;transition:background-color .12s var(--ease)}.ds-row:hover{background:var(--hover)}.ds-row[open]{background:var(--raised);box-shadow:inset 0 0 0 1px var(--line)}.ds-row summary{display:grid;gap:.2rem;padding:.7rem .75rem;list-style:none;cursor:pointer;border-radius:10px;outline:none}.ds-row summary::-webkit-details-marker{display:none}.ds-row:has(summary:focus-visible){background:var(--hover);box-shadow:inset 0 0 0 1px var(--accent)}.ds-head{display:flex;align-items:center;gap:.6rem;min-width:0}.ds-name{font:600 .9375rem var(--sans);letter-spacing:-.01em;color:var(--text)}.ds-repo{min-width:0;overflow:hidden;font:400 .8125rem var(--mono);color:var(--text-3);white-space:nowrap;text-overflow:ellipsis}.ds-badges{display:flex;gap:.3rem;margin-left:auto}.ds-badge{padding:0 .4rem;font:400 .75rem/1.25rem var(--sans);color:var(--text-2);background:var(--raised);border:1px solid var(--line);border-radius:5px;white-space:nowrap}.ds-notable{color:var(--text);border-color:var(--line-strong)}.ds-stars{min-width:3.25rem;text-align:right;font:400 .8125rem var(--sans);color:var(--text-2);font-variant-numeric:tabular-nums}.ds-desc{overflow:hidden;font:400 .875rem var(--sans);color:var(--text-2);white-space:nowrap;text-overflow:ellipsis}.ds-row[open] .ds-desc{white-space:normal}.ds-detail{padding:.6rem .75rem 1.1rem}.ds-label{margin:0 0 .4rem;font:600 .75rem var(--sans);color:var(--text-3)}.ds-cmd{margin:0;padding:.6rem .75rem;font:400 .8125rem/1.5 var(--mono);color:var(--text);background:var(--field);border:1px solid var(--line-strong);border-radius:8px;white-space:pre-wrap}"
     },
     {
+      "name": "Datasheet",
+      "kind": "custom",
+      "refersTo": "datasheet",
+      "description": "The selected mod beside the results on a wide screen: name, repo, its seven reaches as a chip's pins (filled where it reaches), notable lines, facts, and the install line behind an ember prompt with Copy (Enter on a row does the same) pinned to the panel's foot.",
+      "html": "<section class=\"ds-sheet\" aria-label=\"Selected mod\"><h3 class=\"ds-sheet-name\">turn-band</h3><a class=\"ds-sheet-repo\" href=\"#\">someone/mods/turn-band</a><p class=\"ds-sheet-label\">What it can reach</p><ol class=\"ds-pins\"><li class=\"on\"><span>Your machine</span></li><li><span>Network</span></li><li class=\"on\"><span>Session content</span></li><li><span>What the model sees</span></li><li><span>Tools and turns</span></li><li><span>Other plugins</span></li><li class=\"on\"><span>Display only</span></li></ol><pre class=\"ds-sheet-cmd\"><code>/plugin install turn-band --marketplace someone/mods</code></pre><button class=\"ds-sheet-copy\" type=\"button\">Copy</button></section>",
+      "css": ".ds-sheet{width:23rem;padding:1.125rem 1.125rem 1rem;background:var(--raised);border:1px solid var(--line);border-radius:12px;font:400 1rem/1.55 var(--sans);color:var(--text)}.ds-sheet-name{margin:0;font-size:1.25rem;font-weight:650;letter-spacing:-.02em;line-height:1.2}.ds-sheet-repo{display:block;margin-top:.3rem;font:400 .8125rem var(--mono);color:var(--text-3);text-decoration:none}.ds-sheet-label{margin:.875rem 0 .6rem;padding-top:.875rem;border-top:1px solid var(--line);font-size:.75rem;font-weight:600;color:var(--text-3)}.ds-pins{display:grid;grid-template-columns:minmax(0,1fr) 2rem minmax(0,1fr);grid-template-rows:repeat(4,1.5rem);grid-auto-flow:column;margin:0;padding:0;list-style:none;font-size:.75rem}.ds-pins::before{content:'';grid-column:2;grid-row:1/-1;background:var(--line-strong);border-radius:3px;-webkit-mask:radial-gradient(circle at 50% 0,transparent .32rem,#000 .36rem);mask:radial-gradient(circle at 50% 0,transparent .32rem,#000 .36rem)}.ds-pins li{display:flex;align-items:center;gap:.3rem;min-width:0;color:var(--text-3);white-space:nowrap}.ds-pins li:nth-child(-n+4){grid-column:1;justify-content:flex-end}.ds-pins li:nth-child(n+5){grid-column:3;flex-direction:row-reverse;justify-content:flex-end}.ds-pins li:nth-child(5){grid-row:1}.ds-pins li:nth-child(6){grid-row:2}.ds-pins li:nth-child(7){grid-row:3}.ds-pins li::after{content:'';flex:none;width:.6rem;height:.45rem;border:1px solid var(--text-3);border-radius:1.5px}.ds-pins li.on{color:var(--text);font-weight:550}.ds-pins li.on::after{background:var(--text);border-color:var(--text)}.ds-sheet-cmd{margin:1rem 0 .75rem;padding:.6rem .75rem;font:400 .8125rem/1.5 var(--mono);white-space:pre-wrap;background:var(--field);border:1px solid var(--line-strong);border-radius:8px;font-variant-ligatures:none}.ds-sheet-copy{height:2rem;padding:0 .7rem;font:550 .8125rem var(--sans);color:var(--text);background:transparent;border:1px solid var(--line-strong);border-radius:8px;cursor:pointer}.ds-sheet-copy:hover{background:var(--hover)}.ds-sheet-copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.ds-sheet-cmd::before{content:'> ';color:var(--accent-text)}"
+    },
+    {
       "name": "Pager",
       "kind": "nav",
       "refersTo": "pager-current",
@@ -759,7 +772,7 @@
       "Near-black ground with tonal surface steps and 1px hairlines; no ambient shadow.",
       "One accent, Claude orange, for focus, matches, selected state and the copy confirmation.",
       "Archivo Variable at normal width for everything read; JetBrains Mono for repos, commands, keys and the terminal.",
-      "Search-first first viewport, dense results list, inline expansion.",
+      "Search-first first viewport, dense results list; a datasheet beside it on a wide screen, inline expansion on a narrow one.",
       "Motion is short, eased on one curve, transform and opacity only, and gated on reduced-motion preference."
     ],
     "rules": [
