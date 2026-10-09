@@ -57,7 +57,8 @@ All notable changes to this project are documented here. The format follows
   to run `/reload-plugins`, instead of reporting the changes applied.
 - A review taller than the pane scrolls with the wheel and Page Up/Down, its heading and keys kept, instead of
   cutting off its last lines, where the commands it runs are; a declared command scrolls a row at a time, so a
-  single line longer than the pane is read to its end before it can be accepted.
+  single line longer than the pane is read to its end before it can be accepted. The key list and the first
+  session's welcome scroll the same way in a short pane, the welcome's start key always in view.
 - A declared command holding hidden or control characters is accepted in a terminal, not in the review, which can't
   show it as it is.
 - In Discover the ring stays on the selected row when moving it scrolls the list, instead of landing rows away from

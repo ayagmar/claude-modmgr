@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
-import { drawPane, reviewEnd } from '../../plugin/hooks/ui/Pane.tsx'
+import { drawPane, overlayEnd } from '../../plugin/hooks/ui/Pane.tsx'
 import { runs } from '../domain/fixtures/cli-runs.ts'
 import { fixtureCli, markMods } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
@@ -124,11 +124,46 @@ describe('a review taller than the pane', () => {
     expect(frame.some(line => line.includes('run it and install'))).toBe(true)
     let seen = false
     for (let step = 0; step < 60 && !seen; step += 1) {
-      await act.scroll(1, reviewEnd())
+      await act.scroll(1, overlayEnd())
       frame = await draw(64, 12)
       // The command's last character: no other line of the frame ends in Z.
       seen = frame.some(line => line.trimEnd().endsWith('Z'))
     }
     expect(seen).toBe(true)
+  })
+})
+
+describe('the welcome and the keys in a short pane', () => {
+  /** Scrolls the overlay on top to its end, collecting every frame's lines. */
+  const scrollThrough = async (
+    act: Awaited<ReturnType<typeof setup>>['act'],
+    draw: () => Promise<string[]>,
+  ) => {
+    const frames = [await draw()]
+    for (let step = 0; step < 40; step += 1) {
+      await act.scroll(1, overlayEnd())
+      frames.push(await draw())
+    }
+    return frames
+  }
+
+  it('keeps the welcome’s start key in view and scrolls to each tab it names', async () => {
+    const { w, act, draw } = await setup()
+    w.state.values.view = { ...w.state.values.view, stack: ['welcome'] }
+    const frames = await scrollThrough(act, () => draw(46, 12))
+    expect(frames.every(frame => frame.some(line => line.includes('enter: start')))).toBe(true)
+    const seen = frames.flat().join('\n')
+    for (const tab of ['Installed', 'Discover', 'Dev', 'Health']) expect(seen).toMatch(tab)
+    expect(seen).toMatch('what needs you, each with a fix')
+  })
+
+  it('scrolls the keys to their last action and the note under them', async () => {
+    const { w, act, draw } = await setup()
+    w.state.values.view = { ...w.state.values.view, stack: ['help'] }
+    const first = await draw(64, 24)
+    expect(first.join('\n')).not.toMatch('applied together')
+    const seen = (await scrollThrough(act, () => draw(64, 24))).flat().join('\n')
+    expect(seen).toMatch('Actions')
+    expect(seen).toMatch('applied together with s')
   })
 })

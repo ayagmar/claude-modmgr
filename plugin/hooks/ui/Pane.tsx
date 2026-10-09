@@ -19,19 +19,19 @@ import {
   layoutFor,
   listColumnsFor,
   pagerLabel,
+  scrolledAt,
   stagedIds,
 } from '../domain/view.ts'
 import { Share, shareRows } from './Dev.tsx'
 import { GLYPH, HiddenRows, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
 import {
+  type DrawnOverlay,
   Help,
-  helpRows,
   Jobs,
   MarketplaceForm,
   marketplaceRows,
   Review,
   Welcome,
-  welcomeRows,
 } from './overlays.tsx'
 import { type Key, tabView } from './tabs.tsx'
 
@@ -47,13 +47,16 @@ const NOT_YET: ReadonlySet<string> = new Set()
 /** From this many body rows the search field is drawn in a box. */
 const BOXED_FIELD_MIN_ROWS = 18
 
-/** What Page Up and Page Down move by: the items one page of the list drawn last holds, or the review's lines in view. */
+/**
+ * What Page Up and Page Down move by: the items one page of the list drawn
+ * last holds, or the lines in view of the overlay on top.
+ */
 let lastPage = 1
 export const pageSize = (): number => lastPage
 
-/** The furthest line the review drawn last scrolls to. */
-let reviewLast = 0
-export const reviewEnd = (): number => reviewLast
+/** The furthest line the overlay drawn last scrolls to; 0 when it fits. */
+let overlayLast = 0
+export const overlayEnd = (): number => overlayLast
 
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
   const [
@@ -241,12 +244,10 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const helpSurfaces: KeySurface[] = ['pane', surfaceOf(under)]
   const refused = degraded.acceptCommand
   const overlay = (which: Overlay | undefined): RenderElement | null => {
-    if (which === 'review' && drawnReview !== undefined) return drawnReview.el
-    if (which === 'help') return Help(v, helpSurfaces, NOT_YET, frame.bodyColumns)
+    if (which === top && drawn !== undefined) return drawn.el
     if (which === 'jobs') return Jobs(v, queue.jobs, listRows)
     if (which === 'marketplace') return MarketplaceForm(v)
     if (which === 'share') return Share(v, devState.share)
-    if (which === 'welcome') return Welcome(v)
     return null
   }
 
@@ -258,39 +259,37 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     rows: listRows - card,
     columns: beside ? frame.bodyColumns - listColumns - 3 - card : frame.bodyColumns,
   }
-  // The review in the window it has, beside the list or over it; the page keys
-  // and the wheel scroll it.
-  const drawnReview =
+  // The review, help or welcome in the window it has, beside the list or over
+  // it; the page keys and the wheel scroll it.
+  const at = scrolledAt(view, top)
+  const whole = { rows: listRows, columns: frame.bodyColumns, at }
+  const drawn: DrawnOverlay | undefined =
     top === 'review' && review !== null
       ? Review(
           v,
           review,
           mods,
-          beside && !wide
-            ? { rows: sized.rows, columns: sized.columns, at: view.reviewAt ?? 0 }
-            : { rows: listRows, columns: frame.bodyColumns, at: view.reviewAt ?? 0 },
+          beside && !wide ? { rows: sized.rows, columns: sized.columns, at } : whole,
           { refused },
         )
-      : undefined
-  if (drawnReview !== undefined) {
-    lastPage = drawnReview.page
-    reviewLast = drawnReview.last
-  }
+      : top === 'help'
+        ? Help(v, helpSurfaces, NOT_YET, whole)
+        : top === 'welcome'
+          ? Welcome(v, whole)
+          : undefined
+  overlayLast = drawn?.last ?? 0
+  if (drawn !== undefined) lastPage = drawn.page
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
-    which === 'review' && drawnReview !== undefined
-      ? drawnReview.rows
-      : which === 'help'
-        ? helpRows(helpSurfaces, NOT_YET, frame.bodyColumns)
-        : which === 'marketplace'
-          ? marketplaceRows
-          : which === 'share'
-            ? shareRows(devState.share, frame.bodyColumns)
-            : which === 'welcome'
-              ? welcomeRows(frame.bodyColumns)
-              : which === 'detail'
-                ? tab.detailRows(sized)
-                : 0
+    which === top && drawn !== undefined
+      ? drawn.rows
+      : which === 'marketplace'
+        ? marketplaceRows
+        : which === 'share'
+          ? shareRows(devState.share, frame.bodyColumns)
+          : which === 'detail'
+            ? tab.detailRows(sized)
+            : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (

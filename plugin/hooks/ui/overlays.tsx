@@ -52,8 +52,11 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
   }
 }
 
-/** A line of the review and its text, from which the rows it wraps to are counted. */
-type Line = { readonly el: RenderElement; readonly text: string }
+/**
+ * A line of an overlay and its text, from which the rows it wraps to are
+ * counted; `rows` where it never wraps (a truncated row of columns).
+ */
+type Line = { readonly el: RenderElement; readonly text: string; readonly rows?: number }
 
 /** What the review knows beyond the request: Claude Code refused an acceptance from here. */
 export type ReviewHow = { readonly refused: boolean }
@@ -321,42 +324,35 @@ const reviewLines = (
   return lines
 }
 
-/** The rows the review is given, and the first line below its keys it shows. */
-export type ReviewWindow = { readonly rows: number; readonly columns: number; readonly at: number }
+/** The rows an overlay is given, and the first line below what it keeps it shows. */
+export type OverlayWindow = { readonly rows: number; readonly columns: number; readonly at: number }
 
-/** The review drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
-export type DrawnReview = {
+/** An overlay drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
+export type DrawnOverlay = {
   readonly el: RenderElement
   readonly rows: number
   readonly page: number
   readonly last: number
 }
 
-/** Heading and keys: the lines a scrolled review keeps. */
-const PINNED = 2
-
 /**
- * The review in its window: whole when it fits, else its heading and keys,
- * the lines from `at` that fit, and a row saying where it stands. What will
- * run is always reachable, never clipped out of sight.
+ * Lines in their window: whole when they fit, else the first `head` and last
+ * `foot` lines kept, the lines from `at` between them that fit, and a row
+ * saying where it stands. Every line is reachable, never clipped out of sight.
  */
-export const Review = (
+const scrolled = (
   v: ViewPorts,
-  review: ReviewRequest,
-  rows: readonly ModRow[],
-  window: ReviewWindow,
-  how: ReviewHow = { refused: false },
-): DrawnReview => {
+  lines: readonly Line[],
+  keep: { readonly head: number; readonly foot: number },
+  window: OverlayWindow,
+): DrawnOverlay => {
   const { Box, Text } = v.el
-  const lines = reviewLines(v, review, rows, how, window.columns)
-  const pinned = lines.slice(0, PINNED)
-  const rest = lines.slice(PINNED)
-  const heights = rest.map(line => wrappedRows([line.text], window.columns))
-  const pinnedRows = wrappedRows(
-    pinned.map(line => line.text),
-    window.columns,
-  )
-  const total = pinnedRows + heights.reduce((sum, height) => sum + height, 0)
+  const rowsOf = (line: Line) => line.rows ?? wrappedRows([line.text], window.columns)
+  const sum = (some: readonly Line[]) => some.reduce((total, line) => total + rowsOf(line), 0)
+  const head = lines.slice(0, keep.head)
+  const rest = lines.slice(keep.head, lines.length - keep.foot)
+  const foot = lines.slice(lines.length - keep.foot)
+  const total = sum(lines)
   if (total <= window.rows) {
     return {
       el: <Box flexDirection="column">{lines.map(line => line.el)}</Box>,
@@ -365,23 +361,39 @@ export const Review = (
       last: 0,
     }
   }
-  const shown = lineWindow(heights, Math.max(1, window.rows - pinnedRows - 1), window.at)
+  const kept = sum(head) + sum(foot) + 1
+  const heights = rest.map(rowsOf)
+  const shown = lineWindow(heights, Math.max(1, window.rows - kept), window.at)
   const where = `lines ${shown.start + 1}–${shown.end} of ${rest.length} · scroll or Page Up/Down`
   return {
     el: (
       <Box flexDirection="column">
-        {pinned.map(line => line.el)}
+        {head.map(line => line.el)}
         {rest.slice(shown.start, shown.end).map(line => line.el)}
         <Text dimColor wrap="truncate-end">
           {where}
         </Text>
+        {foot.map(line => line.el)}
       </Box>
     ),
-    rows: pinnedRows + heights.slice(shown.start, shown.end).reduce((sum, h) => sum + h, 0) + 1,
+    rows: kept + heights.slice(shown.start, shown.end).reduce((total, rows) => total + rows, 0),
     page: Math.max(1, shown.end - shown.start),
     last: shown.last,
   }
 }
+
+/**
+ * The review in its window, its heading and keys kept: what will run is
+ * always reachable.
+ */
+export const Review = (
+  v: ViewPorts,
+  review: ReviewRequest,
+  rows: readonly ModRow[],
+  window: OverlayWindow,
+  how: ReviewHow = { refused: false },
+): DrawnOverlay =>
+  scrolled(v, reviewLines(v, review, rows, how, window.columns), { head: 2, foot: 0 }, window)
 
 /** The rows the marketplace form draws. */
 export const marketplaceRows = 5
@@ -417,19 +429,17 @@ const WELCOME_TABS = [
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const
 
-/** The rows the welcome draws at `columns`: heading, intro, the tabs, its key, blank rows between. */
-export const welcomeRows = (columns: number): number =>
-  1 + 1 + wrappedRows([WELCOME_INTRO], columns) + 1 + WELCOME_TABS.length + 1 + 1
-
-export const Welcome = (v: ViewPorts): RenderElement => {
+/** The welcome in its window: what modmgr is, each tab, and the key that starts, kept in view. */
+export const Welcome = (v: ViewPorts, window: OverlayWindow): DrawnOverlay => {
   const { Box, Button, Text } = v.el
-  return (
-    <Box flexDirection="column">
-      {Heading(v, 'modmgr: mods for Claude Code')}
-      <Text> </Text>
-      <Text>{WELCOME_INTRO}</Text>
-      <Text> </Text>
-      {WELCOME_TABS.map(([key, tab, what]) => (
+  const blank = (key: string): Line => ({ el: <Text key={key}> </Text>, text: '' })
+  const lines: Line[] = [
+    { el: Heading(v, 'modmgr: mods for Claude Code'), text: '', rows: 1 },
+    blank('welcome:gap:intro'),
+    { el: <Text key="welcome:intro">{WELCOME_INTRO}</Text>, text: WELCOME_INTRO },
+    blank('welcome:gap:tabs'),
+    ...WELCOME_TABS.map(([key, tab, what]) => ({
+      el: (
         <Box key={`welcome:${tab}`} flexDirection="row" gap={1}>
           <Text color={TONE.accent}>{key}</Text>
           <Box width={10} flexShrink={0}>
@@ -439,12 +449,21 @@ export const Welcome = (v: ViewPorts): RenderElement => {
             {what}
           </Text>
         </Box>
-      ))}
-      <Text> </Text>
-      {/* Pushed at start-up, not by a press: the ring starts here by itself. */}
-      <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
-    </Box>
-  )
+      ),
+      text: '',
+      rows: 1,
+    })),
+    blank('welcome:gap:start'),
+    {
+      // Pushed at start-up, not by a press: the ring starts here by itself.
+      el: (
+        <Button key="act:start" plain autoFocus label="enter: start" onPress={() => v.act.back()} />
+      ),
+      text: '',
+      rows: 1,
+    },
+  ]
+  return scrolled(v, lines, { head: 1, foot: 1 }, window)
 }
 
 /** Cells one column of keys takes: the key, then what it does. */
@@ -468,56 +487,61 @@ const helpSideBySide = (columns: number): boolean => columns >= 2 * HELP_COLUMN 
 const helpNote = (surfaces: readonly KeySurface[]): string | undefined =>
   surfaces.includes('installed') ? HELP_NOTE : undefined
 
-/** The rows help draws at `columns`: its heading, the groups, the note, blank rows between. */
-export const helpRows = (
-  surfaces: readonly KeySurface[],
-  hidden: ReadonlySet<string>,
-  columns: number,
-): number => {
-  const { move, act } = helpGroups(surfaces, hidden)
-  const note = helpNote(surfaces)
-  const groups = helpSideBySide(columns)
-    ? 1 + Math.max(move.length, act.length)
-    : 2 + move.length + 1 + act.length
-  return 2 + groups + (note === undefined ? 0 : 1 + wrappedRows([note], columns))
-}
-
+/** The keys in their window: what moves, then the actions, side by side where two columns fit. */
 export const Help = (
   v: ViewPorts,
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string>,
-  columns: number,
-): RenderElement => {
+  window: OverlayWindow,
+): DrawnOverlay => {
   const { Box, Text } = v.el
   const { move, act } = helpGroups(surfaces, hidden)
   const note = helpNote(surfaces)
-  const group = (title: string, rows: readonly HelpRow[]) => (
-    <Box key={`keys:${title}`} flexDirection="column" width={HELP_COLUMN} flexShrink={0}>
-      <Text bold>{title}</Text>
-      {rows.map(row => (
-        <Box flexDirection="row" gap={1}>
-          <Box width={7} flexShrink={0}>
-            <Text color={TONE.accent}>{row.key}</Text>
-          </Box>
-          <Text wrap="truncate-end">{row.label}</Text>
+  const cell = (row: HelpRow | undefined) => (
+    <Box flexDirection="row" gap={1} width={HELP_COLUMN} flexShrink={0}>
+      {row === undefined ? null : (
+        <Box width={7} flexShrink={0}>
+          <Text color={TONE.accent}>{row.key}</Text>
         </Box>
-      ))}
+      )}
+      {row === undefined ? null : <Text wrap="truncate-end">{row.label}</Text>}
     </Box>
   )
-  const side = helpSideBySide(columns)
-  return (
-    <Box flexDirection="column">
-      {Heading(v, 'Keys')}
-      <Text> </Text>
-      <Box flexDirection={side ? 'row' : 'column'} columnGap={2}>
-        {group('Move', move)}
-        {side ? null : <Text> </Text>}
-        {group('Actions', act)}
-      </Box>
-      {note === undefined ? null : <Text> </Text>}
-      {note === undefined ? null : <Text dimColor>{note}</Text>}
+  const title = (text: string) => (
+    <Box width={HELP_COLUMN} flexShrink={0}>
+      <Text bold>{text}</Text>
     </Box>
   )
+  const one = (el: RenderElement): Line => ({ el, text: '', rows: 1 })
+  const pair = (left: RenderElement, right: RenderElement) =>
+    one(
+      <Box flexDirection="row" columnGap={2}>
+        {left}
+        {right}
+      </Box>,
+    )
+  const blank = one(<Text> </Text>)
+  const groups: Line[] = helpSideBySide(window.columns)
+    ? [
+        pair(title('Move'), title('Actions')),
+        ...Array.from({ length: Math.max(move.length, act.length) }, (_, index) =>
+          pair(cell(move[index]), cell(act[index])),
+        ),
+      ]
+    : [
+        one(title('Move')),
+        ...move.map(row => one(cell(row))),
+        blank,
+        one(title('Actions')),
+        ...act.map(row => one(cell(row))),
+      ]
+  const lines: Line[] = [
+    one(Heading(v, 'Keys')),
+    blank,
+    ...groups,
+    ...(note === undefined ? [] : [blank, { el: <Text dimColor>{note}</Text>, text: note }]),
+  ]
+  return scrolled(v, lines, { head: 1, foot: 0 }, window)
 }
 
 const JOB_GLYPH: Readonly<Record<Job['state'], string>> = {

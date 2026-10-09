@@ -262,7 +262,8 @@ test('help is generated from the keymap; the job log lists what ran', async ($, 
       surface,
       component: 'Pane',
       requestId: 'modmgr',
-      props: PANE(),
+      // Tall enough for every key: a shorter pane scrolls them (test/demo/layout.test.ts).
+      props: PANE(64, 40),
     })
     await ui.press({ key: 'act:help' })
     await ui.redraw()

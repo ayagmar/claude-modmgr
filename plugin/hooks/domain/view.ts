@@ -585,8 +585,15 @@ export const footerRowsFor = (widths: readonly number[], columns: number, gap = 
 
 export const topOverlay = (view: View): Overlay | undefined => view.stack.at(-1)
 
-/** Pushes an overlay; one already on the stack moves to the top instead of repeating. */
-export const pushOverlay = (view: View, overlay: Overlay): View => ({
+/** How far `overlay` is scrolled: its first line in view below what it keeps. */
+export const scrolledAt = (view: View, overlay: Overlay | undefined): number =>
+  view.overlayAt !== undefined && view.overlayAt.overlay === overlay ? view.overlayAt.at : 0
+
+/**
+ * Pushes an overlay, scrolled to its start; one already on the stack moves to
+ * the top instead of repeating.
+ */
+export const pushOverlay = ({ overlayAt: _scrolled, ...view }: View, overlay: Overlay): View => ({
   ...view,
   stack: [...view.stack.filter(item => item !== overlay), overlay],
 })

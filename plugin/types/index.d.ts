@@ -164,8 +164,8 @@ export type View = {
   dock?: number
   /** The pane held the keys when modmgr reloaded the plugins: the module after the reload gives them back. */
   keysAfterReload?: true
-  /** The review's first line in view below its heading and keys, scrolled by the wheel and the page keys. */
-  reviewAt?: number
+  /** The overlay on top scrolled by the wheel and the page keys: its first line in view below what it keeps. */
+  overlayAt?: { overlay: Overlay; at: number }
 }
 
 /** What a review would do to one mod. */

@@ -42,6 +42,7 @@ import {
   pushOverlay,
   removeReview,
   rowKey,
+  scrolledAt,
   selectedRow,
   specsOf,
   stagedChanges,
@@ -385,7 +386,7 @@ export const createActions = (
   const openReview = async (review: ReviewRequest): Promise<void> => {
     await state.update('review', () => review)
     // A new review starts at its top.
-    await setView(({ reviewAt: _top, ...current }) => pushOverlay(quiet(current), 'review'))
+    await setView(current => pushOverlay(quiet(current), 'review'))
     await ringToOverlay()
   }
 
@@ -663,16 +664,15 @@ export const createActions = (
     }),
 
     scroll: safely('scroll', async (by, last = 0) => {
-      const top = topOverlay(await state.read('view'))
-      if (top === 'review') {
-        await setView(view => ({
-          ...view,
-          reviewAt: Math.max(0, Math.min(last, (view.reviewAt ?? 0) + by)),
-        }))
+      const view = await state.read('view')
+      const top = topOverlay(view)
+      // Over an overlay the wheel scrolls it, as far as its last line; the list isn't under it.
+      if (top !== undefined) {
+        const from = scrolledAt(view, top)
+        const at = Math.max(0, Math.min(last, from + by))
+        if (at !== from) await setView(current => ({ ...current, overlayAt: { overlay: top, at } }))
         return
       }
-      // Under another overlay the list isn't what the wheel is over.
-      if (top !== undefined) return
       await moveSelection((_count, at) => at + by)
     }),
 
