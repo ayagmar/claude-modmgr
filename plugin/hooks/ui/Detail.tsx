@@ -7,7 +7,13 @@
 
 import type { RenderElement } from 'claude-code'
 import type { ModDetail, ModRow, View } from '../../types/index.d.ts'
-import { groupByReach, type Notable, notableOf, type ReachGroup } from '../domain/capabilities.ts'
+import {
+  groupByReach,
+  type Notable,
+  type NotableId,
+  notableOf,
+  type ReachGroup,
+} from '../domain/capabilities.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
   bytesLabel,
@@ -31,6 +37,18 @@ import {
 
 /** The reach groups that are only drawing: named on one line, not explained. */
 const QUIET = new Set(['display'])
+
+/** What modmgr does with each of its own notable capabilities (docs/SECURITY.md has the rest). */
+const OWN_WHY: Readonly<Partial<Record<NotableId, string>>> = {
+  'runs-programs':
+    'It runs the claude CLI and nothing else: every install, update, enable and validate goes through it.',
+  'reads-and-sends':
+    'It reads plugin manifests and its own debug log, and fetches the daily mod indexes from raw.githubusercontent.com. Nothing it reads is sent.',
+}
+const OWN_WHY_MORE = 'docs/SECURITY.md lists all it reads, fetches and stores.'
+
+const sameFolder = (a: string, b: string): boolean =>
+  a.replace(/\/+$/, '') === b.replace(/\/+$/, '')
 
 /** Cells at most for the capability table's group and name columns. */
 const LABEL_MAX = 20
@@ -237,6 +255,23 @@ const bodySections = (
   }
   if (old.length > 0) {
     sections.push(notableSection(v, Heading(v, 'Notable'), old, TONE.accent, full, columns))
+  }
+  // modmgr's own row (its folder, not its name, which any plugin can take) says why.
+  const own = detail.root !== undefined && sameFolder(detail.root, v.ownRoot)
+  const why = own ? notable.flatMap(item => OWN_WHY[item.id] ?? []) : []
+  if (why.length > 0) {
+    const lines = [...why, OWN_WHY_MORE]
+    sections.push({
+      rows: 1 + wrappedRows(lines, columns),
+      el: (
+        <Box flexDirection="column">
+          {Heading(v, 'Why modmgr needs these')}
+          {lines.map(line => (
+            <Text dimColor>{line}</Text>
+          ))}
+        </Box>
+      ),
+    })
   }
   sections.push(
     reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full, columns),

@@ -117,16 +117,15 @@ export const modsCommand = async (
       )
     }
     case 'doctor': {
-      // Health's facts are local reads (a few ms); Dev's rows aren't needed for its items.
+      // Health's facts are local reads (a few ms).
       await rt.health.refresh()
-      const [dev, attention, detect, queue, facts] = await Promise.all([
-        ports.state.read('dev'),
+      const [attention, detect, queue, facts] = await Promise.all([
         ports.state.read('attention'),
         ports.state.read('detect'),
         ports.state.read('queue'),
         ports.state.read('health'),
       ])
-      const items = healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
+      const items = healthItemsOf({ mods, attention, degraded, sync, detect, queue, facts })
       const problems = items.some(item => item.tone === 'bad')
       return { text: doctorText(items, command.json), ...(problems ? { exitCode: 1 } : {}) }
     }

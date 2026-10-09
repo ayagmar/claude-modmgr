@@ -8,7 +8,6 @@ import {
   devOfKey,
   devRowOf,
   devRowsOf,
-  failureOf,
   githubRepoOf,
   isInside,
   joinPath,
@@ -16,7 +15,6 @@ import {
   lastRun,
   manifestOf,
   marketplaceFolderOf,
-  recordFailure,
   sessionFolderOf,
   shareOf,
   stopLoadingOf,
@@ -104,14 +102,10 @@ describe('dev rows', () => {
     expect(rows.map(row => row.key)).toEqual(['/dev/qb'])
   })
 
-  it('looks for an unlisted plugin by its commands or its failures', () => {
+  it('looks for an unlisted plugin by its commands', () => {
     expect(
-      unlistedPlugins(
-        ['modmgr', 'qb@inline', 'BAD NAME', 'modmgr'],
-        ['broke2', 'qb'],
-        new Set(['qb']),
-      ),
-    ).toEqual(['broke2', 'modmgr'])
+      unlistedPlugins(['modmgr', 'qb@inline', 'BAD NAME', 'modmgr', 'zz'], new Set(['qb'])),
+    ).toEqual(['modmgr', 'zz'])
   })
 
   it('selects the row asked, else the first', () => {
@@ -238,44 +232,6 @@ describe('what ran', () => {
     expect(test('ok')?.text).toBe('✓ tests')
     expect(test('failed')?.text).toBe('✗ tests')
     expect(test('cancelled')?.text).toBe('tests cancelled')
-  })
-})
-
-describe('what the session reported', () => {
-  const PATH = '/tmp/x/dev/broken'
-
-  it('reads a failure, and the folder a hooks file names', () => {
-    expect(
-      failureOf(
-        `broken: reload failed, the previous version stays loaded: ${PATH}/hooks/register.ts, compiled line 3`,
-      ),
-    ).toEqual({
-      name: 'broken',
-      reason: `reload failed, the previous version stays loaded: ${PATH}/hooks/register.ts, compiled line 3`,
-      folder: PATH,
-    })
-    expect(failureOf('qb@inline: ui.render (Pane) refused: a bad tree')).toEqual({
-      name: 'qb',
-      reason: 'ui.render (Pane) refused: a bad tree',
-    })
-    expect(failureOf('tb: tool.call hook skipped: it threw')).toMatchObject({ name: 'tb' })
-    // Not failures: a reload's line, a command's output, no plugin at all.
-    expect(failureOf('modmgr: reloaded (8 hooks: session.start, turn.start)')).toBeUndefined()
-    expect(failureOf('Reloaded: 2 plugins')).toBeUndefined()
-    expect(failureOf('just words that failed')).toBeUndefined()
-    // A path that climbs is no folder.
-    expect(failureOf('x: did not load: /a/../b/hooks/r.ts')?.folder).toBeUndefined()
-  })
-
-  it('counts failures, keeping the last reason and the folder once named', () => {
-    const one = recordFailure({}, { name: 'b', reason: 'r1', folder: PATH }, 10)
-    const two = recordFailure(one, { name: 'b', reason: 'r2' }, 20)
-    expect(two.b).toEqual({ count: 2, lastReason: 'r2', lastAt: 20, folder: PATH })
-    expect(recordFailure({}, { name: 'c', reason: 'r' }, 1).c).toEqual({
-      count: 1,
-      lastReason: 'r',
-      lastAt: 1,
-    })
   })
 })
 

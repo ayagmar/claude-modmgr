@@ -105,7 +105,6 @@ row(
   measure(() => {
     healthItemsOf({
       mods,
-      dev: INITIAL.dev,
       attention: INITIAL.attention,
       degraded: INITIAL.degraded,
       sync: INITIAL.sync,

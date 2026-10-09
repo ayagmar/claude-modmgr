@@ -34,13 +34,7 @@ import type {
 } from './ports.ts'
 import { type Actions, createActions } from './services/actions.ts'
 import { modsCommand } from './services/commands.ts'
-import {
-  MODS_DESCRIPTION,
-  onNotice,
-  onSessionStart,
-  onTurnEnd,
-  onTurnStart,
-} from './services/lifecycle.ts'
+import { MODS_DESCRIPTION, onSessionStart, onTurnEnd, onTurnStart } from './services/lifecycle.ts'
 import { createRuntime, newOwnerId, type Runtime } from './services/runtime.ts'
 import { drawBand } from './ui/Band.tsx'
 import type { El, ViewPorts } from './ui/kit.tsx'
@@ -70,7 +64,7 @@ const ATTENTION = atom({ plugin: 'modmgr', key: 'attention' } as const, INITIAL.
 const DEGRADED = atom({ plugin: 'modmgr', key: 'degraded' } as const, INITIAL.degraded, {
   shape: 'degraded/1',
 })
-const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/1' })
+const DEV = atom({ plugin: 'modmgr', key: 'dev' } as const, INITIAL.dev, { shape: 'dev/2' })
 const HEALTH = atom({ plugin: 'modmgr', key: 'health' } as const, INITIAL.health, {
   shape: 'health/1',
 })
@@ -245,7 +239,13 @@ function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
           Select: table.Select,
         }
       : { Box: table.Box, Text: table.Text, Button: table.Button }
-  return { el, surface: e.surface, read: statePorts($).read, act: actionsOf($) }
+  return {
+    el,
+    surface: e.surface,
+    read: statePorts($).read,
+    act: actionsOf($),
+    ownRoot: $.plugin.root,
+  }
 }
 
 // This module instance's services, built at its first `session.start` and
@@ -294,13 +294,6 @@ export const register: Register = (on, options) => {
     } finally {
       onTurnEnd(runtime, e.turnId, e.agentId)
     }
-  }).catch((_$, e, next) => next(e))
-
-  // Observed only: what the session says when a hot-reloaded plugin fails (Dev).
-  on('session.append', { door: 'notice' }, async (_$, e, next) => {
-    const stored = await next(e)
-    onNotice(runtime, e.message.content)
-    return stored
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'mods' }, ($, e) =>

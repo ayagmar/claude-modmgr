@@ -1877,7 +1877,7 @@ export const FRAMES: readonly Frame[] = [
           "tone": "claude",
           "bold": true,
           "underline": true,
-          "text": "Health ▲2"
+          "text": "Health ▲1"
         },
         {
           "text": "                                       "
@@ -1890,7 +1890,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "2 problems to look at"
+          "text": "1 problem to look at"
         }
       ],
       [
@@ -1949,10 +1949,10 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "redactor"
+          "text": "modmgr itself"
         },
         {
-          "text": "                             "
+          "text": "                        "
         },
         {
           "dim": true,
@@ -1967,41 +1967,6 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "text": " validate finds 1 error in it"
-        }
-      ],
-      [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "error",
-          "text": "▲"
-        },
-        {
-          "text": " 1 failure while it reloaded; last… "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "  "
-        },
-        {
-          "bold": true,
-          "text": "modmgr itself"
-        },
-        {
-          "text": "                        "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " → see it"
         }
       ],
       [
@@ -2034,6 +1999,9 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " → see it"
         }
       ],
       [
@@ -2078,6 +2046,24 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "text": " A hook that fails is logged only … "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
         },
         {
           "dim": true,

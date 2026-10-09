@@ -69,7 +69,7 @@ const frames = async (): Promise<Frame[]> => {
   const act = createActions(w.ports, rt)
   const draw = async (title: string, caption: string): Promise<Frame> => {
     const tree = await drawPane(
-      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act },
+      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act, ownRoot: '/modmgr' },
       { bodyColumns: COLUMNS, bodyRows: ROWS, isFocused: true },
     )
     return { title, caption, lines: render(tree, COLUMNS).map(tidy) }
@@ -104,7 +104,6 @@ const frames = async (): Promise<Frame[]> => {
   await act.install(SCRUB)
   shown.push(await draw('Review', 'Nothing runs before you read what will run, and where.'))
   await act.cancel()
-  await rt.dev.notice('redactor: tool.call hook failed: it threw')
   await act.tab('health')
   shown.push(await draw('Health', 'What needs you, worst first, each with a one-key fix.'))
   return shown

@@ -1,11 +1,10 @@
 // Dev: the mods this session runs from a folder the person
-// edits, their last validate and test, and the failures the session reported
-// while hot-reloading them; a row's detail, and how to share it. Rows are
+// edits and their last validate and test; a row's detail, and how to share it. Rows are
 // plain Buttons keyed `dev:<key>` (Enter opens the detail). Names, paths,
 // validate's and test's words are the plugin's own: sanitised, drawn as Text.
 
 import type { RenderElement } from 'claude-code'
-import type { DevFailures, DevRow, DevShare, Job } from '../../types/index.d.ts'
+import type { DevRow, DevShare, Job } from '../../types/index.d.ts'
 import {
   appliesOf,
   devKey,
@@ -45,14 +44,10 @@ const MARK_TONE: Readonly<Record<RunMark['tone'], string>> = {
 
 export type DevHow = {
   readonly jobs: readonly Job[]
-  readonly failures: Readonly<Record<string, DevFailures>>
 }
 
 const marksOf = (row: DevRow, how: DevHow): RunMark[] => {
-  // A failure first: a narrow row keeps what it cuts last.
   const marks: RunMark[] = []
-  const failed = how.failures[row.name]
-  if (failed !== undefined) marks.push({ text: `${GLYPH.problem}${failed.count}`, tone: 'bad' })
   const valid = validateMark(lastRun(how.jobs, 'validate', row.path))
   const tests = testMark(lastRun(how.jobs, 'test', row.path))
   if (valid !== undefined) marks.push(valid)
@@ -154,7 +149,6 @@ export const DevList = (
       {rows.slice(how.window.start, how.window.end).map(row =>
         DevLine(v, row, {
           jobs: how.jobs,
-          failures: how.failures,
           columns: how.columns,
           focus: row.key === how.focusKey,
           beside: how.beside,
@@ -289,30 +283,12 @@ const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] =>
     runLines(v, 'Validate', validateMark(validate), 'not run yet (v)', validate),
     runLines(v, 'Tests', testMark(test), 'not run yet (t)', test),
   ]
-  const failed = how.failures[row.name]
-  const failure =
-    failed === undefined
-      ? []
-      : [
-          `${GLYPH.problem} ${failed.count} ${failed.count === 1 ? 'failure' : 'failures'} reported while it reloaded`,
-        ]
   const check: Section = {
-    rows:
-      1 +
-      checks.reduce((sum, run) => sum + run.rows, 0) +
-      (failed === undefined ? 0 : wrappedRows(failure, how.columns) + 1),
+    rows: 1 + checks.reduce((sum, run) => sum + run.rows, 0),
     el: (
       <Box flexDirection="column">
         {Heading(v, 'Checks')}
         {checks.map(run => run.el)}
-        {failed === undefined ? null : <Text color={TONE.bad}>{failure[0]}</Text>}
-        {failed === undefined ? null : (
-          <Box paddingLeft={2}>
-            <Text dimColor wrap="truncate-end">
-              last: {failed.lastReason}
-            </Text>
-          </Box>
-        )}
       </Box>
     ),
   }

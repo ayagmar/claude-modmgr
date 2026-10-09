@@ -49,7 +49,6 @@ export type ModDetail = ModRow & {
   tokens?: number
   dataBytes?: number
   validate?: { errors: number; warnings: number; at: number }
-  dev?: { failures: number; lastReason?: string; lastAt?: number; test?: 'pass' | 'fail' }
 }
 
 export type CatalogKind = 'mod' | 'hooks' | 'plain' | 'unknown'
@@ -292,15 +291,6 @@ export type DevRow = {
   enabled?: boolean
 }
 
-/** A plugin's failures the session reported while hot-reloading it. */
-export type DevFailures = {
-  count: number
-  lastReason: string
-  lastAt: number
-  /** Its folder, when a notice named a file of its hooks. */
-  folder?: string
-}
-
 /** How to share a dev mod (`p`), for the share overlay. */
 export type DevShare = {
   /** The row it is for. */
@@ -317,8 +307,6 @@ export type DevShare = {
 
 export type DevState = {
   rows: DevRow[]
-  /** By plugin name, as the session's notices name it. */
-  failures: Record<string, DevFailures>
   loading: boolean
   at?: number
   share?: DevShare

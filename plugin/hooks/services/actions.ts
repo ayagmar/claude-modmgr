@@ -337,9 +337,8 @@ export const createActions = (
 
   /** Health's items as the pane draws them. */
   const healthItems = async (): Promise<HealthItem[]> => {
-    const [mods, dev, attention, degraded, sync, detect, queue, facts] = await Promise.all([
+    const [mods, attention, degraded, sync, detect, queue, facts] = await Promise.all([
       state.read('mods'),
-      state.read('dev'),
       state.read('attention'),
       state.read('degraded'),
       state.read('sync'),
@@ -347,7 +346,7 @@ export const createActions = (
       state.read('queue'),
       state.read('health'),
     ])
-    return healthItemsOf({ mods, dev, attention, degraded, sync, detect, queue, facts })
+    return healthItemsOf({ mods, attention, degraded, sync, detect, queue, facts })
   }
 
   /** The welcome on the stack is being left: it isn't said again. */
@@ -815,9 +814,6 @@ export const createActions = (
           return
         case 'update':
           await actions.update(fix.id)
-          return
-        case 'validate':
-          await actions.devRun('validate', fix.key)
           return
         case 'copy':
           await actions.copy(fix.text)
