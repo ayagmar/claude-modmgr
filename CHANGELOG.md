@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Discover's detail says when a community mod is kept in its repository's `.claude` folder: a mod that project uses
+  itself, loaded from a clone.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

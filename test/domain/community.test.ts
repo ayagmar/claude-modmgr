@@ -4,6 +4,7 @@ import {
   type CommunityMod,
   communityKey,
   communityText,
+  isProjectMod,
   isRepo,
   isRepoPath,
   parseCommunity,
@@ -115,6 +116,14 @@ describe('the community index', () => {
     })
     const many = Array.from({ length: 20_001 }, (_, i) => raw({ path: `p${i}` }))
     expect(parseCommunity(file(many)).ok).toBe(false)
+  })
+
+  it("tells a project's own mod from a published one by its .claude folder", () => {
+    expect(isProjectMod('.claude/mods/firstmate-calm')).toBe(true)
+    expect(isProjectMod('.claude')).toBe(true)
+    expect(isProjectMod('.claudex/mods/x')).toBe(false)
+    expect(isProjectMod('plugins/.claude/x')).toBe(false)
+    expect(isProjectMod('')).toBe(false)
   })
 
   it('checks repositories and paths as GitHub and the CLI spell them', () => {

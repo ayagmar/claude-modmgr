@@ -6,6 +6,7 @@
 import type { RenderElement } from 'claude-code'
 import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
+import { isProjectMod } from '../domain/community.ts'
 import { communityLink, foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
@@ -224,9 +225,17 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       </Box>
     ),
   }
-  const howTo = installable
-    ? []
-    : ['No marketplace lists it, so it installs from a clone:', 'claude --plugin-dir <its folder>']
+  const howTo = [
+    ...(community !== undefined && isProjectMod(community.path)
+      ? [`Kept in ${community.repo}'s .claude folder: a mod that project uses itself.`]
+      : []),
+    ...(installable
+      ? []
+      : [
+          'No marketplace lists it, so it installs from a clone:',
+          'claude --plugin-dir <its folder>',
+        ]),
+  ]
   const about: Section = {
     rows: (row.blurb === '' ? 0 : wrappedRows([row.blurb], how.columns)) + 1 + howTo.length,
     el: (
