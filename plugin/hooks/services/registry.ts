@@ -210,13 +210,16 @@ export const createRegistry = (
     // Not under a filter: the first row it shows isn't what the person picked.
     const shown =
       view.selected === undefined && view.query === '' ? selectedRow(view, before)?.id : undefined
-    if (shown !== undefined) {
-      await ports.state.update('view', current =>
-        current.selected === undefined ? { ...current, selected: shown } : current,
-      )
-    }
+    const after =
+      shown === undefined
+        ? view
+        : await ports.state.update('view', current =>
+            current.selected === undefined ? { ...current, selected: shown } : current,
+          )
     await ports.state.update('mods', () => mods)
-    await ports.state.update('detail', detail => detailOf(detail?.id))
+    // The detail is the row shown selected: a dialog opened on its first row,
+    // the selection never moved, still has one.
+    await ports.state.update('detail', () => detailOf(selectedRow(after, mods)?.id))
     await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })

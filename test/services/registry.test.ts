@@ -128,9 +128,17 @@ describe('registry.refresh', () => {
 })
 
 describe('registry.select', () => {
+  it("shows the first row's detail before the selection ever moves", async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    expect(w.state.values.detail?.id).toBe(w.state.values.mods[0]?.id)
+  })
+
   it('writes the selected mod detail and refreshes it', async () => {
     const { w, registry } = setup()
     await registry.refresh()
+    // As every action does: the view's selection, then its detail.
+    w.state.values.view = { ...w.state.values.view, selected: 'turn-band@fixtures' }
     await registry.select('turn-band@fixtures')
     expect(w.state.values.detail).toMatchObject({
       id: 'turn-band@fixtures',
