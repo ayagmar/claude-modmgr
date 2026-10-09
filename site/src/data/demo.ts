@@ -428,7 +428,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on session.append"
+          "text": " on session.append"
         }
       ],
       [
@@ -451,7 +451,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on session.end"
+          "text": "on session.end"
         }
       ],
       [
@@ -912,7 +912,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on prompt.submit"
+          "text": " on prompt.submit"
         }
       ],
       [
@@ -935,10 +935,23 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on turn.complete  on ui.render  cl"
+          "text": "on turn.complete  on ui.render "
+        }
+      ],
+      [
+        {
+          "text": "                                       "
         },
         {
-          "text": "…"
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": "                     "
+        },
+        {
+          "dim": true,
+          "text": "clock.now  state.set  ui.toast"
         }
       ],
       [
@@ -964,15 +977,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "✓ validates"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [
@@ -1900,20 +1904,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "bold": true,
           "text": "broken"
-        },
-        {
-          "text": "                               "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "bold": true,
-          "text": "broken"
         }
       ],
       [
@@ -1936,11 +1926,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "validate finds 1 error in it"
         },
         {
-          "text": "       "
+          "text": "                                                        "
         },
         {
-          "dim": true,
-          "text": "│"
+          "tone": "claude",
+          "text": "→ see it"
         }
       ],
       [
@@ -1950,23 +1940,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "bold": true,
           "text": "modmgr itself"
-        },
-        {
-          "text": "                        "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "tone": "error",
-          "text": "▲"
-        },
-        {
-          "text": " validate finds 1 error in it"
         }
       ],
       [
@@ -1978,11 +1951,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " 5 enabled                          "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": " 5 enabled"
         }
       ],
       [
@@ -1994,14 +1963,11 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " updates checked never, every 6 ho… "
+          "text": " updates checked never, every 6 hours                                             "
         },
         {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " → see it"
+          "tone": "claude",
+          "text": "→ check now"
         }
       ],
       [
@@ -2013,11 +1979,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " detector: 5 mods found; 203 of 20… "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": " detector: 5 mods found; 203 of 203 checked, 600 requests left this session"
         }
       ],
       [
@@ -2029,11 +1991,11 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " cache: 185 B                       "
+          "text": " cache: 185 B                                                                         "
         },
         {
-          "dim": true,
-          "text": "│"
+          "tone": "claude",
+          "text": "→ clear"
         }
       ],
       [
@@ -2045,139 +2007,27 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " A hook that fails is logged only … "
+          "text": " A hook that fails is logged only in a session started with --debug            "
         },
         {
-          "dim": true,
-          "text": "│"
+          "tone": "claude",
+          "text": "→ copy command"
         }
       ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
       [
         {
           "dim": true,

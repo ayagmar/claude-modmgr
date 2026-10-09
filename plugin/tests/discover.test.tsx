@@ -114,7 +114,7 @@ test('m asks for a marketplace, reviews it, and adds it', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
-  for (const [at, surface] of SURFACES.entries()) {
+  for (const surface of SURFACES) {
     const ui = await mountPane($, surface)
     // The tab shown is a title, not a key: an earlier surface may have left Discover shown.
     if (await ui.find({ key: 'act:tab.discover' })) await ui.press({ key: 'act:tab.discover' })

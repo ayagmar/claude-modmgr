@@ -102,7 +102,12 @@ export const HiddenRows = (
 /** A dim rule across `columns`. */
 export const Rule = (v: ViewPorts, columns: number): RenderElement => {
   const { Text } = v.el
-  return <Text dimColor>{'─'.repeat(Math.max(0, columns))}</Text>
+  // Cut, not wrapped: a desktop's glyph is wider than its cell.
+  return (
+    <Text dimColor wrap="truncate-end">
+      {'─'.repeat(Math.max(0, columns))}
+    </Text>
+  )
 }
 
 /** A section heading: bold, in the accent the tab title has. */
@@ -148,7 +153,7 @@ export const LabelRow = (
 ): RenderElement => {
   const { Box, Text } = v.el
   return (
-    <Box flexDirection="row" gap={1}>
+    <Box flexDirection="row" gap={1} alignItems="flex-start">
       <Box width={width} flexShrink={0}>
         <Text dimColor wrap="truncate-end">
           {label}

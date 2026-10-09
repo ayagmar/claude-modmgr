@@ -371,7 +371,7 @@ describe('what a review knows about a mod', () => {
     expect(rt.registry.facts('gone@fixtures')).toEqual({ notable: ['secret-env'] })
   })
 
-  it('acknowledging with no detail shown, or nothing new, writes nothing more', async () => {
+  it("acknowledging a mod whose detail isn't shown, or nothing new, writes nothing more", async () => {
     const { w, rt } = await setup(bumpTurnBand)
     await rt.registry.acknowledge(TURN_BAND)
     const writes = w.state.writes.length
@@ -398,13 +398,13 @@ describe('what a review knows about a mod', () => {
       )
     })
     await rt.registry.refresh()
-    expect(w.state.values.detail).toBeNull()
+    expect(w.state.values.detail?.id).not.toBe(TURN_BAND)
     expect(w.state.values.mods.find(row => row.id === TURN_BAND)?.capsNew).toEqual({
       since: '0.4.0',
       added: ['reads-and-sends'],
     })
     await rt.registry.acknowledge(TURN_BAND)
-    expect(w.state.values.detail).toBeNull()
+    expect(w.state.values.detail?.id).not.toBe(TURN_BAND)
     expect(w.state.values.attention.capsChanged).toBe(0)
   })
 

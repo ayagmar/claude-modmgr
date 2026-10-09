@@ -226,7 +226,9 @@ export const createActions = (
     ])
     const idle = how.idle ?? holdsToasts(queue, view)
     const title = titleOf(summaryOf({ attention, queue, mods }))
-    await ui.open(paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title }))
+    await ui.open(
+      paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title, dock: view.dock }),
+    )
   }
 
   /** Queues a batch and its reload; `when` guards it against a queue that moved since it was read. */
@@ -399,7 +401,6 @@ export const createActions = (
       const { tab } = await state.read('view')
       if (tab === 'discover') return ringTo('act:install', 'act:copy')
       if (tab === 'dev') return ringTo('act:validate', 'act:copy')
-      if (tab === 'health') return ringTo('act:fix')
       return ringTo('act:toggle', 'act:copy')
     }),
 

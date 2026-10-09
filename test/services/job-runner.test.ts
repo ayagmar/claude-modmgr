@@ -123,6 +123,22 @@ describe('a toggle batch', () => {
     expect(w.state.values.attention.reloadPending).toBe(true)
   })
 
+  it('a reload the desktop app answers with a refusal fails, says to start a new session, and stays pending', async () => {
+    const { w, runner, ids } = setup()
+    w.command.reloadAnswer = async () =>
+      "/reload-plugins isn't available over a remote connection in this session."
+    await enqueue(
+      w.ports,
+      { id: 'b', specs: [{ kind: 'disable', target: 'turn-band@fixtures' }], reload: true },
+      ids,
+    )
+    await runAll(w, runner)
+    const reload = jobs(w)[1]
+    expect(reload?.state).toBe('failed')
+    expect(reload?.tail.at(-1)).toMatch(/new session/)
+    expect(w.state.values.attention.reloadPending).toBe(true)
+  })
+
   it('cancels a reload whose batch changed nothing', async () => {
     const { w, runner, ids, settled } = setup()
     w.process.when(['disable'], out('', 1, 'nope'))

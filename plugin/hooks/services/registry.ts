@@ -216,7 +216,11 @@ export const createRegistry = (
       )
     }
     await ports.state.update('mods', () => mods)
-    await ports.state.update('detail', detail => detailOf(detail?.id))
+    // The detail is the row shown selected: a dialog opened on its first row,
+    // the selection never moved, still has one. Read last, so a move made
+    // while this refresh ran is the one shown.
+    const latest = await ports.state.read('view')
+    await ports.state.update('detail', () => detailOf(selectedRow(latest, mods)?.id))
     await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })

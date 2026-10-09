@@ -47,7 +47,9 @@ export const createChrome = (
     const pane = (await ports.ui.panes()).find(item => item.id === PANE_ID)
     if (pane?.isPlaced === true && pane.title !== title) {
       const hold = holdsToasts(queue, view)
-      const opened = await ports.ui.open(paneOpen({ focus: false, hold, mods: mods.length, title }))
+      const opened = await ports.ui.open(
+        paneOpen({ focus: false, hold, mods: mods.length, title, dock: view.dock }),
+      )
       // A placed pane stays placed when retitled; if the engine ever disagrees, say so.
       if (!opened.isPlaced) debug(`modmgr: retitle left the pane unplaced: ${opened.reason}`)
     }

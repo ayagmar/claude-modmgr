@@ -7,12 +7,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-09
+
 ### Changed
+- A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`
+  CLI it runs still needs 2.1.292 or newer.
+- The desktop app draws the dialog as a desktop layout: the detail is a card beside the list instead of a column of
+  `│`, the header no longer overlaps the rows under it, and names and rules wrap instead of being cut.
+- In a fullscreen terminal the dock leaves the transcript about 72 columns, up to 96 for the dialog, instead of always
+  asking for 96.
+- Health is a full-width checklist: each item reads whole with its fix on the row, and Enter opens one.
+- A tab with nothing to list (Dev with no mods under development) gives its text the whole body.
+- A mod's detail wraps what it can do beside each reach instead of cutting the list at the edge.
+- Discover's sort by stars takes one mod per repository first, as sorting by popularity does, so one repository's many
+  mods no longer fill the first pages.
 - modmgr no longer hooks the session's notice lines, so its own capability list no longer says it "can change what
   the model reads". Dev no longer counts a mod's reload failures as they happen; Health still names hook failures
   from the debug log (`--debug`), and `v` validates a mod under development.
 - modmgr's own detail says why it needs what it can do: it runs only the `claude` CLI, and it reads plugin manifests
   and fetches the daily indexes, sending nothing it reads.
+
+### Fixed
+- The Installed detail loads for the first row when the selection never moved, instead of reading "Reading what it
+  can do…" until a key is pressed.
+- In the desktop app, whose sessions refuse `/reload-plugins`, a batch says the reload failed and to start a new
+  session, instead of reporting the changes applied.
 
 ## [0.3.0] - 2026-10-09
 

@@ -95,6 +95,15 @@ describe('/mods as text', () => {
     expect(listed.text?.split('\n')[0]).toBe('5 mods (5 on)')
   })
 
+  it('docks narrower in a narrow fullscreen terminal, and later opens keep that width', async () => {
+    const { w, rt } = await setup()
+    await modsCommand(w.ports, rt, '', 124)
+    expect(w.ui.opens.at(-1)?.columns).toBe(52)
+    // An open that knows no terminal width (the main screen) keeps the dock it had.
+    await modsCommand(w.ports, rt, '')
+    expect(w.ui.opens.at(-1)?.columns).toBe(52)
+  })
+
   it('answers help, usage errors and an unstarted modmgr', async () => {
     const { w } = await setup()
     expect(await modsCommand(w.ports, undefined, 'help')).toEqual({ text: USAGE })

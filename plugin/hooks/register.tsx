@@ -308,6 +308,8 @@ export const register: Register = (on, options) => {
       },
       runtime,
       e.args,
+      // Only the fullscreen layout docks the dialog.
+      e.presentation.isFullscreen ? e.presentation.columns : undefined,
     ),
   ).catch(() => ({
     text: 'modmgr failed to answer; run with --debug for the reason.',

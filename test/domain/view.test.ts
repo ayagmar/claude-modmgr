@@ -5,6 +5,7 @@ import {
   batchLineOf,
   closedView,
   commandLine,
+  dockColumnsFor,
   escapeStep,
   filterRows,
   latestBatch,
@@ -79,7 +80,7 @@ describe('layout and opening', () => {
   })
 
   it('opens as a dialog, holding toasts only when asked', () => {
-    expect(paneOpen({ focus: true, hold: true, mods: 2 })).toEqual({
+    expect(paneOpen({ focus: true, hold: true, mods: 2, dock: undefined })).toEqual({
       id: 'modmgr',
       title: 'mods',
       closeOnEscape: true,
@@ -88,13 +89,22 @@ describe('layout and opening', () => {
       focus: true,
       holdToasts: true,
     })
-    expect(paneOpen({ focus: false, hold: false, mods: 2, title: 'mods · 2' })).toEqual({
+    expect(paneOpen({ focus: false, hold: false, mods: 2, title: 'mods · 2', dock: 52 })).toEqual({
       id: 'modmgr',
       title: 'mods · 2',
       closeOnEscape: true,
       rows: 14,
-      columns: 96,
+      columns: 52,
     })
+  })
+
+  it('docks narrower in a narrower terminal, leaving the transcript readable', () => {
+    // Wide: list and detail side by side.
+    expect(dockColumnsFor(240)).toBe(96)
+    // 124 columns: 96 would leave the transcript 28; it keeps 72.
+    expect(dockColumnsFor(124)).toBe(52)
+    // Where it can't keep 72, the dialog still gets enough to stack in.
+    expect(dockColumnsFor(110)).toBe(48)
   })
 
   it('names rows by key and reads them back', () => {
