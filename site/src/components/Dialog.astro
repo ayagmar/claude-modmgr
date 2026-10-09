@@ -322,6 +322,13 @@ const screenOf = (lines: Frame['lines']): string =>
     font-weight: 550;
   }
 
+  /* The narrowest phones: the three steps fit by their names alone. */
+  @media (max-width: 23.5rem) {
+    .steps .n {
+      display: none;
+    }
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .steps label {
       transition:
