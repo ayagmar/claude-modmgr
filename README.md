@@ -78,7 +78,7 @@ Installed   2: Discover   3: Dev   4: Health ▲1
 ```
 
 **Discover** lists the mods in every marketplace you have added, and the mods published anywhere else on public
-GitHub (about 2,700). Both come from indexes modmgr's CI rebuilds daily, so they are there at once; anything else is
+GitHub (about 3,100). Both come from indexes modmgr's CI rebuilds daily, so they are there at once; anything else is
 checked while you work, search matches first. A community mod shows what it can do before you install it, as
 `claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
 installs from the marketplace in its own repository, which the install adds to your user settings first, and one
