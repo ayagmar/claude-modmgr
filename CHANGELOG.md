@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
 ### Added
 - Discover lists mods published anywhere on public GitHub, not only those in your marketplaces: about 3,000 today,
   from a community index CI rebuilds daily (GitHub code and repository search, the candidate list of
@@ -18,6 +20,12 @@ All notable changes to this project are documented here. The format follows
 - Discover sorts by popularity by default (installs for your marketplaces' entries, then community mods by stars,
   one per repository before any repository's second); `o` also sorts by stars, name or source, and `k` lists only
   your own marketplaces' entries.
+- The landing page is a store for Claude Code mods: search every mod in the community index on the page, filter it
+  by what a mod can reach, and copy its install line from the datasheet beside the results.
+
+### Fixed
+- `/mods` typed right after launch, with Discover the tab left open last time, no longer opens on an empty
+  Discover that says your marketplaces list nothing.
 
 ## [0.1.1] - 2026-10-08
 
