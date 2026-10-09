@@ -191,3 +191,29 @@ describe('what a mod is', () => {
     expect(compact.join('\n')).toMatch('/mods info redactor@fixtures explains each one.')
   })
 })
+
+describe('installing from a repository', () => {
+  /** The hrefs of a tree's Links in document order. */
+  const hrefsOf = (node: unknown): string[] =>
+    Array.isArray(node)
+      ? node.flatMap(hrefsOf)
+      : !isNode(node)
+        ? []
+        : node.type === 'Link'
+          ? [String(node.props?.href)]
+          : node.children.flatMap(hrefsOf)
+
+  it('links the repository the review installs from, to read before confirming', async () => {
+    const { w, tree, draw } = await setup()
+    w.state.values.review = {
+      action: 'install',
+      targets: [{ id: 'guard@m', op: 'install', scope: 'user' }],
+      notable: [],
+      changesRepoFile: false,
+      source: 'o/guard',
+    }
+    w.state.values.view = { ...w.state.values.view, stack: ['review'] }
+    expect(hrefsOf(await tree(96, 30))).toEqual(['https://github.com/o/guard'])
+    expect((await draw(96, 30)).join('\n')).toMatch('From the marketplace at github.com/o/guard:')
+  })
+})

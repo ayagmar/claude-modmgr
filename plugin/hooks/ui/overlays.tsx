@@ -81,7 +81,7 @@ const reviewLines = (
   how: ReviewHow,
   columns: number,
 ): Line[] => {
-  const { Box, Text, Select } = v.el
+  const { Box, Text, Select, Link } = v.el
   const declared = review.declaredCommand ?? review.headersHelper
   // Accepted in a terminal, never here: refused from this session, too long to
   // show whole, or holding characters the review can't show as they are.
@@ -234,8 +234,15 @@ const reviewLines = (
     say('Undo (z) reinstalls it from its marketplace.')
   }
   if (review.action === 'install' && review.source !== undefined) {
+    // A repository the community index named: its page, to read before installing.
     const source = sanitize(review.source, { max: 120 })
-    say(`From the marketplace at github.com/${source}:`)
+    push(
+      <Text>
+        From the marketplace at{' '}
+        <Link href={`https://github.com/${source}`}>{`github.com/${source}`}</Link>:
+      </Text>,
+      `From the marketplace at github.com/${source}:`,
+    )
     say('the install adds it to your user settings first')
     say('(a clone; adding runs no plugin code).')
   }

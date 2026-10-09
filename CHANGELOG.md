@@ -17,8 +17,8 @@ All notable changes to this project are documented here. The format follows
 - Dev lists modmgr itself when it runs from a folder (`--plugin-dir`) over an installed copy.
 - Discover says what a remote catalogue entry can do before you install it when the community index read the same
   files, and at which commit; modmgr still reads the installed version again.
-- A mod's detail in Discover links its page on GitHub: the desktop app opens it on a click, and terminals that
-  support links (OSC 8) on a click too.
+- A mod's detail in Discover links its page on GitHub, and a community mod's install review the repository it
+  installs from: the desktop app opens it on a click, and terminals that support links (OSC 8) on a click too.
 - An installed mod's detail and `/mods info` say what it is and link its page, as its `plugin.json` gives them
   (`description`, and `homepage` else `repository`).
 - A marketplace's mod shows its repository's GitHub stars, as a community mod does, and sorts among them by stars;
