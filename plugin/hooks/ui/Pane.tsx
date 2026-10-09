@@ -176,7 +176,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ]
   const closeLabel =
     top === undefined ? (terminal ? 'esc close' : 'close') : terminal ? 'esc back' : 'back'
-  const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use the keys'
+  const hint = frame.isFocused || !terminal ? undefined : 'ctrl+x tab to use these keys'
 
   // Rows the list may take: the body less every other line drawn. The footer's
   // keys wrap in what the jobs, keys and close group leaves them (a hotkey is
@@ -321,6 +321,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       clipped(overlay(top) ?? list, overlayRows(top))
     )
 
+  // h and l: the tab beside the one shown, round the ends.
+  const stepTab = (by: number) => {
+    const at = tabs.findIndex(each => each.tab === view.tab)
+    return tabs[(at + by + tabs.length) % tabs.length]?.tab ?? view.tab
+  }
   const button = (key: Key) =>
     KeyButton(v, { action: key.action, on: key.on, label: key.label, onPress: key.onPress })
   // The tab shown is a title; the others are its number keys.
@@ -390,9 +395,15 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         </Box>
       </Box>
       <Box {...oneRow}>
-        <Text dimColor wrap="truncate-end">
-          {tab.meta}
-        </Text>
+        {tab.metaTone === undefined ? (
+          <Text dimColor wrap="truncate-end">
+            {tab.meta}
+          </Text>
+        ) : (
+          <Text color={TONE[tab.metaTone]} wrap="truncate-end">
+            {tab.meta}
+          </Text>
+        )}
       </Box>
       {warning === undefined ? null : (
         <Text color={TONE.warn} wrap="truncate-end">
@@ -489,7 +500,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap" flexShrink={1}>
           {keys.map(button)}
-          {hint === undefined ? null : <Text dimColor>{hint}</Text>}
+          {hint === undefined ? null : <Text color={TONE.warn}>{hint}</Text>}
         </Box>
         <Box flexDirection="row" columnGap={2} flexShrink={0}>
           {general.map(key => KeyButton(v, { ...key, dim: true }))}
@@ -506,8 +517,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           )}
         </Box>
       </Box>
-      {/* j and k step the selection as the arrows do (vim's keys): last, so
-          they come after every stop the ring walks to. */}
+      {/* Vim's keys: j and k step the selection as the arrows do, h and l
+          the tabs. Last, so they come after every stop the ring walks to. */}
       {top === undefined
         ? HiddenRows(v, [
             KeyButton(v, {
@@ -521,6 +532,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
               on: tab.surface,
               label: 'previous row',
               onPress: () => v.act.scroll(-1),
+            }),
+            KeyButton(v, {
+              action: 'tab.prev',
+              on: 'pane',
+              label: 'previous tab',
+              onPress: () => v.act.tab(stepTab(-1)),
+            }),
+            KeyButton(v, {
+              action: 'tab.next',
+              on: 'pane',
+              label: 'next tab',
+              onPress: () => v.act.tab(stepTab(1)),
             }),
           ])
         : null}

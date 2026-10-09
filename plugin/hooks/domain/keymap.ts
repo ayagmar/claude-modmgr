@@ -29,29 +29,33 @@ export type Binding = {
   readonly key?: string
   readonly label: string
   readonly on: readonly KeySurface[]
+  /** It moves (a tab, a row, a page), and help lists it with the moves. */
+  readonly moves?: true
 }
 
 const LISTS: readonly KeySurface[] = ['installed', 'discover', 'dev', 'health']
 
 export const BINDINGS: readonly Binding[] = [
-  { action: 'tab.installed', hotkey: '1', label: 'Installed', on: ['pane'] },
-  { action: 'tab.discover', hotkey: '2', label: 'Discover', on: ['pane'] },
-  { action: 'tab.dev', hotkey: '3', label: 'Dev', on: ['pane'] },
-  { action: 'tab.health', hotkey: '4', label: 'Health', on: ['pane'] },
-  { action: 'move', key: '↑↓ tab', label: 'move', on: ['pane'] },
-  { action: 'row.next', hotkey: 'j', label: 'next row', on: LISTS },
-  { action: 'row.prev', hotkey: 'k', label: 'previous row', on: LISTS },
-  { action: 'open', key: 'enter', label: 'open', on: LISTS },
-  { action: 'back', key: 'esc', label: 'back · list · clear · close', on: ['pane'] },
+  { action: 'row.next', hotkey: 'j', label: 'next row', on: LISTS, moves: true },
+  { action: 'row.prev', hotkey: 'k', label: 'previous row', on: LISTS, moves: true },
+  { action: 'tab.prev', hotkey: 'h', label: 'previous tab', on: ['pane'], moves: true },
+  { action: 'tab.next', hotkey: 'l', label: 'next tab', on: ['pane'], moves: true },
+  { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS, moves: true },
+  { action: 'page.last', hotkey: 'b', label: 'last page', on: LISTS, moves: true },
+  { action: 'tab.installed', hotkey: '1', label: 'Installed', on: ['pane'], moves: true },
+  { action: 'tab.discover', hotkey: '2', label: 'Discover', on: ['pane'], moves: true },
+  { action: 'tab.dev', hotkey: '3', label: 'Dev', on: ['pane'], moves: true },
+  { action: 'tab.health', hotkey: '4', label: 'Health', on: ['pane'], moves: true },
+  { action: 'help', hotkey: '0', label: 'keys', on: ['pane'], moves: true },
+  { action: 'move', key: '↑↓ tab', label: 'move', on: ['pane'], moves: true },
+  { action: 'open', key: 'enter', label: 'open', on: LISTS, moves: true },
+  { action: 'back', key: 'esc', label: 'back · list · clear · close', on: ['pane'], moves: true },
   { action: 'jobs', hotkey: 'q', label: 'jobs', on: ['pane'] },
-  { action: 'help', hotkey: 'h', label: 'keys', on: ['pane'] },
   { action: 'filter', hotkey: 'f', label: 'filter', on: ['installed', 'discover'] },
   { action: 'sort', hotkey: 'o', label: 'sort', on: ['discover'] },
   { action: 'mine', hotkey: 'u', label: 'only your marketplaces', on: ['discover'] },
-  { action: 'page.prev', key: 'pgup', label: 'previous page', on: LISTS },
-  { action: 'page.next', key: 'pgdn', label: 'next page', on: LISTS },
-  { action: 'page.first', hotkey: 'g', label: 'first page', on: LISTS },
-  { action: 'page.last', hotkey: 'b', label: 'last page', on: LISTS },
+  { action: 'page.prev', key: 'pgup', label: 'previous page', on: LISTS, moves: true },
+  { action: 'page.next', key: 'pgdn', label: 'next page', on: LISTS, moves: true },
   { action: 'refresh', hotkey: 'r', label: 'refresh', on: LISTS },
   { action: 'toggle', hotkey: 'e', label: 'enable/disable', on: ['installed', 'detail'] },
   { action: 'apply', hotkey: 's', label: 'apply staged', on: ['installed'] },
@@ -81,7 +85,7 @@ export const BINDINGS: readonly Binding[] = [
     on: ['detail', 'discover-detail', 'dev', 'dev-detail', 'share', 'review'],
   },
   { action: 'share', hotkey: 'p', label: 'share', on: ['dev', 'dev-detail'] },
-  { action: 'reload', hotkey: 'l', label: 'reload plugins', on: ['dev', 'health', 'band'] },
+  { action: 'reload', hotkey: 's', label: 'reload plugins', on: ['dev', 'health', 'band'] },
   { action: 'confirm', hotkey: 'y', label: 'confirm', on: ['review'] },
   { action: 'cancel', hotkey: 'n', label: 'cancel', on: ['review'] },
   // Not `d`: that dismisses the band, a reflex there.
@@ -158,9 +162,9 @@ export const hotkeyFor = (action: string, surface: KeySurface): string | undefin
 export const helpFor = (
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string> = new Set(),
-): { key: string; label: string }[] => {
+): { key: string; label: string; moves: boolean }[] => {
   const seen = new Set<string>()
-  const rows: { key: string; label: string; engine: boolean }[] = []
+  const rows: { key: string; label: string; engine: boolean; moves: boolean }[] = []
   for (const binding of BINDINGS) {
     if (
       seen.has(binding.action) ||
@@ -173,12 +177,10 @@ export const helpFor = (
       key: binding.hotkey ?? binding.key ?? '',
       label: binding.label,
       engine: binding.hotkey === undefined,
+      moves: binding.moves === true,
     })
   }
   return [...rows.filter(row => row.engine), ...rows.filter(row => !row.engine)].map(
-    ({ key, label }) => ({
-      key,
-      label,
-    }),
+    ({ key, label, moves }) => ({ key, label, moves }),
   )
 }

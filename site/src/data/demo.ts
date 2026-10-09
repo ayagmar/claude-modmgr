@@ -451,7 +451,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on session.end"
+          "text": "1 hook or call"
         }
       ],
       [
@@ -516,7 +516,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -935,23 +935,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on turn.complete  on ui.render "
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": "                     "
-        },
-        {
-          "dim": true,
-          "text": "clock.now  state.set  ui.toast"
+          "text": "5 hooks and calls"
         }
       ],
       [
@@ -990,6 +974,15 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        }
+      ],
+      [
+        {
           "dim": true,
           "text": "────────────────────────────────────────────────────────────────────────────────────────────────"
         }
@@ -1007,7 +1000,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -1427,7 +1420,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "
@@ -1893,8 +1886,8 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "dim": true,
-          "text": "1 problem to look at"
+          "tone": "error",
+          "text": "▲ 1 problem to look at"
         }
       ],
       [
@@ -1939,7 +1932,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "bold": true,
-          "text": "modmgr itself"
+          "text": "Status"
         }
       ],
       [
@@ -1951,7 +1944,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " 5 enabled"
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "Mods"
+        },
+        {
+          "text": "         5 enabled"
         }
       ],
       [
@@ -1963,7 +1963,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " updates checked never, every 6 hours                                             "
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "Updates"
+        },
+        {
+          "text": "      never checked · every 6 h                                           "
         },
         {
           "tone": "claude",
@@ -1979,7 +1986,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " detector: 5 mods found; 203 of 203 checked, 600 requests left this session"
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "Discover"
+        },
+        {
+          "text": "     5 mods found"
         }
       ],
       [
@@ -1991,7 +2005,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " cache: 185 B                                                                         "
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "Cache"
+        },
+        {
+          "text": "        185 B                                                                   "
         },
         {
           "tone": "claude",
@@ -2007,7 +2028,14 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " A hook that fails is logged only in a session started with --debug            "
+          "text": " "
+        },
+        {
+          "bold": true,
+          "text": "Hook errors"
+        },
+        {
+          "text": "  seen only in a session started with --debug                      "
         },
         {
           "tone": "claude",
@@ -2036,7 +2064,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "l: reload                                                            "
+          "text": "s: reload                                                            "
         },
         {
           "dim": true,
@@ -2047,7 +2075,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "h: keys"
+          "text": "0: keys"
         },
         {
           "text": "  "

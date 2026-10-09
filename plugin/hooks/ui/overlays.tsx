@@ -409,14 +409,13 @@ const HELP_NOTE = 'Changes are staged with e and applied together with s; z undo
 
 type HelpRow = { readonly key: string; readonly label: string }
 
-/** Help's two groups: the keys that move (the engine's and the tabs'), then the actions. */
+/** Help's two groups: the keys that move (tabs, rows, pages), then the actions. */
 const helpGroups = (
   surfaces: readonly KeySurface[],
   hidden: ReadonlySet<string>,
 ): { readonly move: HelpRow[]; readonly act: HelpRow[] } => {
   const rows = helpFor(surfaces, hidden)
-  const acts = (row: HelpRow) => /^[a-z]$/.test(row.key)
-  return { move: rows.filter(row => !acts(row)), act: rows.filter(acts) }
+  return { move: rows.filter(row => row.moves), act: rows.filter(row => !row.moves) }
 }
 
 /** The groups sit side by side when two columns fit. */

@@ -12,11 +12,17 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - Every list pages: `‹ prev` and `next ›` beside the pager, Page Up and Page Down, a page of items at a time; the
   selection opens the new page.
-- `j` and `k` step the selection as the arrows do, and the mouse wheel steps it on every tab, Health included.
+- Vim's keys: `j` and `k` step the selection as the arrows do, `h` and `l` move to the previous and next tab; the
+  mouse wheel steps the selection on every tab, Health included.
 - Dev lists modmgr itself when it runs from a folder (`--plugin-dir`) over an installed copy.
 
 ### Changed
-- Jobs moved to `q`, so `j` and `k` can move; Discover's "yours only" is now `u`, and the job log cancels with `d`.
+- Keys moved to make room for vim's: jobs is `q`, the key list `0`, reload `s`, Discover's "yours only" `u`, and the
+  job log cancels with `d`. The key list groups every key that moves apart from the actions.
+- Health reads as a status page: each of modmgr's own rows is named (Mods, Updates, Discover, Cache, Hook errors) in
+  plain words, and the line under the tabs says in color whether anything needs you.
+- A mod's detail counts the hooks and calls that only draw instead of listing every name; Enter still lists them.
+- The terminal's "ctrl+x tab to use these keys" stands out while the prompt has the keys.
 - A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`
   CLI it runs still needs 2.1.292 or newer.
 - The desktop app draws the dialog as a desktop layout: the detail is a card beside the list instead of a column of

@@ -286,7 +286,7 @@ describe('the pane around Dev', () => {
     expect(MOUNT_SETS).toContainEqual(['pane', 'dev', 'share'])
     expect(MOUNT_SETS).not.toContainEqual(['pane', 'discover', 'dev-detail'])
     const keys = helpFor(['pane', 'dev']).map(row => row.key)
-    expect(keys).toEqual(expect.arrayContaining(['v', 't', 'c', 'p', 'l', 'r']))
+    expect(keys).toEqual(expect.arrayContaining(['v', 't', 'c', 'p', 's', 'r']))
     expect(keys).not.toContain('f')
   })
 

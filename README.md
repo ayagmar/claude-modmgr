@@ -44,7 +44,7 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
                                        │
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-z: undo                                                              q: jobs  h: keys  esc close
+z: undo                                                              q: jobs  0: keys  esc close
 ```
 
 **A mod's detail** says what it hooks and calls, grouped by what that reaches (your machine, the network, the
@@ -77,7 +77,7 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                        │ ✓ validates
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                      q: jobs  h: keys  esc back
+                                                                      q: jobs  0: keys  esc back
 ```
 
 **Discover** lists the mods in every marketplace you have added, and the mods published anywhere else on public
@@ -125,18 +125,18 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 
 ```
 1: Installed   2: Discover   3: Dev   Health ▲1                                       r: refresh
-1 problem to look at
+▲ 1 problem to look at
   broken
 ❯ ▲ validate finds 1 error in it                                                        → see it
-  modmgr itself
-    5 enabled
-    updates checked never, every 6 hours                                             → check now
-    detector: 5 mods found; 203 of 203 checked, 600 requests left this session
-    cache: 185 B                                                                         → clear
-    A hook that fails is logged only in a session started with --debug            → copy command
+  Status
+    Mods         5 enabled
+    Updates      never checked · every 6 h                                           → check now
+    Discover     5 mods found
+    Cache        185 B                                                                   → clear
+    Hook errors  seen only in a session started with --debug                      → copy command
 
 ────────────────────────────────────────────────────────────────────────────────────────────────
-l: reload                                                            q: jobs  h: keys  esc close
+s: reload                                                            q: jobs  0: keys  esc close
 ```
 
 Updates are checked every few hours while no turn is running (`updateCheckHours`, 0 turns them off).
