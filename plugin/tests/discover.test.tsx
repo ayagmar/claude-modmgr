@@ -260,7 +260,7 @@ test('a name two marketplaces share is drawn with each marketplace', async ($, o
   host(on, {
     state: {
       view: { tab: 'discover', stack: [], query: '', search: '', sort: 'name', staged: {} },
-      catalogPage: { rows, total: 3, matched: 3, offset: 0, loading: false },
+      catalogPage: { rows, total: 3, community: 0, matched: 3, offset: 0, loading: false },
     },
   })
   const ui = await mountPane($, 'terminal', PANE(64, 24))

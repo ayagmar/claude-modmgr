@@ -230,6 +230,20 @@ describe('inspectCheckout', () => {
     expect(await inspectCheckout(nameless, FACTS)).toEqual([])
   })
 
+  it('leaves out a name too long or garbled for the index', async () => {
+    const long = `${'X'.repeat(101)}_KEY`
+    const [mod] = await inspectCheckout(
+      checkout({ 'hooks/hooks.json': HOOKS }, () =>
+        report([
+          `./r.ts env reads: GITHUB_TOKEN, ${long}, BAD\u200bNAME`,
+          './r.ts calls: $.env.get',
+        ]),
+      ),
+      FACTS,
+    )
+    expect(mod?.envReads).toEqual(['GITHUB_TOKEN'])
+  })
+
   it('names a mod at the repository root after the repository', async () => {
     const [root] = await inspectCheckout(checkout({ 'hooks/hooks.json': HOOKS }), FACTS)
     expect(root?.name).toBe('mods')
@@ -478,6 +492,31 @@ describe('buildMods', () => {
     expect(failing.logs.join('\n')).toMatch(/failed \(code search/)
     const empty = deps({ inspect: () => [] })
     expect(await buildMods(empty.built)).toEqual({ refused: 'no mods found: nothing written' })
+  })
+
+  it('refuses an index where most mods fail validate, as when validate itself broke', async () => {
+    const { built } = deps({
+      seeds: 'a/one\nb/two\nc/three\n',
+      inspect: repo => [found(repo, { check: repo === 'c/three' ? 'passed' : 'failed' })],
+    })
+    expect(await buildMods(built)).toEqual({
+      refused: '2 of 3 mods fail validate: nothing written',
+    })
+  })
+
+  it('reads a repository GitHub turned away once more, after a pause', async () => {
+    let tries = 0
+    const { built, logs, inspected } = deps({
+      seeds: 'busy/mod\n',
+      inspect: repo => {
+        tries += 1
+        return tries === 1 ? undefined : [found(repo)]
+      },
+    })
+    const result = await buildMods(built)
+    expect(inspected).toEqual(['busy/mod', 'busy/mod'])
+    expect(logs.join('\n')).toMatch(/1 repositories couldn't be read; trying them again/)
+    expect('text' in result && parseCommunity(result.text).ok).toBe(true)
   })
 
   it('starts fresh from an unreadable published index', async () => {

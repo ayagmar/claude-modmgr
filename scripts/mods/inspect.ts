@@ -13,6 +13,8 @@ import {
   DESCRIPTION_MAX,
   isRepoPath,
   NAME_MAX,
+  WORD_MAX,
+  WORDS_PER_LIST,
 } from '../../plugin/hooks/domain/community.ts'
 import { isPluginName } from '../../plugin/hooks/domain/ids.ts'
 import {
@@ -23,7 +25,7 @@ import {
   rec,
   str,
 } from '../../plugin/hooks/domain/json.ts'
-import { sanitize } from '../../plugin/hooks/domain/sanitize.ts'
+import { hasHiddenCharacters, sanitize } from '../../plugin/hooks/domain/sanitize.ts'
 import { parseValidateReport } from '../../plugin/hooks/domain/validate-report.ts'
 
 export type Checkout = {
@@ -138,6 +140,12 @@ const validates = (run: CliRun): boolean => {
   return report.ok && report.value.success
 }
 
+/** What the index can carry: a computed or garbled name past its length is left out. */
+const kept = (words: readonly string[] = []): string[] =>
+  words
+    .filter(word => word.length <= WORD_MAX && !hasHiddenCharacters(word))
+    .slice(0, WORDS_PER_LIST)
+
 const checkOf = (run: CliRun): { check: Check; caps?: ReturnType<typeof capabilitiesOf> } => {
   const report = parseValidateReport(run)
   if (!report.ok) return { check: 'failed' }
@@ -196,9 +204,9 @@ export const inspectCheckout = async (
         ? {}
         : { market: { name: market.name, plugin } }),
       check,
-      events: caps?.events ?? [],
-      calls: caps?.calls ?? [],
-      envReads: caps?.envReads ?? [],
+      events: kept(caps?.events),
+      calls: kept(caps?.calls),
+      envReads: kept(caps?.envReads),
     })
   }
   return mods

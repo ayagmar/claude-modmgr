@@ -13,7 +13,7 @@ import { sanitize } from './sanitize.ts'
 
 export type { CatalogKind, CatalogRow }
 
-export const SORTS = ['installs', 'name', 'marketplace'] as const
+export const SORTS = ['installs', 'stars', 'name', 'marketplace'] as const
 export type CatalogSort = (typeof SORTS)[number]
 
 /**
@@ -39,6 +39,8 @@ type Indexed = {
 
 export type CatalogIndex = {
   readonly size: number
+  /** Of `size`, community mods. */
+  readonly community: number
   readonly byId: ReadonlyMap<string, Indexed>
   readonly order: Readonly<Record<CatalogSort, readonly Indexed[]>>
 }
@@ -106,23 +108,56 @@ export const buildIndex = (
   const name = [...all].sort(byName)
   return {
     size: all.length,
+    community: all.filter(item => item.mod !== undefined).length,
     byId,
     order: {
       name,
-      installs: [...name].sort(byPopularity),
+      installs: [...name].sort(byPopularity(turnsOf(name))),
+      stars: [...name].sort(byStars),
       marketplace: [...name].sort((a, b) => originOf(a).localeCompare(originOf(b))),
     },
   }
 }
 
-/** The person's marketplaces first, by installs; then the community's mods, by stars. */
-const byPopularity = (a: Indexed, b: Indexed): number => {
-  if (a.entry !== undefined && b.entry !== undefined) {
-    return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+/**
+ * Each community mod's turn within its repository, in name order: a
+ * repository's mods share its stars, so one that ships dozens would fill the
+ * top of a list by stars on its own.
+ */
+const turnsOf = (byName: readonly Indexed[]): ReadonlyMap<string, number> => {
+  const seen = new Map<string, number>()
+  const turns = new Map<string, number>()
+  for (const item of byName) {
+    if (item.mod === undefined) continue
+    const repo = item.mod.repo.toLowerCase()
+    const turn = seen.get(repo) ?? 0
+    turns.set(item.id, turn)
+    seen.set(repo, turn + 1)
   }
-  if (a.entry !== undefined) return -1
-  if (b.entry !== undefined) return 1
-  return b.mod.stars - a.mod.stars
+  return turns
+}
+
+/**
+ * The person's marketplaces first, by installs; then the community's mods by
+ * stars, one from each repository before any repository's second.
+ */
+const byPopularity =
+  (turns: ReadonlyMap<string, number>) =>
+  (a: Indexed, b: Indexed): number => {
+    if (a.entry !== undefined && b.entry !== undefined) {
+      return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+    }
+    if (a.entry !== undefined) return -1
+    if (b.entry !== undefined) return 1
+    return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
+  }
+
+/** Community mods by stars, as GitHub counts them; then the catalogue's entries, by installs. */
+const byStars = (a: Indexed, b: Indexed): number => {
+  if (a.mod !== undefined && b.mod !== undefined) return b.mod.stars - a.mod.stars
+  if (a.mod !== undefined) return -1
+  if (b.mod !== undefined) return 1
+  return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
 }
 
 /** The marketplace an entry comes from, or the repository of a community mod. */
@@ -145,12 +180,19 @@ export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
  */
 export const matchAll = (
   index: CatalogIndex,
-  query: { readonly text: string; readonly sort: CatalogSort; readonly only?: CatalogKind },
+  query: {
+    readonly text: string
+    readonly sort: CatalogSort
+    readonly only?: CatalogKind
+    /** Only the entries of the person's own marketplaces. */
+    readonly mine?: boolean
+  },
   kindOf: (id: string) => CatalogKind,
 ): Match[] => {
   const words = tokens(query.text)
   const matched: Match[] = []
   for (const item of index.order[query.sort]) {
+    if (query.mine === true && item.mod !== undefined) continue
     const kind = item.mod !== undefined ? 'mod' : kindOf(item.id)
     if (query.only !== undefined && kind !== query.only) continue
     if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })

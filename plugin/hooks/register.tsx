@@ -60,7 +60,7 @@ const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
 const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
-const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/7' })
+const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/8' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
   shape: 'review/4',
 })

@@ -1412,7 +1412,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "o: sort by name  m: marketplace                                      "
+          "text": "o: sort by stars  k: yours only  m: marketplace                      "
         },
         {
           "dim": true,
@@ -2061,7 +2061,7 @@ export const FRAMES: readonly Frame[] = [
           "text": " "
         },
         {
-          "text": " cache: 181 B                       "
+          "text": " cache: 185 B                       "
         },
         {
           "dim": true,
