@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css'
-import { MIN_CLAUDE_VERSION } from '../../../plugin/hooks/domain/version.ts'
+import { MIN_CLAUDE_VERSION, MIN_SESSION_VERSION } from '../../../plugin/hooks/domain/version.ts'
 import Datasheet from '../components/Datasheet.astro'
 import Dialog from '../components/Dialog.astro'
 import Icons from '../components/Icons.astro'
@@ -281,8 +281,10 @@ const description = `Search ${total} mods for Claude Code found across public Gi
           <p class="get-sub">Type this at the Claude Code prompt, then <code>/mods</code>.</p>
           <Install id="install-line" label="The install line, for the Claude Code prompt" />
           <p class="needs">
-            Needs Claude Code {MIN_CLAUDE_VERSION} or newer,
-            with the <code>claude</code> CLI on your path.
+            Needs a Claude Code session at {MIN_SESSION_VERSION} or newer, and the
+            <code>claude</code> CLI on your path at {MIN_CLAUDE_VERSION} or newer: modmgr runs it
+            to make changes. The desktop app runs its own Claude Code, so modmgr loads there once
+            the app's reaches {MIN_SESSION_VERSION}.
           </p>
         </div>
       </section>

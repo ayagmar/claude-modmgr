@@ -2,6 +2,8 @@
 // comparison for `x.y.z` strings.
 
 export const MIN_CLAUDE_VERSION = '2.1.292'
+/** The oldest session that loads modmgr: the desktop app's pinned one included. */
+export const MIN_SESSION_VERSION = '2.1.284'
 
 const parts = (version: string): number[] | undefined => {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version.trim())
