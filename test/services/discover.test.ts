@@ -89,6 +89,19 @@ describe('the catalogue', () => {
     expect(rt.catalog.folderOf('nosuch@x')).toBeUndefined()
   })
 
+  it("steps Discover's selection with the wheel", async () => {
+    const { w, act, rt } = await setup()
+    await act.tab('discover')
+    markMods(rt.store, rt.catalog)
+    await act.filter('')
+    const first = w.state.values.catalogPage.rows.map(row => row.id)
+    await act.scroll(5)
+    expect(w.state.values.view.found).toBe(first[5])
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:found:${first[5]}`)
+    await act.scroll(-1)
+    expect(w.state.values.view.found).toBe(first[4])
+  })
+
   it('searches, sorts and moves its window with the selection', async () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')

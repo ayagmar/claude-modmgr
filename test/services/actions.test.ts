@@ -72,6 +72,22 @@ describe('selection and overlays', () => {
     await act.filter('x'.repeat(500))
     expect(w.state.values.view.query.length).toBe(100)
   })
+
+  it('steps the selection with the wheel, held at the ends, and not under an overlay', async () => {
+    const { w, act } = await setup()
+    const rows = w.state.values.mods.map(row => row.id)
+    await act.scroll(2)
+    expect(w.state.values.view.selected).toBe(rows[2])
+    expect(w.state.values.detail?.id).toBe(rows[2])
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${rows[2]}`)
+    await act.scroll(100)
+    expect(w.state.values.view.selected).toBe(rows.at(-1))
+    await act.scroll(-100)
+    expect(w.state.values.view.selected).toBe(rows[0])
+    await act.overlay('help')
+    await act.scroll(1)
+    expect(w.state.values.view.selected).toBe(rows[0])
+  })
 })
 
 describe('toggle → review → confirm → reload', () => {

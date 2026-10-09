@@ -368,6 +368,14 @@ export const register: Register = (on, options) => {
     return moved
   }).catch((_$, e, next) => next(e))
 
+  // The person's wheel over the dialog steps the selection: the list windows
+  // itself to the body, so the engine has nothing of its own to scroll.
+  on('ui.scroll', { component: 'Pane', requestId: 'modmgr' }, async ($, e, next) => {
+    if (e.origin.kind !== 'person' || e.pointer === undefined) return next(e)
+    await actionsOf($).scroll(e.by)
+    return {}
+  }).catch((_$, e, next) => next(e))
+
   // Esc pops an overlay, then brings the ring back to the list, then clears the
   // filter, then closes.
   on('ui.close', { id: 'modmgr' }, async ($, e, next) => {

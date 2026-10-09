@@ -44,6 +44,11 @@ export type Catalog = {
   show(): Promise<void>
   /** The first or last entry the current search matches. */
   edge(which: 'first' | 'last'): string | undefined
+  /**
+   * The entry `choose` picks among the current search's matches, given their
+   * count and the index of `from` (the first's when it isn't matched).
+   */
+  pick(from: string | undefined, choose: (count: number, at: number) => number): string | undefined
   /** The detector's cache changed: kinds are read again. */
   invalidate(): void
   isLoaded(): boolean
@@ -280,6 +285,14 @@ export const createCatalog = (
     edge(which) {
       const matched = memo?.matched ?? []
       return (which === 'first' ? matched[0] : matched.at(-1))?.item.id
+    },
+    pick(from, choose) {
+      const matched = memo?.matched ?? []
+      const at = Math.max(
+        0,
+        matched.findIndex(match => match.item.id === from),
+      )
+      return matched[choose(matched.length, at)]?.item.id
     },
     invalidate() {
       kindsVersion += 1

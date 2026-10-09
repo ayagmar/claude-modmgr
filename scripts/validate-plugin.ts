@@ -55,10 +55,12 @@ check(
   '/mods is no longer "answering its own command": is the registration literal still in register.tsx?',
 )
 // The only gates modmgr may hold are on its own pane: the Esc cascade keeps it
-// open (ui.close) and the focus ring is observed (ui.focus). Each has a .catch.
+// open (ui.close), the focus ring is observed (ui.focus) and the wheel steps
+// its list (ui.scroll). Each has a .catch.
 const OWN_GATES = [
   'gating hook with .catch: ui.focus{component=Pane, requestId=modmgr}',
   'gating hook with .catch: ui.close{id=modmgr}',
+  'gating hook with .catch: ui.scroll{component=Pane, requestId=modmgr}',
 ]
 const gates = notes.filter(note => / gating hook/.test(note))
 check(
