@@ -73,8 +73,10 @@ export type CatalogRow = {
   unread?: string
   /** The selected row's whole description, when its list line (`blurb`) cut it short. */
   about?: string
-  /** A community mod's GitHub stars. */
+  /** Its repository's GitHub stars, as the community index counted them. */
   stars?: number
+  /** Its page on GitHub: the repository, or its folder there. */
+  link?: string
   /** A community mod: from a repository none of the person's marketplaces lists. */
   community?: CommunityFacts
 }

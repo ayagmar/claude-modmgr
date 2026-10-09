@@ -245,6 +245,11 @@ test('from 100 body columns the selected entry’s detail sits beside the Discov
     expect(
       await ui.find({ type: 'Text', text: 'modmgr reads it once the mod is installed.' }),
     ).toBeDefined()
+    // Where it is on GitHub opens from the detail: its folder at the commit it pins.
+    const link = await ui.find({ type: 'Link', text: 'github.com/awslabs/agent-plugins' })
+    expect(link?.props.href).toBe(
+      'https://github.com/awslabs/agent-plugins/tree/097fe8ad56d8a1d5e2c81d7880adf145553cf244/plugins/aws-serverless',
+    )
     await ui.unmount()
   }
 })

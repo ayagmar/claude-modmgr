@@ -42,6 +42,7 @@ export const ELEMENTS = {
   Button: 'Button',
   Input: 'Input',
   Select: 'Select',
+  Link: 'Link',
 } as const
 
 const widthOf = (line: Line): number => line.reduce((sum, seg) => sum + [...seg.text].length, 0)

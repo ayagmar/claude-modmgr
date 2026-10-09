@@ -236,10 +236,11 @@ function viewPortsOf($: EngineInterface, e: RenderInput): ViewPorts {
           Box: table.Box,
           Text: table.Text,
           Button: table.Button,
+          Link: table.Link,
           Input: table.Input,
           Select: table.Select,
         }
-      : { Box: table.Box, Text: table.Text, Button: table.Button }
+      : { Box: table.Box, Text: table.Text, Button: table.Button, Link: table.Link }
   return {
     el,
     surface: e.surface,

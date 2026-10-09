@@ -5,7 +5,6 @@
 import type {
   CatalogPage,
   CatalogRow,
-  CommunityFacts,
   Job,
   ReviewRequest,
   Scope,
@@ -96,12 +95,6 @@ export const communityInstallReview = (
     indexedAt: mod.commit,
   }
 }
-
-/** A community mod's page on GitHub (its folder at the commit the index read). */
-export const communityLink = (facts: Pick<CommunityFacts, 'repo' | 'path' | 'commit'>): string =>
-  facts.path === ''
-    ? `https://github.com/${facts.repo}`
-    : `https://github.com/${facts.repo}/tree/${facts.commit}/${facts.path}`
 
 /** The same review at another scope (the review's Select). */
 export const withScope = (review: ReviewRequest, scope: Scope): ReviewRequest =>

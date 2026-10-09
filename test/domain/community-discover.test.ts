@@ -9,11 +9,10 @@ import {
   windowOf,
 } from '../../plugin/hooks/domain/catalog.ts'
 import type { CatalogEntry } from '../../plugin/hooks/domain/cli-results.ts'
-import type { CommunityMod } from '../../plugin/hooks/domain/community.ts'
+import { type CommunityMod, communityLink } from '../../plugin/hooks/domain/community.ts'
 import {
   acceptReview,
   communityInstallReview,
-  communityLink,
   withScope,
 } from '../../plugin/hooks/domain/discover.ts'
 import { commandLine, specsOf } from '../../plugin/hooks/domain/view.ts'
@@ -236,7 +235,7 @@ describe('a catalogue entry the community index read', () => {
     source: { kind: 'github', repo: 'o/guard', ...(sha === undefined ? {} : { sha }) },
   })
   const rowOf = (entries: CatalogEntry[]) => {
-    const index = buildIndex(entries, [unlisted(mod('o/guard'))])
+    const index = buildIndex(entries, [unlisted(mod('o/guard', { stars: 42 }))])
     const matched = matchAll(index, { text: '', sort: 'installs' }, () => 'mod')
     return windowOf(matched, 'guard@directory', 10).rows.find(row => row.id === 'guard@directory')
   }
@@ -245,12 +244,60 @@ describe('a catalogue entry the community index read', () => {
     expect(rowOf([remote()])).toMatchObject({
       notable: ['runs-programs', 'changes-model-input'],
       readAt: SHA,
+      stars: 42,
+      link: 'https://github.com/o/guard',
     })
   })
 
-  it('says nothing when the entry pins another commit than the one read', () => {
+  it('pinned at another commit, keeps its stars and says nothing of what it can do', () => {
     const row = rowOf([remote('f'.repeat(40))])
+    expect(row?.stars).toBe(42)
     expect(row?.notable).toBeUndefined()
     expect(row?.readAt).toBeUndefined()
+  })
+
+  it('sorts by stars among the community’s mods, ahead of entries with no count', () => {
+    const index = buildIndex(
+      [remote('f'.repeat(40)), entry('plain@m', 900)],
+      [unlisted(mod('o/guard', { stars: 42 })), unlisted(mod('o/big', { stars: 99 }))],
+    )
+    expect(index.order.stars.map(item => item.id)).toEqual([
+      'github.com/o/big',
+      'guard@directory',
+      'plain@m',
+    ])
+  })
+})
+
+describe('where a catalogue entry is on GitHub', () => {
+  const linkOf = (source: CatalogEntry['source'], marketplaceRepos = new Map<string, string>()) => {
+    const index = buildIndex([{ ...entry('p@m'), source }], [], {
+      installed: new Set(),
+      marketplaceRepos,
+    })
+    return windowOf(
+      matchAll(index, { text: '', sort: 'name' }, () => 'mod'),
+      'p@m',
+    ).rows[0]?.link
+  }
+
+  it('links its repository, or its folder at the commit it pins', () => {
+    expect(linkOf({ kind: 'url', url: 'https://github.com/o/r.git', sha: SHA })).toBe(
+      'https://github.com/o/r',
+    )
+    expect(
+      linkOf({ kind: 'git-subdir', url: 'https://github.com/o/r.git', path: 'mods/p', sha: SHA }),
+    ).toBe(`https://github.com/o/r/tree/${SHA}/mods/p`)
+    expect(linkOf({ kind: 'relative', path: './plugins/p' }, new Map([['m', 'o/market']]))).toBe(
+      'https://github.com/o/market/tree/HEAD/plugins/p',
+    )
+  })
+
+  it('links nothing off GitHub or out of the repository', () => {
+    expect(linkOf({ kind: 'url', url: 'https://gitlab.com/o/r.git' })).toBeUndefined()
+    expect(linkOf({ kind: 'relative', path: './p' })).toBeUndefined()
+    expect(
+      linkOf({ kind: 'git-subdir', url: 'https://github.com/o/r.git', path: '../escape' }),
+    ).toBeUndefined()
   })
 })
