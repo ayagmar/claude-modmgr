@@ -47,6 +47,9 @@ export const TAIL_FLUSH_MS = 100
 /** How long the band echoes a reload's answer. */
 export const RELOAD_ECHO_MS = 8000
 
+/** How the engine words a reload it refuses (seen on 2.1.293 under the desktop app). */
+const RELOAD_REFUSED = /isn['’]t available/i
+
 export type RunnerOptions = {
   /** This module's queue owner id. */
   readonly owner: string
@@ -252,6 +255,15 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
   const reload = async (): Promise<Outcome> => {
     try {
       const text = await ports.command.reloadPlugins()
+      // A session the desktop app drives refuses the reload in words alone
+      // ("/reload-plugins isn't available over a remote connection"): nothing
+      // was applied, so it isn't said as if it were.
+      if (text !== undefined && RELOAD_REFUSED.test(text)) {
+        await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
+        return failed({ kind: 'rejected', message: sanitize(text, { max: 200 }) }, [
+          'This session cannot reload plugins: start a new session to apply the changes.',
+        ])
+      }
       // Always something to echo: the status line's "applied" shows while it does.
       const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'
       await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
