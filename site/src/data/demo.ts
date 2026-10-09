@@ -428,7 +428,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on session.append"
+          "text": " on session.append"
         }
       ],
       [
@@ -451,7 +451,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on session.end"
+          "text": "on session.end"
         }
       ],
       [
@@ -912,7 +912,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "What the model sees"
         },
         {
-          "text": " on prompt.submit"
+          "text": " on prompt.submit"
         }
       ],
       [
@@ -935,7 +935,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "on turn.complete  on ui.render  cl"
+          "text": "on turn.complete  on ui.render  cl"
         },
         {
           "text": "…"

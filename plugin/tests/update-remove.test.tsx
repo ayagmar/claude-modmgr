@@ -307,7 +307,7 @@ test('a hook and a call of one name read apart', async ($, on) => {
   })
   await $.session.start(START)
   const ui = await mountPane($, 'terminal', PANE(90, 40))
-  expect(await ui.find({ type: 'Text', text: 'on command.run' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'on\u00a0command.run' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'command.run' })).toBeDefined()
   await ui.unmount()
 })

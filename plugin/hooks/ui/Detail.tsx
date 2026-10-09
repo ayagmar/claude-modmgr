@@ -133,9 +133,12 @@ const notableSection = (
   }
 }
 
-/** A hook reads `on <event>`, as a module spells it, so it never passes for the call of that name. */
+/**
+ * A hook reads `on <event>`, as a module spells it, so it never passes for the
+ * call of that name; the space doesn't break, so a wrapped list never parts them.
+ */
 const itemName = (item: ReachGroup['items'][number]): string =>
-  item.kind === 'event' ? `on ${item.name}` : item.name
+  item.kind === 'event' ? `on\u00a0${item.name}` : item.name
 
 /**
  * Everything it hooks and calls, grouped by reach. In the full form each group
@@ -175,7 +178,10 @@ const reachSection = (
               v,
               group.label,
               label,
-              <Text dimColor={QUIET.has(group.reach)} wrap="truncate-end">
+              <Text
+                dimColor={QUIET.has(group.reach)}
+                wrap={v.surface === 'terminal' ? 'truncate-end' : 'wrap'}
+              >
                 {names(group)}
               </Text>,
             ),
