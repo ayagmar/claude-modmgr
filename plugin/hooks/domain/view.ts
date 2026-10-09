@@ -142,7 +142,9 @@ export const windowAround = (count: number, index: number, size: number): Window
  * first row) while `index` moves inside it, and shifts only as far as needed
  * when `index` reaches its edge, keeping one row beyond the selection drawn. So
  * the highlight moves down a still list, as in any list, instead of the list
- * moving under it at every key. With no previous window it centres on `index`.
+ * moving under it at every key. An `index` past the window turns a page: it
+ * leads the window going down, ends it going up. With no previous window it
+ * centres on `index`.
  */
 export const windowFollowing = (
   previous: number | undefined,
@@ -156,7 +158,11 @@ export const windowFollowing = (
   const at = Math.min(Math.max(0, index), count - 1)
   const margin = rows >= 4 ? 1 : 0
   let start = Math.min(Math.max(0, previous), count - rows)
-  if (at < start + margin) start = at - margin
+  // A jump past the window (a page key, the next page) turns the page: the
+  // selection opens the new window, as a reader's page turns, not at its far edge.
+  if (at >= start + rows) start = at - margin
+  else if (at < start) start = at - (rows - 1 - margin)
+  else if (at < start + margin) start = at - margin
   else if (at > start + rows - 1 - margin) start = at - (rows - 1 - margin)
   start = Math.min(Math.max(0, start), count - rows)
   return { start, end: start + rows }

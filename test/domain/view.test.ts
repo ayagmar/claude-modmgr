@@ -468,6 +468,11 @@ describe('a list that scrolls at its edges', () => {
     expect(windowFollowing(46, 100, 46, 10)).toEqual({ start: 45, end: 55 })
   })
 
+  it('turns a page when the selection jumps past the window: it leads the next, ends the previous', () => {
+    expect(windowFollowing(46, 100, 64, 10)).toEqual({ start: 63, end: 73 })
+    expect(windowFollowing(46, 100, 37, 10)).toEqual({ start: 29, end: 39 })
+  })
+
   it('jumps to the first or last page and fits a short list whole', () => {
     expect(windowFollowing(46, 100, 99, 10)).toEqual({ start: 90, end: 100 })
     expect(windowFollowing(46, 100, 0, 10)).toEqual({ start: 0, end: 10 })

@@ -85,7 +85,9 @@ describe('the line under the list', () => {
     for (const columns of [46, 60]) {
       const lines = await draw(columns, 10)
       expect(lines.some(line => line.includes('s: review and apply'))).toBe(true)
-      expect(lines.some(line => /\d–\d of 5 {2}g: first {2}b: last/.test(line))).toBe(true)
+      expect(
+        lines.some(line => /\d–\d of 5 {2}‹ prev {2}next › {2}g: first {2}b: last/.test(line)),
+      ).toBe(true)
       // Every row the pane has, no more: the footer stays in view.
       expect(lines).toHaveLength(10)
     }

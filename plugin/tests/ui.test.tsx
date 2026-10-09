@@ -335,6 +335,16 @@ test('a long list is windowed around the focus, with a pager', async ($, on) => 
     expect(await ui.find({ type: 'Text', text: /^\d+–200 of 200$/ })).toBeDefined()
     await ui.press({ key: 'act:page.first' })
     expect((h.read('view') as { selected: string }).selected).toBe('mod-000@m')
+    // Next and previous move a page of the rows shown, to the row after the window.
+    await ui.redraw()
+    const page = (await lines()).length
+    await ui.press({ key: 'act:page.next' })
+    expect((h.read('view') as { selected: string }).selected).toBe(
+      `mod-${String(page).padStart(3, '0')}@m`,
+    )
+    await ui.redraw()
+    await ui.press({ key: 'act:page.prev' })
+    expect((h.read('view') as { selected: string }).selected).toBe('mod-000@m')
     await ui.unmount()
   }
 })

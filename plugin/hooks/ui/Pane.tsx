@@ -48,6 +48,10 @@ const NOT_YET: ReadonlySet<string> = new Set()
 /** From this many body rows the search field is drawn in a box. */
 const BOXED_FIELD_MIN_ROWS = 18
 
+/** The items one page of the list drawn last holds: what Page Up and Page Down move by. */
+let lastPage = 1
+export const pageSize = (): number => lastPage
+
 export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderElement> => {
   const [
     view,
@@ -201,7 +205,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // Too narrow for both, the pager wraps under what is staged (its widest label counted).
   const stagedWidth = `${staged} staged changes  s: review and apply`.length
   const widestPager = pagerLabel({ start: tab.count - 1, end: tab.count }, tab.count) ?? ''
-  const pagerWidth = `${widestPager}  g: first  b: last`.length
+  const pagerWidth = `${widestPager}  ‹ prev  next ›  g: first  b: last`.length
   const underRows = showStaged
     ? paging
       ? footerRowsFor([stagedWidth, pagerWidth], frame.bodyColumns)
@@ -213,6 +217,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
 
   // The list, windowed around the selection, and its pager.
   const { el: list, pager } = tab.list(listRows, { columns: listColumns, beside })
+  const perPage = Math.max(1, Math.floor(listRows / tab.itemRows))
+  lastPage = perPage
 
   const under = stack.at(-2)
   const surfaceOf = (overlay: Overlay | undefined): KeySurface =>
@@ -425,6 +431,24 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {paging && pager !== undefined ? (
             <Box flexDirection="row" columnGap={2} flexShrink={0}>
               <Text dimColor>{pager}</Text>
+              {top === undefined
+                ? KeyButton(v, {
+                    action: 'page.prev',
+                    on: tab.surface,
+                    label: '‹ prev',
+                    dim: true,
+                    onPress: () => v.act.scroll(-perPage),
+                  })
+                : null}
+              {top === undefined
+                ? KeyButton(v, {
+                    action: 'page.next',
+                    on: tab.surface,
+                    label: 'next ›',
+                    dim: true,
+                    onPress: () => v.act.scroll(perPage),
+                  })
+                : null}
               {top === undefined
                 ? KeyButton(v, {
                     action: 'page.first',

@@ -99,8 +99,9 @@ export type TabView = {
   readonly stale: boolean
   /** The detail stands beside the list when the body is wide enough. */
   readonly beside: boolean
-  /** Items in the list, and the rows the whole list would take. */
+  /** Items in the list, the rows one takes, and the rows the whole list would take. */
   readonly count: number
+  readonly itemRows: number
   readonly fullRows: number
   /** The list in `rows` rows, and its pager when it doesn't all show. */
   readonly list: (
@@ -176,6 +177,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     stale: sync.refreshing,
     beside: rows.length > 0,
     count: rows.length,
+    itemRows: 1,
     fullRows: rows.length,
     list: (size, frame) => {
       const window = follow(
@@ -251,6 +253,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     stale: page.loading,
     beside: page.matched > 0,
     count: page.matched,
+    itemRows: 2,
     // Each entry takes two rows: its name, then what it says it does.
     fullRows: page.matched * 2,
     list: (size, frame) => {
@@ -312,6 +315,7 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     stale: d.dev.loading,
     beside: rows.length > 0,
     count: rows.length,
+    itemRows: 1,
     fullRows: rows.length,
     list: (size, frame) => {
       const window = follow(v, 'dev', rows.length, row === undefined ? 0 : rows.indexOf(row), size)
@@ -354,6 +358,7 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
     // Its items are sentences: the list takes the body, Enter opens one whole.
     beside: false,
     count: items.length,
+    itemRows: 1,
     // Each group's name takes a row of its own.
     fullRows:
       items.length +
