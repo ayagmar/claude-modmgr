@@ -241,11 +241,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     return null
   }
 
-  // Beside the list: what the list, the divider and their gaps leave.
+  // Beside the list: what the list, the divider and their gaps leave; off the
+  // terminal, inside the card's border and padding.
+  const card = beside && !terminal ? 2 : 0
   const sized = {
     readOnly,
-    rows: listRows,
-    columns: beside ? frame.bodyColumns - listColumns - 3 : frame.bodyColumns,
+    rows: listRows - card,
+    columns: beside ? frame.bodyColumns - listColumns - 3 - card : frame.bodyColumns,
   }
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
   const overlayRows = (which: Overlay | undefined): number =>
