@@ -11,7 +11,7 @@
 // - every run starts from a clock timer, never inside a `command.run` hook
 //   (`/reload-plugins` rejects there: it would wait on the turn the hook holds).
 
-import { argvOf, commandOfJob } from '../domain/argv.ts'
+import { argvOf, commandOfJob, TIMEOUTS } from '../domain/argv.ts'
 import {
   appendTail,
   cancelQueued,
@@ -288,8 +288,11 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
   }
 
-  /** `claude plugin test`, streamed: its tail reaches the job at most every TAIL_FLUSH_MS. */
-  const test = async (job: Job, argv: string[]): Promise<Outcome> => {
+  /**
+   * `claude plugin test`, streamed: its tail reaches the job at most every
+   * TAIL_FLUSH_MS. A spawn has no timeout of its own: past `timeoutMs` the child is killed.
+   */
+  const test = async (job: Job, argv: string[], timeoutMs: number): Promise<Outcome> => {
     let cwd: string | undefined
     try {
       cwd = await ports.session.root()
@@ -299,7 +302,7 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     let pending: string[] = []
     let partial = ''
     let lastFlush = 0
-    let stopped = false
+    let ended: 'cancelled' | 'timeout' | undefined
     const flush = async (): Promise<void> => {
       if (pending.length === 0) return
       const lines = pending
@@ -309,13 +312,18 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     }
     // A child that can't start rejects the first pull, below.
     const stream = ports.process.spawn(argv, cwd === undefined ? {} : { cwd })
-    stopCurrent = {
-      id: job.id,
-      stop: () => {
-        stopped = true
-        void stream.return({ code: null, signal: 'SIGTERM' })
-      },
+    const kill = (why: 'cancelled' | 'timeout') => {
+      ended ??= why
+      void stream.return({ code: null, signal: 'SIGTERM' })
     }
+    stopCurrent = { id: job.id, stop: () => kill('cancelled') }
+    const deadline = ports.clock.after(timeoutMs, () => kill('timeout'))
+    const stoppedOutcome = (): Outcome | undefined =>
+      ended === 'cancelled'
+        ? { finish: { cancelled: true }, tail: [] }
+        : ended === 'timeout'
+          ? failed({ kind: 'timeout', message: `claude test ran past ${timeoutMs / 1000} s` })
+          : undefined
     try {
       let step = await stream.next()
       while (step.done !== true) {
@@ -327,16 +335,17 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
       }
       if (partial !== '') pending.push(partial)
       await flush()
-      if (stopped) return { finish: { cancelled: true }, tail: [] }
+      const stopped = stoppedOutcome()
+      if (stopped !== undefined) return stopped
       const { code } = step.value
       return code === 0
         ? succeeded([])
         : failed({ kind: 'cli-failed', message: `tests failed (exit ${code ?? 'signal'})` })
     } catch (error) {
       await flush()
-      if (stopped) return { finish: { cancelled: true }, tail: [] }
-      return failed({ kind: 'unavailable', message: String(error) })
+      return stoppedOutcome() ?? failed({ kind: 'unavailable', message: String(error) })
     } finally {
+      deadline.cancel()
       stopCurrent = undefined
     }
   }
@@ -345,7 +354,9 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
     if (job.kind === 'reload') return reload()
     if (job.kind === 'test') {
       const command = commandOfJob(job)
-      return command.ok ? test(job, argvOf(command.value)) : failed(command.error)
+      return command.ok
+        ? test(job, argvOf(command.value), TIMEOUTS[command.value.op])
+        : failed(command.error)
     }
     return runJob(ports, job, options.isInstalled)
   }

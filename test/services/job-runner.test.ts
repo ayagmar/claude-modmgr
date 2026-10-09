@@ -496,6 +496,21 @@ describe('streamed test jobs', () => {
     expect(jobs(s.w)[0]?.state).toBe('cancelled')
     expect(s.w.process.killed).toBe(1)
   })
+
+  it('kills a test still running at its ten minutes, and fails it saying so', async () => {
+    const s = await testJob()
+    s.w.process.spawnScript = {
+      chunks: [{ stream: 'stdout', text: 'started\n' }, { waitMs: 20 * 60_000 }],
+    }
+    s.runner.kick()
+    await s.w.clock.advance(10 * 60_000)
+    await s.runner.whenIdle()
+    expect(jobs(s.w)[0]).toMatchObject({
+      state: 'failed',
+      error: { kind: 'timeout', message: 'claude test ran past 600 s' },
+    })
+    expect(s.w.process.killed).toBe(1)
+  })
 })
 
 describe('cancelling and ownership', () => {

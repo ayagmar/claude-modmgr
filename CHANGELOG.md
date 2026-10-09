@@ -70,6 +70,8 @@ All notable changes to this project are documented here. The format follows
   failed or changed nothing, instead of the reload being dropped and the change waiting for a reload by hand.
 - A tab, sort or welcome choice made while modmgr is still reading its saved preferences at start-up is kept,
   instead of the older saved values replacing it.
+- Dev's `t` stops a mod's tests still running after ten minutes and says they ran past their time, as every other
+  command modmgr runs already did, instead of waiting on them until cancelled.
 
 ## [0.3.0] - 2026-10-09
 

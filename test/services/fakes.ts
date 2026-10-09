@@ -252,19 +252,38 @@ export class FakeProcess implements ProcessPort {
     const onKill = () => {
       this.killed += 1
     }
+    // As the engine's: `return()` kills the child at once, even mid-wait.
+    let killed = false
+    let wake: (() => void) | undefined
     const gen = async function* (): AsyncGenerator<ProcessSpawnChunk, ProcessSpawnResult> {
       if (script.throws !== undefined) throw new Error(script.throws)
       try {
         for (const chunk of script.chunks) {
-          if ('waitMs' in chunk) await clock.sleepUntil(clock.time + chunk.waitMs)
-          else yield chunk
+          if (killed) break
+          if ('waitMs' in chunk) {
+            await Promise.race([
+              clock.sleepUntil(clock.time + chunk.waitMs),
+              new Promise<void>(resolve => {
+                wake = resolve
+              }),
+            ])
+          } else yield chunk
         }
-        return script.result ?? { code: 0, signal: null }
+        return killed
+          ? { code: null, signal: 'SIGTERM' }
+          : (script.result ?? { code: 0, signal: null })
       } finally {
         onKill()
       }
     }
-    return gen()
+    const stream = gen()
+    const finish = stream.return.bind(stream)
+    stream.return = value => {
+      killed = true
+      wake?.()
+      return finish(value)
+    }
+    return stream
   }
 }
 
