@@ -89,6 +89,27 @@ describe('the catalogue', () => {
     expect(rt.catalog.folderOf('nosuch@x')).toBeUndefined()
   })
 
+  it('keeps the ring on the row it selected when the window around it moves', async () => {
+    // More mods than one window: a ring move near its edge moves the window,
+    // and the engine keeps the ring at its place among the rows, not on its row.
+    const many = Array.from({ length: PAGE_SIZE + 50 }, (_, n) => ({
+      ...COMMUNITY_MOD,
+      repo: `owner${n}/mod${n}`,
+      name: `mod${String(n).padStart(3, '0')}`,
+    }))
+    const { w, act } = await setup(world =>
+      world.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, many) }),
+    )
+    await act.tab('discover')
+    await act.filter('')
+    const before = w.state.values.catalogPage
+    const far = before.rows[PAGE_SIZE - 10]?.id
+    if (far === undefined) throw new Error('a full window')
+    await act.focusFound(far)
+    expect(w.state.values.catalogPage.offset).not.toBe(before.offset)
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:found:${far}`)
+  })
+
   it("steps Discover's selection with the wheel", async () => {
     const { w, act, rt } = await setup()
     await act.tab('discover')

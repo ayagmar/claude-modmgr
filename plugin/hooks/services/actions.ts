@@ -690,8 +690,15 @@ export const createActions = (
     focusFound: safely('focus found', async id => {
       const view = await state.read('view')
       if (view.found === id) return
+      const { offset } = await state.read('catalogPage')
       await setView(current => ({ ...quiet(current), found: id }))
       await showCatalog()
+      // The window around the selection moved: the engine keeps the ring at its
+      // place among the rows, now another row's, so it goes back onto this one.
+      // Not awaited: this runs inside the ring's own move.
+      if ((await state.read('catalogPage')).offset !== offset) {
+        void ui.focus(PANE_ID, foundKey(id)).catch(() => undefined)
+      }
       // A local entry beside the list (the split) says what it can do too: read in
       // the background, never on the ring's path; the redraw follows.
       void rt?.catalog.inspect(id)
