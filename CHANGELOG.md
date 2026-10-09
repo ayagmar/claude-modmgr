@@ -7,6 +7,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Link previews (Discord, Slack, X) show the current social card: its URL changes whenever the card does.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

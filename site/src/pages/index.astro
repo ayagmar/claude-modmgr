@@ -8,6 +8,7 @@ import Install from '../components/Install.astro'
 import ModRow from '../components/ModRow.astro'
 import archivo from '../fonts/archivo.woff2?url'
 import mono from '../fonts/jetbrains-mono.woff2?url'
+import { cardSvg, cardVersion } from '../lib/card.ts'
 import { modsData } from '../lib/mods.ts'
 import {
   countText,
@@ -34,6 +35,8 @@ const top = first.items[0] === undefined ? undefined : index.mods[first.items[0]
 const total = countText(index.mods.length)
 const built = dayText(Math.floor(data.at / (24 * 60 * 60 * 1000)))
 const title = 'modmgr: search mods for Claude Code'
+// The card's URL changes with its content, so link previews don't keep an old one.
+const card = `https://ayagmar.github.io/claude-modmgr/og.png?v=${cardVersion(cardSvg(index.mods.length))}`
 const description = `Search ${total} mods for Claude Code found across public GitHub, see what each one can reach before you install it, and manage them inside Claude Code with /mods.`
 ---
 
@@ -55,8 +58,9 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content="https://ayagmar.github.io/claude-modmgr/" />
-    <meta property="og:image" content="https://ayagmar.github.io/claude-modmgr/og.png" />
+    <meta property="og:image" content={card} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={card} />
     <meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)" />
     <noscript><style>.js-only { display: none !important; }</style></noscript>
