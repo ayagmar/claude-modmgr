@@ -70,6 +70,8 @@ export type CatalogRow = {
   local?: boolean
   /** A local entry modmgr couldn't read: why (`r` tries again). */
   unread?: string
+  /** The selected row's whole description, when its list line (`blurb`) cut it short. */
+  about?: string
   /** A community mod's GitHub stars. */
   stars?: number
   /** A community mod: from a repository none of the person's marketplaces lists. */

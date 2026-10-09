@@ -225,6 +225,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       </Box>
     ),
   }
+  const described = row.about ?? row.blurb
   const howTo = [
     ...(community !== undefined && isProjectMod(community.path)
       ? [`Kept in ${community.repo}'s .claude folder: a mod that project uses itself.`]
@@ -237,10 +238,10 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
         ]),
   ]
   const about: Section = {
-    rows: (row.blurb === '' ? 0 : wrappedRows([row.blurb], how.columns)) + 1 + howTo.length,
+    rows: (described === '' ? 0 : wrappedRows([described], how.columns)) + 1 + howTo.length,
     el: (
       <Box flexDirection="column">
-        {row.blurb === '' ? null : <Text>{row.blurb}</Text>}
+        {described === '' ? null : <Text>{described}</Text>}
         <Text dimColor wrap="truncate-end">
           {source}
         </Text>

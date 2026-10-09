@@ -5,7 +5,7 @@
 // come from the detector's cache (the store's `detect` key), checked against
 // each entry's pinned commit or version; a community mod is a mod.
 
-import type { CatalogKind } from '../../types/index.d.ts'
+import type { CatalogKind, CatalogRow } from '../../types/index.d.ts'
 import { capabilitiesOf } from '../domain/capabilities.ts'
 import {
   buildIndex,
@@ -24,6 +24,7 @@ import { parseAbsolutePath } from '../domain/ids.ts'
 import { lruSet } from '../domain/lru.ts'
 import { type Analysis, analysisOf } from '../domain/mods.ts'
 import { fail, ok, type Result } from '../domain/result.ts'
+import { sanitize } from '../domain/sanitize.ts'
 import { CAPS } from '../domain/store-schema.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, validateRoot } from './cli.ts'
@@ -73,6 +74,9 @@ export type Catalog = {
 
 /** Validations of catalogue entries at once (cache misses, three concurrent). */
 export const INSPECT_CONCURRENCY = 3
+
+/** The most of a description the detail draws. */
+const ABOUT_MAX = 600
 
 /** Search matches the detector checks ahead of the rest. */
 export const PRIORITY_MAX = 200
@@ -179,12 +183,29 @@ export const createCatalog = (
       debug(`modmgr: marketplace list failed: ${marketplaces.error.message}`)
     }
     const installed = new Set<string>(parsed.value.installed.items.map(item => item.id))
-    index = buildIndex(parsed.value.available.items, mods?.mods ?? [], { installed })
+    const marketplaceRepos = new Map(
+      (marketplaces.ok ? marketplaces.value.items : []).flatMap(item =>
+        item.source === 'github' && item.location !== undefined
+          ? [[item.name, item.location] as const]
+          : [],
+      ),
+    )
+    index = buildIndex(parsed.value.available.items, mods?.mods ?? [], {
+      installed,
+      marketplaceRepos,
+    })
     memo = undefined
     searched = undefined
     loadedAt = await ports.clock.now()
     await show()
     return ok(undefined)
+  }
+
+  const withAbout = (row: CatalogRow): CatalogRow => {
+    const item = index?.byId.get(row.id)
+    const text = item?.entry?.description ?? item?.mod?.description ?? ''
+    const about = sanitize(text, { max: ABOUT_MAX })
+    return about.length > row.blurb.length ? { ...row, about } : row
   }
 
   const show = (): Promise<void> => timed(timing, 'catalogue window', showWindow)
@@ -216,7 +237,11 @@ export const createCatalog = (
     }
     const { offset } = window
     // A row modmgr read before installing says what it can do (the detail, the review).
-    const rows = window.rows.map(row => {
+    // The selected row carries its whole description for the detail; the others
+    // only the line the list draws.
+    const selected = view.found ?? window.rows[0]?.id
+    const rows = window.rows.map(listed => {
+      const row = listed.id === selected ? withAbout(listed) : listed
       if (folderOf(row.id) === undefined) return row
       const local = { ...row, local: true }
       const read = known(row.id)
