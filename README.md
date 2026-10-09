@@ -82,7 +82,8 @@ GitHub (about 2,700). Both come from indexes modmgr's CI rebuilds daily, so they
 checked while you work, search matches first. A community mod shows what it can do before you install it, as
 `claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
 installs from the marketplace in its own repository, which the install adds to your user settings first, and one
-whose repository has no marketplace offers its link instead. A command a marketplace declares is shown whole, with
+whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `k` keeps
+only your own marketplaces' entries. A command a marketplace declares is shown whole, with
 its sha256, and runs only when you confirm that exact command.
 
 ```

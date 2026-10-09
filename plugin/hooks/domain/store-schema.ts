@@ -4,6 +4,7 @@
 // forward, capped, and held under a size budget. services/store.ts does the I/O.
 
 import type { CatalogKind, JobKind, JobState, Tab, View } from '../../types/index.d.ts'
+import { SORTS } from './catalog.ts'
 import { isRecord, type JsonRecord } from './json.ts'
 import { type Lru, lruTrim } from './lru.ts'
 import type { Analysis } from './mods.ts'
@@ -123,7 +124,6 @@ export const emptyStore = (): StoreData => ({
 // ---- shape checks --------------------------------------------------------
 
 const TABS: readonly string[] = ['installed', 'discover', 'dev', 'health']
-const SORTS: readonly string[] = ['installs', 'name', 'marketplace']
 const CATALOG_KINDS: readonly string[] = ['mod', 'hooks', 'plain', 'unknown']
 const JOB_KINDS: readonly string[] = [
   'install',

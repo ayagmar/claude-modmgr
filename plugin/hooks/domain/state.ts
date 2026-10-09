@@ -42,7 +42,7 @@ export const SHAPES: Readonly<Record<StateKey, string>> = {
   detect: 'detect/2',
   queue: 'queue/1',
   sync: 'sync/1',
-  view: 'view/7',
+  view: 'view/8',
   review: 'review/4',
   attention: 'attention/2',
   degraded: 'degraded/1',

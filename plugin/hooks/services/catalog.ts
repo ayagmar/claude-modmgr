@@ -196,11 +196,16 @@ export const createCatalog = (
     const view = await ports.state.read('view')
     if (mine !== generation) return
     // Discover lists mods only: the rest of the catalogue is what the detector checks.
-    const key = `${view.search}\u0000${view.sort}\u0000${kindsVersion}`
+    const ownOnly = view.mine === true
+    const key = `${view.search}\u0000${view.sort}\u0000${ownOnly}\u0000${kindsVersion}`
     if (memo?.key !== key) {
       memo = {
         key,
-        matched: matchAll(index, { text: view.search, sort: view.sort, only: 'mod' }, kindOf),
+        matched: matchAll(
+          index,
+          { text: view.search, sort: view.sort, only: 'mod', mine: ownOnly },
+          kindOf,
+        ),
       }
     }
     const window = windowOf(memo.matched, view.found, PAGE_SIZE)

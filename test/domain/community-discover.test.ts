@@ -91,6 +91,25 @@ describe('community mods in the catalogue index', () => {
     ])
   })
 
+  it('sorts by stars as GitHub counts them, and keeps only your marketplaces when asked', () => {
+    const index = buildIndex(
+      [entry('own@m', 5)],
+      [
+        mod('big/a', { stars: 90, path: 'a', name: 'a' }),
+        mod('big/a', { stars: 90, path: 'b', name: 'b' }),
+        mod('small/x', { stars: 5 }),
+      ],
+    )
+    expect(index.order.stars.map(item => item.id)).toEqual([
+      'github.com/big/a/a',
+      'github.com/big/a/b',
+      'github.com/small/x',
+      'own@m',
+    ])
+    const mine = matchAll(index, { text: '', sort: 'stars', mine: true }, () => 'mod')
+    expect(mine.map(match => match.item.id)).toEqual(['own@m'])
+  })
+
   it('finds where an entry lives on GitHub', () => {
     expect(githubKeyOf({ kind: 'github', repo: 'A/B' })).toBe('a/b')
     expect(githubKeyOf({ kind: 'url', url: 'https://github.com/A/B.git' })).toBe('a/b')

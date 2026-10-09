@@ -140,6 +140,8 @@ export type Actions = {
   scope(value: string): Promise<void>
   /** `o`: the next sort. */
   cycleSort(): Promise<void>
+  /** `k`: Discover lists only your marketplaces' entries, or everything again. */
+  toggleMine(): Promise<void>
   /** `v`: reviews the declared command a stopped install or update showed. */
   acceptShown(): Promise<void>
   /** `m`: asks for a marketplace to add. */
@@ -695,6 +697,11 @@ export const createActions = (
 
     cycleSort: safely('sort', async () => {
       remember(await setView(view => ({ ...quiet(view), sort: nextSort(view.sort) })))
+      await showCatalog()
+    }),
+
+    toggleMine: safely('mine', async () => {
+      await setView(view => ({ ...quiet(view), mine: view.mine !== true }))
       await showCatalog()
     }),
 

@@ -203,6 +203,11 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       label: `sort by ${SORT_LABEL[nextSort(view.sort)]}`,
       onPress: () => v.act.cycleSort(),
     })
+    add({
+      action: 'mine',
+      label: view.mine === true ? 'all of GitHub' : 'yours only',
+      onPress: () => v.act.toggleMine(),
+    })
     if (!readOnly)
       add({
         action: 'marketplace-add',

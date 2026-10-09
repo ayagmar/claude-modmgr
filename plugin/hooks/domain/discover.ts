@@ -197,11 +197,12 @@ export const foundRow = (view: View, page: CatalogPage): CatalogRow | undefined 
 /** What the sort key says: installs, then stars for community mods. */
 export const SORT_LABEL: Readonly<Record<View['sort'], string>> = {
   installs: 'popularity',
+  stars: 'stars',
   name: 'name',
   marketplace: 'source',
 }
 
-/** The next sort (`o`): installs → name → marketplace. */
+/** The next sort (`o`): popularity → stars → name → source. */
 export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'
 

@@ -13,7 +13,7 @@ import { sanitize } from './sanitize.ts'
 
 export type { CatalogKind, CatalogRow }
 
-export const SORTS = ['installs', 'name', 'marketplace'] as const
+export const SORTS = ['installs', 'stars', 'name', 'marketplace'] as const
 export type CatalogSort = (typeof SORTS)[number]
 
 /**
@@ -113,6 +113,7 @@ export const buildIndex = (
     order: {
       name,
       installs: [...name].sort(byPopularity(turnsOf(name))),
+      stars: [...name].sort(byStars),
       marketplace: [...name].sort((a, b) => originOf(a).localeCompare(originOf(b))),
     },
   }
@@ -151,6 +152,14 @@ const byPopularity =
     return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
   }
 
+/** Community mods by stars, as GitHub counts them; then the catalogue's entries, by installs. */
+const byStars = (a: Indexed, b: Indexed): number => {
+  if (a.mod !== undefined && b.mod !== undefined) return b.mod.stars - a.mod.stars
+  if (a.mod !== undefined) return -1
+  if (b.mod !== undefined) return 1
+  return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
+}
+
 /** The marketplace an entry comes from, or the repository of a community mod. */
 const originOf = (item: Indexed): string =>
   item.entry !== undefined ? item.entry.marketplace : item.mod.repo
@@ -171,12 +180,19 @@ export type Match = { readonly item: Indexed; readonly kind: CatalogKind }
  */
 export const matchAll = (
   index: CatalogIndex,
-  query: { readonly text: string; readonly sort: CatalogSort; readonly only?: CatalogKind },
+  query: {
+    readonly text: string
+    readonly sort: CatalogSort
+    readonly only?: CatalogKind
+    /** Only the entries of the person's own marketplaces. */
+    readonly mine?: boolean
+  },
   kindOf: (id: string) => CatalogKind,
 ): Match[] => {
   const words = tokens(query.text)
   const matched: Match[] = []
   for (const item of index.order[query.sort]) {
+    if (query.mine === true && item.mod !== undefined) continue
     const kind = item.mod !== undefined ? 'mod' : kindOf(item.id)
     if (query.only !== undefined && kind !== query.only) continue
     if (words.every(word => item.haystack.includes(word))) matched.push({ item, kind })

@@ -222,11 +222,12 @@ describe('what Discover draws', () => {
     const shown = { ...page, rows }
     expect(foundRow({ ...INITIAL_VIEW, found: rows[1]?.id ?? '' }, shown)).toBe(rows[1])
     expect(foundRow({ ...INITIAL_VIEW, found: 'gone@x' }, shown)).toBe(rows[0])
-    expect([nextSort('installs'), nextSort('name'), nextSort('marketplace')]).toEqual([
-      'name',
-      'marketplace',
-      'installs',
-    ])
+    expect([
+      nextSort('installs'),
+      nextSort('stars'),
+      nextSort('name'),
+      nextSort('marketplace'),
+    ]).toEqual(['stars', 'name', 'marketplace', 'installs'])
     expect(foundOfKey(foundKey('a@m'))).toBe('a@m')
     expect(foundOfKey('row:a@m')).toBeUndefined()
     expect(foundOfKey(undefined)).toBeUndefined()

@@ -144,7 +144,9 @@ export type View = {
   query: string
   /** Discover's search and sort. */
   search: string
-  sort: 'installs' | 'name' | 'marketplace'
+  sort: 'installs' | 'stars' | 'name' | 'marketplace'
+  /** Discover lists only the entries of the person's own marketplaces. */
+  mine?: boolean
   /** The catalogue entry Discover has selected. */
   found?: PluginId
   /** The dev mod Dev has selected (its `DevRow.key`). */

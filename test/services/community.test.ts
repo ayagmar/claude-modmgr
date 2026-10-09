@@ -168,6 +168,17 @@ describe('Discover with community mods', () => {
     expect(communityId({ repo: 'a/b', path: 'c' })).toBe('github.com/a/b/c')
   })
 
+  it('lists only your marketplaces, and everything again', async () => {
+    const { w, catalog } = await setup([mod('alice/band')])
+    const ids = async () => (await w.state.read('catalogPage')).rows.map(row => row.id)
+    await w.state.update('view', view => ({ ...view, mine: true }))
+    await catalog.show()
+    expect(await ids()).not.toContain('github.com/alice/band')
+    await w.state.update('view', view => ({ ...view, mine: false }))
+    await catalog.show()
+    expect(await ids()).toContain('github.com/alice/band')
+  })
+
   it('searches community mods by name, description and repository', async () => {
     const { w, catalog } = await setup([mod('alice/band'), mod('bob/meter')])
     await w.state.update('view', view => ({ ...view, search: 'bob' }))
