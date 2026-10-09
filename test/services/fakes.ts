@@ -298,6 +298,7 @@ export const fakeEnv = (vars: Record<string, string> = {}): EnvPort => ({
 
 export type SessionFacts = {
   root?: string | (() => Promise<string>)
+  ownRoot?: string
   surfaces?: RenderSurface[]
   cwd?: string
   id?: string
@@ -308,6 +309,7 @@ export const fakeSession = (facts: SessionFacts = {}): SessionPort => {
   const root = facts.root ?? '/repo'
   return {
     root: typeof root === 'string' ? async () => root : root,
+    ownRoot: async () => facts.ownRoot ?? '/modmgr',
     cwd: async () => facts.cwd ?? (typeof root === 'string' ? root : '/repo'),
     id: async () => facts.id ?? 'session-1',
     repo: async () => facts.repo ?? null,

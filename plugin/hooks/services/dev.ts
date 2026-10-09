@@ -19,6 +19,7 @@ import {
   unlistedPlugins,
 } from '../domain/dev.ts'
 import { splitPluginId } from '../domain/ids.ts'
+import { rootOf } from '../domain/mods.ts'
 import type { Ports } from '../ports.ts'
 import type { Registry } from './registry.ts'
 import { NO_TIMING, type Timing, timed } from './timing.ts'
@@ -117,7 +118,17 @@ export const createDev = (
       const at = await locate(name, places)
       if (at !== undefined) located.set(name, at)
     }
-    const rows = devRowsOf({ listed, commandPlugins, sessionFolder: found, located })
+    // modmgr loaded from a folder that isn't an installed copy's is one under development.
+    const ownRoot = await ports.session.ownRoot().catch(() => '')
+    const installed = listed.some(({ entry }) => rootOf(entry) === ownRoot)
+    const own = installed || !ownRoot.startsWith('/') ? undefined : await foundAt(ownRoot)
+    const rows = devRowsOf({
+      listed,
+      commandPlugins,
+      sessionFolder: found,
+      located,
+      ...(own === undefined ? {} : { own }),
+    })
     const now = await ports.clock.now()
     const [before, shown] = await Promise.all([ports.state.read('dev'), ports.state.read('view')])
     // Written only when it moves: a view write redraws the pane.

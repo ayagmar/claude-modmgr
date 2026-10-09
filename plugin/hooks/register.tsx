@@ -145,6 +145,7 @@ function envPorts($: EngineInterface): EnvPort {
 function sessionPorts($: EngineInterface): SessionPort {
   return {
     root: () => $.session.root(),
+    ownRoot: async () => $.plugin.root,
     cwd: () => $.session.cwd(),
     id: () => $.session.id(),
     repo: () => $.session.repo(),

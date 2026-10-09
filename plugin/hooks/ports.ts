@@ -75,6 +75,8 @@ export interface EnvPort {
 
 export interface SessionPort {
   root(): Promise<string>
+  /** modmgr's own folder, the one holding its plugin.json, as this session loaded it. */
+  ownRoot(): Promise<string>
   cwd(): Promise<string>
   id(): Promise<string>
   /** The git repository the session runs in (its `origin` remote), or null. */

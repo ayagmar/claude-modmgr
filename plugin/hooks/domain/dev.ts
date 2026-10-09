@@ -83,6 +83,11 @@ export type DevSources = {
   readonly sessionFolder: readonly Found[]
   /** The folders found for plugins the CLI doesn't list (`--plugin-dir`), by name. */
   readonly located: ReadonlyMap<string, Found>
+  /**
+   * modmgr itself, when it runs from a folder other than its installed copy's
+   * (`--plugin-dir` over an installed modmgr: the CLI lists only the install).
+   */
+  readonly own?: Found
 }
 
 /** The name part of a plugin as a command names it (`modmgr`, `spawner@inline`). */
@@ -157,6 +162,10 @@ export const devRowsOf = (sources: DevSources): DevRow[] => {
       how: 'plugin-dir',
       ...(loaded.has(name) ? { enabled: true } : {}),
     })
+  }
+  const own = sources.own
+  if (own !== undefined && !rows.some(row => row.path === own.path)) {
+    rows.push({ key: own.path, ...rowOfFound(own), how: 'plugin-dir', enabled: true })
   }
   return rows.sort(byPlace)
 }

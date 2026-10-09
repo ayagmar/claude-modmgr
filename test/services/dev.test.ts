@@ -113,6 +113,40 @@ describe('Dev’s sources', () => {
     expect(names(w)).not.toContain('session-folder fresh')
   })
 
+  it('lists modmgr itself run from its folder over an installed copy, and not the installed copy', async () => {
+    const CACHED = '/cfg/plugins/cache/ayagmar/modmgr/0.3.0'
+    const withInstalled = (w: World) =>
+      w.process.when(['list', '--json'], () => {
+        const list = JSON.parse(runs.list.stdout) as Array<Record<string, unknown>>
+        const installed = {
+          id: 'modmgr@ayagmar',
+          version: '0.3.0',
+          scope: 'user',
+          enabled: true,
+          installPath: CACHED,
+        }
+        return out(JSON.stringify([...list, installed]))
+      })
+    // Launched elsewhere: the session's folder doesn't hold modmgr.
+    const elsewhere = { root: '/work', cwd: '/work', id: 'session-1' }
+    const dev = await setup(withInstalled, { ...elsewhere, ownRoot: `${REPO}/plugin` })
+    await dev.rt.dev.refresh()
+    expect(names(dev.w)).toContain('plugin-dir modmgr')
+    expect(dev.w.state.values.dev.rows.find(row => row.name === 'modmgr')?.path).toBe(
+      `${REPO}/plugin`,
+    )
+
+    const installed = await setup(
+      w => {
+        withInstalled(w)
+        w.fs.files.set(`${CACHED}/.claude-plugin/plugin.json`, '{"name":"modmgr"}')
+      },
+      { ...elsewhere, ownRoot: CACHED },
+    )
+    await installed.rt.dev.refresh()
+    expect(names(installed.w)).not.toContain('plugin-dir modmgr')
+  })
+
   it('lists what it can when the environment and the session refuse to say', async () => {
     const reject = async (): Promise<never> => {
       throw new Error('refused')
