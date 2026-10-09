@@ -68,6 +68,8 @@ All notable changes to this project are documented here. The format follows
   on the tab and in Health, with a way to read them again, instead of reading "No mods installed yet".
 - A change queued while another batch waits for its reload is applied by that one reload even when the first batch
   failed or changed nothing, instead of the reload being dropped and the change waiting for a reload by hand.
+- A tab, sort or welcome choice made while modmgr is still reading its saved preferences at start-up is kept,
+  instead of the older saved values replacing it.
 
 ## [0.3.0] - 2026-10-09
 
