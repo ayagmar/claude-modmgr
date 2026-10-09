@@ -72,18 +72,32 @@ export const rowsFor = (mods: number): number => Math.min(24, Math.max(14, mods 
 
 /** Columns a docked dialog asks for: room for the list and the detail side by side. */
 export const DOCK_COLUMNS = 96
+/** The fewest columns the dock asks for: the list and detail stack below SPLIT_MIN_COLUMNS. */
+const DOCK_MIN_COLUMNS = 48
+/** The columns the dock leaves the transcript beside it, where the terminal has them. */
+const TRANSCRIPT_COLUMNS = 72
+
+/**
+ * Columns the dock asks for in a terminal `columns` wide: DOCK_COLUMNS, less
+ * what the transcript would then lose below TRANSCRIPT_COLUMNS, never under
+ * DOCK_MIN_COLUMNS.
+ */
+export const dockColumnsFor = (columns: number): number =>
+  Math.min(DOCK_COLUMNS, Math.max(DOCK_MIN_COLUMNS, columns - TRANSCRIPT_COLUMNS))
 
 export const paneOpen = (how: {
   readonly focus: boolean
   readonly hold: boolean
   readonly mods: number
   readonly title?: string
+  /** The dock's columns: the view's `dock`, which `/mods` sets. */
+  readonly dock: number | undefined
 }): PaneOpen => ({
   id: PANE_ID,
   title: how.title ?? PANE_TITLE,
   closeOnEscape: true,
   rows: rowsFor(how.mods),
-  columns: DOCK_COLUMNS,
+  columns: how.dock ?? DOCK_COLUMNS,
   ...(how.focus ? { focus: true as const } : {}),
   ...(how.hold ? { holdToasts: true as const } : {}),
 })

@@ -226,7 +226,9 @@ export const createActions = (
     ])
     const idle = how.idle ?? holdsToasts(queue, view)
     const title = titleOf(summaryOf({ attention, queue, mods }))
-    await ui.open(paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title }))
+    await ui.open(
+      paneOpen({ focus: how.focus, hold: idle, mods: mods.length, title, dock: view.dock }),
+    )
   }
 
   /** Queues a batch and its reload; `when` guards it against a queue that moved since it was read. */

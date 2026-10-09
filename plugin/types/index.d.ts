@@ -158,6 +158,8 @@ export type View = {
   staged: Record<PluginId, boolean>
   /** One short line the pane shows until the next action (a copy, a refused focus). */
   notice?: string
+  /** The dock's columns `/mods` asked for, which every later open asks again. */
+  dock?: number
 }
 
 /** What a review would do to one mod. */
