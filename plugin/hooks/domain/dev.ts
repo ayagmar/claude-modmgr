@@ -186,6 +186,40 @@ export const manifestOf = (text: string): { name: string; version?: string } | u
   return version === undefined ? { name } : { name, version: version.slice(0, 64) }
 }
 
+/** An https address a link can open: a host, then a path of URL characters (RFC 3986's, but `'`). */
+const LINKABLE =
+  /^https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?(?:\/[A-Za-z0-9\-._~:/?#[\]@!$&()*+,;=%]*)?$/
+
+/** What a `plugin.json` says of its plugin, for its detail. */
+export type About = { readonly description?: string; readonly link?: string }
+
+/**
+ * What a `plugin.json` says its plugin is, and where it lives: its
+ * `homepage`, else its `repository` (a URL, or `{ url }` as npm writes it),
+ * when that is an https address. A `git+https://….git` repository reads as
+ * its page.
+ */
+export const manifestAboutOf = (text: string): About => {
+  const value = parseJson(text)
+  if (!isRecord(value)) return {}
+  const description = str(value, 'description')?.trim().slice(0, 300)
+  const repository = isRecord(value.repository)
+    ? str(value.repository, 'url')
+    : str(value, 'repository')
+  const link = [str(value, 'homepage'), repository]
+    .map(candidate =>
+      candidate
+        ?.trim()
+        .replace(/^git\+/, '')
+        .replace(/\.git$/, ''),
+    )
+    .find(url => url !== undefined && url.length <= 300 && LINKABLE.test(url))
+  return {
+    ...(description === undefined || description === '' ? {} : { description }),
+    ...(link === undefined ? {} : { link }),
+  }
+}
+
 /**
  * The folder a `marketplace.json` gives plugin `name`, relative to the
  * marketplace's root (`''` for the root itself); undefined when it doesn't

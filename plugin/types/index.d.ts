@@ -44,6 +44,8 @@ export type CapsNew = { since: string; added: string[] }
 export type ModDetail = ModRow & {
   description?: string
   root?: string
+  /** Its page, as its plugin.json names it (`homepage`, else `repository`): an https address. */
+  link?: string
   caps?: Capabilities
   mixedCounts?: { skills: number; agents: number; mcp: number }
   tokens?: number

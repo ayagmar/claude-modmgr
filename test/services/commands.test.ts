@@ -140,6 +140,17 @@ describe('/mods as text', () => {
     expect((await run('doctor')).text).toMatch(/^\d+ problems?\n/)
   })
 
+  it('details a mod with what its plugin.json says it is, and its page', async () => {
+    const { run } = await setup(w =>
+      w.fs.files.set(
+        '/tmp/modmgr-fixtures/mkt/turn-band/.claude-plugin/plugin.json',
+        JSON.stringify({ description: 'Shows the turn.', homepage: 'https://turn.example' }),
+      ),
+    )
+    const info = (await run('info turn-band@fixtures')).text ?? ''
+    expect(info.split('\n').slice(2, 4)).toEqual(['Shows the turn.', 'https://turn.example'])
+  })
+
   it('says what a write would run without --yes, and runs it with', async () => {
     const { w, run } = await setup()
     const dry = await run('disable turn-band@fixtures')

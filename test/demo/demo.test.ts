@@ -12,7 +12,7 @@ import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { drawPane } from '../../plugin/hooks/ui/Pane.tsx'
 import type { View } from '../../plugin/types/index.d.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { bumpTurnBand, fixtureCli, markMods } from '../services/cli-world.ts'
+import { bumpTurnBand, fixtureCli, fixtureManifests, markMods } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
 import { ELEMENTS, installJsx, type Line, render, tidy } from './render.ts'
 
@@ -54,6 +54,7 @@ type Frame = { readonly title: string; readonly caption: string; readonly lines:
 const frames = async (): Promise<Frame[]> => {
   installJsx()
   const w = world()
+  fixtureManifests(w.fs)
   fixtureCli(w.process)
     .when(['list', '--json', '--available'], out(catalogue()))
     .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))

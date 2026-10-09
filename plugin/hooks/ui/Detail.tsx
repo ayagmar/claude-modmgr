@@ -247,6 +247,36 @@ const reachSection = (
   }
 }
 
+/**
+ * What the mod says it is, wrapped (a line in the compact form), and its page,
+ * a link every surface opens.
+ */
+const aboutSection = (
+  v: ViewPorts,
+  detail: ModDetail,
+  full: boolean,
+  columns: number,
+): Section | undefined => {
+  const { Box, Text, Link } = v.el
+  const said = detail.description === undefined ? '' : sanitize(detail.description, { max: 300 })
+  const { link } = detail
+  if (said === '' && link === undefined) return undefined
+  return {
+    rows:
+      (said === '' ? 0 : full ? wrappedRows([said], columns) : 1) + (link === undefined ? 0 : 1),
+    el: (
+      <Box flexDirection="column">
+        {said === '' ? null : full ? <Text>{said}</Text> : <Text wrap="truncate-end">{said}</Text>}
+        {link === undefined ? null : (
+          <Text dimColor wrap="truncate-end">
+            from <Link href={link}>{link.replace(/^https:\/\//, '')}</Link>
+          </Text>
+        )}
+      </Box>
+    ),
+  }
+}
+
 /** The sections under the head, in `form`. */
 const bodySections = (
   v: ViewPorts,
@@ -263,7 +293,8 @@ const bodySections = (
   const added = detail.capsNew?.added ?? []
   const fresh = notable.filter(item => added.includes(item.id))
   const old = notable.filter(item => !added.includes(item.id))
-  const sections: Section[] = []
+  const about = aboutSection(v, detail, full, columns)
+  const sections: Section[] = about === undefined ? [] : [about]
   if (fresh.length > 0 && detail.capsNew !== undefined) {
     const heading = (
       <Text bold color={TONE.warn}>

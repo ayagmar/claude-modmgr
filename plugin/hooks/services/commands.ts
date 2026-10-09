@@ -112,7 +112,7 @@ export const modsCommand = async (
     case 'list':
       return answer(listText(mods, { skipped: sync.skipped }))
     case 'info': {
-      const detail = rt.registry.detail(command.id)
+      const detail = await rt.registry.detail(command.id)
       if (detail === undefined) return answer(`${command.id} is not an installed mod.`, 1)
       const row = rowOf(command.id)
       return answer(

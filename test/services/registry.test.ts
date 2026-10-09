@@ -185,6 +185,54 @@ describe('registry.select', () => {
     expect(registry.entry('turn-band@fixtures')?.version).toBe('0.3.1')
   })
 
+  it('says what the mod is and links its page, as its plugin.json gives them', async () => {
+    const { w, registry } = setup()
+    const manifest = (folder: string) =>
+      `/tmp/modmgr-fixtures/mkt/${folder}/.claude-plugin/plugin.json`
+    w.fs.files.set(
+      manifest('turn-band'),
+      JSON.stringify({
+        name: 'turn-band',
+        description: '  Shows the turn above the prompt. ',
+        homepage: 'http://example.com',
+        repository: { type: 'git', url: 'git+https://github.com/o/turn-band.git' },
+      }),
+    )
+    w.fs.files.set(
+      manifest('redactor'),
+      JSON.stringify({ name: 'redactor', homepage: 'javascript:alert(1)' }),
+    )
+    await registry.refresh()
+    await registry.select('turn-band@fixtures')
+    expect(w.state.values.detail).toMatchObject({
+      description: 'Shows the turn above the prompt.',
+      link: 'https://github.com/o/turn-band',
+    })
+    await registry.select('redactor@fixtures')
+    expect(w.state.values.detail).not.toHaveProperty('link')
+    expect(w.state.values.detail).not.toHaveProperty('description')
+  })
+
+  it("never shows one mod's plugin.json on another chosen while it was read", async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    w.fs.files.set(
+      '/tmp/modmgr-fixtures/mkt/turn-band/.claude-plugin/plugin.json',
+      JSON.stringify({ description: 'Shows the turn.' }),
+    )
+    let release = () => {}
+    const read = w.fs.read
+    w.fs.read = path => new Promise<string>(resolve => (release = () => resolve(read(path))))
+    const slow = registry.select('turn-band@fixtures')
+    await settle()
+    w.fs.read = read
+    await registry.select('redactor@fixtures')
+    release()
+    await slow
+    expect(w.state.values.detail).toMatchObject({ id: 'redactor@fixtures' })
+    expect(w.state.values.detail).not.toHaveProperty('description')
+  })
+
   it('keeps the row shown selected when a new one sorts above it (found live)', async () => {
     const { w, registry } = setup()
     // Nothing listed yet: nothing to keep.

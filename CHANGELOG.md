@@ -19,6 +19,8 @@ All notable changes to this project are documented here. The format follows
   files, and at which commit; modmgr still reads the installed version again.
 - A mod's detail in Discover links its page on GitHub: the desktop app opens it on a click, and terminals that
   support links (OSC 8) on a click too.
+- An installed mod's detail and `/mods info` say what it is and link its page, as its `plugin.json` gives them
+  (`description`, and `homepage` else `repository`).
 - A marketplace's mod shows its repository's GitHub stars, as a community mod does, and sorts among them by stars;
   the count at a row's end is the one the list is sorted by.
 - The community index reads every mod the official catalogues list, including those GitHub search hasn't found, so

@@ -49,6 +49,7 @@ export const infoText = (detail: ModDetail): string => {
     `${sanitize(detail.id, { max: 130 })} · ${detail.scope ?? detail.origin} · ${detail.enabled ? 'on' : 'off'}`,
   )
   if (detail.description !== undefined) lines.push(sanitize(detail.description, { max: 300 }))
+  if (detail.link !== undefined) lines.push(detail.link)
   const locked = whyLocked(detail)
   if (locked !== undefined) lines.push(locked)
   if (detail.updateTo !== undefined) {

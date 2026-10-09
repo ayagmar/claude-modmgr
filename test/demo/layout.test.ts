@@ -6,7 +6,7 @@ import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { drawPane, overlayEnd } from '../../plugin/hooks/ui/Pane.tsx'
 import { runs } from '../domain/fixtures/cli-runs.ts'
-import { fixtureCli, markMods } from '../services/cli-world.ts'
+import { fixtureCli, fixtureManifests, markMods } from '../services/cli-world.ts'
 import { out, world } from '../services/fakes.ts'
 import { ELEMENTS, installJsx, render } from './render.ts'
 
@@ -31,6 +31,7 @@ const stopsOf = (node: unknown): string[] =>
 const setup = async () => {
   installJsx()
   const w = world()
+  fixtureManifests(w.fs)
   fixtureCli(w.process)
     .when(['list', '--json', '--available'], out(runs['list-available'].stdout))
     .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
@@ -176,5 +177,17 @@ describe('a detail too short for every explanation', () => {
     const frame = (await draw(96, 20)).join('\n')
     expect(frame).not.toMatch('Reads environment variables that look like secrets (')
     expect(frame).toMatch('/mods info redactor@fixtures explains each one.')
+  })
+})
+
+describe('what a mod is', () => {
+  it('heads its detail with what its plugin.json says, a line when space is short', async () => {
+    const { act, draw } = await setup()
+    await act.focusRow('redactor@fixtures')
+    const said = 'Redacts secrets from what the model reads and posts a digest.'
+    expect((await draw(140, 30)).join('\n')).toMatch(said)
+    const compact = await draw(96, 20)
+    expect(compact.some(line => line.includes('Redacts secrets'))).toBe(true)
+    expect(compact.join('\n')).toMatch('/mods info redactor@fixtures explains each one.')
   })
 })

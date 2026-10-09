@@ -10,7 +10,7 @@ import { capabilitiesOf } from '../domain/capabilities.ts'
 import { acknowledge, type CapsSighting, capsNewOf, recordCaps } from '../domain/caps-history.ts'
 import type { ChainMod } from '../domain/chain.ts'
 import type { InstalledEntry } from '../domain/cli-results.ts'
-import type { Listed } from '../domain/dev.ts'
+import { type About, joinPath, type Listed, manifestAboutOf } from '../domain/dev.ts'
 import { splitPluginId } from '../domain/ids.ts'
 import { lruSet, lruTouch } from '../domain/lru.ts'
 import {
@@ -35,7 +35,7 @@ import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export const VALIDATE_CONCURRENCY = 3
 
-export type RegistryPorts = CliPorts & Pick<Ports, 'state'>
+export type RegistryPorts = CliPorts & Pick<Ports, 'state' | 'fs'>
 
 export type RefreshSummary = {
   readonly mods: number
@@ -55,8 +55,8 @@ export type Registry = {
   refresh(via?: CliPorts): Promise<Result<RefreshSummary>>
   /** Shows a mod's detail (`undefined` clears it). */
   select(id: string | undefined): Promise<void>
-  /** A mod's detail from the last refresh, without showing it (`/mods info`). */
-  detail(id: string): ModDetail | undefined
+  /** A mod's detail from the last refresh with what its plugin.json says, without showing it (`/mods info`). */
+  detail(id: string): Promise<ModDetail | undefined>
   /** The `list --json` entry from the last refresh. */
   entry(id: string): InstalledEntry | undefined
   /**
@@ -138,9 +138,38 @@ export const createRegistry = (
     return rest as T
   }
 
+  // What each installed root@version's plugin.json says of it, read once, as its analysis is.
+  const abouts = new Map<string, About>()
+
   const detailOf = (id: string | undefined): ModDetail | null => {
     const found = analysisFor(id)
-    return found === undefined ? null : withNews(modDetail(found.entry, found.analysis))
+    if (found === undefined) return null
+    const key = analysisKey(found.entry)
+    const about = key === undefined ? undefined : abouts.get(key)
+    return withNews({ ...modDetail(found.entry, found.analysis), ...about })
+  }
+
+  /** Reads what `id`'s plugin.json says, once per root@version; false when there is nothing new to read. */
+  const readAbout = async (id: string | undefined): Promise<boolean> => {
+    const entry = id === undefined ? undefined : entries.get(id)
+    const key = entry === undefined ? undefined : analysisKey(entry)
+    const root = entry === undefined ? undefined : rootOf(entry)
+    if (key === undefined || root === undefined || abouts.has(key)) return false
+    const text = await ports.fs
+      .read(joinPath(root, '.claude-plugin/plugin.json'))
+      .catch(() => undefined)
+    abouts.set(key, text === undefined ? {} : manifestAboutOf(text))
+    return true
+  }
+
+  /** Writes `id`'s detail, then again with what its plugin.json says, if it is still the one shown. */
+  const writeDetail = async (id: string | undefined): Promise<void> => {
+    const detail = detailOf(id)
+    await ports.state.update('detail', () => detail)
+    if (detail === null || !(await readAbout(id))) return
+    await ports.state.update('detail', current =>
+      current?.id === detail.id ? detailOf(detail.id) : current,
+    )
   }
 
   const writeNews = async (mods: readonly ModRow[]): Promise<void> => {
@@ -233,7 +262,7 @@ export const createRegistry = (
     // the selection never moved, still has one. Read last, so a move made
     // while this refresh ran is the one shown.
     const latest = await ports.state.read('view')
-    await ports.state.update('detail', () => detailOf(selectedRow(latest, mods)?.id))
+    await writeDetail(selectedRow(latest, mods)?.id)
     await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
     return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
@@ -271,10 +300,13 @@ export const createRegistry = (
       return running
     },
     async select(id) {
-      await ports.state.update('detail', () => detailOf(id))
+      await writeDetail(id)
     },
     entry: id => entries.get(id),
-    detail: id => detailOf(id) ?? undefined,
+    async detail(id) {
+      await readAbout(id)
+      return detailOf(id) ?? undefined
+    },
     facts(id) {
       const found = analysisFor(id)
       if (found === undefined) {

@@ -272,6 +272,9 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Redacts secrets from what the model reads and posts a …"
         }
       ],
       [
@@ -346,15 +349,6 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "text": " Can change what the model reads"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [
@@ -477,6 +471,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "✓ validates"
         }
       ],
       [
@@ -486,13 +487,15 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
-        },
+        }
+      ],
+      [
         {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
-          "text": "✓ validates"
+          "text": "│"
         }
       ],
       [
@@ -775,6 +778,9 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " Shows last-turn duration above the prompt."
         }
       ],
       [
@@ -820,15 +826,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         },
         {
           "text": " "
@@ -856,15 +853,6 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "text": " Can change what the model reads"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [
@@ -968,6 +956,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "✓ validates"
         }
       ],
       [
@@ -977,13 +972,24 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
-        },
+        }
+      ],
+      [
         {
-          "text": " "
+          "text": "                                       "
         },
         {
           "dim": true,
-          "text": "✓ validates"
+          "text": "│"
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
         }
       ],
       [
