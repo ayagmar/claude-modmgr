@@ -127,7 +127,7 @@ export type Actions = {
   focusFilter(): Promise<void>
   /** Moves the selection to the first or last row the filter shows, and the ring with it. */
   edge(which: 'first' | 'last'): Promise<void>
-  /** The wheel: moves the selection `by` rows (negative: up), the ring with it. */
+  /** The wheel, j and k, the page keys: moves the selection `by` rows (negative: up), the ring with it. */
   scroll(by: number): Promise<void>
   copy(text: string, surface?: RenderSurface): Promise<void>
   /** Opens the dialog from the band. */
@@ -320,7 +320,15 @@ export const createActions = (
   const moveSelection = async (choose: (count: number, at: number) => number): Promise<void> => {
     const pick = (count: number, at: number) => Math.max(0, Math.min(count - 1, choose(count, at)))
     const view = await state.read('view')
-    if (view.tab === 'health') return
+    if (view.tab === 'health') {
+      const items = await healthItems()
+      const current = items.findIndex(each => each.key === view.health)
+      const item = items[pick(items.length, Math.max(0, current))]
+      if (item === undefined || item === items[current]) return
+      await setView(shown => ({ ...quiet(shown), health: item.key }))
+      await ui.focus(PANE_ID, healthKey(item.key)).catch(() => undefined)
+      return
+    }
     if (view.tab === 'dev') {
       const { rows } = await state.read('dev')
       const current = devRowOf(view.dev, rows)

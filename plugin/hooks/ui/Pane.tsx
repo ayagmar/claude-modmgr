@@ -22,7 +22,7 @@ import {
   stagedIds,
 } from '../domain/view.ts'
 import { Share, shareRows } from './Dev.tsx'
-import { GLYPH, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
+import { GLYPH, HiddenRows, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
 import {
   Help,
   helpRows,
@@ -506,6 +506,24 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           )}
         </Box>
       </Box>
+      {/* j and k step the selection as the arrows do (vim's keys): last, so
+          they come after every stop the ring walks to. */}
+      {top === undefined
+        ? HiddenRows(v, [
+            KeyButton(v, {
+              action: 'row.next',
+              on: tab.surface,
+              label: 'next row',
+              onPress: () => v.act.scroll(1),
+            }),
+            KeyButton(v, {
+              action: 'row.prev',
+              on: tab.surface,
+              label: 'previous row',
+              onPress: () => v.act.scroll(-1),
+            }),
+          ])
+        : null}
     </Box>
   )
 }

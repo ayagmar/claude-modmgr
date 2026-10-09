@@ -44,7 +44,7 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
                                        │
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-z: undo                                                              j: jobs  h: keys  esc close
+z: undo                                                              q: jobs  h: keys  esc close
 ```
 
 **A mod's detail** says what it hooks and calls, grouped by what that reaches (your machine, the network, the
@@ -77,7 +77,7 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                        │ ✓ validates
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                      j: jobs  h: keys  esc back
+                                                                      q: jobs  h: keys  esc back
 ```
 
 **Discover** lists the mods in every marketplace you have added, and the mods published anywhere else on public
@@ -85,7 +85,7 @@ GitHub (about 3,000). Both come from indexes modmgr's CI rebuilds daily, so they
 checked while you work, search matches first. A community mod shows what it can do before you install it, as
 `claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
 installs from the marketplace in its own repository, which the install adds to your user settings first, and one
-whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `k` keeps
+whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `u` keeps
 only your own marketplaces' entries. A command a marketplace declares is shown whole, with
 its sha256, and runs only when you confirm that exact command.
 
@@ -136,7 +136,7 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
     A hook that fails is logged only in a session started with --debug            → copy command
 
 ────────────────────────────────────────────────────────────────────────────────────────────────
-l: reload                                                            j: jobs  h: keys  esc close
+l: reload                                                            q: jobs  h: keys  esc close
 ```
 
 Updates are checked every few hours while no turn is running (`updateCheckHours`, 0 turns them off).

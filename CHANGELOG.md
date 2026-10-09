@@ -9,7 +9,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.4.0] - 2026-10-09
 
+### Added
+- Every list pages: `‹ prev` and `next ›` beside the pager, Page Up and Page Down, a page of items at a time; the
+  selection opens the new page.
+- `j` and `k` step the selection as the arrows do, and the mouse wheel steps it on every tab, Health included.
+- Dev lists modmgr itself when it runs from a folder (`--plugin-dir`) over an installed copy.
+
 ### Changed
+- Jobs moved to `q`, so `j` and `k` can move; Discover's "yours only" is now `u`, and the job log cancels with `d`.
 - A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`
   CLI it runs still needs 2.1.292 or newer.
 - The desktop app draws the dialog as a desktop layout: the detail is a card beside the list instead of a column of
@@ -28,6 +35,9 @@ All notable changes to this project are documented here. The format follows
   and fetches the daily indexes, sending nothing it reads.
 
 ### Fixed
+- After an install, update or toggle reloads the plugins, the dialog keeps the keys it held instead of leaving them
+  to the prompt, where the next keys typed landed in the message box.
+- In the desktop app a click on a row beside the detail selects it.
 - The Installed detail loads for the first row when the selection never moved, instead of reading "Reading what it
   can do…" until a key is pressed.
 - In the desktop app, whose sessions refuse a plugin's `/reload-plugins`, a batch says the reload failed and asks you

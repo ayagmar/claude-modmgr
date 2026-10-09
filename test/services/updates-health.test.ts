@@ -266,6 +266,25 @@ describe('Health', () => {
     expect(w.state.values.view.health).toBe('own:load')
   })
 
+  it('steps through its items with the keys, the ring with the selection', async () => {
+    const { w, rt, act } = await setup({
+      store: {
+        updates: { v: 1, data: { at: 1, found: { [SDK]: { from: '1.0.0', to: '1.2.0' } } } },
+      },
+    })
+    await rt.registry.refresh()
+    await act.tab('health')
+    await act.edge('first')
+    const first = w.state.values.view.health
+    await act.scroll(1)
+    const second = w.state.values.view.health
+    expect(second).toBeDefined()
+    expect(second).not.toBe(first)
+    expect(w.ui.focuses.at(-1)).toBe(`modmgr:health:${second}`)
+    await act.scroll(-1)
+    expect(w.state.values.view.health).toBe(first)
+  })
+
   it('opens a mod’s detail on Installed to see what it can do now', async () => {
     const { w, rt, act } = await setup()
     w.state.values.mods = w.state.values.mods.map(row =>

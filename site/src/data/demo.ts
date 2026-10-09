@@ -509,7 +509,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
@@ -1000,7 +1000,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
@@ -1416,11 +1416,11 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "o: sort by stars  k: yours only  m: marketplace                      "
+          "text": "o: sort by stars  u: yours only  m: marketplace                      "
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
@@ -2040,7 +2040,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "j: jobs"
+          "text": "q: jobs"
         },
         {
           "text": "  "
