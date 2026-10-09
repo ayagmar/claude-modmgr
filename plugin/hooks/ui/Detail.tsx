@@ -144,10 +144,13 @@ const itemName = (item: ReachGroup['items'][number]): string =>
  * Everything it hooks and calls, grouped by reach. In the full form each group
  * is named on its own row and each item follows, its name in a column, then
  * what it does, wrapped under itself; a group that only draws lists its names.
- * Compactly, a table: the reach in the first column, the names beside it.
+ * Compactly, the command that explains each one, as the full form would,
+ * then a table: the reach in the first column, the names beside it. The
+ * command comes first, as a detail cut short is cut at its end.
  */
 const reachSection = (
   v: ViewPorts,
+  id: string,
   groups: readonly ReachGroup[],
   full: boolean,
   columns: number,
@@ -168,7 +171,7 @@ const reachSection = (
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
     // A group that only draws is counted: its names are noise beside the reach
-    // that matters, and the full detail still lists them.
+    // that matters, and the full detail and /mods info still list them.
     const said = (group: ReachGroup) =>
       QUIET.has(group.reach)
         ? `${group.items.length} ${group.items.length === 1 ? 'hook or call' : 'hooks and calls'}`
@@ -176,11 +179,16 @@ const reachSection = (
     const label = Math.min(LABEL_MAX, Math.max(...groups.map(g => g.label.length)))
     // The names wrap beside the label: a cut list hid what the mod reaches.
     const beside = columns - label - 1
+    const more = `/mods info ${id} explains each one.`
     return {
-      rows: 1 + groups.reduce((sum, group) => sum + wrappedRows([said(group)], beside), 0),
+      rows:
+        1 +
+        wrappedRows([more], columns) +
+        groups.reduce((sum, group) => sum + wrappedRows([said(group)], beside), 0),
       el: (
         <Box flexDirection="column">
           {heading}
+          <Text dimColor>{more}</Text>
           {groups.map(group =>
             LabelRow(
               v,
@@ -285,7 +293,13 @@ const bodySections = (
     })
   }
   sections.push(
-    reachSection(v, detail.caps === undefined ? [] : groupByReach(detail.caps), full, columns),
+    reachSection(
+      v,
+      sanitize(detail.id, { max: 130 }),
+      detail.caps === undefined ? [] : groupByReach(detail.caps),
+      full,
+      columns,
+    ),
   )
 
   const extras: string[] = []

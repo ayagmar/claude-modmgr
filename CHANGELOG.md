@@ -24,7 +24,8 @@ All notable changes to this project are documented here. The format follows
   job log cancels with `d`. The key list groups every key that moves apart from the actions.
 - Health reads as a status page: each of modmgr's own rows is named (Mods, Updates, Discover, Cache, Hook errors) in
   plain words, and the line under the tabs says in color whether anything needs you.
-- A mod's detail counts the hooks and calls that only draw instead of listing every name; Enter still lists them.
+- A mod's detail too short for every name and explanation counts the hooks and calls that only draw instead of
+  listing every name, and names `/mods info <id>`, which explains each one.
 - The terminal's "ctrl+x tab to use these keys" stands out while the prompt has the keys.
 - A review shows each command it will run whole, wrapped, instead of cutting it at the dialog's edge; an install's
   review no longer repeats the mod's name before each thing it can do.

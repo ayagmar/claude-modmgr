@@ -304,8 +304,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
 
   const body =
     beside && !wide ? (
-      // Clipped to the list's rows, so the header and footer stay in view; the
-      // whole detail is one Enter away. The detail beside the list carries its keys.
+      // Clipped to the list's rows, so the header and footer stay in view; a
+      // compact detail names /mods info for the rest. The detail beside the list carries its keys.
       <Box flexDirection="row" columnGap={1} height={listRows} overflow="hidden">
         <Box flexDirection="column" width={listColumns} flexShrink={0} overflow="hidden">
           <Box flexDirection="column" flexShrink={0}>

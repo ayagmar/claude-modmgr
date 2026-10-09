@@ -387,6 +387,22 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
+          "text": "/mods info redactor@fixtures explains each one."
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
           "text": "Network"
         },
         {
@@ -477,15 +493,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "✓ validates"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [
@@ -890,6 +897,22 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
+          "text": "/mods info turn-band@fixtures explains each one."
+        }
+      ],
+      [
+        {
+          "text": "                                       "
+        },
+        {
+          "dim": true,
+          "text": "│"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
           "text": "Your machine"
         },
         {
@@ -961,15 +984,6 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "✓ validates"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
         }
       ],
       [

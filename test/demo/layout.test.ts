@@ -167,3 +167,14 @@ describe('the welcome and the keys in a short pane', () => {
     expect(seen).toMatch('applied together with s')
   })
 })
+
+describe('a detail too short for every explanation', () => {
+  it('names the command that explains each thing the mod can do', async () => {
+    const { act, draw } = await setup()
+    await act.focusRow('redactor@fixtures')
+    // Tall enough for the compact form, too short for the full one.
+    const frame = (await draw(96, 20)).join('\n')
+    expect(frame).not.toMatch('Reads environment variables that look like secrets (')
+    expect(frame).toMatch('/mods info redactor@fixtures explains each one.')
+  })
+})
