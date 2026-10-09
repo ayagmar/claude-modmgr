@@ -518,7 +518,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? [
             view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,
             detectLine(detect) ?? '',
-            page.community === 0 ? '' : `${page.community.toLocaleString('en-US')} from GitHub`,
+            page.community === 0 || view.mine === true
+              ? ''
+              : `${page.community.toLocaleString('en-US')} from GitHub`,
           ]
             .filter(part => part !== '')
             .join(' · ')
@@ -529,6 +531,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             .filter(part => part !== '')
             .join(' · ')
   const stale = discover ? page.loading : dev ? devState.loading : sync.refreshing
+  // The mods Discover can list: with `k`, only your marketplaces' (what the detector found).
+  const listed = detect.found + (view.mine === true ? 0 : page.community)
   const field =
     fieldShown && Input !== undefined ? (
       <Box flexDirection="row" flexGrow={1}>
@@ -538,9 +542,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             key={FILTER_KEY}
             placeholder={
               discover
-                ? detect.found + page.community === 0
+                ? listed === 0
                   ? 'Search mods'
-                  : `Search ${count(detect.found + page.community, 'mod', 'mods')}`
+                  : `Search ${count(listed, 'mod', 'mods')}`
                 : `Filter ${count(mods.length, 'mod', 'mods')}`
             }
             value={discover ? view.search : view.query}

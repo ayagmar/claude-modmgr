@@ -10,8 +10,9 @@ import { background } from '../../plugin/hooks/services/lifecycle.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { NO_TIMING, timed, timingOf } from '../../plugin/hooks/services/timing.ts'
+import { runs } from '../domain/fixtures/cli-runs.ts'
 import { fixtureCli } from './cli-world.ts'
-import { world } from './fakes.ts'
+import { out, world } from './fakes.ts'
 
 const setup = async (
   store: Record<string, unknown> = {},
@@ -43,6 +44,27 @@ describe('preferences', () => {
       tab: 'discover',
       sort: 'stars',
     })
+  })
+})
+
+describe('a dialog opened before start-up finished', () => {
+  it('reads the restored tab, so Discover is not left empty', async () => {
+    const { w, rt } = await setup({
+      prefs: { v: 1, data: { tab: 'discover', firstRunDone: true } },
+    })
+    w.process.when(['list', '--json', '--available'], out(runs['list-available'].stdout))
+    // `/mods` before the runtime existed: the dialog is up, nothing read it.
+    await w.ui.open({ id: 'modmgr', title: 'mods', closeOnEscape: true })
+    await background(rt, { fresh: true })
+    expect(w.state.values.catalogPage.total).toBeGreaterThan(0)
+  })
+
+  it('reads nothing at a fresh start with the dialog closed', async () => {
+    const { w, rt } = await setup({
+      prefs: { v: 1, data: { tab: 'discover', firstRunDone: true } },
+    })
+    await background(rt, { fresh: true })
+    expect(w.process.calls.some(call => call.argv.includes('--available'))).toBe(false)
   })
 })
 

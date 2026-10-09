@@ -14,7 +14,7 @@ import { fail, ok, type Result } from './result.ts'
 export const COMMUNITY_URL =
   'https://raw.githubusercontent.com/ayagmar/claude-modmgr/catalog-index/mods-v1.json'
 export const COMMUNITY_VERSION = 1
-/** A body past this is not parsed (about 2,700 mods make a little over 1 MB). */
+/** A body past this is not parsed (about 3,100 mods make 1.5 MB). */
 export const COMMUNITY_MAX_BYTES = 4 * 1024 * 1024
 export const COMMUNITY_MAX_MODS = 20_000
 const WORDS_MAX = 20_000

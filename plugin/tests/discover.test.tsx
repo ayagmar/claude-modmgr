@@ -269,3 +269,34 @@ test('a name two marketplaces share is drawn with each marketplace', async ($, o
   expect((await ui.find({ key: 'found:solo@one' }))?.text).toBe('solo')
   await ui.unmount()
 })
+
+for (const mine of [false, true]) {
+  test(`the header counts GitHub's mods${mine ? ' only while k shows them' : ''}`, async ($, on) => {
+    host(on, {
+      state: {
+        view: {
+          tab: 'discover',
+          stack: [],
+          query: '',
+          search: '',
+          sort: 'installs',
+          staged: {},
+          mine,
+        },
+        catalogPage: {
+          rows: [],
+          total: 3000,
+          community: 3000,
+          matched: 0,
+          offset: 0,
+          loading: false,
+        },
+      },
+    })
+    const ui = await mountPane($, 'terminal', PANE(80, 24))
+    const said = await ui.find({ type: 'Text', text: '3,000 from GitHub' })
+    if (mine) expect(said).toBeUndefined()
+    else expect(said).toBeDefined()
+    await ui.unmount()
+  })
+}
