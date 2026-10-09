@@ -55,18 +55,19 @@ check(
   '/mods is no longer "answering its own command": is the registration literal still in register.tsx?',
 )
 // The only gates modmgr may hold are on its own pane: the Esc cascade keeps it
-// open (ui.close) and the focus ring is observed (ui.focus); and the session's
-// notices, observed for Dev's failures (it returns what `next` stored, so
-// it changes no row, and notices are rows the model never reads). Each has a .catch.
+// open (ui.close) and the focus ring is observed (ui.focus). Each has a .catch.
 const OWN_GATES = [
   'gating hook with .catch: ui.focus{component=Pane, requestId=modmgr}',
   'gating hook with .catch: ui.close{id=modmgr}',
-  'gating hook with .catch: session.append{door=notice}',
 ]
 const gates = notes.filter(note => / gating hook/.test(note))
 check(
   gates.every(note => OWN_GATES.some(own => note.endsWith(own))),
   `a gating hook appeared: ${gates.filter(n => !OWN_GATES.some(own => n.endsWith(own))).join('; ')}`,
+)
+check(
+  !notes.some(note => / hooks: .*\b(?:session\.append|prompt\.[a-z]+)/.test(note)),
+  'modmgr hooks an event that carries what the model reads (docs/SECURITY.md says it hooks none)',
 )
 check(
   !notes.some(note => / hooks: .*plugin\.register/.test(note)),

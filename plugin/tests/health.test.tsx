@@ -25,11 +25,6 @@ for (const surface of SURFACES) {
   test(`Health shows seeded problems with their fixes, on ${surface}`, async ($, on) => {
     const h = host(on, {
       state: {
-        dev: {
-          rows: [],
-          failures: { redactor: { count: 2, lastReason: 'reload failed', lastAt: 1 } },
-          loading: false,
-        },
         attention: { updates: 0, problems: 0, reloadPending: true, capsChanged: 0 },
       },
     })
@@ -41,20 +36,12 @@ for (const surface of SURFACES) {
     await ui.redraw()
     // The tab shown is its title, with the count of problems.
     expect((await ui.find({ type: 'Text', text: /^Health ▲\d+$/ }))?.text).toMatch(/^Health ▲\d+$/)
-    // The broken fixture's validate errors, the failures redactor reported, a reload owed.
+    // The broken fixture's validate errors and a reload owed.
     expect(await ui.find({ key: 'health:broken@fixtures:validate' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '→ see it' })).toBeDefined()
-    expect(await ui.find({ key: 'health:redactor:failures' })).toBeDefined()
     expect(await ui.find({ key: 'health:own:reload' })).toBeDefined()
-    // Stacked, a press opens the item whole (its row is clipped), and its fix runs from there:
-    // the broken mod's detail on Installed.
-    await ui.press({ key: 'health:redactor:failures' })
-    await ui.redraw()
-    expect(
-      await ui.find({ type: 'Text', text: '2 failures while it reloaded; last: reload failed' }),
-    ).toBeDefined()
-    await ui.press({ key: 'act:back' })
-    await ui.redraw()
+    // Stacked, a press opens the item whole, and its fix runs from there: the broken mod's
+    // detail on Installed.
     await ui.press({ key: 'health:broken@fixtures:validate' })
     await ui.redraw()
     expect((await ui.find({ key: 'act:fix' }))?.props.label).toBe('→ see it')

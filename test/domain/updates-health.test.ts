@@ -27,7 +27,7 @@ import {
   updateTo,
 } from '../../plugin/hooks/domain/updates.ts'
 import { statusLineOf, summaryOf } from '../../plugin/hooks/domain/view.ts'
-import type { DevState, HealthFacts, JobQueue, ModRow } from '../../plugin/types/index.d.ts'
+import type { HealthFacts, JobQueue, ModRow } from '../../plugin/types/index.d.ts'
 
 const SHA = 'a'.repeat(40)
 const OTHER = `${'b'.repeat(12)}${'c'.repeat(28)}`
@@ -167,7 +167,6 @@ const facts = (more: Partial<HealthFacts> = {}): HealthFacts => ({
 
 const input = (more: Partial<HealthInput> = {}): HealthInput => ({
   mods: [],
-  dev: INITIAL.dev,
   attention: INITIAL.attention,
   degraded: INITIAL.degraded,
   sync: INITIAL.sync,
@@ -179,11 +178,6 @@ const input = (more: Partial<HealthInput> = {}): HealthInput => ({
 
 describe('Health’s items', () => {
   it('shows seeded problems, worst first, each with its fix', () => {
-    const dev: DevState = {
-      rows: [{ key: '/dev/tb', name: 'tb', how: 'plugin-dir', path: '/dev/tb' }],
-      failures: { tb: { count: 2, lastReason: 'reload failed', lastAt: 1 } },
-      loading: false,
-    }
     const items = healthItemsOf(
       input({
         mods: [
@@ -191,7 +185,6 @@ describe('Health’s items', () => {
           row('grown', { capsNew: { since: '0.3.1', added: ['runs-programs'] } }),
           row('hurt', { problems: 2 }),
         ],
-        dev,
         facts: facts({ logged: { quiet: 'tool.call (Error)' } }),
       }),
     )
@@ -199,19 +192,14 @@ describe('Health’s items', () => {
     expect(mine.map(item => [item.group, item.tone, item.text, item.fixLabel])).toEqual([
       ['hurt', 'bad', 'validate finds 2 errors in it', 'see it'],
       ['quiet', 'bad', 'a hook failed: tool.call (Error) (debug log)', undefined],
-      ['tb', 'bad', '2 failures while it reloaded; last: reload failed', 'validate'],
       ['grown', 'warn', 'since 0.3.1 it can run programs', 'review it'],
       ['fresh', 'info', '1.2.0 is available', 'update'],
     ])
-    expect(mine.find(item => item.group === 'tb')?.fix).toEqual({
-      kind: 'validate',
-      key: '/dev/tb',
-    })
     expect(mine.find(item => item.group === 'fresh')?.fix).toEqual({
       kind: 'update',
       id: 'fresh@m',
     })
-    expect(problemCount(items)).toBe(3)
+    expect(problemCount(items)).toBe(2)
   })
 
   it('says modmgr’s own state', () => {

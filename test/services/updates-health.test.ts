@@ -281,20 +281,10 @@ describe('Health', () => {
     })
   })
 
-  it('reloads, refreshes and validates from its items', async () => {
+  it('reloads and refreshes from its items', async () => {
     const { w, act, drain } = await setup()
     w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
     w.state.values.sync = { ...w.state.values.sync, error: { kind: 'timeout', message: 'slow' } }
-    w.state.values.dev = {
-      rows: [{ key: '/dev/qb', name: 'qb', how: 'env-dir', path: '/dev/qb' }],
-      failures: { qb: { count: 1, lastReason: 'failed', lastAt: 1 } },
-      loading: false,
-    }
-    await act.fix('qb:failures')
-    expect(w.state.values.queue.jobs.at(-1)).toMatchObject({
-      kind: 'validate',
-      args: { path: '/dev/qb' },
-    })
     await act.fix('own:reload')
     expect(w.state.values.queue.jobs.some(job => job.kind === 'reload')).toBe(true)
     const lists = () => w.process.calls.filter(call => call.argv[2] === 'list').length

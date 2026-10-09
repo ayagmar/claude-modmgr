@@ -106,20 +106,3 @@ export const onTurnEnd = (
   rt.turns.delete(turnId)
   rt.detector.setBusy(rt.turns.size > 0)
 }
-
-/**
- * A notice the session appended (`session.append`, door `notice`): while it
- * hot-reloads a folder, the engine says there when a plugin's hook or module
- * failed. Dev counts them; nothing is answered or changed.
- */
-export const onNotice = (
-  rt: Runtime | undefined,
-  content: readonly { readonly type: string; readonly [field: string]: unknown }[],
-): void => {
-  if (rt === undefined) return
-  for (const block of content) {
-    if (block.type === 'text' && typeof block.text === 'string') {
-      void rt.dev.notice(block.text).catch(() => undefined)
-    }
-  }
-}

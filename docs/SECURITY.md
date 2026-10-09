@@ -106,7 +106,7 @@ files with `$.fs.read`, at paths inside that marketplace's folder (checked segme
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads
 plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`) and lists folders (`$.fs.list`) where mods under
 development live: this session's mods folder (under `CLAUDE_CONFIG_DIR`, or `~/.claude` from `HOME`, the only reason
-modmgr reads those two variables), where the session runs, and a folder a failure notice named. It never writes a
+modmgr reads those two variables), and where the session runs. It never writes a
 file: `p` (share) shows the marketplace file to write and copies the install line. `v` and `t` run `claude plugin
 validate` and `claude plugin test` on a dev mod's folder, which runs that mod's own tests: the person's code, on
 their key press. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads
@@ -122,14 +122,9 @@ another session's) for `hook failed closed` lines, keeping only the plugin's nam
 engine logs no error text). modmgr never reads
 the CLI's internal files (`installed_plugins.json`, settings) or the project's settings.
 
-**Notices.** modmgr hooks `session.append` for notices only (`door: 'notice'`, the dim lines the model never reads),
-to count a hot-reloaded plugin's failures for Dev. A failure notice that names a module's file (`reload failed`, `did not load`) gives a folder; modmgr reads that
-folder's `plugin.json` once and lists it in Dev only when the manifest names the same plugin. The hook calls `next`
-first and returns the row the
-session stored, unchanged; its `.catch` passes through. The validator still reports it as a gating hook (any
-`session.append` hook is one), and a capability list built from event names, modmgr's own included, places it under
-"what the model sees": that is the event's reach, not what this hook does with it. `scripts/validate-plugin.ts` allows
-this gate with exactly that matcher and no other.
+**No hooks on what the model sees.** modmgr hooks no event that carries conversation rows (`session.append`,
+`prompt.*`) and never gates a tool, so nothing it runs can change what the model reads.
+`scripts/validate-plugin.ts` fails the build if a gating hook appears.
 
 **No telemetry.** modmgr never calls `$.telemetry`; `node scripts/validate-plugin.ts` fails the build if it does.
 

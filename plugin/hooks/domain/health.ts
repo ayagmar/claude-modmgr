@@ -7,7 +7,6 @@ import type {
   Attention,
   Degraded,
   DetectProgress,
-  DevState,
   HealthFacts,
   JobQueue,
   ModRow,
@@ -21,7 +20,6 @@ import { bytesLabel, type Window, whyLocked, whyNoUpdate, windowAround } from '.
 /** What pressing an item does. */
 export type HealthFix =
   | { readonly kind: 'update' | 'open'; readonly id: string }
-  | { readonly kind: 'validate'; readonly key: string }
   | { readonly kind: 'copy'; readonly text: string }
   | { readonly kind: 'reload' | 'refresh' | 'clear-cache' | 'check-updates' }
 
@@ -63,7 +61,6 @@ export const agoLabel = (ms: number): string => {
 
 export type HealthInput = {
   readonly mods: readonly ModRow[]
-  readonly dev: DevState
   readonly attention: Attention
   readonly degraded: Degraded
   readonly sync: Sync
@@ -77,7 +74,6 @@ const TONE_ORDER: Readonly<Record<HealthTone, number>> = { bad: 0, warn: 1, info
 /** Each mod's items: what is wrong first. */
 const modItems = (input: HealthInput): HealthItem[] => {
   const items: HealthItem[] = []
-  const devKeyOf = new Map(input.dev.rows.map(row => [row.name, row.key]))
   for (const row of input.mods) {
     const group = sanitize(row.name, { max: 40 })
     if (row.problems > 0) {
@@ -112,23 +108,9 @@ const modItems = (input: HealthInput): HealthItem[] => {
       })
     }
   }
-  // Failures the session reported while hot-reloading (Dev's), and the debug log's.
-  const names = new Set([...Object.keys(input.dev.failures), ...Object.keys(input.facts.logged)])
-  for (const name of [...names].sort()) {
+  // The hook failures the debug log names.
+  for (const name of Object.keys(input.facts.logged).sort()) {
     const group = sanitize(name, { max: 40 })
-    const failed = input.dev.failures[name]
-    const devKey = devKeyOf.get(name)
-    if (failed !== undefined) {
-      items.push({
-        key: `${name}:failures`,
-        group,
-        tone: 'bad',
-        text: `${plural(failed.count, 'failure', 'failures')} while it reloaded; last: ${failed.lastReason}`,
-        ...(devKey === undefined
-          ? {}
-          : { fix: { kind: 'validate' as const, key: devKey }, fixLabel: 'validate' }),
-      })
-    }
     const logged = input.facts.logged[name]
     if (logged !== undefined) {
       items.push({

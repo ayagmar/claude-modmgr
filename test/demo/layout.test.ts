@@ -41,7 +41,7 @@ const setup = async () => {
   const act = createActions(w.ports, rt)
   const tree = (bodyColumns: number, bodyRows: number) =>
     drawPane(
-      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act },
+      { el: ELEMENTS as never, surface: 'terminal', read: w.state.read, act, ownRoot: '/modmgr' },
       { bodyColumns, bodyRows, isFocused: true },
     )
   const draw = async (bodyColumns: number, bodyRows: number) =>
@@ -71,7 +71,6 @@ describe('the ring’s stops', () => {
     const found = w.state.values.catalogPage.rows.at(-1)?.id
     expect(found).toBeDefined()
     await scrolls(() => act.focusFound(found ?? ''))
-    await rt.dev.notice('redactor: tool.call hook failed: it threw')
     await act.tab('health')
     const items = stopsOf(await tree(96, 12)).filter(key => key.startsWith('health:'))
     expect(items.length).toBeGreaterThan(4)

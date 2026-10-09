@@ -2,21 +2,18 @@
 // folder (`@inline`, `@skills-dir`, folder marketplaces), this session's mods
 // folder, and the `--plugin-dir` plugins inferred from their commands, whose
 // folder is looked for where the session runs. Rows go to `$.state` `dev`;
-// what validate and test said is read from the job queue. Also counts the
-// failures the session reports while it hot-reloads a folder.
+// what validate and test said is read from the job queue.
 
 import type { DevShare } from '../../types/index.d.ts'
 import {
   devRowsOf,
   type Found,
-  failureOf,
   githubRepoOf,
   isInside,
   joinPath,
   keptSelection,
   manifestOf,
   marketplaceFolderOf,
-  recordFailure,
   sessionFolderOf,
   shareOf,
   unlistedPlugins,
@@ -28,14 +25,9 @@ import { NO_TIMING, type Timing, timed } from './timing.ts'
 
 export type DevPorts = Pick<Ports, 'state' | 'fs' | 'env' | 'session' | 'command' | 'clock'>
 
-/** Plugins whose failures are kept at once (the newest; Dev and Health read them). */
-export const FAILURES_KEPT = 50
-
 export type Dev = {
   /** Lists the dev mods again; a call during one queues exactly one more. */
   refresh(): Promise<void>
-  /** A session notice: counted when it says a plugin's hook or module failed. */
-  notice(text: string): Promise<void>
   /** Works out how to share the row `key` and puts it in `dev.share` (the share overlay). */
   share(key: string): Promise<DevShare | undefined>
 }
@@ -119,14 +111,10 @@ export const createDev = (
         ]),
       ),
     ].filter(place => place.startsWith('/'))
-    // A failure that named its folder says where the plugin is; else look where the session runs.
-    const { failures } = await ports.state.read('dev')
-    const failing = Object.keys(failures).filter(name => failures[name]?.folder !== undefined)
+    // A --plugin-dir plugin is looked for where the session runs.
     const located = new Map<string, Found>()
-    for (const name of unlistedPlugins(commandPlugins, failing, known)) {
-      const folder = failures[name]?.folder
-      const named = folder === undefined ? undefined : await foundAt(folder)
-      const at = named?.name === name ? named : await locate(name, places)
+    for (const name of unlistedPlugins(commandPlugins, known)) {
+      const at = await locate(name, places)
       if (at !== undefined) located.set(name, at)
     }
     const rows = devRowsOf({ listed, commandPlugins, sessionFolder: found, located })
@@ -169,23 +157,6 @@ export const createDev = (
 
   return {
     refresh,
-
-    async notice(text) {
-      const failure = failureOf(text)
-      if (failure === undefined) return
-      const now = await ports.clock.now()
-      const dev = await ports.state.update('dev', current => {
-        const failures = recordFailure(current.failures, failure, now)
-        // The newest FAILURES_KEPT plugins.
-        const kept = Object.entries(failures)
-          .sort(([, a], [, b]) => b.lastAt - a.lastAt)
-          .slice(0, FAILURES_KEPT)
-        return { ...current, failures: Object.fromEntries(kept) }
-      })
-      // A failing folder Dev doesn't list yet (a --plugin-dir mod that never loaded) joins it.
-      const listed = dev.rows.some(row => row.name === failure.name)
-      if (failure.folder !== undefined && !listed && dev.at !== undefined) void refresh()
-    },
 
     async share(key) {
       const row = (await ports.state.read('dev')).rows.find(item => item.key === key)

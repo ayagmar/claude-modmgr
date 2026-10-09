@@ -20,6 +20,8 @@ export type ViewPorts = {
   readonly surface: RenderSurface
   readonly read: StatePort['read']
   readonly act: Actions
+  /** modmgr's own folder (`$.plugin.root`): its own detail says why it needs what it can do. */
+  readonly ownRoot: string
 }
 
 export const GLYPH = {

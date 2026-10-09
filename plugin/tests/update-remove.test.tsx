@@ -311,3 +311,43 @@ test('a hook and a call of one name read apart', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: 'command.run' })).toBeDefined()
   await ui.unmount()
 })
+
+/** The folder holding plugin.json: what the module's `$.plugin.root` names. */
+// The runner gives modules `import.meta.url`; the plugin's types (no runtime lib) don't say so.
+const PLUGIN_ROOT = new URL('..', (import.meta as { readonly url: string }).url).pathname
+
+for (const own of [true, false]) {
+  test(`modmgr's own detail says why it needs what it can do${own ? '' : ', a namesake from elsewhere does not'}`, async ($, on) => {
+    const self = { ...ROW, id: 'modmgr@ayagmar', name: 'modmgr', capsNew: undefined }
+    host(on, {
+      state: {
+        mods: [self],
+        detail: {
+          ...self,
+          root: own ? PLUGIN_ROOT : '/elsewhere/modmgr',
+          caps: {
+            events: [],
+            calls: ['process.run', 'fs.read', 'http.fetch'],
+            envReads: [],
+            reach: ['machine', 'network'],
+            notable: ['runs-programs', 'reads-and-sends'],
+          },
+        },
+        view: {
+          tab: 'installed',
+          stack: [],
+          query: '',
+          sort: 'name',
+          staged: {},
+          selected: self.id,
+        },
+      },
+    })
+    await $.session.start(START)
+    const ui = await mountPane($, 'terminal', PANE(110, 50))
+    const why = await ui.find({ type: 'Text', text: 'Why modmgr needs these' })
+    if (own) expect(why).toBeDefined()
+    else expect(why).toBeUndefined()
+    await ui.unmount()
+  })
+}

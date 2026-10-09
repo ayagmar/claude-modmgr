@@ -33,9 +33,9 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
                                        │
                                        │ What it can do
                                        │ Network             http.fetch
-                                       │ Session content     env.get session.messages
-                                       │ What the model sees session.append
-                                       │ Display only        session.end
+                                       │ Session content     env.get  session.messages
+                                       │ What the model sees on session.append
+                                       │ Display only        on session.end
                                        │
                                        │ ✓ validates
                                        │
@@ -67,8 +67,8 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                        │
                                        │ What it can do
                                        │ Your machine        process.run
-                                       │ What the model sees prompt.submit
-                                       │ Display only        turn.complete ui.render clock.now …
+                                       │ What the model sees on prompt.submit
+                                       │ Display only        on turn.complete  on ui.render  cl…
                                        │
                                        │ ✓ validates
                                        │
@@ -121,18 +121,18 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 **Health** lists what needs you, worst first, each with a fix one key away:
 
 ```
-1: Installed   2: Discover   3: Dev   Health ▲2                                       r: refresh
-2 problems to look at
+1: Installed   2: Discover   3: Dev   Health ▲1                                       r: refresh
+1 problem to look at
   broken                               │ broken
 ❯ ▲ validate finds 1 error in it       │
-  redactor                             │ ▲ validate finds 1 error in it
-  ▲ 1 failure while it reloaded; last… │
-  modmgr itself                        │ → see it
+  modmgr itself                        │ ▲ validate finds 1 error in it
     5 enabled                          │
-    updates checked never, every 6 ho… │
-    detector: 5 mods found; 205 of 20… │
+    updates checked never, every 6 ho… │ → see it
+    detector: 5 mods found; 203 of 20… │
     cache: 185 B                       │
     A hook that fails is logged only … │
+                                       │
+                                       │
                                        │
                                        │
                                        │

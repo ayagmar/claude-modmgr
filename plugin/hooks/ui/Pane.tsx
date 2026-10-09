@@ -153,11 +153,10 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const found = foundRow(view, page)
   // Dev: its rows, and what validate, test and the session said of them.
   const devRow = devRowOf(view.dev, devState.rows)
-  const devHow = { jobs: queue.jobs, failures: devState.failures }
+  const devHow = { jobs: queue.jobs }
   // Health: every item, from state alone, and the one selected.
   const items = healthItemsOf({
     mods,
-    dev: devState,
     attention,
     degraded,
     sync,
@@ -523,7 +522,6 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       </Box>
     ),
   )
-  const failing = devState.rows.filter(row => devState.failures[row.name] !== undefined).length
   const updates = mods.filter(row => row.updateTo !== undefined).length
   const count = (n: number, one: string, many: string) =>
     `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
@@ -532,12 +530,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       ? 'Nothing needs you.'
       : `${count(problems, 'problem', 'problems')} to look at`
     : dev
-      ? [
-          count(devState.rows.length, 'mod', 'mods') + ' under development',
-          failing === 0 ? '' : `${failing} failing`,
-        ]
-          .filter(part => part !== '')
-          .join(' · ')
+      ? `${count(devState.rows.length, 'mod', 'mods')} under development`
       : discover
         ? [
             view.search === '' ? '' : `${page.matched.toLocaleString('en-US')} matching`,

@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- modmgr no longer hooks the session's notice lines, so its own capability list no longer says it "can change what
+  the model reads". Dev no longer counts a mod's reload failures as they happen; Health still names hook failures
+  from the debug log (`--debug`), and `v` validates a mod under development.
+- modmgr's own detail says why it needs what it can do: it runs only the `claude` CLI, and it reads plugin manifests
+  and fetches the daily indexes, sending nothing it reads.
+
 ## [0.3.0] - 2026-10-09
 
 ### Added
