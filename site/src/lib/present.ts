@@ -28,7 +28,6 @@ export const FILTERS = [
     query: { withoutNotable: NOTABLE_BITS['runs-programs'] },
   },
   { id: 'marketplace', label: 'Installs from a marketplace', query: { installable: true } },
-  { id: 'validates', label: 'Passes validation', query: { working: true } },
 ] as const satisfies readonly {
   id: string
   label: string

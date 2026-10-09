@@ -561,9 +561,9 @@ list.addEventListener('click', event => {
   select(row)
 })
 
-// A mouse resting on a row selects it after a moment, so sweeping across the
-// list to the datasheet doesn't flick through every row on the way. Only the
-// pointer moving counts: rows scrolling under a still pointer change nothing.
+// A mouse on a row selects it at once. Only a pointer heading right, toward the
+// datasheet, waits a moment, so crossing rows on the way there doesn't swap it.
+// Only the pointer moving counts: rows scrolling under a still pointer change nothing.
 let hovered: HTMLLIElement | null = null
 let intent = 0
 list.addEventListener('pointermove', event => {
@@ -572,7 +572,10 @@ list.addEventListener('pointermove', event => {
   if (row === hovered) return
   hovered = row
   clearTimeout(intent)
-  if (row !== null) intent = window.setTimeout(() => select(row), 120)
+  if (row === null) return
+  const towardSheet = event.movementX > 0 && event.movementX > 2 * Math.abs(event.movementY)
+  if (towardSheet) intent = window.setTimeout(() => select(row), 80)
+  else select(row)
 })
 list.addEventListener('pointerleave', () => {
   hovered = null

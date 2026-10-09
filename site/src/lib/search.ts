@@ -123,8 +123,6 @@ export type Query = {
   readonly withoutNotable?: number
   /** Only mods a marketplace installs. */
   readonly installable?: boolean
-  /** Leave out mods that fail validate. */
-  readonly working?: boolean
 }
 
 export const words = (text: string): string[] =>
@@ -153,7 +151,6 @@ export const search = (index: Index, query: Query): number[] => {
     if ((mod.reach & without) !== 0) continue
     if ((mod.notable & withoutNotable) !== 0) continue
     if (query.installable === true && mod.plugin === undefined) continue
-    if (query.working === true && mod.check === 2) continue
     const haystack = index.haystacks[i] as string
     if (terms.every(term => haystack.includes(term))) matched.push(i)
   }
