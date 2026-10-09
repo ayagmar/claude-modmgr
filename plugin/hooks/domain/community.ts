@@ -18,7 +18,8 @@ export const COMMUNITY_VERSION = 1
 export const COMMUNITY_MAX_BYTES = 4 * 1024 * 1024
 export const COMMUNITY_MAX_MODS = 20_000
 const WORDS_MAX = 20_000
-const WORD_MAX = 100
+export const WORD_MAX = 100
+export const WORDS_PER_LIST = 200
 export const NAME_MAX = 64
 export const DESCRIPTION_MAX = 300
 const PATH_MAX = 200
@@ -86,7 +87,7 @@ const isText = (value: unknown, max: number): value is string =>
 const malformed = () => fail('parse', 'the community index has a malformed mod')
 
 const wordsAt = (value: unknown, words: readonly string[]): string[] | undefined => {
-  if (!Array.isArray(value) || value.length > 200) return undefined
+  if (!Array.isArray(value) || value.length > WORDS_PER_LIST) return undefined
   const out: string[] = []
   for (const at of value) {
     const word = isCount(at) ? words[at] : undefined

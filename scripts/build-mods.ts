@@ -47,6 +47,8 @@ import {
 export const SEEDS_URL =
   'https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/data/repos.txt'
 const CONCURRENCY = 6
+const RETRY_CONCURRENCY = 2
+const RETRY_PAUSE_MS = 60_000
 const METADATA_BATCH = 50
 /** Recent repositories of the broad queries checked in one build (most are not mods: a fresh clone tells). */
 const RECENT_MAX = 1000
@@ -190,12 +192,23 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
   for (const mod of previous?.mods ?? [])
     kept.set(key(mod.repo), [...(kept.get(key(mod.repo)) ?? []), mod])
   const mods: CommunityMod[] = []
-  let unread = 0
+  const missed: RepoMeta[] = []
   let done = 0
   await pool([...repos.values()], CONCURRENCY, async meta => {
     const read = await deps.inspect(meta.repo, meta)
     done += 1
     if (done % 200 === 0) deps.log(`read ${done} of ${repos.size}, ${mods.length} mods so far`)
+    if (read === undefined) missed.push(meta)
+    else mods.push(...read)
+  })
+  // GitHub turns clones away when many arrive at once: those are tried again, slowly.
+  let unread = 0
+  if (missed.length > 0) {
+    deps.log(`${missed.length} repositories couldn't be read; trying them again`)
+    await deps.sleep(RETRY_PAUSE_MS)
+  }
+  await pool(missed, RETRY_CONCURRENCY, async meta => {
+    const read = await deps.inspect(meta.repo, meta)
     if (read !== undefined) {
       mods.push(...read)
       return
@@ -342,7 +355,7 @@ const runChild = (
 
 /** A shallow clone, read and validated; undefined when git couldn't fetch it. */
 export const inspectRepo =
-  (work: string, env: NodeJS.ProcessEnv) =>
+  (work: string, env: NodeJS.ProcessEnv, log: (line: string) => void = () => {}) =>
   async (repo: string, facts: RepoFacts): Promise<CommunityMod[] | undefined> => {
     const dir = mkdtempSync(join(work, 'repo-'))
     const git = (args: readonly string[], timeout = 180_000) =>
@@ -364,7 +377,10 @@ export const inspectRepo =
         ],
         { env, timeout: 180_000 },
       )
-      if (clone.code !== 0) return undefined
+      if (clone.code !== 0) {
+        log(`clone ${repo}: ${clone.stderr.trim().split('\n').at(-1) ?? clone.code}`)
+        return undefined
+      }
       const head = await git(['rev-parse', 'HEAD'])
       const commit = head.stdout.trim()
       if (head.code !== 0 || !/^[0-9a-f]{40}$/.test(commit)) return []
@@ -433,7 +449,7 @@ if (import.meta.main) {
       search: githubSearch(token),
       graphql: githubGraphql(token),
       fetchText,
-      inspect: inspectRepo(work, env),
+      inspect: inspectRepo(work, env, line => console.error(line)),
       now: Date.now,
       sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
       log: line => console.error(line),
