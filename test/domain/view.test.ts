@@ -30,6 +30,7 @@ import {
   topOverlay,
   whyLocked,
   windowAround,
+  windowFollowing,
 } from '../../plugin/hooks/domain/view.ts'
 import type { Attention, Job, JobQueue, ModRow, View } from '../../plugin/types/index.d.ts'
 
@@ -442,5 +443,24 @@ describe('the band', () => {
         attention: { ...echoed, updates: 1, dismissed: 'mods · Reloaded: 1 plugin' },
       })?.text,
     ).toBe('mods · 1 update')
+  })
+})
+
+describe('a list that scrolls at its edges', () => {
+  it('centres on the selection the first time, then stays while the selection moves inside', () => {
+    expect(windowFollowing(undefined, 100, 50, 10)).toEqual({ start: 46, end: 56 })
+    expect(windowFollowing(46, 100, 53, 10)).toEqual({ start: 46, end: 56 })
+    expect(windowFollowing(46, 100, 47, 10)).toEqual({ start: 46, end: 56 })
+  })
+
+  it('moves one row at a time at the edge, keeping the next row drawn', () => {
+    expect(windowFollowing(46, 100, 55, 10)).toEqual({ start: 47, end: 57 })
+    expect(windowFollowing(46, 100, 46, 10)).toEqual({ start: 45, end: 55 })
+  })
+
+  it('jumps to the first or last page and fits a short list whole', () => {
+    expect(windowFollowing(46, 100, 99, 10)).toEqual({ start: 90, end: 100 })
+    expect(windowFollowing(46, 100, 0, 10)).toEqual({ start: 0, end: 10 })
+    expect(windowFollowing(3, 5, 4, 10)).toEqual({ start: 0, end: 5 })
   })
 })

@@ -29,9 +29,10 @@ import {
   pagerLabel,
   selectedRow,
   stagedIds,
+  type Window,
   whyNoRemove,
   whyNoUpdate,
-  windowAround,
+  windowFollowing,
 } from '../domain/view.ts'
 import { Detail, detailRows } from './Detail.tsx'
 import { DevDetail, DevList, devDetailRows, Share, shareRows } from './Dev.tsx'
@@ -59,6 +60,21 @@ export type PaneFrame = {
 
 /** Keymap actions this version doesn't draw yet: help leaves them out. */
 const NOT_YET: ReadonlySet<string> = new Set()
+
+/**
+ * Where each list's window starts, by surface and list, kept between draws: a
+ * list scrolls only when the selection reaches its edge (`windowFollowing`), so
+ * the window has to remember where it was. A module's memory, like the
+ * catalogue's; a reload starts each list centred on its selection again.
+ */
+const scrolled = new Map<string, number>()
+
+const follow = (v: ViewPorts, list: string, count: number, index: number, size: number): Window => {
+  const key = `${v.surface}:${list}`
+  const window = windowFollowing(scrolled.get(key), count, index, size)
+  scrolled.set(key, window.start)
+  return window
+}
 
 /** From this many body rows the search field is drawn in a box. */
 const BOXED_FIELD_MIN_ROWS = 18
@@ -317,7 +333,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     })
   } else if (dev) {
     const at = devRow === undefined ? 0 : devState.rows.indexOf(devRow)
-    const window = windowAround(devState.rows.length, at, listRows)
+    const window = follow(v, 'dev', devState.rows.length, at, listRows)
     pager = pagerLabel(window, devState.rows.length)
     list = DevList(v, devState.rows, {
       ...devHow,
@@ -330,7 +346,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   } else if (discover) {
     // Each entry takes two rows: its name, then what it says it does.
     const at = found === undefined ? 0 : page.rows.indexOf(found)
-    const window = windowAround(page.rows.length, at, Math.floor(listRows / 2))
+    const window = follow(
+      v,
+      `discover@${page.offset}`,
+      page.rows.length,
+      at,
+      Math.floor(listRows / 2),
+    )
     list = FoundList(v, page, {
       view,
       columns: listColumns,
@@ -348,7 +370,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           )
         : undefined
   } else {
-    const window = windowAround(
+    const window = follow(
+      v,
+      'installed',
       rows.length,
       selected === undefined ? 0 : rows.indexOf(selected),
       listRows,
