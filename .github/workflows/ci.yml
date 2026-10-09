@@ -66,7 +66,10 @@ jobs:
       - name: Plugin tests (wiring, dispatch rules and UI)
         run: claude plugin test plugin
 
+      # From a fixture: the gate checks the page, not whether today's index is published.
       - name: Build the site
+        env:
+          MODS_INDEX: ${{ github.workspace }}/test/site/fixtures/mods-v1.json
         run: pnpm --filter modmgr-site build
 
       - name: Check the site's links and weight
