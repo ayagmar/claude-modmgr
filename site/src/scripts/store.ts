@@ -4,7 +4,8 @@
 // asks for a search), is parsed and indexed once, and every keystroke searches
 // it in memory. Only one page of rows is ever in the DOM, and rows are built
 // with DOM APIs and textContent: descriptions are untrusted text. On a wide
-// screen the selected row's mod fills the datasheet beside the list.
+// screen the selected row's mod fills the datasheet beside the list. The URL
+// keeps the search and the chosen mod (lib/state.ts), so a link shares both.
 import {
   badgesOf,
   CHECK_SHORT,
@@ -12,11 +13,15 @@ import {
   countText,
   dayText,
   FILTERS,
+  findMod,
   flagParts,
   installNoteOf,
+  isProjectMod,
   notablesOf,
   PAGE_SIZE,
+  PAGE_SIZES,
   pinsOf,
+  projectNoteOf,
   rangeText,
   reachesOf,
   sourceOf,
@@ -32,13 +37,12 @@ import {
   pageLinks,
   pageOf,
   type Query,
-  SORTS,
-  type Sort,
   search,
   shortCount,
   toMod,
   words,
 } from '../lib/search.ts'
+import { isSort, pageContaining, type State, searchOf, stateOf } from '../lib/state.ts'
 
 const DATA_URL = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/mods.json`
 
@@ -51,37 +55,14 @@ const find = <T extends Element>(selector: string): T => {
 const form = find<HTMLFormElement>('#search')
 const input = find<HTMLInputElement>('#q')
 const sortMenu = find<HTMLSelectElement>('#sort')
+const perMenu = find<HTMLSelectElement>('#per')
 const chips = [...document.querySelectorAll<HTMLInputElement>('input[name="f"]')]
 const list = find<HTMLOListElement>('#results')
 const count = find<HTMLElement>('#count')
 const pager = find<HTMLElement>('#pager')
 const status = find<HTMLElement>('#status')
 
-type State = { q: string; sort: Sort; page: number; filters: string[] }
-
-const isSort = (value: string | null): value is Sort => SORTS.some(sort => sort === value)
-const isFilter = (id: string): boolean => FILTERS.some(filter => filter.id === id)
-
-const fromUrl = (): State => {
-  const params = new URLSearchParams(location.search)
-  const sort = params.get('sort')
-  return {
-    q: params.get('q') ?? '',
-    sort: isSort(sort) ? sort : 'relevance',
-    page: Number(params.get('page')) || 1,
-    filters: (params.get('f') ?? '').split(',').filter(isFilter),
-  }
-}
-
-const urlOf = (state: State): string => {
-  const params = new URLSearchParams()
-  if (state.q.trim() !== '') params.set('q', state.q.trim())
-  if (state.sort !== 'relevance') params.set('sort', state.sort)
-  if (state.filters.length > 0) params.set('f', state.filters.join(','))
-  if (state.page > 1) params.set('page', String(state.page))
-  const search = params.toString()
-  return search === '' ? location.pathname : `${location.pathname}?${search}`
-}
+const urlOf = (state: State): string => `${location.pathname}${searchOf(state)}`
 
 const queryOf = (state: State): Query =>
   Object.assign(
@@ -89,8 +70,27 @@ const queryOf = (state: State): Query =>
     ...FILTERS.filter(filter => state.filters.includes(filter.id)).map(filter => filter.query),
   )
 
-const state = fromUrl()
-const isDefault = (): boolean => urlOf(state) === location.pathname
+const state = stateOf(location.search)
+const isDefault = (): boolean => searchOf(state) === ''
+
+/** The controls, set to the state. */
+const showState = (): void => {
+  input.value = state.q
+  sortMenu.value = state.sort
+  perMenu.value = String(state.per)
+  for (const chip of chips) chip.checked = state.filters.includes(chip.value)
+}
+
+/** The URL, kept up with the selection: once it settles, as a pointer crosses rows. */
+let urlTimer = 0
+const writeUrl = (): void => {
+  clearTimeout(urlTimer)
+  urlTimer = window.setTimeout(() => history.replaceState(null, '', urlOf(state)), 150)
+}
+
+/** A link to a mod on this page, under the current search. */
+const linkTo = (key: string): string =>
+  new URL(urlOf({ ...state, page: 1, mod: key }), location.href).href
 
 // --- Rows, as components/ModRow.astro writes them -------------------------
 
@@ -145,6 +145,8 @@ const rowOf = (i: number, mod: Mod, terms: readonly string[]): HTMLLIElement => 
   repo.append(...marked(mod.repo, terms))
   const head = el('span', 'head')
   head.append(name, repo)
+  const project = isProjectMod(mod)
+  if (project) head.append(el('span', 'tag', 'Project mod'))
   if (mod.plugin === undefined) head.append(el('span', 'tag', 'Clone'))
   if (mod.check !== 0) head.append(el('span', 'tag', CHECK_SHORT[mod.check]))
   const badges = el('span', 'badges')
@@ -201,8 +203,15 @@ const rowOf = (i: number, mod: Mod, terms: readonly string[]): HTMLLIElement => 
     el('p', 'label', mod.plugin === undefined ? 'Load it from a clone' : 'Install'),
     cmd,
     el('p', 'quiet', installNoteOf(mod)),
-    facts,
   )
+  if (project) how.append(el('p', 'quiet', projectNoteOf(mod)))
+  const share = el('button', 'btn share js-only')
+  share.type = 'button'
+  share.dataset.copy = ''
+  share.dataset.copyLink = ''
+  share.setAttribute('aria-label', `Copy link to ${mod.name}`)
+  share.append(icon('link'), el('span', '', 'Copy link'))
+  how.append(facts, share)
   const detail = el('div', 'detail')
   detail.append(what, how)
 
@@ -225,6 +234,7 @@ const rowOf = (i: number, mod: Mod, terms: readonly string[]): HTMLLIElement => 
   const li = el('li', 'mod')
   li.dataset.copyScope = ''
   li.dataset.i = String(i)
+  li.dataset.key = sourceOf(mod)
   li.append(details, acts)
   return li
 }
@@ -307,8 +317,10 @@ const sheetParts =
         how: part('how'),
         install: part('install'),
         note: part('note'),
+        project: part('project'),
         copy: part('copy'),
         gh: part<HTMLAnchorElement>('gh'),
+        link: part('link'),
       }
 
 const fillSheet = (mod: Mod): void => {
@@ -345,8 +357,12 @@ const fillSheet = (mod: Mod): void => {
     ]),
   )
   parts.note.textContent = installNoteOf(mod)
+  parts.project.hidden = !isProjectMod(mod)
+  parts.project.textContent = projectNoteOf(mod)
   parts.copy.setAttribute('aria-label', `Copy the install line for ${mod.name}`)
   parts.gh.href = linkOf(mod)
+  parts.gh.setAttribute('aria-label', `${mod.name} on GitHub`)
+  parts.link.setAttribute('aria-label', `Copy link to ${mod.name}`)
 }
 
 /** The row the datasheet shows: the first of a page until another is chosen.
@@ -356,7 +372,12 @@ let selected = list.querySelector<HTMLLIElement>('li.mod.sel') ?? undefined
 /** Settles true once the datasheet shows the selected row's mod. */
 let shown = Promise.resolve(true)
 
-const select = (row: HTMLLIElement): void => {
+/** Select a row; one a person `chose` is the mod the URL names. */
+const select = (row: HTMLLIElement, chose: boolean): void => {
+  if (chose && row.dataset.key !== undefined && row.dataset.key !== state.mod) {
+    state.mod = row.dataset.key
+    writeUrl()
+  }
   if (row === selected) return
   selected?.classList.remove('sel')
   selected = row
@@ -399,8 +420,46 @@ const load = (): Promise<Index> => {
 
 const firstSummary = (): HTMLElement | null => list.querySelector('summary')
 
-const render = (ready: Index, focus: boolean): void => {
-  const page = pageOf(search(ready, queryOf(state)), state.page, PAGE_SIZE)
+const rowByKey = (key: string): HTMLLIElement | null =>
+  key === '' ? null : list.querySelector<HTMLLIElement>(`li.mod[data-key="${CSS.escape(key)}"]`)
+
+/**
+ * The page that holds the mod a `?mod=` link names. A mod the search or the
+ * filters leave out clears them, so the link still shows it; one the index
+ * doesn't have is ignored.
+ */
+const locate = (ready: Index): void => {
+  const i = findMod(ready.mods, state.mod)
+  if (i === undefined) {
+    state.mod = ''
+    return
+  }
+  state.mod = sourceOf(ready.mods[i] as Mod)
+  let place = search(ready, queryOf(state)).indexOf(i)
+  if (place < 0) {
+    state.q = ''
+    state.filters = []
+    showState()
+    place = search(ready, queryOf(state)).indexOf(i)
+  }
+  state.page = pageContaining(place, state.per)
+}
+
+type Show = {
+  /** Focus the first row, as turning the page does. */
+  focus?: boolean
+  /** Find the mod the URL names first, and open it. */
+  locate?: boolean
+  /** Keep this mod's row where it was on screen, `top` pixels from the viewport's top. */
+  keep?: { key: string; top: number }
+}
+
+/** Set while render moves focus, which selects a row nobody chose. */
+let rendering = false
+
+const render = (ready: Index, show: Show): void => {
+  if (show.locate === true) locate(ready)
+  const page = pageOf(search(ready, queryOf(state)), state.page, state.per)
   state.page = page.page
   lastPage = page.pages
   const terms = words(state.q)
@@ -411,37 +470,63 @@ const render = (ready: Index, focus: boolean): void => {
   )
   selected = undefined
   if (sheet !== null) sheet.hidden = page.total === 0
-  const top = list.querySelector<HTMLLIElement>('li.mod')
-  if (top !== null) select(top)
+  // The chosen mod stays selected while it is on the page; else the first is.
+  const chosen = rowByKey(state.mod)
+  if (chosen === null) state.mod = ''
+  const top = chosen ?? list.querySelector<HTMLLIElement>('li.mod')
+  if (top !== null) select(top, false)
   count.textContent = rangeText(page)
   renderPager(page)
+  clearTimeout(urlTimer)
   history.replaceState(null, '', urlOf(state))
-  if (!focus) return
+  const linked = show.locate === true ? rowByKey(state.mod) : null
+  if (linked !== null) {
+    // A narrow screen has no datasheet: the linked mod's row opens instead.
+    const details = linked.querySelector('details')
+    if (!wide.matches && details !== null) details.open = true
+    linked.scrollIntoView({ block: 'nearest' })
+    // The keys start from the linked mod, not the search at the top.
+    rendering = true
+    linked.querySelector('summary')?.focus({ preventScroll: true })
+    rendering = false
+  }
+  const kept = rowByKey(show.keep?.key ?? '')
+  if (kept !== null && show.keep !== undefined) {
+    window.scrollBy(0, kept.getBoundingClientRect().top - show.keep.top)
+  }
+  if (show.focus !== true) return
   const head = find<HTMLElement>('#results-head')
   if (head.getBoundingClientRect().top < 0) head.scrollIntoView({ block: 'start' })
+  rendering = true
   firstSummary()?.focus({ preventScroll: true })
+  rendering = false
 }
 
-let queued: { focus: boolean } | undefined
+let queued: Show | undefined
 
 /** Show the state: at once when the index is here, else once it arrives. */
-const update = (focus = false): void => {
+const update = (show: Show = {}): void => {
   if (index !== undefined) {
-    render(index, focus)
+    render(index, show)
     return
   }
   history.replaceState(null, '', urlOf(state))
   if (queued !== undefined) {
-    queued.focus ||= focus
+    const keep = show.keep ?? queued.keep
+    queued = {
+      focus: queued.focus === true || show.focus === true,
+      locate: queued.locate === true || show.locate === true,
+      ...(keep === undefined ? {} : { keep }),
+    }
     return
   }
-  queued = { focus }
+  queued = show
   count.textContent = 'Loading the index…'
   load().then(
     ready => {
-      const wanted = queued ?? { focus: false }
+      const wanted = queued ?? {}
       queued = undefined
-      render(ready, wanted.focus)
+      render(ready, wanted)
     },
     (error: Error) => {
       queued = undefined
@@ -462,6 +547,22 @@ sortMenu.addEventListener('change', () => {
   state.sort = isSort(sortMenu.value) ? sortMenu.value : 'relevance'
   state.page = 1
   update()
+})
+
+// A new page size goes to the page holding the first result in view, and keeps it there.
+perMenu.addEventListener('change', () => {
+  const per = PAGE_SIZES.find(size => String(size) === perMenu.value) ?? PAGE_SIZE
+  const rows = [...list.querySelectorAll<HTMLLIElement>('li.mod')]
+  const inView = rows.findIndex(row => row.getBoundingClientRect().bottom > 0)
+  const at = inView < 0 ? rows.length - 1 : inView
+  const anchor = rows[at]
+  state.page = pageContaining((state.page - 1) * state.per + Math.max(0, at), per)
+  state.per = per
+  update(
+    anchor?.dataset.key === undefined
+      ? {}
+      : { keep: { key: anchor.dataset.key, top: anchor.getBoundingClientRect().top } },
+  )
 })
 
 for (const chip of chips) {
@@ -495,7 +596,7 @@ form.addEventListener('submit', event => {
 const goTo = (page: number): void => {
   if (page < 1 || page > lastPage || page === state.page) return
   state.page = page
-  update(true)
+  update({ focus: true })
 }
 
 pager.addEventListener('click', event => {
@@ -551,14 +652,14 @@ const rowAt = (target: EventTarget | null): HTMLLIElement | null =>
 // it, so the row doesn't open as well.
 list.addEventListener('focusin', event => {
   const row = rowAt(event.target)
-  if (row !== null) select(row)
+  if (row !== null) select(row, !rendering)
 })
 
 list.addEventListener('click', event => {
   const row = rowAt(event.target)
   if (row === null) return
   if (wide.matches && (event.target as Element).closest('summary') !== null) event.preventDefault()
-  select(row)
+  select(row, true)
 })
 
 // A mouse on a row selects it at once. Only a pointer heading right, toward the
@@ -574,8 +675,9 @@ list.addEventListener('pointermove', event => {
   clearTimeout(intent)
   if (row === null) return
   const towardSheet = event.movementX > 0 && event.movementX > 2 * Math.abs(event.movementY)
-  if (towardSheet) intent = window.setTimeout(() => select(row), 80)
-  else select(row)
+  // A pointer passing over previews a mod; only a click or the keys choose it for the URL.
+  if (towardSheet) intent = window.setTimeout(() => select(row, false), 80)
+  else select(row, false)
 })
 list.addEventListener('pointerleave', () => {
   hovered = null
@@ -629,10 +731,14 @@ const timers = new WeakMap<HTMLElement, number>()
 document.addEventListener('click', async event => {
   const button = (event.target as Element).closest<HTMLButtonElement>('button[data-copy]')
   if (button === null) return
+  // A link names the row it sits in, or the datasheet's mod.
+  const linked = button.closest<HTMLLIElement>('li.mod') ?? selected
   const text =
-    button.dataset.copy ||
-    button.closest('[data-copy-scope]')?.querySelector('[data-copy-text]')?.textContent ||
-    ''
+    button.dataset.copyLink !== undefined
+      ? linkTo(linked?.dataset.key ?? '')
+      : button.dataset.copy ||
+        button.closest('[data-copy-scope]')?.querySelector('[data-copy-text]')?.textContent ||
+        ''
   const label = button.querySelector('span')
   if (label !== null) label.dataset.idle ??= label.textContent ?? ''
   let said = 'Copied'
@@ -661,15 +767,19 @@ if (/Mac|iPhone|iPad/.test(navigator.platform)) find<HTMLElement>('#mod-k').text
 // --- Start ---------------------------------------------------------------------
 
 if (!isDefault()) {
-  // The URL asked for a search: show it in the controls, and run it.
-  input.value = state.q
-  sortMenu.value = state.sort
-  for (const chip of chips) chip.checked = state.filters.includes(chip.value)
-  update()
-} else if (input.value !== '' || sortMenu.value !== 'relevance' || chips.some(c => c.checked)) {
+  // The URL asked for a search or a mod: show it in the controls, and run it.
+  showState()
+  update({ locate: state.mod !== '' })
+} else if (
+  input.value !== '' ||
+  sortMenu.value !== 'relevance' ||
+  perMenu.value !== String(PAGE_SIZE) ||
+  chips.some(c => c.checked)
+) {
   // Typed before this ran, or restored by the browser on the way back.
   state.q = input.value
   state.sort = isSort(sortMenu.value) ? sortMenu.value : 'relevance'
+  state.per = PAGE_SIZES.find(size => String(size) === perMenu.value) ?? PAGE_SIZE
   state.filters = chips.filter(chip => chip.checked).map(chip => chip.value)
   update()
 } else {

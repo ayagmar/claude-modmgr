@@ -1,9 +1,10 @@
 ---
 // The install line, as people copy it: the copy button is hidden without script.
+// `compact` is the slim one under the hero's headline.
 import { flagParts, INSTALL } from '../lib/present.ts'
 
-type Props = { id: string; label: string }
-const { id, label } = Astro.props
+type Props = { id: string; label: string; compact?: boolean }
+const { id, label, compact = false } = Astro.props
 
 // A flag stays with its value when the line wraps; built as one string, since
 // whitespace from the template would show inside the <pre>.
@@ -12,7 +13,7 @@ const INSTALL_HTML = flagParts(INSTALL)
   .join(' ')
 ---
 
-<div class="install" data-copy-scope>
+<div class:list={['install', { compact }]} data-copy-scope>
   <p class="vh" id={`${id}-label`}>{label}</p>
   <pre aria-labelledby={`${id}-label`}><code id={id} data-copy-text set:html={INSTALL_HTML} /></pre>
   <button class="btn copy js-only" type="button" data-copy aria-label="Copy the install line">
@@ -56,5 +57,21 @@ const INSTALL_HTML = flagParts(INSTALL)
 
   .copy {
     height: 2.25rem;
+  }
+
+  .compact {
+    display: inline-flex;
+    gap: 0.5rem;
+    max-width: 100%;
+    padding: 0.25rem 0.25rem 0.25rem 0.85rem;
+    border-radius: 10px;
+  }
+
+  .compact pre {
+    font-size: 0.8125rem;
+  }
+
+  .compact .copy {
+    height: 2rem;
   }
 </style>

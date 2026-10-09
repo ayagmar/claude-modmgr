@@ -4,15 +4,23 @@ import { describe, expect, it } from 'vitest'
 import {
   badgesOf,
   dayText,
+  findMod,
   flagParts,
   installNoteOf,
+  isProjectMod,
   notablesOf,
   pinsOf,
   rangeText,
   reachesOf,
   sourceOf,
 } from '../../site/src/lib/present.ts'
-import { installLineOf, NOTABLE_BITS, pageOf, REACH_BITS } from '../../site/src/lib/search.ts'
+import {
+  installLineOf,
+  type Mod,
+  NOTABLE_BITS,
+  pageOf,
+  REACH_BITS,
+} from '../../site/src/lib/search.ts'
 
 describe('present', () => {
   it("names what a mod reaches in capabilities.ts's words and order", () => {
@@ -84,5 +92,47 @@ describe('present', () => {
       'Adds the marketplace in someone/mods to your user settings, then installs band.',
     )
     expect(installNoteOf({ repo: 'someone/mods' })).toMatch(/^someone\/mods has no marketplace/)
+  })
+
+  const at = (repo: string, path = ''): Mod => ({
+    name: path.split('/').at(-1) || repo,
+    description: '',
+    repo,
+    path,
+    stars: 0,
+    pushed: 0,
+    reach: 0,
+    notable: 0,
+    check: 0,
+  })
+
+  it('finds the mod a ?mod= link names, by repository and path, in any case', () => {
+    // Catches a link to one mod of a repository opening its sibling, and a
+    // hand-typed link in another case naming nothing.
+    const mods = [at('alice/mods', 'band'), at('alice/mods', 'band-two'), at('bob/solo')]
+    expect(findMod(mods, 'alice/mods/band-two')).toBe(1)
+    expect(findMod(mods, 'Alice/Mods/band')).toBe(0)
+    expect(findMod(mods, 'bob/solo')).toBe(2)
+    expect(findMod(mods, ' bob/solo ')).toBe(2)
+  })
+
+  it('ignores a ?mod= value that names no mod or is not a mod path', () => {
+    // Catches a bad link selecting some other mod (a prefix match, the first
+    // row) instead of leaving the page as it is.
+    const mods = [at('alice/mods', 'band'), at('bob/solo')]
+    for (const bad of ['', 'alice', 'alice/mods', 'bob/solo/', 'bob', '<script>', '/bob/solo']) {
+      expect(findMod(mods, bad)).toBeUndefined()
+    }
+    expect(findMod(mods, `bob/${'x'.repeat(400)}`)).toBeUndefined()
+  })
+
+  it("marks a mod kept in its repository's .claude folder as a project mod", () => {
+    // Catches `.claude-plugin/…` or `mods/.claude/…` read as a project's own
+    // mod, and `.claude` itself missed.
+    expect(isProjectMod({ path: '.claude/mods/firstmate-calm' })).toBe(true)
+    expect(isProjectMod({ path: '.claude' })).toBe(true)
+    expect(isProjectMod({ path: '.claude-plugin/band' })).toBe(false)
+    expect(isProjectMod({ path: 'mods/.claude/band' })).toBe(false)
+    expect(isProjectMod({ path: '' })).toBe(false)
   })
 })

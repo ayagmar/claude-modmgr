@@ -8,6 +8,7 @@ import Install from '../components/Install.astro'
 import ModRow from '../components/ModRow.astro'
 import archivo from '../fonts/archivo.woff2?url'
 import mono from '../fonts/jetbrains-mono.woff2?url'
+import { cardSvg, cardVersion } from '../lib/card.ts'
 import { modsData } from '../lib/mods.ts'
 import {
   countText,
@@ -15,6 +16,7 @@ import {
   FILTERS,
   INSTALL,
   PAGE_SIZE,
+  PAGE_SIZES,
   rangeText,
   SORT_LABEL,
 } from '../lib/present.ts'
@@ -34,6 +36,8 @@ const top = first.items[0] === undefined ? undefined : index.mods[first.items[0]
 const total = countText(index.mods.length)
 const built = dayText(Math.floor(data.at / (24 * 60 * 60 * 1000)))
 const title = 'modmgr: search mods for Claude Code'
+// The card's URL changes with its content, so link previews don't keep an old one.
+const card = `https://ayagmar.github.io/claude-modmgr/og.png?v=${cardVersion(cardSvg(index.mods.length))}`
 const description = `Search ${total} mods for Claude Code found across public GitHub, see what each one can reach before you install it, and manage them inside Claude Code with /mods.`
 ---
 
@@ -55,8 +59,9 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content="https://ayagmar.github.io/claude-modmgr/" />
-    <meta property="og:image" content="https://ayagmar.github.io/claude-modmgr/og.png" />
+    <meta property="og:image" content={card} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={card} />
     <meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)" />
     <noscript><style>.js-only { display: none !important; }</style></noscript>
@@ -94,6 +99,13 @@ const description = `Search ${total} mods for Claude Code found across public Gi
           <p class="sub">
             Indexed daily from public GitHub, each with what it can reach before you install it.
           </p>
+          <div class="plug">
+            <p>
+              <strong>modmgr is a Claude Code plugin.</strong> Install it, and <code>/mods</code> brings
+              this same store into your session.
+            </p>
+            <Install id="hero-install" label="The install line for modmgr, for the Claude Code prompt" compact />
+          </div>
           <form id="search" class="search js-only" role="search" action="">
             <label class="vh" for="q">Search mods</label>
             <div class="field">
@@ -142,12 +154,20 @@ const description = `Search ${total} mods for Claude Code found across public Gi
                 <p class="keys js-only" aria-hidden="true">
                   <kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> <span class="k-narrow">open</span><span class="k-wide">copy</span> <kbd>[</kbd><kbd>]</kbd> page
                 </p>
-                <label class="sort js-only">
-                  <span>Sort</span>
-                  <select id="sort" name="sort">
-                    {SORTS.map(sort => <option value={sort}>{SORT_LABEL[sort]}</option>)}
-                  </select>
-                </label>
+                <span class="menus js-only">
+                  <label class="menu">
+                    <span>Sort</span>
+                    <select id="sort" name="sort">
+                      {SORTS.map(sort => <option value={sort}>{SORT_LABEL[sort]}</option>)}
+                    </select>
+                  </label>
+                  <label class="menu">
+                    <span>Per page</span>
+                    <select id="per" name="per">
+                      {PAGE_SIZES.map(size => <option value={size}>{size}</option>)}
+                    </select>
+                  </label>
+                </span>
               </div>
               <ol id="results" class="list">
                 {first.items.map((i, n) => <ModRow mod={index.mods[i] as Mod} i={i} selected={n === 0} />)}
@@ -376,7 +396,7 @@ const description = `Search ${total} mods for Claude Code found across public Gi
 
   /* The opening: what this is, with the count, then the search. */
   .hero {
-    padding: clamp(2.5rem, 1rem + 5vw, 5rem) 0 0;
+    padding: clamp(2rem, 0.5rem + 4.5vw, 4rem) 0 0;
     text-align: center;
   }
 
@@ -400,9 +420,28 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     color: var(--text-2);
   }
 
+  /* modmgr itself, in a line: what installing it gives you, and the line to copy. */
+  .plug {
+    display: grid;
+    justify-items: center;
+    gap: 0.6rem;
+    margin: 1.25rem auto 0;
+  }
+
+  .plug p {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--text-2);
+  }
+
+  .plug strong {
+    font-weight: 550;
+    color: var(--text);
+  }
+
   .search {
     max-width: 46rem;
-    margin: clamp(1.75rem, 1rem + 2vw, 2.5rem) auto 0;
+    margin: clamp(1.5rem, 1rem + 1.5vw, 2.25rem) auto 0;
   }
 
   .field {
@@ -570,15 +609,21 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     display: none;
   }
 
-  .sort {
+  .menus {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .menu {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.8125rem;
     color: var(--text-2);
+    white-space: nowrap;
   }
 
-  .sort select {
+  .menu select {
     height: 2rem;
     padding: 0 1.9rem 0 0.7rem;
     font-size: 0.8125rem;
@@ -845,6 +890,10 @@ const description = `Search ${total} mods for Claude Code found across public Gi
     color: var(--text-2);
   }
 
+  .list :global(.share) {
+    margin-top: 0.5rem;
+  }
+
   .list :global(.empty) {
     display: grid;
     justify-items: start;
@@ -872,7 +921,13 @@ const description = `Search ${total} mods for Claude Code found across public Gi
 
   @media (max-width: 40rem) {
     .results-head {
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
       padding-inline: 0.5rem;
+    }
+
+    .count {
+      flex-basis: 100%;
     }
 
     .list :global(summary) {

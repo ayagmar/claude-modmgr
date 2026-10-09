@@ -9,7 +9,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Discover's detail says when a community mod is kept in its repository's `.claude` folder: a mod that project uses
-  itself, loaded from a clone.
+  itself, loaded from a clone. The landing page marks such mods Project mod.
+- The landing page says up front that modmgr is a Claude Code plugin, with its install line to copy, above the search.
+- The landing page shows 20, 40 or 100 mods a page (`per=` in the URL); changing it keeps the first mod in view on screen.
+- A link can name a mod (`?mod=owner/repo/path`): the page opens on the page holding it, with it selected, and
+  Copy link in its detail copies that link.
 
 ### Changed
 - Lists move their highlight down a still list and scroll only at the edge, instead of keeping the selection centred
@@ -17,10 +21,12 @@ All notable changes to this project are documented here. The format follows
 - Discover's detail shows a mod's whole description, not the line the list draws.
 - A mod's detail wraps what each hook and call does instead of cutting it, and a hook reads `on <event>`, so it is
   never taken for the call of the same name.
+- The landing page shows 20 mods a page by default (was 40).
 
 ### Fixed
 - Discover lists a plugin two catalogues share (Anthropic's official catalogue and its directory list about 250
   alike) once, from the catalogue that counts its installs.
+- Link previews (Discord, Slack, X) show the current social card: its URL changes whenever the card does.
 
 ## [0.2.0] - 2026-10-09
 

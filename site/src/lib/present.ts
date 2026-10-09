@@ -16,8 +16,10 @@ import {
 /** What installs modmgr, typed at the Claude Code prompt. */
 export const INSTALL = '/plugin install modmgr --marketplace ayagmar/claude-mods'
 
-/** Results on a page, at build and in the browser. */
-export const PAGE_SIZE = 40
+/** How many results a page can show: the first is the default, and the build's. */
+export const PAGE_SIZES = [20, 40, 100] as const
+export type PageSize = (typeof PAGE_SIZES)[number]
+export const PAGE_SIZE: PageSize = PAGE_SIZES[0]
 
 /** The filter chips: the id the URL carries, the label, and what it asks of a search. */
 export const FILTERS = [
@@ -56,6 +58,24 @@ export const installNoteOf = (mod: Pick<Mod, 'repo' | 'plugin'>): string =>
 /** Where in its repository a mod lives: `owner/repo`, or `owner/repo/path`. */
 export const sourceOf = (mod: Pick<Mod, 'repo' | 'path'>): string =>
   mod.path === '' ? mod.repo : `${mod.repo}/${mod.path}`
+
+/**
+ * The mod a `?mod=` link names: its `owner/repo` or `owner/repo/path`, as
+ * sourceOf writes it, in any case. Anything else names none.
+ */
+export const findMod = (mods: readonly Mod[], key: string): number | undefined => {
+  const wanted = key.trim().toLowerCase()
+  if (wanted.length > 300 || !/^[^/\s]+\/[^/\s]+(\/\S+)?$/.test(wanted)) return undefined
+  const at = mods.findIndex(mod => sourceOf(mod).toLowerCase() === wanted)
+  return at < 0 ? undefined : at
+}
+
+/** A mod kept in its repository's `.claude` folder: the one that project uses for itself. */
+export const isProjectMod = (mod: Pick<Mod, 'path'>): boolean =>
+  mod.path === '.claude' || mod.path.startsWith('.claude/')
+
+export const projectNoteOf = (mod: Pick<Mod, 'repo'>): string =>
+  `Kept in ${mod.repo}'s .claude folder: the mod that project uses for itself; load it from a clone.`
 
 const DAY = 24 * 60 * 60 * 1000
 
