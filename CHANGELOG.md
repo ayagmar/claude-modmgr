@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows
   plain words, and the line under the tabs says in color whether anything needs you.
 - A mod's detail counts the hooks and calls that only draw instead of listing every name; Enter still lists them.
 - The terminal's "ctrl+x tab to use these keys" stands out while the prompt has the keys.
+- The job log names each job in words (Refresh marketplace, Reload plugins) and says done, waiting or nothing to
+  change instead of the job's internal kind and state.
 - A session on Claude Code 2.1.284 or newer loads modmgr (the desktop app runs its own pinned engine); the `claude`
   CLI it runs still needs 2.1.292 or newer.
 - The desktop app draws the dialog as a desktop layout: the detail is a card beside the list instead of a column of

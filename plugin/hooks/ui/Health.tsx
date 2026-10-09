@@ -66,10 +66,13 @@ export const HealthRow = (
       <Box width={text} height={1} flexShrink={1} overflow="hidden">
         {healthButton(v, item, how.focus)}
       </Box>
+      {/* Pushed to the right edge: a desktop's proportional text ends short of its cells. */}
       {fix === undefined ? null : (
-        <Text color={TONE.accent} wrap="truncate-end">
-          {fix}
-        </Text>
+        <Box flexGrow={1} justifyContent="flex-end">
+          <Text color={TONE.accent} wrap="truncate-end">
+            {fix}
+          </Text>
+        </Box>
       )}
     </Box>
   )

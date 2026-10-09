@@ -488,13 +488,16 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         </Text>
       )}
       {status === undefined ? null : (
-        <Text
-          color={status.tone === 'error' ? TONE.bad : status.tone === 'ok' ? TONE.ok : TONE.accent}
-          wrap="truncate-end"
-        >
-          {status.tone === 'error' ? GLYPH.failed : status.tone === 'ok' ? GLYPH.ok : GLYPH.stale}{' '}
-          {status.text}
-        </Text>
+        <Box {...oneRow}>
+          <Text
+            color={
+              status.tone === 'error' ? TONE.bad : status.tone === 'ok' ? TONE.ok : TONE.accent
+            }
+            wrap="truncate-end"
+          >
+            {`${status.tone === 'error' ? GLYPH.failed : status.tone === 'ok' ? GLYPH.ok : GLYPH.stale} ${status.text}`}
+          </Text>
+        </Box>
       )}
       {Rule(v, frame.bodyColumns)}
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>

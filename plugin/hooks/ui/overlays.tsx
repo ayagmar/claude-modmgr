@@ -494,6 +494,30 @@ const JOB_TONE: Readonly<Record<Job['state'], string>> = {
   interrupted: TONE.bad,
 }
 
+/** What each job does, as the log names it. */
+const JOB_TITLE: Readonly<Record<Job['kind'], string>> = {
+  install: 'Install',
+  update: 'Update',
+  remove: 'Remove',
+  enable: 'Enable',
+  disable: 'Disable',
+  validate: 'Validate',
+  test: 'Test',
+  reload: 'Reload plugins',
+  'marketplace-add': 'Add marketplace',
+  'marketplace-update': 'Refresh marketplace',
+}
+
+/** How a job stands, in a word; one that changed nothing says so. */
+const jobStateText = (job: Job): string =>
+  job.state === 'ok'
+    ? job.unchanged === true
+      ? 'nothing to change'
+      : 'done'
+    : job.state === 'queued'
+      ? 'waiting'
+      : job.state
+
 /**
  * The newest jobs first, each with its error, and the running or failed one's
  * output tail under it, in as many lines as `rows` allows.
@@ -511,11 +535,11 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
     const own: RenderElement[] = [
       <Box flexDirection="row" gap={1}>
         <Text color={JOB_TONE[job.state]}>{JOB_GLYPH[job.state]}</Text>
-        <Text>{job.kind === 'reload' ? 'reload plugins' : job.kind}</Text>
+        <Text>{JOB_TITLE[job.kind]}</Text>
         {job.target === undefined ? null : (
           <Text dimColor>{sanitize(job.target, { max: 60 })}</Text>
         )}
-        <Text dimColor>{job.state}</Text>
+        <Text dimColor>{jobStateText(job)}</Text>
       </Box>,
     ]
     if (job.error !== undefined) {
@@ -559,7 +583,7 @@ export const Jobs = (v: ViewPorts, jobs: readonly Job[], rows = 14): RenderEleme
         : KeyButton(v, {
             action: 'cancel-job',
             on: 'jobs',
-            label: `cancel ${cancellable.kind}`,
+            label: `cancel ${JOB_TITLE[cancellable.kind].toLowerCase()}`,
             onPress: () => v.act.cancelJob(cancellable.id),
           })}
     </Box>
