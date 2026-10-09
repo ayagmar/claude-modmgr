@@ -71,10 +71,10 @@ Installed   2: Discover   3: Dev   4: Health ▲1
                                        │ What it can do
                                        │ Your machine        process.run
                                        │ What the model sees on prompt.submit
-                                       │ Display only        on turn.complete  on ui.render  cl…
+                                       │ Display only        on turn.complete  on ui.render
+                                       │                     clock.now  state.set  ui.toast
                                        │
                                        │ ✓ validates
-                                       │
                                        │
 ────────────────────────────────────────────────────────────────────────────────────────────────
                                                                       j: jobs  h: keys  esc back
@@ -126,28 +126,15 @@ a folder marketplace): validate them, run their tests, reload, and get the line 
 ```
 1: Installed   2: Discover   3: Dev   Health ▲1                                       r: refresh
 1 problem to look at
-  broken                               │ broken
-❯ ▲ validate finds 1 error in it       │
-  modmgr itself                        │ ▲ validate finds 1 error in it
-    5 enabled                          │
-    updates checked never, every 6 ho… │ → see it
-    detector: 5 mods found; 203 of 20… │
-    cache: 185 B                       │
-    A hook that fails is logged only … │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
+  broken
+❯ ▲ validate finds 1 error in it                                                        → see it
+  modmgr itself
+    5 enabled
+    updates checked never, every 6 hours                                             → check now
+    detector: 5 mods found; 203 of 203 checked, 600 requests left this session
+    cache: 185 B                                                                         → clear
+    A hook that fails is logged only in a session started with --debug            → copy command
+
 ────────────────────────────────────────────────────────────────────────────────────────────────
 l: reload                                                            j: jobs  h: keys  esc close
 ```
