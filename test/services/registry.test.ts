@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { lruSet } from '../../plugin/hooks/domain/lru.ts'
+import { CAPS } from '../../plugin/hooks/domain/store-schema.ts'
 import { createRegistry, VALIDATE_CONCURRENCY } from '../../plugin/hooks/services/registry.ts'
 import { createStore } from '../../plugin/hooks/services/store.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
@@ -74,6 +76,34 @@ describe('registry.refresh', () => {
     const together = Math.max(...startedAt.map(t => startedAt.filter(s => s === t).length))
     expect(startedAt).toHaveLength(6)
     expect(together).toBe(VALIDATE_CONCURRENCY)
+  })
+
+  it('lists every installed mod however full the cache of analyses is', async () => {
+    const { w, registry, store } = setup()
+    await registry.refresh()
+    // The cache at its cap, this install's analyses its oldest, two of them to read
+    // again: storing those two evicts the two oldest, which this refresh still lists.
+    store.update('validate', cache => {
+      const [first, ...rest] = Object.keys(cache)
+      const value = cache[first ?? '']
+      if (value === undefined) throw new Error('an analysis')
+      let next = { ...cache }
+      for (const key of rest.slice(-2)) delete next[key]
+      for (let n = 0; Object.keys(next).length < CAPS.validate; n += 1) {
+        next = lruSet(next, `other-plugin-${n}`, value, CAPS.validate)
+      }
+      return next
+    })
+    await registry.refresh()
+    expect(w.state.values.mods.map(row => row.name)).toEqual(FIXTURE_MODS)
+    expect(w.state.values.sync.skipped).toBe(0)
+    // Each listed mod still has its detail and its place in the hook order.
+    for (const row of w.state.values.mods) {
+      w.state.values.view = { ...w.state.values.view, selected: row.id }
+      await registry.select(row.id)
+      expect(w.state.values.detail?.id).toBe(row.id)
+    }
+    expect(registry.listed().every(({ mod }) => mod !== undefined)).toBe(true)
   })
 
   it('skips entries it can not inspect, and says so', async () => {

@@ -168,6 +168,15 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       fix: { kind: 'refresh' },
       fixLabel: 'try again',
     })
+  } else if (sync.skipped > 0) {
+    own({
+      key: 'own:unread',
+      tone: 'warn',
+      label: 'Installed',
+      text: `couldn't read ${plural(sync.skipped, 'installed plugin', 'installed plugins')}, so ${sync.skipped === 1 ? 'it is' : 'they are'} not listed`,
+      fix: { kind: 'refresh' },
+      fixLabel: 'read again',
+    })
   }
   const reloadQueued = queue.jobs.some(job => job.kind === 'reload' && isActive(job))
   if (attention.reloadPending && !reloadQueued) {

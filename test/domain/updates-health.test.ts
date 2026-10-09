@@ -250,6 +250,14 @@ describe('Health’s items', () => {
     ])
   })
 
+  it('says when installed plugins could not be read, so are not listed, and reads them again', () => {
+    const items = healthItemsOf(input({ sync: { refreshing: false, skipped: 2, at: 1 } }))
+    expect(
+      items.map(item => `${healthText(item)}${item.fixLabel ? ` → ${item.fixLabel}` : ''}`),
+    ).toContain("Installed: couldn't read 2 installed plugins, so they are not listed → read again")
+    expect(items.find(item => item.key === 'own:unread')?.fix).toEqual({ kind: 'refresh' })
+  })
+
   it('says when updates were never checked, or are off; the detector’s budget; the cache', () => {
     const texts = (more: Partial<HealthFacts>) =>
       healthItemsOf(input({ facts: facts(more) })).map(item => item.text)

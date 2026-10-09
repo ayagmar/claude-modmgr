@@ -537,6 +537,16 @@ test('without the CLI the dialog is read-only and says why', async ($, on) => {
   }
 })
 
+test('installed plugins it could not read are not called no mods', async ($, on) => {
+  host(on, { state: { mods: [], sync: { refreshing: false, at: 1, skipped: 3 } } })
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /Couldn't read 3 installed plugins/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /No mods installed yet/ })).toBeUndefined()
+    await ui.unmount()
+  }
+})
+
 test('the job log shows a running test’s output and offers to cancel it', async ($, on) => {
   host(on, {
     state: {

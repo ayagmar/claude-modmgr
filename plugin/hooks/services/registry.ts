@@ -95,7 +95,14 @@ export const createRegistry = (
   timing: Timing = NO_TIMING,
 ): Registry => {
   let entries = new Map<string, InstalledEntry>()
+  // The listed entries' analyses as of the last refresh, whatever the bounded
+  // cache has since evicted: what the rows, details and hook order read.
+  let analyses = new Map<string, Analysis>()
   let loaded = false
+  const listedAnalysis = (entry: InstalledEntry): Analysis | undefined => {
+    const key = analysisKey(entry)
+    return key === undefined ? undefined : analyses.get(key)
+  }
   let running: Promise<Result<RefreshSummary>> | undefined
   let again = false
 
@@ -118,8 +125,7 @@ export const createRegistry = (
 
   const analysisFor = (id: string | undefined) => {
     const entry = id === undefined ? undefined : entries.get(id)
-    const key = entry === undefined ? undefined : analysisKey(entry)
-    const analysis = key === undefined ? undefined : store.get('validate')[key]
+    const analysis = entry === undefined ? undefined : listedAnalysis(entry)
     return entry === undefined || analysis === undefined ? undefined : { entry, analysis }
   }
 
@@ -167,24 +173,30 @@ export const createRegistry = (
     })
     const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(cli, entry, now))
 
+    // This refresh's analyses decide its rows: the cache keeps a bounded share
+    // for the next one, and what storing evicts is still listed now.
+    const read = new Map<string, Analysis>()
     let validate = store.get('validate')
     for (const [index, entry] of misses.entries()) {
       const analysis = fresh[index]
       const key = analysisKey(entry)
       if (analysis !== undefined && key !== undefined) {
+        read.set(key, analysis)
         validate = lruSet(validate, key, analysis, CAPS.validate)
       }
     }
     const rows: ModRow[] = []
     const sightings: CapsSighting[] = []
+    const current = new Map<string, Analysis>()
     let unread = 0
     for (const entry of listed.value.items) {
       const key = analysisKey(entry)
-      const analysis = key === undefined ? undefined : validate[key]
+      const analysis = key === undefined ? undefined : (read.get(key) ?? cache[key])
       if (key === undefined || analysis === undefined) {
         unread += 1
         continue
       }
+      current.set(key, analysis)
       validate = lruTouch(validate, key)
       if (!analysis.mod) continue
       const to = updateTo(store.get('updates'), entry)
@@ -200,6 +212,7 @@ export const createRegistry = (
     const history = recordCaps(store.get('capsHistory'), sightings)
     if (history.changed) store.set('capsHistory', history.history)
     entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
+    analyses = current
     loaded = true
 
     const mods = sortRows(rows).map(withNews)
@@ -287,17 +300,11 @@ export const createRegistry = (
     },
     isLoaded: () => loaded,
     listed() {
-      const cache = store.get('validate')
-      return [...entries.values()].map(entry => {
-        const key = analysisKey(entry)
-        return { entry, mod: key === undefined ? undefined : cache[key]?.mod }
-      })
+      return [...entries.values()].map(entry => ({ entry, mod: listedAnalysis(entry)?.mod }))
     },
     chainMods() {
-      const cache = store.get('validate')
       return [...entries.values()].flatMap(entry => {
-        const key = analysisKey(entry)
-        const analysis = key === undefined ? undefined : cache[key]
+        const analysis = listedAnalysis(entry)
         if (analysis?.mod !== true) return []
         return [
           {
@@ -311,6 +318,7 @@ export const createRegistry = (
     },
     forget(root) {
       const prefix = `${root.replace(/\/+$/, '')}@`
+      analyses = new Map([...analyses].filter(([key]) => !key.startsWith(prefix)))
       const cache = store.get('validate')
       const kept = Object.fromEntries(
         Object.entries(cache).filter(([key]) => !key.startsWith(prefix)),

@@ -174,6 +174,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     meta: [
       `${on} of ${count(mods.length, 'mod', 'mods')} on`,
       updates === 0 ? '' : count(updates, 'update', 'updates'),
+      sync.skipped === 0 ? '' : `${sync.skipped.toLocaleString('en-US')} unread`,
     ]
       .filter(part => part !== '')
       .join(' · '),
@@ -199,6 +200,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           focusId: selected?.id,
           loading: sync.at === undefined && sync.error === undefined,
           total: mods.length,
+          unread: sync.skipped,
           beside: frame.beside,
         }),
         pager: pagerLabel(window, rows.length),

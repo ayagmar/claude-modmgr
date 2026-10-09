@@ -11,6 +11,9 @@ import { GLYPH, HiddenRows, ListButton, Pointer, TONE, type ViewPorts } from './
 /** Cells kept for the flags at a row's end (`→ off ▲2 ◆3`). */
 const FLAGS = 16
 
+const unreadCount = (n: number) =>
+  `${n.toLocaleString('en-US')} installed ${n === 1 ? 'plugin' : 'plugins'}`
+
 export type RowColumns = { readonly name: number; readonly meta: boolean }
 
 /**
@@ -122,6 +125,8 @@ export const List = (
     readonly focusId: string | undefined
     readonly loading: boolean
     readonly total: number
+    /** Installed plugins the last refresh couldn't read: maybe mods, not listed. */
+    readonly unread: number
     readonly beside: boolean
   },
 ): RenderElement => {
@@ -129,9 +134,11 @@ export const List = (
   if (rows.length === 0) {
     const line = how.loading
       ? 'Reading your plugins…'
-      : how.total === 0
-        ? 'No mods installed yet. Mods are plugins that hook into Claude Code; Discover (2) finds them.'
-        : `No mod matches "${sanitize(how.view.query, { max: 40 })}". Esc clears the filter.`
+      : how.total === 0 && how.unread > 0
+        ? `Couldn't read ${unreadCount(how.unread)}, so modmgr can't tell which are mods. r reads them again.`
+        : how.total === 0
+          ? 'No mods installed yet. Mods are plugins that hook into Claude Code; Discover (2) finds them.'
+          : `No mod matches "${sanitize(how.view.query, { max: 40 })}". Esc clears the filter.`
     return (
       <Box flexDirection="column">
         <Text dimColor>{line}</Text>

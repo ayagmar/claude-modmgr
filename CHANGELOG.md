@@ -62,6 +62,9 @@ All notable changes to this project are documented here. The format follows
   show it as it is.
 - In Discover the ring stays on the selected row when moving it scrolls the list, instead of landing rows away from
   the selection and its detail.
+- Installed lists every installed mod however many plugins modmgr has read before, instead of dropping the oldest
+  from the list, their detail and the hook order once its cache filled; installed plugins it couldn't read are named
+  on the tab and in Health, with a way to read them again, instead of reading "No mods installed yet".
 
 ## [0.3.0] - 2026-10-09
 
