@@ -76,8 +76,14 @@ export const KeyButton = (
 
 /** The selection's mark at a row's start: drawn whether or not the pane holds the keys. */
 export const Pointer = (v: ViewPorts, on: boolean): RenderElement => {
-  const { Text } = v.el
-  return on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>
+  const { Box, Text } = v.el
+  // One cell wide whatever it holds: a desktop's proportional font draws ❯
+  // wider than a space, which pushed the selected row out of line.
+  return (
+    <Box width={1} flexShrink={0}>
+      {on ? <Text color={TONE.accent}>❯</Text> : <Text> </Text>}
+    </Box>
+  )
 }
 
 /**
