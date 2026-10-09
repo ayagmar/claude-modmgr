@@ -1754,14 +1754,11 @@ export const FRAMES: readonly Frame[] = [
           "text": "│"
         },
         {
-          "text": " "
+          "text": "   "
         },
         {
           "dim": true,
-          "text": "  claude plugin install secret-scrub@fixtures --scope "
-        },
-        {
-          "text": "…"
+          "text": "claude plugin install secret-scrub@fixtures --scope"
         }
       ],
       [
@@ -1771,6 +1768,13 @@ export const FRAMES: readonly Frame[] = [
         {
           "dim": true,
           "text": "│"
+        },
+        {
+          "text": "   "
+        },
+        {
+          "dim": true,
+          "text": "user --json"
         }
       ],
       [

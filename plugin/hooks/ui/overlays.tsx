@@ -305,7 +305,12 @@ const reviewLines = (
     const line = commandLine(spec)
     if (line === undefined) continue
     // Whole, wrapped: a review shows what will run, never part of it.
-    push(<Text dimColor>{`  ${line}`}</Text>, `  ${line}`)
+    push(
+      <Box paddingLeft={2}>
+        <Text dimColor>{line}</Text>
+      </Box>,
+      `  ${line}`,
+    )
   }
   return lines
 }
