@@ -226,3 +226,31 @@ describe('one entry per folder', () => {
     expect(index.size).toBe(2)
   })
 })
+
+describe('a catalogue entry the community index read', () => {
+  const remote = (sha?: string): CatalogEntry => ({
+    id: 'guard@directory' as CatalogEntry['id'],
+    name: 'guard',
+    description: '',
+    marketplace: 'directory',
+    source: { kind: 'github', repo: 'o/guard', ...(sha === undefined ? {} : { sha }) },
+  })
+  const rowOf = (entries: CatalogEntry[]) => {
+    const index = buildIndex(entries, [unlisted(mod('o/guard'))])
+    const matched = matchAll(index, { text: '', sort: 'installs' }, () => 'mod')
+    return windowOf(matched, 'guard@directory', 10).rows.find(row => row.id === 'guard@directory')
+  }
+
+  it('says what it can do before installing, from the read of the same files', () => {
+    expect(rowOf([remote()])).toMatchObject({
+      notable: ['runs-programs', 'changes-model-input'],
+      readAt: SHA,
+    })
+  })
+
+  it('says nothing when the entry pins another commit than the one read', () => {
+    const row = rowOf([remote('f'.repeat(40))])
+    expect(row?.notable).toBeUndefined()
+    expect(row?.readAt).toBeUndefined()
+  })
+})

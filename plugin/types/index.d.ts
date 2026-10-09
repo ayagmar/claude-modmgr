@@ -63,8 +63,10 @@ export type CatalogRow = {
   version?: string
   /** Where it comes from, in a few words. */
   source: string
-  /** What it can do, when modmgr read it before installing (a local source); notable ids. */
+  /** What it can do, read before installing (by modmgr for a local source, else by the community index); notable ids. */
   notable?: string[]
+  /** A remote entry the community index read: the commit `notable` comes from. */
+  readAt?: string
   /** Its files are on disk (a folder in its marketplace): modmgr can read it before installing. */
   local?: boolean
   /** A local entry modmgr couldn't read: why (`r` tries again). */

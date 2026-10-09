@@ -33,7 +33,12 @@ type Indexed = {
   /** Lowercased `name description marketplace id`, the one string a query scans. */
   readonly haystack: string
 } & (
-  | { readonly entry: CatalogEntry; readonly mod?: undefined }
+  | {
+      readonly entry: CatalogEntry
+      readonly mod?: undefined
+      /** The community index's read of the same files: what it can do, before installing. */
+      readonly twin?: CommunityMod
+    }
   | { readonly entry?: undefined; readonly mod: CommunityMod }
 )
 
@@ -93,7 +98,8 @@ export const buildIndex = (
   have: Have = { installed: new Set() },
 ): CatalogIndex => {
   const byId = new Map<string, Indexed>()
-  const onGithub = new Set<string>()
+  // Each kept entry by where its files are on GitHub.
+  const onGithub = new Map<string, string>()
   // One entry per folder: two catalogues listing the same plugin (Anthropic's
   // official catalogue and its directory list hundreds alike) offer it once, from
   // the one that counts its installs.
@@ -112,13 +118,23 @@ export const buildIndex = (
     const blurb = sanitize(entry.description, { max: BLURB_MAX })
     const haystack = `${name} ${sanitize(entry.description, { max: 1000 })} ${entry.marketplace} ${entry.id}`
     byId.set(entry.id, { id: entry.id, entry, name, blurb, haystack: haystack.toLowerCase() })
-    if (folder !== undefined) onGithub.add(folder)
+    if (folder !== undefined) onGithub.set(folder, entry.id)
   }
   for (const mod of community) {
     const id = communityId(mod)
     const installId = installIdOf(mod)
     if (mod.check === 'failed' || byId.has(id)) continue
-    if (onGithub.has(communityKey(mod).toLowerCase())) continue
+    const listed = onGithub.get(communityKey(mod).toLowerCase())
+    if (listed !== undefined) {
+      // A catalogue entry of these files: the index's read says what it can do,
+      // unless the entry pins another commit than the one read.
+      const item = byId.get(listed)
+      const source = item?.entry?.source
+      const sha = source !== undefined && 'sha' in source ? source.sha : undefined
+      if (item?.entry !== undefined && (sha === undefined || sha === mod.commit))
+        byId.set(listed, { ...item, twin: mod })
+      continue
+    }
     if (installId !== undefined && (byId.has(installId) || have.installed.has(installId))) continue
     const name = sanitize(mod.name, { max: NAME_MAX })
     const blurb = sanitize(mod.description, { max: BLURB_MAX })
@@ -282,6 +298,9 @@ const toRow = (item: Indexed, kind: CatalogKind): CatalogRow => {
   }
   return {
     ...row,
+    ...(item.twin === undefined
+      ? {}
+      : { notable: capabilitiesOf(item.twin).notable, readAt: item.twin.commit }),
     ...(entry.installs === undefined ? {} : { installs: entry.installs }),
     ...(entry.version === undefined ? {} : { version: sanitize(entry.version, { max: 20 }) }),
   }

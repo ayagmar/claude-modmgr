@@ -248,7 +248,9 @@ export const createCatalog = (
     const rows = window.rows.map(listed => {
       const row = listed.id === selected ? withAbout(listed) : listed
       if (folderOf(row.id) === undefined) return row
-      const local = { ...row, local: true }
+      // On disk, modmgr reads it itself: that read, not the community index's, says what it can do.
+      const { notable: _indexed, readAt: _at, ...own } = row
+      const local = { ...own, local: true }
       const read = known(row.id)
       if (read === undefined) return local
       return 'failed' in read
@@ -320,7 +322,16 @@ export const createCatalog = (
     },
     inspect(id) {
       const at = inspectKey(id)
-      if (at === undefined) return Promise.resolve(undefined)
+      if (at === undefined) {
+        // A remote entry: what the community index read in the same files, if it did.
+        const item = index?.byId.get(id)
+        const twin = item?.entry === undefined ? undefined : item.twin
+        return Promise.resolve(
+          twin === undefined
+            ? undefined
+            : { notable: capabilitiesOf(twin).notable, hasModule: true, at: twin.commit },
+        )
+      }
       const now = known(id)
       if (now !== undefined) return Promise.resolve(now)
       const running = inflight.get(at.key)

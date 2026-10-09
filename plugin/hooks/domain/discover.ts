@@ -33,6 +33,8 @@ export const SCOPE_LABEL: Readonly<Record<InstallScope, string>> = {
 export type Inspection = {
   readonly notable: readonly string[]
   readonly hasModule: boolean
+  /** Read by the community index at this commit, not by modmgr here. */
+  readonly at?: string
 }
 
 /** A local entry modmgr tried to read and couldn't, and why. */
@@ -65,6 +67,7 @@ export const installReview = (
     // One mod: the heading names it, so its lines don't.
     notable: (inspection?.notable ?? []).map(notableText),
     changesRepoFile: scope !== 'user',
+    ...(inspection?.at === undefined ? {} : { indexedAt: inspection.at }),
   }
   if (inspection !== undefined) return review
   return isUnread(read)

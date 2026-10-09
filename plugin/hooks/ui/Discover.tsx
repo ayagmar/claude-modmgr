@@ -273,13 +273,16 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     ) : notable.length === 0 ? (
       <Text dimColor>{GLYPH.ok} Nothing notable.</Text>
     ) : undefined
-  // Where the facts come from, for a community mod: the commit the index validated.
+  // Where the facts come from, for a community mod or a remote entry the
+  // community index read: the commit it validated. A local read is modmgr's own.
   const read =
-    community === undefined
-      ? []
-      : [
+    community !== undefined
+      ? [
           `as validate read it at ${community.commit.slice(0, 7)}${community.check === 'warnings' ? ', with warnings' : ''}`,
         ]
+      : row.readAt !== undefined && row.local !== true
+        ? [`as validate read it at ${row.readAt.slice(0, 7)}, in the community index`]
+        : []
   const caps: Section = {
     rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1) + read.length,
     el: (

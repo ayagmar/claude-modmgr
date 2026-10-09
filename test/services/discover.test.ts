@@ -324,6 +324,27 @@ describe('installing', () => {
     expect(w.command.reloads).toBe(1)
   })
 
+  it("reviews what a remote entry can do from the community index's read of its files", async () => {
+    const read = {
+      ...COMMUNITY_MOD,
+      repo: 'awslabs/agent-plugins',
+      path: 'plugins/aws-serverless',
+      commit: '097fe8ad56d8a1d5e2c81d7880adf145553cf244',
+      name: 'aws-serverless',
+    }
+    const { w, act } = await setup(world =>
+      world.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, [read]) }),
+    )
+    await act.tab('discover')
+    await act.install(AWS)
+    expect(w.state.values.review).toMatchObject({
+      action: 'install',
+      notable: ['Can read your conversation or files and send data out'],
+      indexedAt: read.commit,
+    })
+    expect(w.state.values.review?.uninspected).toBeUndefined()
+  })
+
   it('a declared command stops the install; v shows it verbatim; y accepts that very command', async () => {
     const { w, act, drain, argvs } = await setup(world =>
       world.process.when(['install', CMD], argv =>

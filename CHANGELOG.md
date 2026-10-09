@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows
 - Vim's keys: `j` and `k` step the selection as the arrows do, `h` and `l` move to the previous and next tab; the
   mouse wheel steps the selection on every tab, Health included.
 - Dev lists modmgr itself when it runs from a folder (`--plugin-dir`) over an installed copy.
+- Discover says what a remote catalogue entry can do before you install it when the community index read the same
+  files, and at which commit; modmgr still reads the installed version again.
 
 ### Changed
 - Keys moved to make room for vim's: jobs is `q`, the key list `0`, reload `s`, Discover's "yours only" `u`, and the
