@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows
   files, and at which commit; modmgr still reads the installed version again.
 
 ### Changed
+- Discover opens on its catalogue: the slowest read (about a second) starts when `/mods` first shows another tab.
 - Keys moved to make room for vim's: jobs is `q`, the key list `0`, reload `s`, Discover's "yours only" `u`, and the
   job log cancels with `d`. The key list groups every key that moves apart from the actions.
 - Health reads as a status page: each of modmgr's own rows is named (Mods, Updates, Discover, Cache, Hook errors) in

@@ -306,7 +306,10 @@ describe('Health', () => {
     w.state.values.sync = { ...w.state.values.sync, error: { kind: 'timeout', message: 'slow' } }
     await act.fix('own:reload')
     expect(w.state.values.queue.jobs.some(job => job.kind === 'reload')).toBe(true)
-    const lists = () => w.process.calls.filter(call => call.argv[2] === 'list').length
+    // The installed list; Discover's catalogue (`--available`) may be read behind it.
+    const lists = () =>
+      w.process.calls.filter(call => call.argv[2] === 'list' && !call.argv.includes('--available'))
+        .length
     const before = lists()
     w.state.values.view = { ...w.state.values.view, tab: 'health' }
     await act.fix('own:sync')

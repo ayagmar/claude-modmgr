@@ -7,6 +7,7 @@
 import type { Job, Tab } from '../../types/index.d.ts'
 import { type Config, trafficOff } from '../domain/config.ts'
 import type { StateKey } from '../domain/state.ts'
+import { PANE_ID } from '../domain/view.ts'
 import type { Ports, StatePort } from '../ports.ts'
 import { type Catalog, createCatalog } from './catalog.ts'
 import { createIndexSync } from './catalog-index.ts'
@@ -98,6 +99,7 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     debug,
     remoteAllowed,
   })
+  let catalogWarmed = false
   /** A marketplace or an install changes what the catalogue lists. */
   const recatalog = (): void => {
     if (!catalog.isLoaded()) return
@@ -181,6 +183,18 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
         await catalog.load()
         await catalog.show()
         detector.start()
+      } else if (
+        !catalogWarmed &&
+        (await base.ui.panes().catch(() => [])).some(pane => pane.id === PANE_ID && pane.isPlaced)
+      ) {
+        // The catalogue is the slowest read (about a second): begun when the
+        // dialog first shows another tab, Discover opens on it. Once a module,
+        // and never for a closed dialog (a reload shows its tab unseen); a
+        // failed read waits for Discover to try again.
+        catalogWarmed = true
+        void catalog
+          .load()
+          .catch(error => debug(`modmgr: catalogue read ahead failed: ${String(error)}`))
       }
       // What a session loads from folders changes with its commands and reloads: read on each visit.
       if (tab === 'dev' || tab === 'health') await dev.refresh()
