@@ -123,7 +123,7 @@ describe('a toggle batch', () => {
     expect(w.state.values.attention.reloadPending).toBe(true)
   })
 
-  it('a reload the desktop app answers with a refusal fails, says to start a new session, and stays pending', async () => {
+  it('a reload the desktop app answers with a refusal fails, asks the person to reload, and stays pending', async () => {
     const { w, runner, ids } = setup()
     w.command.reloadAnswer = async () =>
       "/reload-plugins isn't available over a remote connection in this session."
@@ -135,7 +135,8 @@ describe('a toggle batch', () => {
     await runAll(w, runner)
     const reload = jobs(w)[1]
     expect(reload?.state).toBe('failed')
-    expect(reload?.tail.at(-1)).toMatch(/new session/)
+    expect(reload?.error?.message).toMatch(/^Run \/reload-plugins/)
+    expect(reload?.tail.at(-1)).toMatch(/^Run \/reload-plugins/)
     expect(w.state.values.attention.reloadPending).toBe(true)
   })
 

@@ -30,8 +30,8 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 - The Installed detail loads for the first row when the selection never moved, instead of reading "Reading what it
   can do…" until a key is pressed.
-- In the desktop app, whose sessions refuse `/reload-plugins`, a batch says the reload failed and to start a new
-  session, instead of reporting the changes applied.
+- In the desktop app, whose sessions refuse a plugin's `/reload-plugins`, a batch says the reload failed and asks you
+  to run `/reload-plugins`, instead of reporting the changes applied.
 
 ## [0.3.0] - 2026-10-09
 

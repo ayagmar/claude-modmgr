@@ -31,9 +31,16 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
     })
   }
   await Promise.all([ports.command.registerMods(), takeQueue()])
-  // The reload that restarted this module applied what the batch changed.
+  // A module started again in the same session was reloaded with the session's
+  // plugins (a reload modmgr ran, or the person's /reload-plugins): what was
+  // owed is applied.
+  if (!fresh) {
+    await ports.state.update('attention', ({ reloadByHand: _, ...attention }) => ({
+      ...attention,
+      reloadPending: false,
+    }))
+  }
   if (reloaded) {
-    await ports.state.update('attention', attention => ({ ...attention, reloadPending: false }))
     // Said for a while, as the runner's own echo is.
     await echoLine(ports, RELOADED_WITH_MODMGR)
   }

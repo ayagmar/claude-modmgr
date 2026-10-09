@@ -692,6 +692,8 @@ export type Summary = {
   readonly reloading: boolean
   /** A reload is owed and none is queued: `[l reload]`. */
   readonly reloadOwed: boolean
+  /** The session lets only the person reload: they run /reload-plugins. */
+  readonly reloadByHand: boolean
   readonly updates: number
   /** Mods whose update added notable capabilities not yet seen. */
   readonly capsCount: number
@@ -706,6 +708,9 @@ export type Summary = {
   /** The CLI's answer to the last reload, or how a batch that needed none ended. */
   readonly echo?: string
 }
+
+const reloadOwedText = (summary: Summary): string =>
+  summary.reloadByHand ? 'run /reload-plugins to apply' : 'reload to apply'
 
 const updatesText = (n: number): string | undefined =>
   n > 0 ? plural(n, 'update', 'updates') : undefined
@@ -728,6 +733,7 @@ export const summaryOf = (input: {
     pending: queue.jobs.filter(job => NEEDS_RELOAD.has(job.kind) && isActive(job)).length,
     reloading: reloadJob?.state === 'running',
     reloadOwed: attention.reloadPending && reloadJob === undefined,
+    reloadByHand: attention.reloadByHand === true,
     updates: attention.updates,
     capsCount: mods.filter(row => row.capsNew !== undefined).length,
     ...(caps === undefined ? {} : { caps }),
@@ -761,14 +767,14 @@ export const bandOf = (
   const updates = updatesText(summary.updates)
   if (updates !== undefined) parts.push(updates)
   if (summary.caps !== undefined) parts.push(summary.caps)
-  if (summary.reloadOwed) parts.push('reload to apply')
+  if (summary.reloadOwed) parts.push(reloadOwedText(summary))
   if (parts.length === 0) {
     if (summary.echo === undefined) return undefined
     parts.push(summary.echo)
   }
   const text = `mods · ${parts.join(' · ')}`
   if (how.dismissed === text) return undefined
-  return { key: text, text, reload: summary.reloadOwed }
+  return { key: text, text, reload: summary.reloadOwed && !summary.reloadByHand }
 }
 
 /**
@@ -784,7 +790,7 @@ export const statusLineOf = (summary: Summary): string | undefined => {
   if (summary.pending > 0) return `applying ${summary.pending}…`
   if (running !== undefined) return `${describeJob(running)}…`
   if (summary.reloading) return 'reloading plugins…'
-  if (summary.reloadOwed) return 'reload to apply'
+  if (summary.reloadOwed) return reloadOwedText(summary)
   if (summary.newsDismissed) return undefined
   // The engine names the plugin before it (`modmgr: …`).
   return summary.caps ?? updatesText(summary.updates)

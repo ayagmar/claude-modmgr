@@ -353,6 +353,18 @@ describe('the summary: band, status line and title agree', () => {
     })
     expect(statusLineOf(owed)).toBe('reload to apply')
     expect(bandOf(owed, { isWorking: false })?.text).toBe('mods · reload to apply')
+    expect(bandOf(owed, { isWorking: false })?.reload).toBe(true)
+    // A session that refused modmgr's reload: the person runs it, so no reload key.
+    const byHand = summaryOf({
+      attention: { ...ATTENTION, reloadPending: true, reloadByHand: true },
+      queue: IDLE,
+      mods: [],
+    })
+    expect(statusLineOf(byHand)).toBe('run /reload-plugins to apply')
+    expect(bandOf(byHand, { isWorking: false })).toMatchObject({
+      text: 'mods · run /reload-plugins to apply',
+      reload: false,
+    })
   })
 
   it('what updates added, in all three', () => {

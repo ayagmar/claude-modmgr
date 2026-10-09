@@ -214,6 +214,8 @@ export type Attention = {
   updates: number
   problems: number
   reloadPending: boolean
+  /** The session refused modmgr's reload (the desktop app's): the person runs /reload-plugins. */
+  reloadByHand?: boolean
   capsChanged: number
   /** The band line the person dismissed; the band returns once its line changes. */
   dismissed?: string

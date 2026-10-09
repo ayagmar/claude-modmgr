@@ -255,14 +255,17 @@ export const createRunner = (ports: RunnerPorts, options: RunnerOptions): Runner
   const reload = async (): Promise<Outcome> => {
     try {
       const text = await ports.command.reloadPlugins()
-      // A session the desktop app drives refuses the reload in words alone
-      // ("/reload-plugins isn't available over a remote connection"): nothing
-      // was applied, so it isn't said as if it were.
+      // A session the desktop app drives refuses a plugin's reload in words
+      // alone ("/reload-plugins isn't available over a remote connection"),
+      // though the person's own /reload-plugins works: nothing was applied.
       if (text !== undefined && RELOAD_REFUSED.test(text)) {
-        await ports.state.update('attention', attention => ({ ...attention, reloadPending: true }))
-        return failed({ kind: 'rejected', message: sanitize(text, { max: 200 }) }, [
-          'This session cannot reload plugins: start a new session to apply the changes.',
-        ])
+        await ports.state.update('attention', attention => ({
+          ...attention,
+          reloadPending: true,
+          reloadByHand: true,
+        }))
+        const ask = 'Run /reload-plugins to apply the changes: this session lets only you reload.'
+        return failed({ kind: 'rejected', message: ask }, [sanitize(text, { max: 200 }), ask])
       }
       // Always something to echo: the status line's "applied" shows while it does.
       const line = sanitize(text ?? 'Plugins reloaded', { max: 120 }) || 'Plugins reloaded'

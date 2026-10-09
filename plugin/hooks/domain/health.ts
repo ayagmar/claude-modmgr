@@ -159,13 +159,23 @@ const ownItems = (input: HealthInput): HealthItem[] => {
   }
   const reloadQueued = queue.jobs.some(job => job.kind === 'reload' && isActive(job))
   if (attention.reloadPending && !reloadQueued) {
-    own({
-      key: 'own:reload',
-      tone: 'warn',
-      text: 'changes wait for a plugin reload',
-      fix: { kind: 'reload' },
-      fixLabel: 'reload',
-    })
+    own(
+      attention.reloadByHand === true
+        ? {
+            key: 'own:reload',
+            tone: 'warn',
+            text: 'changes wait for /reload-plugins: this session lets only you reload',
+            fix: { kind: 'copy', text: '/reload-plugins' },
+            fixLabel: 'copy command',
+          }
+        : {
+            key: 'own:reload',
+            tone: 'warn',
+            text: 'changes wait for a plugin reload',
+            fix: { kind: 'reload' },
+            fixLabel: 'reload',
+          },
+    )
   }
   if (facts.cache.full) {
     own({
