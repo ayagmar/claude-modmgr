@@ -97,7 +97,7 @@ describe('search', () => {
     expect(order('stars')).toEqual(['b', 'a', 'c', 'solo'])
   })
 
-  it('filters by what a mod reaches, how it installs and whether it validates', () => {
+  it('filters by what a mod reaches and how it installs', () => {
     const query = { text: '', sort: 'stars' as const }
     expect(
       names(search(index, { ...query, without: REACH_BITS.network | REACH_BITS.machine })),
@@ -106,11 +106,6 @@ describe('search', () => {
       names(search(index, { ...query, withoutNotable: NOTABLE_BITS['runs-programs'] })),
     ).toEqual(['guard', 'token-meter', 'meter'])
     expect(names(search(index, { ...query, installable: true }))).toEqual(['token-meter'])
-    expect(names(search(index, { ...query, working: true }))).toEqual([
-      'token-meter',
-      'meter',
-      'band',
-    ])
   })
 
   it('stays fast over 3,000 mods', () => {

@@ -858,10 +858,6 @@ const description = `Search ${total} mods for Claude Code found across public Gi
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .list :global(.mod) {
-      transition: background-color 0.12s var(--ease);
-    }
-
     .list :global(details[open] .detail) {
       animation: open 0.24s var(--ease);
     }
@@ -982,10 +978,9 @@ const description = `Search ${total} mods for Claude Code found across public Gi
       padding-right: 0.75rem;
     }
 
-    /* The selected row steps up a surface past a hovered one, so a pointer
-       resting elsewhere never reads as a second choice. */
-    .list :global(.mod:hover) {
-      background: var(--raised);
+    /* A hovered row is the selected one here: only it is lit. */
+    .list :global(.mod:hover:not(.sel)) {
+      background: none;
     }
 
     .list :global(.mod.sel) {
