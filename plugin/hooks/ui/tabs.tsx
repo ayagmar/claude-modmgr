@@ -263,6 +263,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       page.community === 0 || view.mine === true
         ? ''
         : `${page.community.toLocaleString('en-US')} from GitHub`,
+      view.mine === true ? '' : (page.communityNote ?? ''),
     ]
       .filter(part => part !== '')
       .join(' · '),

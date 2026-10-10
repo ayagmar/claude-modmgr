@@ -17,7 +17,7 @@ import {
   windowOf,
 } from '../domain/catalog.ts'
 import { type CatalogEntry, parseAvailable, parseMarketplaces } from '../domain/cli-results.ts'
-import type { CommunityMod } from '../domain/community.ts'
+import { type CommunityMod, communityNote } from '../domain/community.ts'
 import { localBase, planProbe, probeKey } from '../domain/detector.ts'
 import type { Inspection, Unread } from '../domain/discover.ts'
 import { parseAbsolutePath } from '../domain/ids.ts'
@@ -38,8 +38,11 @@ export const CATALOG_MAX_AGE_MS = 6 * 60 * 60 * 1000
 export type CatalogPorts = CliPorts & Pick<Ports, 'state'>
 
 export type Catalog = {
-  /** Reads the catalogue (once; again past CATALOG_MAX_AGE_MS or when forced). */
-  load(options?: { force?: boolean }): Promise<Result<void>>
+  /**
+   * Reads the catalogue (once; again past CATALOG_MAX_AGE_MS or when forced).
+   * `retry` also asks the community index again after a failure (the person's refresh).
+   */
+  load(options?: { force?: boolean; retry?: boolean }): Promise<Result<void>>
   /** Writes the window around Discover's selection for its current search to `catalogPage`. */
   show(): Promise<void>
   /** The first or last entry the current search matches. */
@@ -96,9 +99,11 @@ export const createCatalog = (
   store: Pick<StoreService, 'get' | 'update'>,
   debug: (text: string) => void = () => {},
   timing: Timing = NO_TIMING,
-  community?: Pick<Community, 'read'>,
+  community?: Pick<Community, 'read' | 'failing'>,
 ): Catalog => {
   let index: CatalogIndex | undefined
+  // What the last read found to say of the community index.
+  let communityNoteNow: string | undefined
   let roots = new Map<string, string>()
   let loadedAt: number | undefined
   let loading: Promise<Result<void>> | undefined
@@ -160,14 +165,18 @@ export const createCatalog = (
     return failed === undefined ? undefined : { failed }
   }
 
-  const read = async (): Promise<Result<void>> => {
+  const read = async (retry: boolean): Promise<Result<void>> => {
     await ports.state.update('catalogPage', page => ({ ...page, loading: true }))
     // Reads that don't depend on each other, side by side (about 0.5 s, 0.3 s and one request).
     const [run, listed, mods] = await Promise.all([
       runCli(ports, { op: 'available' }),
       runCli(ports, { op: 'marketplaces' }),
-      community?.read().catch(() => undefined),
+      community?.read({ retry }).catch(() => undefined),
     ])
+    communityNoteNow = communityNote(
+      { ...(mods === undefined ? {} : { file: mods }), failing: community?.failing() ?? false },
+      await ports.clock.now(),
+    )
     const parsed = run.ok ? parseAvailable(run.value) : run
     if (!parsed.ok) {
       const { message } = parsed.error
@@ -265,6 +274,7 @@ export const createCatalog = (
       rows,
       total,
       community: fromGithub,
+      ...(communityNoteNow === undefined ? {} : { communityNote: communityNoteNow }),
       matched,
       offset,
       loading: false,
@@ -278,7 +288,7 @@ export const createCatalog = (
       const fresh = loadedAt !== undefined && now - loadedAt < CATALOG_MAX_AGE_MS
       if (fresh && options.force !== true) return ok(undefined)
       if (options.force === true) failures.clear()
-      loading = timed(timing, 'catalogue load', read).finally(() => {
+      loading = timed(timing, 'catalogue load', () => read(options.retry === true)).finally(() => {
         loading = undefined
       })
       return loading

@@ -618,7 +618,7 @@ export const createActions = (
         return
       }
       if (tab === 'discover') {
-        await rt.catalog.load({ force: true })
+        await rt.catalog.load({ force: true, retry: true })
         rt.detector.start()
         return
       }

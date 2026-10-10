@@ -17,6 +17,26 @@ export const COMMUNITY_VERSION = 1
 /** A body past this is not parsed (about 3,000 mods make 1.4 MB). */
 export const COMMUNITY_MAX_BYTES = 4 * 1024 * 1024
 export const COMMUNITY_MAX_MODS = 20_000
+
+const DAY_MS = 24 * 60 * 60 * 1000
+/** CI rebuilds the index daily: older than this, its builds have stopped. */
+export const COMMUNITY_STALE_MS = 3 * DAY_MS
+
+/**
+ * What Discover says of the community index beside its count, when there is
+ * something to say: that it couldn't be read, or that it is days old.
+ */
+export const communityNote = (
+  read: { readonly file?: Pick<CommunityFile, 'at'>; readonly failing: boolean },
+  now: number,
+): string | undefined => {
+  if (read.file === undefined)
+    return read.failing ? "GitHub's mods couldn't be read · r tries again" : undefined
+  const age = now - read.file.at
+  return age > COMMUNITY_STALE_MS
+    ? `GitHub's mods as of ${Math.floor(age / DAY_MS)} days ago`
+    : undefined
+}
 const WORDS_MAX = 20_000
 export const WORD_MAX = 100
 export const WORDS_PER_LIST = 200

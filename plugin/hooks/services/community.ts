@@ -1,8 +1,9 @@
 // Reads the community index (domain/community.ts): the mods CI found on public
 // GitHub. Kept in module memory only (about 1 MB, more than the store holds),
 // so each new module asks once, then again past COMMUNITY_MAX_AGE_MS, and at
-// most once an hour after a failure. Off with remote reads (`detectRemote`, the
-// traffic switch). Any failure is quiet: Discover lists the catalogue alone.
+// most once an hour after a failure, unless the person asks again. Off with
+// remote reads (`detectRemote`, the traffic switch). A failure leaves Discover
+// the catalogue alone, and Discover says so.
 
 import {
   COMMUNITY_MAX_BYTES,
@@ -17,8 +18,13 @@ export const COMMUNITY_MAX_AGE_MS = 12 * 60 * 60 * 1000
 export const COMMUNITY_RETRY_MS = 60 * 60 * 1000
 
 export type Community = {
-  /** The index, read now when what is held is old; undefined when there is none. */
-  read(): Promise<CommunityFile | undefined>
+  /**
+   * The index, read now when what is held is old; undefined when there is none.
+   * `retry` asks again within the hour after a failure (the person pressed refresh).
+   */
+  read(options?: { readonly retry?: boolean }): Promise<CommunityFile | undefined>
+  /** Whether the last read failed: what `read` gave is what was held before, if anything. */
+  failing(): boolean
 }
 
 /** Beside an index being tried out (`MODMGR_INDEX_URL`), its community file. */
@@ -39,13 +45,16 @@ export const createCommunity = (
   let failedAt: number | undefined
   let reading: Promise<CommunityFile | undefined> | undefined
 
-  const fetchFile = async (): Promise<CommunityFile | undefined> => {
-    if (!(await deps.allowed())) return undefined
+  const fetchFile = async (retry: boolean): Promise<CommunityFile | undefined> => {
+    if (!(await deps.allowed())) {
+      failedAt = undefined
+      return undefined
+    }
     const now = await ports.clock.now()
     const trial = trialUrl(await ports.env.indexUrl().catch(() => undefined))
     if (trial === undefined) {
       if (held !== undefined && now - held.at < COMMUNITY_MAX_AGE_MS) return held.file
-      if (failedAt !== undefined && now - failedAt < COMMUNITY_RETRY_MS) return held?.file
+      if (!retry && failedAt !== undefined && now - failedAt < COMMUNITY_RETRY_MS) return held?.file
     }
     const url = trial ?? COMMUNITY_URL
     const answer = await ports.http.get(url, COMMUNITY_MAX_BYTES).catch((error: unknown) => {
@@ -68,11 +77,12 @@ export const createCommunity = (
   }
 
   return {
-    read() {
-      reading ??= fetchFile().finally(() => {
+    read(options = {}) {
+      reading ??= fetchFile(options.retry === true).finally(() => {
         reading = undefined
       })
       return reading
     },
+    failing: () => failedAt !== undefined,
   }
 }

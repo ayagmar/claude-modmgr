@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Discover says when GitHub's mods couldn't be read, or when their index is days old because its daily builds
+  stopped; `r` reads them again at once instead of waiting out the hour between tries.
+
 ### Changed
 - Undo says what it would reverse before you press it (`z: turn redactor back on`, or `undo 2 changes`), and
   the notice says it again once queued.

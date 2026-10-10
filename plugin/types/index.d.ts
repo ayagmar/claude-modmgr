@@ -266,6 +266,8 @@ export type CatalogPage = {
   total: number
   /** Of `total`, the community index's mods (all of them mods). */
   community: number
+  /** What to say of the community index: it couldn't be read, or it is days old. */
+  communityNote?: string
   matched: number
   offset: number
   loading: boolean

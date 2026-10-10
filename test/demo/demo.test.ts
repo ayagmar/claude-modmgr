@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { COMMUNITY_URL, communityText } from '../../plugin/hooks/domain/community.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
@@ -58,6 +59,8 @@ const frames = async (): Promise<Frame[]> => {
   fixtureCli(w.process)
     .when(['list', '--json', '--available'], out(catalogue()))
     .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
+  // GitHub's mods read, none of them: the frames show the catalogue's.
+  w.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, []) })
   const rt = createRuntime(w.ports, DEFAULT_CONFIG, 'demo')
   w.state.values.queue = { owner: 'demo', jobs: [] }
   await rt.store.load()

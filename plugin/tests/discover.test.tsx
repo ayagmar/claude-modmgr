@@ -308,6 +308,26 @@ for (const mine of [false, true]) {
   })
 }
 
+test("the header says when GitHub's mods couldn't be read", async ($, on) => {
+  host(on, {
+    state: {
+      view: { tab: 'discover', stack: [], query: '', search: '', sort: 'installs', staged: {} },
+      catalogPage: {
+        rows: [],
+        total: 0,
+        community: 0,
+        communityNote: "GitHub's mods couldn't be read · r tries again",
+        matched: 0,
+        offset: 0,
+        loading: false,
+      },
+    },
+  })
+  const ui = await mountPane($, 'terminal', PANE(80, 24))
+  expect(await ui.find({ type: 'Text', text: /GitHub's mods couldn't be read/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test("a project's own mod says where it is kept", async ($, on) => {
   const row = {
     id: 'github.com/kun/firstmate/.claude/mods/calm',
