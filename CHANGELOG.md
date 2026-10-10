@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format follows
   selects a row and a click on the selected row opens it, as Enter does in a terminal.
 - Undo says what it would reverse before you press it (`z: turn redactor back on`, or `undo 2 changes`), and
   the notice says it again once queued.
+- The first load of Installed shows each mod as soon as it is read, instead of after the slowest one, and its
+  header says how many plugins are still being read.
 
 ## [0.4.0] - 2026-10-09
 

@@ -186,6 +186,9 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       `${on} of ${count(mods.length, 'mod', 'mods')} on`,
       updates === 0 ? '' : count(updates, 'update', 'updates'),
       sync.skipped === 0 ? '' : `${sync.skipped.toLocaleString('en-US')} unread`,
+      sync.reading === undefined || sync.reading === 0
+        ? ''
+        : `reading ${count(sync.reading, 'more plugin', 'more plugins')}`,
     ]
       .filter(part => part !== '')
       .join(' · '),

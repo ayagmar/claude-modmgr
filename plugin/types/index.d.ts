@@ -255,6 +255,8 @@ export type Sync = {
   error?: { kind: string; message: string }
   /** `list --json` entries modmgr could not read. */
   skipped: number
+  /** On a first load, the plugins still being read: the rows so far aren't all of them. */
+  reading?: number
 }
 
 /**

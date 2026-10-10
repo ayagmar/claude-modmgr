@@ -47,13 +47,13 @@ const DETAIL = atom({ plugin: 'modmgr', key: 'detail' } as const, INITIAL.detail
   shape: 'detail/2',
 })
 const CATALOG_PAGE = atom({ plugin: 'modmgr', key: 'catalogPage' } as const, INITIAL.catalogPage, {
-  shape: 'catalogPage/4',
+  shape: 'catalogPage/5',
 })
 const DETECT = atom({ plugin: 'modmgr', key: 'detect' } as const, INITIAL.detect, {
   shape: 'detect/2',
 })
 const QUEUE = atom({ plugin: 'modmgr', key: 'queue' } as const, INITIAL.queue, { shape: 'queue/1' })
-const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/1' })
+const SYNC = atom({ plugin: 'modmgr', key: 'sync' } as const, INITIAL.sync, { shape: 'sync/2' })
 const VIEW = atom({ plugin: 'modmgr', key: 'view' } as const, INITIAL.view, { shape: 'view/8' })
 const REVIEW = atom({ plugin: 'modmgr', key: 'review' } as const, INITIAL.review, {
   shape: 'review/4',

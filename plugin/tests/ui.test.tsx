@@ -554,6 +554,15 @@ test('installed plugins it could not read are not called no mods', async ($, on)
   }
 })
 
+test('a first load still reading plugins says the rows are not all of them', async ($, on) => {
+  host(on, { state: { mods: [MOD_ROW], sync: { refreshing: true, skipped: 0, reading: 2 } } })
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /reading 2 more plugins/ })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
 test('the job log shows a running test’s output and offers to cancel it', async ($, on) => {
   host(on, {
     state: {
