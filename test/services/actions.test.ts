@@ -306,8 +306,6 @@ describe('Esc (ui.close from the person)', () => {
   it('from a key beside the list, brings the ring back to the row and keeps the filter', async () => {
     const { w, act } = await setup()
     await act.filter('turn')
-    await act.toDetail()
-    expect(w.ui.focuses.at(-1)).toBe('modmgr:act:toggle')
     w.ui.keysToPrompt()
     expect(await act.closing('person', true, true)).toBe(true)
     expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)

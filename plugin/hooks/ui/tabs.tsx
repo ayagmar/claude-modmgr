@@ -31,12 +31,12 @@ import {
   whyNoUpdate,
   windowFollowing,
 } from '../domain/view.ts'
-import { Detail, detailRows } from './Detail.tsx'
-import { DevDetail, DevList, devDetailRows } from './Dev.tsx'
-import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
-import { HealthItemDetail, HealthList, healthDetailRows } from './Health.tsx'
+import { detailLines } from './Detail.tsx'
+import { DevList, devDetailLines } from './Dev.tsx'
+import { FoundList, foundDetailLines } from './Discover.tsx'
+import { HealthList, healthDetailLines } from './Health.tsx'
 import { List } from './Installed.tsx'
-import { GLYPH, type ViewPorts } from './kit.tsx'
+import { type DetailLines, GLYPH, type ViewPorts } from './kit.tsx'
 
 /** Everything the dialog reads from `$.state`, read once per draw. */
 export type PaneData = {
@@ -118,8 +118,8 @@ export type TabView = {
     readonly el: RenderElement
     readonly pager: string | undefined
   }
-  readonly detail: (sized: Sized) => RenderElement
-  readonly detailRows: (sized: Sized) => number
+  /** The detail in `sized`: its lines, which the Pane draws whole, clips or scrolls. */
+  readonly detail: (sized: Sized) => DetailLines
 }
 
 /**
@@ -217,8 +217,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         pager: pagerLabel(window, rows.length),
       }
     },
-    detail: sized => Detail(v, detailHow(sized)),
-    detailRows: sized => detailRows(v, detailHow(sized)),
+    detail: sized => detailLines(v, detailHow(sized)),
   }
 }
 
@@ -301,8 +300,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
             : undefined,
       }
     },
-    detail: sized => FoundDetail(v, found, sized),
-    detailRows: sized => foundDetailRows(v, found, sized),
+    detail: sized => foundDetailLines(v, found, sized),
   }
 }
 
@@ -348,8 +346,7 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         pager: pagerLabel(window, rows.length),
       }
     },
-    detail: sized => DevDetail(v, row, { ...how, ...sized }),
-    detailRows: sized => devDetailRows(v, row, { ...how, ...sized }),
+    detail: sized => devDetailLines(v, row, { ...how, ...sized }),
   }
 }
 
@@ -393,8 +390,7 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
         pager: pagerLabel(shown.items, items.length),
       }
     },
-    detail: () => HealthItemDetail(v, item),
-    detailRows: () => healthDetailRows(item, f.bodyColumns),
+    detail: sized => healthDetailLines(v, item, sized.columns),
   }
 }
 

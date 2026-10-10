@@ -11,14 +11,16 @@ import { foundKey, inspectionLines } from '../domain/discover.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
+  type DetailLines,
   GLYPH,
   Heading,
   HiddenRows,
   KeyButton,
   ListButton,
+  line,
   Pointer,
   type Section,
-  Sections,
+  sectionLines,
   sectionRows,
   TONE,
   type ViewPorts,
@@ -27,7 +29,7 @@ import {
 /** Cells for the count at a row's end (`12.3k`, `★1.2k`). */
 const COUNT = 5
 
-/** An entry's Button: Enter opens the detail, or moves onto it beside the list. */
+/** An entry's Button: its name; it opens the detail (`ListButton`). */
 const foundButton = (
   v: ViewPorts,
   row: CatalogRow,
@@ -55,7 +57,7 @@ export const FoundRow = (
   how: {
     readonly columns: number
     readonly focus: boolean
-    /** The detail is beside the list: Enter moves onto its keys. */
+    /** The detail is beside the list: a press on another row selects it first. */
     readonly beside: boolean
     /** Another entry has its name: its marketplace tells them apart. */
     readonly twin: boolean
@@ -103,7 +105,7 @@ export const FoundList = (
     readonly networkOff: boolean
     /** The detector is still checking the catalogue for mods. */
     readonly checking: boolean
-    /** The detail is beside the list: Enter moves onto its keys. */
+    /** The detail is beside the list: a press on another row selects it first. */
     readonly beside: boolean
   },
 ): RenderElement => {
@@ -188,16 +190,19 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
   // A community mod no marketplace lists can't be installed by id: its link is what to take.
   const installable = community === undefined || community.installId !== undefined
   const head: Section = {
-    rows: 3,
-    el: (
-      <Box flexDirection="column">
+    lines: [
+      line(
         <Box flexDirection="row" gap={1}>
           <Text bold>{row.name}</Text>
           <Text dimColor>{row.version ?? ''}</Text>
-        </Box>
+        </Box>,
+      ),
+      line(
         <Text dimColor wrap="truncate-end">
           {origin}
-        </Text>
+        </Text>,
+      ),
+      line(
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {how.readOnly || !installable
             ? null
@@ -220,9 +225,9 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
                 label: 'copy link',
                 onPress: press => v.act.copy(row.link ?? row.source, press.surface),
               })}
-        </Box>
-      </Box>
-    ),
+        </Box>,
+      ),
+    ],
   }
   const described = row.about ?? row.blurb
   const howTo = [
@@ -237,21 +242,24 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
         ]),
   ]
   const about: Section = {
-    rows: (described === '' ? 0 : wrappedRows([described], how.columns)) + 1 + howTo.length,
-    el: (
-      <Box flexDirection="column">
-        {described === '' ? null : <Text>{described}</Text>}
-        {/* Its page on GitHub opens from here: a link on every surface. */}
+    lines: [
+      ...(described === ''
+        ? []
+        : [line(<Text>{described}</Text>, wrappedRows([described], how.columns))]),
+      // Its page on GitHub opens from here: a link on every surface.
+      line(
         <Text dimColor wrap="truncate-end">
           from {row.link === undefined ? row.source : <Link href={row.link}>{row.source}</Link>}
-        </Text>
-        {howTo.map(line => (
+        </Text>,
+      ),
+      ...howTo.map(text =>
+        line(
           <Text dimColor wrap="truncate-end">
-            {line}
-          </Text>
-        ))}
-      </Box>
-    ),
+            {text}
+          </Text>,
+        ),
+      ),
+    ],
   }
   const said =
     row.unread !== undefined ? (
@@ -276,47 +284,44 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
         ? [`as validate read it at ${row.readAt.slice(0, 7)}, in the community index`]
         : []
   const caps: Section = {
-    rows: 1 + (said === undefined ? wrappedRows(notable ?? [], how.columns - 2) : 1) + read.length,
-    el: (
-      <Box flexDirection="column">
-        {Heading(v, 'What it can do')}
-        {said ??
-          (notable ?? []).map(line => (
-            <Box flexDirection="row" gap={1}>
-              <Text color={TONE.accent}>{GLYPH.notable}</Text>
-              <Text>{line}</Text>
-            </Box>
-          ))}
-        {read.map(line => (
+    lines: [
+      line(Heading(v, 'What it can do')),
+      ...(said !== undefined
+        ? [line(said)]
+        : (notable ?? []).map(text =>
+            line(
+              <Box flexDirection="row" gap={1}>
+                <Text color={TONE.accent}>{GLYPH.notable}</Text>
+                <Text>{text}</Text>
+              </Box>,
+              wrappedRows([text], how.columns - 2),
+            ),
+          )),
+      ...read.map(text =>
+        line(
           <Text dimColor wrap="truncate-end">
-            {line}
-          </Text>
-        ))}
-      </Box>
-    ),
+            {text}
+          </Text>,
+        ),
+      ),
+    ],
   }
   return [head, about, caps]
 }
 
-/** The rows the catalogue detail draws (Pane clips a taller one to the body). */
-export const foundDetailRows = (
+/** The catalogue detail's lines, blank rows apart where they fit, and its head's. */
+export const foundDetailLines = (
   v: ViewPorts,
   row: CatalogRow | undefined,
   how: FoundDetailHow,
-): number => {
-  if (row === undefined) return 1
-  const sections = foundSections(v, row, how)
-  const spaced = sectionRows(sections, true) <= how.rows
-  return sectionRows(sections, spaced)
-}
-
-export const FoundDetail = (
-  v: ViewPorts,
-  row: CatalogRow | undefined,
-  how: FoundDetailHow,
-): RenderElement => {
+): DetailLines => {
   const { Text } = v.el
-  if (row === undefined) return <Text dimColor>Select a mod to see more.</Text>
+  if (row === undefined)
+    return { lines: [line(<Text dimColor>Select a mod to see more.</Text>)], head: 0 }
   const sections = foundSections(v, row, how)
-  return Sections(v, sections, sectionRows(sections, true) <= how.rows)
+  const [head] = sections
+  return {
+    lines: sectionLines(v, sections, sectionRows(sections, true) <= how.rows),
+    head: head?.lines.length ?? 0,
+  }
 }

@@ -579,69 +579,6 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "dim": true,
-          "text": "╭──────────────────────────────────────────────────────────────────────────────────────────────╮"
-        }
-      ],
-      [
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "⌕ Filter 5 mods"
-        },
-        {
-          "text": "                                                                    "
-        },
-        {
-          "dim": true,
-          "text": "f: filter"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "dim": true,
-          "text": "╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
-        }
-      ],
-      [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "success",
-          "text": "●"
-        },
-        {
-          "text": " broken             "
-        },
-        {
-          "tone": "error",
-          "text": "▲1"
-        },
-        {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
           "bold": true,
           "text": "turn-band"
         },
@@ -654,30 +591,6 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "success",
-          "text": "●"
-        },
-        {
-          "text": " quiet-bash         "
-        },
-        {
-          "tone": "claude",
-          "text": "◆1"
-        },
-        {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
         {
           "tone": "success",
           "text": "● on"
@@ -692,108 +605,23 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "  "
-        },
-        {
-          "tone": "success",
-          "text": "●"
-        },
-        {
-          "text": " redactor           "
-        },
-        {
-          "tone": "claude",
-          "text": "◆3"
-        },
-        {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " e: disable  x: remove  c: copy id"
+          "text": "e: disable  x: remove  c: copy id"
         }
       ],
       [
-        {
-          "text": "  "
-        },
-        {
-          "tone": "success",
-          "text": "●"
-        },
-        {
-          "text": " spawner            "
-        },
-        {
-          "tone": "claude",
-          "text": "◆2"
-        },
-        {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
         {
           "dim": true,
           "text": "↑ runs from its marketplace folder: no updates"
         }
       ],
+      [],
       [
         {
-          "tone": "claude",
-          "text": "❯"
-        },
-        {
-          "text": " "
-        },
-        {
-          "tone": "success",
-          "text": "●"
-        },
-        {
-          "text": " "
-        },
-        {
-          "ring": true,
-          "text": "turn-band"
-        },
-        {
-          "text": "          "
-        },
-        {
-          "tone": "claude",
-          "text": "◆2"
-        },
-        {
-          "text": "              "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " Shows last-turn duration above the prompt."
+          "text": "Shows last-turn duration above the prompt."
         }
       ],
+      [],
       [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
         {
           "tone": "warning",
           "bold": true,
@@ -801,16 +629,6 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
         {
           "tone": "warning",
           "text": "◆"
@@ -821,15 +639,15 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                                       "
+          "text": "  "
         },
         {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
+          "text": "process.run"
+        }
+      ],
+      [],
+      [
         {
           "tone": "claude",
           "bold": true,
@@ -837,16 +655,6 @@ export const FRAMES: readonly Frame[] = [
         }
       ],
       [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
         {
           "tone": "claude",
           "text": "◆"
@@ -857,15 +665,15 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                                       "
+          "text": "  "
         },
         {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
+          "text": "prompt.submit"
+        }
+      ],
+      [],
+      [
         {
           "tone": "claude",
           "bold": true,
@@ -874,131 +682,45 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "/mods info turn-band@fixtures explains each one."
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
           "text": "Your machine"
-        },
-        {
-          "text": "        process.run"
         }
       ],
       [
         {
-          "text": "                                       "
+          "text": "  process.run      "
         },
         {
           "dim": true,
-          "text": "│"
-        },
+          "text": "Runs a command on the host by its argument vector (no shell) and resolves {"
+        }
+      ],
+      [
         {
-          "text": " "
+          "text": "                   "
         },
         {
           "dim": true,
+          "text": "exitCode, stdout, stderr } once it exits, any exit code"
+        }
+      ],
+      [
+        {
           "text": "What the model sees"
-        },
-        {
-          "text": " on prompt.submit"
         }
       ],
       [
         {
-          "text": "                                       "
+          "text": "  on prompt.submit "
         },
         {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "Display only"
-        },
-        {
-          "text": "        "
-        },
-        {
-          "dim": true,
-          "text": "5 hooks and calls"
+          "text": "Fires when a prompt is submitted, before the turn starts"
         }
       ],
       [
         {
-          "text": "                                       "
-        },
-        {
           "dim": true,
-          "text": "│"
-        },
-        {
-          "text": " "
-        },
-        {
-          "dim": true,
-          "text": "✓ validates"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
-        }
-      ],
-      [
-        {
-          "text": "                                       "
-        },
-        {
-          "dim": true,
-          "text": "│"
+          "text": "lines 1–16 of 20 · scroll or Page Up/Down"
         }
       ],
       [

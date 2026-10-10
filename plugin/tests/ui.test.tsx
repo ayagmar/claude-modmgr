@@ -234,7 +234,7 @@ test('from 80 body columns the detail sits beside the list with its keys and fol
   }
 })
 
-test('a desktop click on a row beside the detail selects it', async ($, on) => {
+test('a desktop click on a row beside the detail selects it, and a click on the selected one opens it', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -251,6 +251,10 @@ test('a desktop click on a row beside the detail selects it', async ($, on) => {
   await h.clock.advance(1)
   await ui.redraw()
   expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeDefined()
+  expect((h.read('view') as { stack: string[] }).stack).toEqual([])
+  await ui.press({ key: `row:${TURN_BAND}` })
+  await ui.redraw()
+  expect((h.read('view') as { stack: string[] }).stack).toEqual(['detail'])
   await ui.unmount()
 })
 
@@ -600,7 +604,7 @@ test('the split’s list drops version and scope; help takes the whole body', as
   }
 })
 
-test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail pushes nothing', async ($, on) => {
+test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail opens it whole', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -621,8 +625,10 @@ test('at 46, 80 and 96 body columns every key of the moment is drawn once, and E
     if (columns >= 80) {
       await ui.press({ key: `row:${TURN_BAND}` })
       await ui.redraw()
-      expect((h.read('view') as { stack: string[] }).stack).toEqual([])
-      expect(await keyed(ui, 'act:close')).toBe(1)
+      expect((h.read('view') as { stack: string[] }).stack).toEqual(['detail'])
+      // The whole body is the detail's: its keys, and back, once each.
+      for (const key of ['act:toggle', 'act:back']) expect(await keyed(ui, key)).toBe(1)
+      await ui.press({ key: 'act:back' })
     }
     await ui.unmount()
   }

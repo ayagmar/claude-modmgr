@@ -93,13 +93,8 @@ export type Actions = {
   tab(tab: Tab): Promise<void>
   /** The focus ring landed on a row: it becomes the selection (the split's detail follows). */
   focusRow(id: string): Promise<void>
-  /** Enter on a row: its detail. */
+  /** Enter on a row: its detail, in full (beside the list, over it). */
   open(id: string): Promise<void>
-  /**
-   * Enter on a row whose detail is already beside the list: the ring moves onto
-   * the detail's first key. Nothing is pushed, so Esc has nothing hidden to pop.
-   */
-  toDetail(): Promise<void>
   /** Pops the top overlay (a review popped is a review cancelled). */
   back(): Promise<void>
   /** Stages a toggle of the selected mod, or of `id`. */
@@ -449,13 +444,6 @@ export const createActions = (
       if (view.selected === id) return
       await setView(current => ({ ...quiet(current), selected: id }))
       await select(id)
-    }),
-
-    toDetail: safely('to detail', async () => {
-      const { tab } = await state.read('view')
-      if (tab === 'discover') return ringTo('act:install', 'act:copy')
-      if (tab === 'dev') return ringTo('act:validate', 'act:copy')
-      return ringTo('act:toggle', 'act:copy')
     }),
 
     open: safely('open', async id => {

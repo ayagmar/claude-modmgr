@@ -6,6 +6,7 @@
 import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
+import { lineWindow, wrappedRows } from '../domain/view.ts'
 import type { StatePort } from '../ports.ts'
 import type { Actions } from '../services/actions.ts'
 
@@ -95,7 +96,11 @@ export type ListItem = {
   readonly select: () => Promise<void>
 }
 
-/** A list row's Button: its name; Enter opens the detail, or moves onto it beside the list. */
+/**
+ * A list row's Button: its name. Pressed, the selected row opens its detail,
+ * and beside the detail another row is selected first: the terminal's ring
+ * selects a row as it lands on it, so Enter opens, and a click selects, then opens.
+ */
 export const ListButton = (
   v: ViewPorts,
   item: ListItem,
@@ -108,11 +113,7 @@ export const ListButton = (
       plain
       label={sanitize(item.label, { max: how.max })}
       {...(how.focus ? { autoFocus: true as const } : {})}
-      // Beside the detail: the terminal's ring already selected the row, so a
-      // press moves onto its keys; a click elsewhere raises no focus, so it selects.
-      onPress={press =>
-        !how.beside ? item.open() : press.surface === 'terminal' ? v.act.toDetail() : item.select()
-      }
+      onPress={() => (how.beside && !how.focus ? item.select() : item.open())}
     />
   )
 }
@@ -157,28 +158,105 @@ export const Heading = (v: ViewPorts, text: string): RenderElement => {
   )
 }
 
-/** A part of a detail: what it draws, and the rows that takes. */
-export type Section = { readonly rows: number; readonly el: RenderElement }
+/**
+ * A line of an overlay or a detail and its text, from which the rows it wraps
+ * to are counted; `rows` where those are known (a truncated row, a block
+ * whose rows were counted where it was built).
+ */
+export type Line = { readonly el: RenderElement; readonly text: string; readonly rows?: number }
 
-/** The rows `sections` take, a blank row apart when `spaced`. */
-export const sectionRows = (sections: readonly Section[], spaced: boolean): number =>
-  sections.reduce((sum, section) => sum + section.rows, 0) +
-  (spaced ? Math.max(0, sections.length - 1) : 0)
+/** A line of `rows` rows, counted where it was built. */
+export const line = (el: RenderElement, rows = 1): Line => ({ el, text: '', rows })
 
-/** `sections` as one column, a blank row apart when `spaced`. */
-export const Sections = (
+/** A part of a detail: its lines, which a detail too tall for its window scrolls by. */
+export type Section = { readonly lines: readonly Line[] }
+
+/** A detail as lines, and how many of the first its head takes: kept in view when it scrolls. */
+export type DetailLines = { readonly lines: readonly Line[]; readonly head: number }
+
+/** `sections` as lines, a blank line apart when `spaced`. */
+export const sectionLines = (
   v: ViewPorts,
   sections: readonly Section[],
   spaced: boolean,
-): RenderElement => {
-  const { Box, Text } = v.el
-  return (
-    <Box flexDirection="column">
-      {sections.flatMap((section, index) =>
-        spaced && index > 0 ? [<Text key={`gap:${index}`}> </Text>, section.el] : [section.el],
-      )}
-    </Box>
+): Line[] => {
+  const { Text } = v.el
+  return sections.flatMap((section, index) =>
+    spaced && index > 0
+      ? [line(<Text key={`gap:${index}`}> </Text>), ...section.lines]
+      : section.lines,
   )
+}
+
+/** The rows `sections` take, a blank row apart when `spaced`. */
+export const sectionRows = (sections: readonly Section[], spaced: boolean): number =>
+  sections.reduce(
+    (sum, section) => sum + section.lines.reduce((rows, item) => rows + (item.rows ?? 1), 0),
+    0,
+  ) + (spaced ? Math.max(0, sections.length - 1) : 0)
+
+/** `lines` as one column. */
+export const Lines = (v: ViewPorts, lines: readonly Line[]): RenderElement => {
+  const { Box } = v.el
+  return <Box flexDirection="column">{lines.map(item => item.el)}</Box>
+}
+
+/** The rows an overlay is given, and the first line below what it keeps it shows. */
+export type OverlayWindow = { readonly rows: number; readonly columns: number; readonly at: number }
+
+/** An overlay drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
+export type DrawnOverlay = {
+  readonly el: RenderElement
+  readonly rows: number
+  readonly page: number
+  readonly last: number
+}
+
+/**
+ * Lines in their window: whole when they fit, else the first `head` and last
+ * `foot` lines kept, the lines from `at` between them that fit, and a row
+ * saying where it stands. Every line is reachable, never clipped out of sight.
+ */
+export const scrolled = (
+  v: ViewPorts,
+  lines: readonly Line[],
+  keep: { readonly head: number; readonly foot: number },
+  window: OverlayWindow,
+): DrawnOverlay => {
+  const { Box, Text } = v.el
+  const rowsOf = (line: Line) => line.rows ?? wrappedRows([line.text], window.columns)
+  const sum = (some: readonly Line[]) => some.reduce((total, line) => total + rowsOf(line), 0)
+  const head = lines.slice(0, keep.head)
+  const rest = lines.slice(keep.head, lines.length - keep.foot)
+  const foot = lines.slice(lines.length - keep.foot)
+  const total = sum(lines)
+  if (total <= window.rows) {
+    return {
+      el: <Box flexDirection="column">{lines.map(line => line.el)}</Box>,
+      rows: total,
+      page: rest.length,
+      last: 0,
+    }
+  }
+  const kept = sum(head) + sum(foot) + 1
+  const heights = rest.map(rowsOf)
+  const shown = lineWindow(heights, Math.max(1, window.rows - kept), window.at)
+  const where = `lines ${shown.start + 1}–${shown.end} of ${rest.length} · scroll or Page Up/Down`
+  return {
+    el: (
+      <Box flexDirection="column">
+        {head.map(line => line.el)}
+        {rest.slice(shown.start, shown.end).map(line => line.el)}
+        <Text dimColor wrap="truncate-end">
+          {where}
+        </Text>
+        {foot.map(line => line.el)}
+      </Box>
+    ),
+    rows: kept + heights.slice(shown.start, shown.end).reduce((total, rows) => total + rows, 0),
+    page: Math.max(1, shown.end - shown.start),
+    last: shown.last,
+  }
 }
 
 /** A label column `width` cells wide, then `children`: one aligned row of a table. */

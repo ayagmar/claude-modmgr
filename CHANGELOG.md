@@ -12,6 +12,9 @@ All notable changes to this project are documented here. The format follows
   stopped; `r` reads them again at once instead of waiting out the hour between tries.
 
 ### Changed
+- Enter on a row beside its detail opens the detail over the whole body, in full, and it scrolls to its last line
+  with its keys kept in view; beside the list a short pane still shows the compact form. On the desktop a click
+  selects a row and a click on the selected row opens it, as Enter does in a terminal.
 - Undo says what it would reverse before you press it (`z: turn redactor back on`, or `undo 2 changes`), and
   the notice says it again once queued.
 

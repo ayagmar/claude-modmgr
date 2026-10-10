@@ -43,7 +43,7 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
   return flags
 }
 
-/** A row's Button: its name; Enter opens the detail, or moves onto it beside the list. */
+/** A row's Button: its name; it opens the detail (`ListButton`). */
 const rowButton = (
   v: ViewPorts,
   row: ModRow,
@@ -68,7 +68,7 @@ export const Row = (
     readonly staged: ReadonlySet<string>
     readonly columns: number
     readonly focus: boolean
-    /** The detail is beside the list: Enter moves onto its keys. */
+    /** The detail is beside the list: a press on another row selects it first. */
     readonly beside: boolean
   },
 ): RenderElement => {
