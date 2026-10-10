@@ -222,7 +222,7 @@ describe('toggle → review → confirm → reload', () => {
     await act.confirm()
     await drain()
     await act.undo()
-    expect(w.state.values.view.notice).toBe('Undoing the last batch (1)')
+    expect(w.state.values.view.notice).toBe('Undo: turn turn-band back on')
     await drain()
     expect(w.process.calls.map(call => call.argv.slice(1).join(' '))).toContain(
       `plugin enable ${TURN_BAND} --scope user --json`,

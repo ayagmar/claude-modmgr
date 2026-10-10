@@ -18,12 +18,14 @@ import type {
 import { devRowOf } from '../domain/dev.ts'
 import { detectLine, foundRow, nextSort, SORT_LABEL } from '../domain/discover.ts'
 import { type HealthItem, healthLines } from '../domain/health.ts'
+import { undoPlan } from '../domain/jobs.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import {
   filterRows,
   pagerLabel,
   selectedRow,
   stagedIds,
+  undoWords,
   type Window,
   whyNoRemove,
   whyNoUpdate,
@@ -56,6 +58,8 @@ export type Key = {
   readonly action: string
   readonly on: KeySurface
   readonly label: string
+  /** Drawn instead of `label` where the footer is too narrow for it. */
+  readonly short?: string
   /** Gets the press: a copy targets the surface it came from. */
   readonly onPress: (press: UiPressArgument) => void
 }
@@ -153,7 +157,14 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     }
     if (mods.filter(row => whyNoUpdate(row) === undefined).length > 1)
       add({ action: 'update-all', label: 'update all', onPress: () => v.act.updateAll() })
-    add({ action: 'undo', label: 'undo', onPress: () => v.act.undo() })
+    // Says what it would reverse; with nothing to undo, pressing it says why.
+    const undo = undoPlan(d.queue.jobs)
+    add({
+      action: 'undo',
+      label: undo.kind === 'ready' ? undoWords(undo.steps, mods) : 'undo',
+      short: 'undo',
+      onPress: () => v.act.undo(),
+    })
   }
   const on = mods.filter(row => row.enabled).length
   const updates = mods.filter(row => row.updateTo !== undefined).length

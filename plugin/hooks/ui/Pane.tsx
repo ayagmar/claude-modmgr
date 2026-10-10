@@ -189,9 +189,16 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // painted before its label: `e: toggle`).
   const rightColumns =
     general.reduce((sum, key) => sum + key.label.length + 3 + 2, 0) + closeLabel.length
+  const footerColumns = Math.max(1, frame.bodyColumns - rightColumns - 2)
+  // A key too wide for what the footer leaves it draws its short label.
+  const footerKeys = keys.map(key =>
+    key.short !== undefined && key.label.length + 3 > footerColumns
+      ? { ...key, label: key.short }
+      : key,
+  )
   const footerRows = footerRowsFor(
-    [...keys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
-    Math.max(1, frame.bodyColumns - rightColumns - 2),
+    [...footerKeys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
+    footerColumns,
   )
   const boxedField = field !== undefined && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
@@ -522,7 +529,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       {Rule(v, frame.bodyColumns)}
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap" flexShrink={1}>
-          {keys.map(button)}
+          {footerKeys.map(button)}
           {hint === undefined ? null : <Text color={TONE.warn}>{hint}</Text>}
         </Box>
         <Box flexDirection="row" columnGap={2} flexShrink={0}>

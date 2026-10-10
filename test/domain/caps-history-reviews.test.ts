@@ -34,6 +34,7 @@ import {
   summaryOf,
   titleOf,
   undoReview,
+  undoWords,
   updateReview,
   whyNoRemove,
   whyNoUpdate,
@@ -307,6 +308,23 @@ describe('update and remove', () => {
       { kind: 'enable', target: 'b@m' },
       { kind: 'remove', target: 'c@m', args: { keepData: true } },
     ])
+  })
+})
+
+describe('what undo says it would do', () => {
+  const undoes: Job = { id: 'j', kind: 'remove', state: 'ok', tail: [], target: 'gone@m' }
+  it('names its one step by the mod’s name, or counts its steps', () => {
+    expect(undoWords([{ spec: { kind: 'install', target: 'gone@m' }, undoes }], [])).toBe(
+      'reinstall gone',
+    )
+    expect(undoWords([{ spec: { kind: 'disable', target: 'b@m' }, undoes }], [row('b')])).toBe(
+      'turn b back off',
+    )
+    const two = [
+      { spec: { kind: 'enable', target: 'b@m' }, undoes },
+      { spec: { kind: 'remove', target: 'c@m' }, undoes },
+    ] as const
+    expect(undoWords(two, [])).toBe('undo 2 changes')
   })
 })
 

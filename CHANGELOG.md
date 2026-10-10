@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Undo says what it would reverse before you press it (`z: turn redactor back on`, or `undo 2 changes`), and
+  the notice says it again once queued.
+
 ## [0.4.0] - 2026-10-09
 
 ### Added

@@ -145,6 +145,8 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
       await ui.find({ type: 'Text', text: /1 change applied, plugins reloaded/ }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /staged/ })).toBeUndefined()
+    // Undo says what it would reverse before it is pressed.
+    expect((await ui.find({ key: 'act:undo' }))?.props.label).toBe('turn turn-band back on')
     await ui.unmount()
   }
 })

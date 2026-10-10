@@ -421,6 +421,25 @@ export const undoReview = (
   )
 }
 
+/** What each step of an undo does to its mod, said after the mod's name. */
+const UNDO_WORDS: Readonly<Partial<Record<JobSpec['kind'], (name: string) => string>>> = {
+  enable: name => `turn ${name} back on`,
+  disable: name => `turn ${name} back off`,
+  install: name => `reinstall ${name}`,
+  remove: name => `remove ${name}`,
+}
+
+/** What an undo does, in a few words: its one step by name, or how many it takes. */
+export const undoWords = (steps: readonly UndoStep[], rows: readonly ModRow[]): string => {
+  const [only] = steps
+  const words = only?.spec.target === undefined ? undefined : UNDO_WORDS[only.spec.kind]
+  if (steps.length !== 1 || only?.spec.target === undefined || words === undefined)
+    return `undo ${steps.length} changes`
+  const { target } = only.spec
+  // A queue job's target is checked only when it runs: drawn, it is sanitised.
+  return words(sanitize(rows.find(row => row.id === target)?.name ?? nameOf(target), { max: 24 }))
+}
+
 /** The jobs a confirmed review queues (the batch's reload is added by `enqueue`). */
 export const specsOf = (review: ReviewRequest): JobSpec[] => {
   if (review.action === 'marketplace') {

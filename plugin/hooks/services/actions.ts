@@ -53,6 +53,7 @@ import {
   toggleReview,
   topOverlay,
   undoReview,
+  undoWords,
   updateReview,
   whyLocked,
   whyNoRemove,
@@ -605,7 +606,7 @@ export const createActions = (
         plan.steps.map(step => step.spec),
         current => stillUndoes(current.jobs, plan.batch),
       )
-      if (queued === 'queued') await notice(`Undoing the last batch (${plan.steps.length})`)
+      if (queued === 'queued') await notice(`Undo: ${undoWords(plan.steps, mods)}`)
     }),
 
     refresh: safely('refresh', async () => {
