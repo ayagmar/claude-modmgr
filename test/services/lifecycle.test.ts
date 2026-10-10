@@ -42,7 +42,7 @@ describe('onSessionStart', () => {
     expect(w.command.registered).toBe(2)
   })
 
-  it('counts a reload owed as applied when the module starts again in the same session', async () => {
+  it("counts a reload owed by hand as applied when the person's /reload-plugins restarted it", async () => {
     const w = world()
     fixtureCli(w.process)
     await onSessionStart(runtimeFor(w))
@@ -56,6 +56,28 @@ describe('onSessionStart', () => {
     await onSessionStart(runtimeFor(w, 'own2'))
     expect(w.state.values.attention.reloadPending).toBe(false)
     expect(w.state.values.attention.reloadByHand).toBeUndefined()
+  })
+
+  it('keeps a reload owed when modmgr alone started again', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    await onSessionStart(runtimeFor(w))
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    // Its folder's hot reload: no reload of modmgr's was running.
+    await onSessionStart(runtimeFor(w, 'own2'))
+    expect(w.state.values.attention.reloadPending).toBe(true)
+  })
+
+  it('counts a reload owed as applied when the reload modmgr ran restarted it', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    w.state.values.queue = {
+      owner: 'old',
+      jobs: [{ id: 'old-1', kind: 'reload', state: 'running', tail: [] }],
+    }
+    await onSessionStart(runtimeFor(w))
+    expect(w.state.values.attention.reloadPending).toBe(false)
   })
 
   it('applies stored preferences on a fresh session only', async () => {

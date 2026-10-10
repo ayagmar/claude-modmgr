@@ -20,6 +20,11 @@ All notable changes to this project are documented here. The format follows
 - The first load of Installed shows each mod as soon as it is read, instead of after the slowest one, and its
   header says how many plugins are still being read.
 
+### Fixed
+- A reload modmgr owed is no longer forgotten when modmgr alone starts again (an options change, a worker
+  restart, a hot reload of its folder): only its own reload, or your `/reload-plugins` where only you can reload,
+  counts as applied.
+
 ## [0.4.0] - 2026-10-09
 
 ### Added
