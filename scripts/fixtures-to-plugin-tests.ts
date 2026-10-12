@@ -1,4 +1,4 @@
-// Writes plugin/tests/fixtures.ts: the captured CLI runs the `claude plugin
+// Writes test/plugin/tests/fixtures.ts: the captured CLI runs the `claude plugin
 // test` suites answer from. Plugin tests run in the hooks environment and load
 // nothing from outside plugin/, so they get their own copy of the subset they
 // use (test/domain/fixtures/cli-runs.ts stays the source).
@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { runs } from '../test/domain/fixtures/cli-runs.ts'
 
 const root = join(import.meta.dirname, '..')
-const out = join(root, 'plugin', 'tests', 'fixtures.ts')
+const out = join(root, 'test', 'plugin', 'tests', 'fixtures.ts')
 
 export const PICK = [
   'list',
@@ -58,7 +58,7 @@ if (isMain) {
   if (process.argv.includes('--check')) {
     if (readFileSync(out, 'utf8') !== text) {
       console.error(
-        'plugin/tests/fixtures.ts is stale: run node scripts/fixtures-to-plugin-tests.ts',
+        'test/plugin/tests/fixtures.ts is stale: run node scripts/fixtures-to-plugin-tests.ts',
       )
       process.exit(1)
     }

@@ -63,7 +63,6 @@ export interface ClockPort {
 
 /** The variables modmgr reads, one method each (`$.env.get` takes literals only). */
 export interface EnvPort {
-  pluginDirs(): Promise<string | undefined>
   /** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`: any non-empty value turns modmgr's network use off. */
   nonessentialTraffic(): Promise<string | undefined>
   /** `CLAUDE_CONFIG_DIR` and `HOME`: where this session's mods folder is (Dev). */

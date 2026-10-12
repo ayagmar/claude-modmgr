@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { COMMUNITY_URL, communityText } from '../../plugin/hooks/domain/community.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
@@ -58,6 +59,8 @@ const frames = async (): Promise<Frame[]> => {
   fixtureCli(w.process)
     .when(['list', '--json', '--available'], out(catalogue()))
     .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
+  // GitHub's mods read, none of them: the frames show the catalogue's.
+  w.http.answers.set(COMMUNITY_URL, { status: 200, text: communityText(1, []) })
   const rt = createRuntime(w.ports, DEFAULT_CONFIG, 'demo')
   w.state.values.queue = { owner: 'demo', jobs: [] }
   await rt.store.load()
@@ -81,11 +84,9 @@ const frames = async (): Promise<Frame[]> => {
   const shown: Frame[] = []
   // The ring on redactor: beside the list, its detail says what it can do.
   await act.focusRow('redactor@fixtures')
-  shown.push(await draw('Installed', 'Every mod, what it can do at a glance, and what changed.'))
+  shown.push(await draw('Installed', 'Every mod you have, with what each one can do.'))
   await act.open('turn-band@fixtures')
-  shown.push(
-    await draw('Detail', 'An update gave turn-band a new power: said before it surprises you.'),
-  )
+  shown.push(await draw('Detail', "turn-band 0.4.0 can run programs; 0.3.1 couldn't."))
   await act.back()
   await act.tab('discover')
   markMods(
@@ -101,7 +102,7 @@ const frames = async (): Promise<Frame[]> => {
   setView({ sort: 'installs', found: SCRUB })
   await rt.catalog.show()
   w.state.values.detect = { checked: total, total, found: SAMPLES.length, running: false }
-  shown.push(await draw('Discover', 'The mods in every marketplace you have, found at once.'))
+  shown.push(await draw('Discover', "Your marketplaces' mods and GitHub's, listed at once."))
   await act.install(SCRUB)
   shown.push(await draw('Review', 'Nothing runs before you read what will run, and where.'))
   await act.cancel()

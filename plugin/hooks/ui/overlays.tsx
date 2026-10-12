@@ -11,14 +11,22 @@ import {
   bytesLabel,
   cellRows,
   commandLine,
-  lineWindow,
   marketplaceOf,
   nameOf,
   partsLabel,
   specsOf,
-  wrappedRows,
 } from '../domain/view.ts'
-import { GLYPH, Heading, KeyButton, TONE, type ViewPorts } from './kit.tsx'
+import {
+  type DrawnOverlay,
+  GLYPH,
+  Heading,
+  KeyButton,
+  type Line,
+  type OverlayWindow,
+  scrolled,
+  TONE,
+  type ViewPorts,
+} from './kit.tsx'
 
 const OP: Readonly<
   Record<ReviewOp, { readonly glyph: string; readonly verb: string; readonly tone: string }>
@@ -51,12 +59,6 @@ const headingOf = (review: ReviewRequest, name: (id: string) => string): string 
       return `Apply ${count} ${count === 1 ? 'change' : 'changes'}`
   }
 }
-
-/**
- * A line of an overlay and its text, from which the rows it wraps to are
- * counted; `rows` where it never wraps (a truncated row of columns).
- */
-type Line = { readonly el: RenderElement; readonly text: string; readonly rows?: number }
 
 /** What the review knows beyond the request: Claude Code refused an acceptance from here. */
 export type ReviewHow = { readonly refused: boolean }
@@ -99,7 +101,7 @@ const reviewLines = (
     removing && !keepData
       ? 'remove and wipe its data'
       : declared !== undefined
-        ? 'run it and install'
+        ? `run it and ${review.targets.some(target => target.op === 'update') ? 'update' : 'install'}`
         : 'confirm'
   const dataLabel = keepData ? 'wipe its data too' : 'keep its data'
   const offersData = removing && review.dataBytes !== undefined
@@ -289,8 +291,8 @@ const reviewLines = (
       say('accept it in /plugin, its details, or run this', TONE.bad)
       say(`in a terminal: ${terminal ?? ''}`, TONE.bad)
     } else {
-      say('It runs once, and only while it is still this', TONE.warn)
-      say('very command; a changed one is shown again.', TONE.warn)
+      say('It runs this once. A changed command is', TONE.warn)
+      say('shown here again before anything runs.', TONE.warn)
     }
   }
   if (review.action === 'marketplace' && review.source !== undefined) {
@@ -308,8 +310,8 @@ const reviewLines = (
       if (target.keptData === true) say(`${name(target.id)}: its data was kept.`)
       if (target.keptData === false) say(`${name(target.id)}: its data went with it.`)
     }
-    say('A declared install command stops it,', TONE.warn)
-    say('shown first; nothing runs unaccepted.', TONE.warn)
+    say('If it declares an install command, that', TONE.warn)
+    say('command is shown first and waits for you.', TONE.warn)
   }
   if (review.changesRepoFile) {
     say('Changes .claude/settings.json in this repository.', TONE.warn)
@@ -329,64 +331,6 @@ const reviewLines = (
     )
   }
   return lines
-}
-
-/** The rows an overlay is given, and the first line below what it keeps it shows. */
-export type OverlayWindow = { readonly rows: number; readonly columns: number; readonly at: number }
-
-/** An overlay drawn, its rows, the lines a page key moves, and the furthest line it scrolls to. */
-export type DrawnOverlay = {
-  readonly el: RenderElement
-  readonly rows: number
-  readonly page: number
-  readonly last: number
-}
-
-/**
- * Lines in their window: whole when they fit, else the first `head` and last
- * `foot` lines kept, the lines from `at` between them that fit, and a row
- * saying where it stands. Every line is reachable, never clipped out of sight.
- */
-const scrolled = (
-  v: ViewPorts,
-  lines: readonly Line[],
-  keep: { readonly head: number; readonly foot: number },
-  window: OverlayWindow,
-): DrawnOverlay => {
-  const { Box, Text } = v.el
-  const rowsOf = (line: Line) => line.rows ?? wrappedRows([line.text], window.columns)
-  const sum = (some: readonly Line[]) => some.reduce((total, line) => total + rowsOf(line), 0)
-  const head = lines.slice(0, keep.head)
-  const rest = lines.slice(keep.head, lines.length - keep.foot)
-  const foot = lines.slice(lines.length - keep.foot)
-  const total = sum(lines)
-  if (total <= window.rows) {
-    return {
-      el: <Box flexDirection="column">{lines.map(line => line.el)}</Box>,
-      rows: total,
-      page: rest.length,
-      last: 0,
-    }
-  }
-  const kept = sum(head) + sum(foot) + 1
-  const heights = rest.map(rowsOf)
-  const shown = lineWindow(heights, Math.max(1, window.rows - kept), window.at)
-  const where = `lines ${shown.start + 1}–${shown.end} of ${rest.length} · scroll or Page Up/Down`
-  return {
-    el: (
-      <Box flexDirection="column">
-        {head.map(line => line.el)}
-        {rest.slice(shown.start, shown.end).map(line => line.el)}
-        <Text dimColor wrap="truncate-end">
-          {where}
-        </Text>
-        {foot.map(line => line.el)}
-      </Box>
-    ),
-    rows: kept + heights.slice(shown.start, shown.end).reduce((total, rows) => total + rows, 0),
-    page: Math.max(1, shown.end - shown.start),
-    last: shown.last,
-  }
 }
 
 /**
@@ -414,7 +358,7 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
       <Text dimColor>A GitHub owner/repo, an https URL, or a folder's</Text>
       <Text dimColor>absolute path. Enter reviews it before anything runs.</Text>
       {Input === undefined ? (
-        <Text dimColor>This surface can't take typing.</Text>
+        <Text dimColor>Typing isn't supported here.</Text>
       ) : (
         <Input
           key={MARKETPLACE_KEY}
@@ -428,10 +372,10 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
 
 /** What the first session's dialog says first: what modmgr is, then each tab. */
 const WELCOME_INTRO =
-  'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, and changes them safely, with undo.'
+  'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, reviews every change first, and can undo your last batch of toggles, installs or removals.'
 const WELCOME_TABS = [
   ['1', 'Installed', 'what you have: toggle, update and remove'],
-  ['2', 'Discover', 'mods from your marketplaces and all of GitHub'],
+  ['2', 'Discover', 'mods from your marketplaces and public GitHub'],
   ['3', 'Dev', 'the mods you are writing: validate, test, share'],
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const

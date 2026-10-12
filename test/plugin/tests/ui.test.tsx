@@ -111,6 +111,9 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
     })
     await focusRow($, TURN_BAND)
     await ui.redraw()
+    // Before any change there is nothing to undo, so no key; the toggle says what it does.
+    if (surface === SURFACES[0]) expect(await ui.find({ key: 'act:undo' })).toBeUndefined()
+    expect((await ui.find({ key: 'act:toggle' }))?.props.label).toBe('disable')
     await ui.press({ key: 'act:toggle' })
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: /→ off/ })).toBeDefined()
@@ -145,6 +148,8 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
       await ui.find({ type: 'Text', text: /1 change applied, plugins reloaded/ }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /staged/ })).toBeUndefined()
+    // Undo says what it would reverse before it is pressed.
+    expect((await ui.find({ key: 'act:undo' }))?.props.label).toBe('turn turn-band back on')
     await ui.unmount()
   }
 })
@@ -232,7 +237,7 @@ test('from 80 body columns the detail sits beside the list with its keys and fol
   }
 })
 
-test('a desktop click on a row beside the detail selects it', async ($, on) => {
+test('a desktop click on a row beside the detail selects it, and a click on the selected one opens it', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -249,6 +254,10 @@ test('a desktop click on a row beside the detail selects it', async ($, on) => {
   await h.clock.advance(1)
   await ui.redraw()
   expect(await ui.find({ type: 'Text', text: 'turn-band' })).toBeDefined()
+  expect((h.read('view') as { stack: string[] }).stack).toEqual([])
+  await ui.press({ key: `row:${TURN_BAND}` })
+  await ui.redraw()
+  expect((h.read('view') as { stack: string[] }).stack).toEqual(['detail'])
   await ui.unmount()
 })
 
@@ -548,6 +557,15 @@ test('installed plugins it could not read are not called no mods', async ($, on)
   }
 })
 
+test('a first load still reading plugins says the rows are not all of them', async ($, on) => {
+  host(on, { state: { mods: [MOD_ROW], sync: { refreshing: true, skipped: 0, reading: 2 } } })
+  for (const surface of SURFACES) {
+    const ui = await mountPane($, surface)
+    expect(await ui.find({ type: 'Text', text: /reading 2 more plugins/ })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
 test('the job log shows a running test’s output and offers to cancel it', async ($, on) => {
   host(on, {
     state: {
@@ -598,7 +616,7 @@ test('the split’s list drops version and scope; help takes the whole body', as
   }
 })
 
-test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail pushes nothing', async ($, on) => {
+test('at 46, 80 and 96 body columns every key of the moment is drawn once, and Enter beside the detail opens it whole', async ($, on) => {
   const h = host(on)
   await $.session.start(START)
   await h.clock.advance(1)
@@ -619,8 +637,10 @@ test('at 46, 80 and 96 body columns every key of the moment is drawn once, and E
     if (columns >= 80) {
       await ui.press({ key: `row:${TURN_BAND}` })
       await ui.redraw()
-      expect((h.read('view') as { stack: string[] }).stack).toEqual([])
-      expect(await keyed(ui, 'act:close')).toBe(1)
+      expect((h.read('view') as { stack: string[] }).stack).toEqual(['detail'])
+      // The whole body is the detail's: its keys, and back, once each.
+      for (const key of ['act:toggle', 'act:back']) expect(await keyed(ui, key)).toBe(1)
+      await ui.press({ key: 'act:back' })
     }
     await ui.unmount()
   }

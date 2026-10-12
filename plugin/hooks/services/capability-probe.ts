@@ -32,21 +32,27 @@ export const probeCapabilities = async (ports: ProbePorts): Promise<Probe> => {
     return {
       process: true,
       network,
-      reason: `modmgr can't run the claude CLI here (${version.error.message}); mods can be viewed, not changed`,
+      reason: `modmgr can't run the claude CLI here (${version.error.message}); it can't read or change mods`,
     }
   }
-  const older = (compareVersions(version.value, MIN_CLAUDE_VERSION) ?? 0) < 0
+  // An older CLI lacks flags modmgr passes when it reads and changes mods
+  // (`plugin list --data-size`, `install --marketplace`): treated as no CLI,
+  // with the fix in the reason every surface shows.
+  // Its release only: a dev build of the minimum (`2.1.292-dev`) has its flags.
+  const release = version.value.split('-')[0] ?? version.value
+  if ((compareVersions(release, MIN_CLAUDE_VERSION) ?? 0) < 0) {
+    return {
+      process: true,
+      network,
+      cliVersion: version.value,
+      reason: `the claude CLI on PATH is ${version.value}; modmgr needs ${MIN_CLAUDE_VERSION} or newer: run claude update`,
+    }
+  }
   return {
     process: false,
     network,
     cliVersion: version.value,
-    ...(older
-      ? {
-          reason: `the claude CLI on PATH is ${version.value}; modmgr needs ${MIN_CLAUDE_VERSION} or newer`,
-        }
-      : network
-        ? { reason: 'network use is off (CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)' }
-        : {}),
+    ...(network ? { reason: 'network use is off (CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)' } : {}),
   }
 }
 

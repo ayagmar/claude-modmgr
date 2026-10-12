@@ -169,7 +169,7 @@ describe('update', () => {
     await drain()
     const [, update, reload] = w.state.values.queue.jobs
     expect(update).toMatchObject({ state: 'ok', unchanged: true })
-    expect(update?.tail.at(-1)).toMatch(/^already so: /)
+    expect(update?.tail.at(-1)).toMatch(/already at the latest/)
     expect(reload?.state).toBe('cancelled')
     expect(w.command.reloads).toBe(0)
     expect(w.state.values.attention.reloadPending).toBe(false)
@@ -256,7 +256,7 @@ describe('remove and its undo', () => {
     await drain()
     await act.undo()
     expect(w.state.values.review).toBeNull()
-    expect(w.state.values.view.notice).toBe('Undoing the last batch (1)')
+    expect(w.state.values.view.notice).toBe('Undo: turn turn-band back on')
   })
 })
 

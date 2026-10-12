@@ -8,7 +8,8 @@ import { type HealthItem, healthText } from './health.ts'
 import { type PluginId, parsePluginId, parseToggleScope, type ToggleScope } from './ids.ts'
 import { NEEDS_RELOAD } from './jobs.ts'
 import { isRecord, parseJson } from './json.ts'
-import { sanitize } from './sanitize.ts'
+import { hotkeyFor } from './keymap.ts'
+import { hasHiddenCharacters, sanitize } from './sanitize.ts'
 import { bytesLabel, partsLabel, whyLocked, whyNoRemove, whyNoUpdate } from './view.ts'
 
 const GLYPH = { on: '●', off: '○', problem: '▲', notable: '◆', ok: '✓', failed: '✗', update: '↑' }
@@ -18,7 +19,8 @@ export const APPLY_NOTE = 'Run /reload-plugins (or restart Claude Code) to apply
 const rowLine = (row: ModRow): string =>
   [
     row.enabled ? GLYPH.on : GLYPH.off,
-    sanitize(row.name, { max: 40 }),
+    // The id, not the name: what info, enable, remove and update take.
+    sanitize(row.id, { max: 130 }),
     row.version === undefined ? '' : sanitize(row.version, { max: 20 }),
     row.scope ?? row.origin,
     row.enabled ? '' : 'off',
@@ -36,7 +38,9 @@ export const listText = (mods: readonly ModRow[], how: { readonly skipped: numbe
   return [
     `${mods.length} ${mods.length === 1 ? 'mod' : 'mods'} (${on} on)`,
     ...mods.map(rowLine),
-    ...(how.skipped > 0 ? [`${how.skipped} plugins could not be read.`] : []),
+    ...(how.skipped > 0
+      ? [`${how.skipped} ${how.skipped === 1 ? 'plugin' : 'plugins'} could not be read.`]
+      : []),
   ].join('\n')
 }
 
@@ -206,8 +210,12 @@ const acceptHint = (job: Job, shown: NonNullable<Job['shown']>): string => {
   if (shown.truncated === true) {
     return `It is longer than modmgr shows: run claude plugin ${job.kind} ${id} in a terminal.`
   }
+  // What is printed above isn't what would run: never offer to accept it here.
+  if (hasHiddenCharacters(shown.command)) {
+    return `It holds characters modmgr can't show as they are: run claude plugin ${job.kind} ${id} in a terminal.`
+  }
   if (job.kind !== 'install') {
-    return `Review it in /mods (v), or run claude plugin ${job.kind} ${id} in a terminal.`
+    return `Review it in /mods (${hotkeyFor('accept', 'installed')}), or run claude plugin ${job.kind} ${id} in a terminal.`
   }
   const scope =
     job.args?.scope === undefined || job.args.scope === 'user' ? '' : ` --scope ${job.args.scope}`
@@ -231,7 +239,7 @@ export const jobsText = (jobs: readonly Job[]): { text: string; failed: boolean 
     if (job.state === 'ok') {
       const said = job.tail.at(-1)
       lines.push(
-        `${GLYPH.ok} ${what}${job.unchanged === true ? ' (already so)' : ''}${said === undefined ? '' : `: ${sanitize(said, { max: 200 })}`}`,
+        `${GLYPH.ok} ${what}${job.unchanged === true ? ' (nothing to change)' : ''}${said === undefined ? '' : `: ${sanitize(said, { max: 200 })}`}`,
       )
       if (NEEDS_RELOAD.has(job.kind) && job.unchanged !== true) owed = true
       continue

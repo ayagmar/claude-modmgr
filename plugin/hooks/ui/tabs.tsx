@@ -18,23 +18,25 @@ import type {
 import { devRowOf } from '../domain/dev.ts'
 import { detectLine, foundRow, nextSort, SORT_LABEL } from '../domain/discover.ts'
 import { type HealthItem, healthLines } from '../domain/health.ts'
+import { undoPlan } from '../domain/jobs.ts'
 import type { KeySurface } from '../domain/keymap.ts'
 import {
   filterRows,
   pagerLabel,
   selectedRow,
   stagedIds,
+  undoWords,
   type Window,
   whyNoRemove,
   whyNoUpdate,
   windowFollowing,
 } from '../domain/view.ts'
-import { Detail, detailRows } from './Detail.tsx'
-import { DevDetail, DevList, devDetailRows } from './Dev.tsx'
-import { FoundDetail, FoundList, foundDetailRows } from './Discover.tsx'
-import { HealthItemDetail, HealthList, healthDetailRows } from './Health.tsx'
+import { detailLines } from './Detail.tsx'
+import { DevList, devDetailLines } from './Dev.tsx'
+import { FoundList, foundDetailLines } from './Discover.tsx'
+import { HealthList, healthDetailLines } from './Health.tsx'
 import { List } from './Installed.tsx'
-import { GLYPH, type ViewPorts } from './kit.tsx'
+import { type DetailLines, GLYPH, type ViewPorts } from './kit.tsx'
 
 /** Everything the dialog reads from `$.state`, read once per draw. */
 export type PaneData = {
@@ -56,6 +58,8 @@ export type Key = {
   readonly action: string
   readonly on: KeySurface
   readonly label: string
+  /** Drawn instead of `label` where the footer is too narrow for it. */
+  readonly short?: string
   /** Gets the press: a copy targets the surface it came from. */
   readonly onPress: (press: UiPressArgument) => void
 }
@@ -114,8 +118,8 @@ export type TabView = {
     readonly el: RenderElement
     readonly pager: string | undefined
   }
-  readonly detail: (sized: Sized) => RenderElement
-  readonly detailRows: (sized: Sized) => number
+  /** The detail in `sized`: its lines, which the Pane draws whole, clips or scrolls. */
+  readonly detail: (sized: Sized) => DetailLines
 }
 
 /**
@@ -136,6 +140,15 @@ const follow = (v: ViewPorts, list: string, count: number, index: number, size: 
 const count = (n: number, one: string, many: string) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
 
+/** The jobs that change a mod: after one, `z` undoes it or says why it can't. */
+const CHANGES_A_MOD: ReadonlySet<string> = new Set([
+  'enable',
+  'disable',
+  'install',
+  'remove',
+  'update',
+])
+
 const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   const { view, mods, sync } = d
   const rows = filterRows(mods, view.query)
@@ -145,7 +158,9 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   if (!f.readOnly) {
     const add = (key: Omit<Key, 'on'>) => keys.push({ on: 'installed', ...key })
     if (f.itemKeys && selected !== undefined) {
-      add({ action: 'toggle', label: 'toggle', onPress: () => v.act.toggle() })
+      // Named as the detail names it: what pressing it does to this mod.
+      const toggle = staged.has(selected.id) ? 'unstage' : selected.enabled ? 'disable' : 'enable'
+      add({ action: 'toggle', label: toggle, onPress: () => v.act.toggle() })
       if (whyNoUpdate(selected) === undefined)
         add({ action: 'update', label: 'update', onPress: () => v.act.update() })
       if (whyNoRemove(selected) === undefined)
@@ -153,7 +168,16 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     }
     if (mods.filter(row => whyNoUpdate(row) === undefined).length > 1)
       add({ action: 'update-all', label: 'update all', onPress: () => v.act.updateAll() })
-    add({ action: 'undo', label: 'undo', onPress: () => v.act.undo() })
+    // Says what it would reverse; when the last batch can't be undone, pressing it says why.
+    // Before any change to a mod there is nothing to explain, so no key.
+    const undo = undoPlan(d.queue.jobs)
+    if (d.queue.jobs.some(job => CHANGES_A_MOD.has(job.kind)))
+      add({
+        action: 'undo',
+        label: undo.kind === 'ready' ? undoWords(undo.steps, mods) : 'undo',
+        short: 'undo',
+        onPress: () => v.act.undo(),
+      })
   }
   const on = mods.filter(row => row.enabled).length
   const updates = mods.filter(row => row.updateTo !== undefined).length
@@ -172,9 +196,12 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           }
         : undefined,
     meta: [
-      `${on} of ${count(mods.length, 'mod', 'mods')} on`,
+      mods.length === 0 ? '' : `${on} of ${count(mods.length, 'mod', 'mods')} on`,
       updates === 0 ? '' : count(updates, 'update', 'updates'),
       sync.skipped === 0 ? '' : `${sync.skipped.toLocaleString('en-US')} unread`,
+      sync.reading === undefined || sync.reading === 0
+        ? ''
+        : `reading ${count(sync.reading, 'more plugin', 'more plugins')}`,
     ]
       .filter(part => part !== '')
       .join(' · '),
@@ -199,6 +226,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           window,
           focusId: selected?.id,
           loading: sync.at === undefined && sync.error === undefined,
+          error: sync.error?.message,
           total: mods.length,
           unread: sync.skipped,
           beside: frame.beside,
@@ -206,8 +234,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         pager: pagerLabel(window, rows.length),
       }
     },
-    detail: sized => Detail(v, detailHow(sized)),
-    detailRows: sized => detailRows(v, detailHow(sized)),
+    detail: sized => detailLines(v, detailHow(sized)),
   }
 }
 
@@ -226,12 +253,12 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   })
   add({
     action: 'mine',
-    label: view.mine === true ? 'all of GitHub' : 'yours only',
+    label: view.mine === true ? 'all mods' : 'yours only',
     onPress: () => v.act.toggleMine(),
   })
   if (!f.readOnly)
     add({ action: 'marketplace-add', label: 'marketplace', onPress: () => v.act.addMarketplace() })
-  // The mods Discover can list: with `k`, only your marketplaces' (what the detector found).
+  // The mods Discover can list: with `u`, only your marketplaces' (what the detector found).
   const listed = detect.found + (view.mine === true ? 0 : page.community)
   return {
     surface: 'discover',
@@ -252,6 +279,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       page.community === 0 || view.mine === true
         ? ''
         : `${page.community.toLocaleString('en-US')} from GitHub`,
+      view.mine === true ? '' : (page.communityNote ?? ''),
     ]
       .filter(part => part !== '')
       .join(' · '),
@@ -279,6 +307,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           networkOff: degraded.network,
           checking: detect.running,
           beside: frame.beside,
+          readOnly: f.readOnly,
         }),
         pager:
           page.matched > window.end - window.start
@@ -289,8 +318,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
             : undefined,
       }
     },
-    detail: sized => FoundDetail(v, found, sized),
-    detailRows: sized => foundDetailRows(v, found, sized),
+    detail: sized => foundDetailLines(v, found, sized),
   }
 }
 
@@ -336,8 +364,7 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         pager: pagerLabel(window, rows.length),
       }
     },
-    detail: sized => DevDetail(v, row, { ...how, ...sized }),
-    detailRows: sized => devDetailRows(v, row, { ...how, ...sized }),
+    detail: sized => devDetailLines(v, row, { ...how, ...sized }),
   }
 }
 
@@ -381,8 +408,7 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
         pager: pagerLabel(shown.items, items.length),
       }
     },
-    detail: () => HealthItemDetail(v, item),
-    detailRows: () => healthDetailRows(item, f.bodyColumns),
+    detail: sized => healthDetailLines(v, item, sized.columns),
   }
 }
 

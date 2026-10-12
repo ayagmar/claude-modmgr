@@ -16,13 +16,20 @@ const ANSI = new RegExp(
 // C0 except TAB/LF, DEL, C1.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point.
 const CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g
-// Bidi embeddings/overrides/isolates, LRM/RLM/ALM, and zero-width joiners used to hide text.
-const INVISIBLES = /[\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g
+// Bidi embeddings/overrides/isolates, LRM/RLM/ALM, zero-width joiners, the soft
+// hyphen, Hangul and Khmer fillers, the Mongolian vowel separator, variation
+// selectors and tag characters: each draws as nothing, so can hide or fake text.
+const INVISIBLES =
+  // biome-ignore lint/suspicious/noMisleadingCharacterClass: matching each of these alone is the point.
+  /[\u00ad\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\u3164\ufe00-\ufe0f\ufeff\uffa0\u{e0000}-\u{e007f}]/gu
+// Line and paragraph separators: a line break, where one is kept.
+const SEPARATORS = /[\u2028\u2029]/g
 
 /** True when text holds a control, bidi or zero-width character (what `sanitize` strips). */
 export const hasHiddenCharacters = (text: string): boolean =>
   new RegExp(CONTROLS.source).test(text.replace(/[\t\n]/g, '')) ||
-  new RegExp(INVISIBLES.source).test(text)
+  new RegExp(INVISIBLES.source, 'u').test(text) ||
+  new RegExp(SEPARATORS.source).test(text)
 
 export type SanitizeOptions = {
   /** Longest result, in code points; longer text ends with `…`. */
@@ -37,6 +44,7 @@ export const sanitize = (input: unknown, options: SanitizeOptions = {}): string 
   let text = input.replace(ANSI, '').replace(CONTROLS, '').replace(INVISIBLES, '')
   text = multiline
     ? text
+        .replace(SEPARATORS, '\n')
         .replace(/\t/g, '  ')
         .replace(/[  ]+$/gm, '')
         .replace(/\n{3,}/g, '\n\n')

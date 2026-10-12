@@ -1,8 +1,8 @@
 // A mod's detail: what it is, where it comes from, whether
 // it can be toggled here, its notable capabilities, everything it hooks and
-// calls grouped by reach, and its other parts. Pushed by Enter (stacked), or
-// beside the list (split). The action keys sit under the title, so a body
-// clipped to its rows never hides them. Validate's words are the plugin's own:
+// calls grouped by reach, and its other parts. Beside the list (split) in the
+// first form that fits its rows; opened by Enter, in full over the whole body,
+// scrolling. The action keys sit under the title, so neither hides them. Validate's words are the plugin's own:
 // Text only.
 
 import type { RenderElement } from 'claude-code'
@@ -24,12 +24,14 @@ import {
   wrappedRows,
 } from '../domain/view.ts'
 import {
+  type DetailLines,
   GLYPH,
   Heading,
   KeyButton,
   LabelRow,
+  line,
   type Section,
-  Sections,
+  sectionLines,
   sectionRows,
   TONE,
   type ViewPorts,
@@ -100,36 +102,31 @@ const notableSection = (
 ): Section => {
   const { Box, Text } = v.el
   return {
-    rows:
-      1 +
-      wrappedRows(
-        items.map(item => item.text),
-        columns - 2,
-      ) +
-      (full
-        ? wrappedRows(
-            items.map(item => item.because.join(' ')),
-            columns - 2,
-          )
-        : 0),
-    el: (
-      <Box flexDirection="column">
-        {heading}
-        {items.map(item => (
-          <Box flexDirection="column">
+    lines: [
+      line(heading),
+      ...items.flatMap(item => {
+        const because = item.because.join(' ')
+        return [
+          line(
             <Box flexDirection="row" gap={1}>
               <Text color={tone}>{GLYPH.notable}</Text>
               <Text>{item.text}</Text>
-            </Box>
-            {full ? (
-              <Box paddingLeft={2}>
-                <Text dimColor>{item.because.join(' ')}</Text>
-              </Box>
-            ) : null}
-          </Box>
-        ))}
-      </Box>
-    ),
+            </Box>,
+            wrappedRows([item.text], columns - 2),
+          ),
+          ...(full
+            ? [
+                line(
+                  <Box paddingLeft={2}>
+                    <Text dimColor>{because}</Text>
+                  </Box>,
+                  wrappedRows([because], columns - 2),
+                ),
+              ]
+            : []),
+        ]
+      }),
+    ],
   }
 }
 
@@ -158,15 +155,7 @@ const reachSection = (
   const { Box, Text } = v.el
   const heading = Heading(v, 'What it can do')
   if (groups.length === 0) {
-    return {
-      rows: 2,
-      el: (
-        <Box flexDirection="column">
-          {heading}
-          <Text dimColor>Nothing beyond loading.</Text>
-        </Box>
-      ),
-    }
+    return { lines: [line(heading), line(<Text dimColor>No hooks or calls.</Text>)] }
   }
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
@@ -181,15 +170,11 @@ const reachSection = (
     const beside = columns - label - 1
     const more = `/mods info ${id} explains each one.`
     return {
-      rows:
-        1 +
-        wrappedRows([more], columns) +
-        groups.reduce((sum, group) => sum + wrappedRows([said(group)], beside), 0),
-      el: (
-        <Box flexDirection="column">
-          {heading}
-          <Text dimColor>{more}</Text>
-          {groups.map(group =>
+      lines: [
+        line(heading),
+        line(<Text dimColor>{more}</Text>, wrappedRows([more], columns)),
+        ...groups.map(group =>
+          line(
             LabelRow(
               v,
               group.label,
@@ -198,9 +183,10 @@ const reachSection = (
                 <Text dimColor={QUIET.has(group.reach)}>{said(group)}</Text>
               </Box>,
             ),
-          )}
-        </Box>
-      ),
+            wrappedRows([said(group)], beside),
+          ),
+        ),
+      ],
     }
   }
   const name = Math.min(
@@ -209,42 +195,36 @@ const reachSection = (
   )
   // What an item does wraps in the column beside its name.
   const said = Math.max(10, columns - 2 - name - 1)
-  let rows = 1
   const lines = groups.flatMap(group => {
-    rows += 1
     if (QUIET.has(group.reach)) {
-      rows += wrappedRows([names(group)], columns - 2)
       return [
-        <Text>{group.label}</Text>,
-        <Box paddingLeft={2}>
-          <Text dimColor>{names(group)}</Text>
-        </Box>,
+        line(<Text>{group.label}</Text>),
+        line(
+          <Box paddingLeft={2}>
+            <Text dimColor>{names(group)}</Text>
+          </Box>,
+          wrappedRows([names(group)], columns - 2),
+        ),
       ]
     }
-    rows += group.items.reduce((sum, item) => sum + wrappedRows([item.line], said), 0)
     return [
-      <Text>{group.label}</Text>,
-      ...group.items.map(item => (
-        <Box flexDirection="row" gap={1} paddingLeft={2}>
-          <Box width={name} flexShrink={0}>
-            <Text wrap="truncate-end">{itemName(item)}</Text>
-          </Box>
-          <Box width={said} flexShrink={0}>
-            <Text dimColor>{item.line}</Text>
-          </Box>
-        </Box>
-      )),
+      line(<Text>{group.label}</Text>),
+      ...group.items.map(item =>
+        line(
+          <Box flexDirection="row" gap={1} paddingLeft={2}>
+            <Box width={name} flexShrink={0}>
+              <Text wrap="truncate-end">{itemName(item)}</Text>
+            </Box>
+            <Box width={said} flexShrink={0}>
+              <Text dimColor>{item.line}</Text>
+            </Box>
+          </Box>,
+          wrappedRows([item.line], said),
+        ),
+      ),
     ]
   })
-  return {
-    rows,
-    el: (
-      <Box flexDirection="column">
-        {heading}
-        {lines}
-      </Box>
-    ),
-  }
+  return { lines: [line(heading), ...lines] }
 }
 
 /**
@@ -257,23 +237,29 @@ const aboutSection = (
   full: boolean,
   columns: number,
 ): Section | undefined => {
-  const { Box, Text, Link } = v.el
+  const { Text, Link } = v.el
   const said = detail.description === undefined ? '' : sanitize(detail.description, { max: 300 })
   const { link } = detail
   if (said === '' && link === undefined) return undefined
   return {
-    rows:
-      (said === '' ? 0 : full ? wrappedRows([said], columns) : 1) + (link === undefined ? 0 : 1),
-    el: (
-      <Box flexDirection="column">
-        {said === '' ? null : full ? <Text>{said}</Text> : <Text wrap="truncate-end">{said}</Text>}
-        {link === undefined ? null : (
-          <Text dimColor wrap="truncate-end">
-            from <Link href={link}>{link.replace(/^https:\/\//, '')}</Link>
-          </Text>
-        )}
-      </Box>
-    ),
+    lines: [
+      ...(said === ''
+        ? []
+        : [
+            full
+              ? line(<Text>{said}</Text>, wrappedRows([said], columns))
+              : line(<Text wrap="truncate-end">{said}</Text>),
+          ]),
+      ...(link === undefined
+        ? []
+        : [
+            line(
+              <Text dimColor wrap="truncate-end">
+                from <Link href={link}>{link.replace(/^https:\/\//, '')}</Link>
+              </Text>,
+            ),
+          ]),
+    ],
   }
 }
 
@@ -284,9 +270,9 @@ const bodySections = (
   full: boolean,
   columns: number,
 ): Section[] => {
-  const { Box, Text } = v.el
+  const { Text } = v.el
   if (detail === null) {
-    return [{ rows: 1, el: <Text dimColor>Reading what it can do…</Text> }]
+    return [{ lines: [line(<Text dimColor>Reading what it can do…</Text>)] }]
   }
   const notable = detail.caps === undefined ? [] : notableOf(detail.caps)
   // The notable items its last update added are drawn apart from the rest.
@@ -312,15 +298,10 @@ const bodySections = (
   if (why.length > 0) {
     const lines = [...why, OWN_WHY_MORE]
     sections.push({
-      rows: 1 + wrappedRows(lines, columns),
-      el: (
-        <Box flexDirection="column">
-          {Heading(v, 'Why modmgr needs these')}
-          {lines.map(line => (
-            <Text dimColor>{line}</Text>
-          ))}
-        </Box>
-      ),
+      lines: [
+        line(Heading(v, 'Why modmgr needs these')),
+        ...lines.map(text => line(<Text dimColor>{text}</Text>, wrappedRows([text], columns))),
+      ],
     })
   }
   sections.push(
@@ -364,9 +345,7 @@ const bodySections = (
       ),
     )
   }
-  if (facts.length > 0) {
-    sections.push({ rows: facts.length, el: <Box flexDirection="column">{facts}</Box> })
-  }
+  if (facts.length > 0) sections.push({ lines: facts.map(fact => line(fact)) })
   return sections
 }
 
@@ -384,21 +363,16 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
       ? undefined
       : `staged: ${staged ? 'on' : 'off'} after apply (s), after a reload`
   return {
-    rows:
-      3 +
-      (note === undefined ? 0 : 1) +
-      wrappedRows(
-        [lockedLine, stagedLine].filter((line): line is string => line !== undefined),
-        how.columns,
-      ),
-    el: (
-      <Box flexDirection="column">
+    lines: [
+      line(
         <Box flexDirection="row" gap={1}>
           <Text bold>{sanitize(row.name, { max: 64 })}</Text>
           <Text dimColor>
             {row.version === undefined ? '' : sanitize(row.version, { max: 20 })}
           </Text>
-        </Box>
+        </Box>,
+      ),
+      line(
         <Box flexDirection="row" gap={1}>
           <Text color={row.enabled ? TONE.ok : TONE.muted}>
             {row.enabled ? `${GLYPH.on} on` : `${GLYPH.off} off`}
@@ -406,7 +380,9 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
           <Text dimColor wrap="truncate-end">
             · {row.scope ?? row.origin} · {sanitize(marketplace, { max: 64 })}
           </Text>
-        </Box>
+        </Box>,
+      ),
+      line(
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {how.readOnly || locked !== undefined
             ? null
@@ -438,16 +414,44 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
             label: 'copy id',
             onPress: press => v.act.copy(row.id, press.surface),
           })}
-        </Box>
-        {lockedLine === undefined ? null : <Text color={TONE.warn}>{lockedLine}</Text>}
-        {note === undefined ? null : (
-          <Text dimColor wrap="truncate-end">
-            {GLYPH.update} {note}
-          </Text>
-        )}
-        {stagedLine === undefined ? null : <Text color={TONE.warn}>{stagedLine}</Text>}
-      </Box>
-    ),
+        </Box>,
+      ),
+      ...(lockedLine === undefined
+        ? []
+        : [
+            line(
+              <Text color={TONE.warn}>{lockedLine}</Text>,
+              wrappedRows([lockedLine], how.columns),
+            ),
+          ]),
+      ...(row.updateTo === undefined
+        ? []
+        : [
+            line(
+              <Text color={TONE.accent} wrap="truncate-end">
+                {GLYPH.update} {sanitize(row.updateTo, { max: 20 })} available
+              </Text>,
+            ),
+          ]),
+      // Why it can't update: `↑` means an update is waiting, so this line has no glyph.
+      ...(note === undefined
+        ? []
+        : [
+            line(
+              <Text dimColor wrap="truncate-end">
+                {note}
+              </Text>,
+            ),
+          ]),
+      ...(stagedLine === undefined
+        ? []
+        : [
+            line(
+              <Text color={TONE.warn}>{stagedLine}</Text>,
+              wrappedRows([stagedLine], how.columns),
+            ),
+          ]),
+    ],
   }
 }
 
@@ -471,15 +475,15 @@ const laidOut = (
   return last
 }
 
-/** The rows the detail draws (Pane clips a taller one to the body). */
-export const detailRows = (v: ViewPorts, how: DetailHow): number => {
-  const laid = laidOut(v, how)
-  return laid === undefined ? 1 : sectionRows(laid.sections, laid.spaced)
-}
-
-export const Detail = (v: ViewPorts, how: DetailHow): RenderElement => {
+/**
+ * The detail's lines in the first form that fits `how.rows`, and how many the
+ * head takes: its name, state and keys, kept in view when it scrolls.
+ */
+export const detailLines = (v: ViewPorts, how: DetailHow): DetailLines => {
   const { Text } = v.el
   const laid = laidOut(v, how)
-  if (laid === undefined) return <Text dimColor>Select a mod to see what it can do.</Text>
-  return Sections(v, laid.sections, laid.spaced)
+  if (laid === undefined)
+    return { lines: [line(<Text dimColor>Select a mod to see what it can do.</Text>)], head: 0 }
+  const [head] = laid.sections
+  return { lines: sectionLines(v, laid.sections, laid.spaced), head: head?.lines.length ?? 0 }
 }

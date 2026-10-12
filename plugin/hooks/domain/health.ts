@@ -80,8 +80,18 @@ const TONE_ORDER: Readonly<Record<HealthTone, number>> = { bad: 0, warn: 1, info
 /** Each mod's items: what is wrong first. */
 const modItems = (input: HealthInput): HealthItem[] => {
   const items: HealthItem[] = []
+  // Two mods of one name, from two marketplaces, each get their own group.
+  const named = new Map<string, number>()
+  for (const row of input.mods) named.set(row.name, (named.get(row.name) ?? 0) + 1)
+  const groupOf = (row: ModRow): string =>
+    sanitize(
+      (named.get(row.name) ?? 0) > 1
+        ? `${row.name} · ${row.id.slice(row.id.indexOf('@') + 1)}`
+        : row.name,
+      { max: 60 },
+    )
   for (const row of input.mods) {
-    const group = sanitize(row.name, { max: 40 })
+    const group = groupOf(row)
     if (row.problems > 0) {
       items.push({
         key: `${row.id}:validate`,
@@ -128,7 +138,7 @@ const modItems = (input: HealthInput): HealthItem[] => {
     }
   }
   // By mod, worst first; the mods in Installed's order, then the rest by name.
-  const order = [...input.mods.map(row => sanitize(row.name, { max: 40 }))]
+  const order = input.mods.map(groupOf)
   const rank = (group: string) => {
     const at = order.indexOf(group)
     return at < 0 ? order.length : at
@@ -215,7 +225,7 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       key: 'own:accept',
       tone: 'info',
       label: 'Commands',
-      text: 'Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      text: "Claude Code won't accept a declared install command from this session; accept it in a terminal",
     })
   }
   const counts = loadStates(input.mods)
@@ -273,7 +283,8 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       key: 'own:debug',
       tone: 'warn',
       label: 'Hook errors',
-      text: "this session's debug log is too large to read here (over 4 MiB)",
+      // The engine's read refuses past 4 MiB, but also on a permission error: which, it doesn't say.
+      text: "this session's debug log couldn't be read here (over 4 MiB, or not readable)",
       fix: { kind: 'copy', text: `grep 'hook failed closed' ${log.path}` },
       fixLabel: 'copy a search',
     })

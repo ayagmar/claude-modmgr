@@ -30,7 +30,7 @@ describe('a text write goes on the queue', () => {
         jobs: [{ id: 'r', kind: state === 'running' ? 'enable' : 'reload', state, tail: [] }],
       }
       expect(await modsCommand(w.ports, rt, 'disable turn-band@fixtures --yes')).toEqual({
-        text: 'A job is running (the job log, j in /mods, shows it); try again when it ends.',
+        text: 'A job is running (the job log, q in /mods, shows it); try again when it ends.',
         exitCode: 1,
       })
     }

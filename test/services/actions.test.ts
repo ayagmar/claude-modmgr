@@ -222,7 +222,7 @@ describe('toggle → review → confirm → reload', () => {
     await act.confirm()
     await drain()
     await act.undo()
-    expect(w.state.values.view.notice).toBe('Undoing the last batch (1)')
+    expect(w.state.values.view.notice).toBe('Undo: turn turn-band back on')
     await drain()
     expect(w.process.calls.map(call => call.argv.slice(1).join(' '))).toContain(
       `plugin enable ${TURN_BAND} --scope user --json`,
@@ -306,8 +306,6 @@ describe('Esc (ui.close from the person)', () => {
   it('from a key beside the list, brings the ring back to the row and keeps the filter', async () => {
     const { w, act } = await setup()
     await act.filter('turn')
-    await act.toDetail()
-    expect(w.ui.focuses.at(-1)).toBe('modmgr:act:toggle')
     w.ui.keysToPrompt()
     expect(await act.closing('person', true, true)).toBe(true)
     expect(w.ui.focuses.at(-1)).toBe(`modmgr:row:${TURN_BAND}`)

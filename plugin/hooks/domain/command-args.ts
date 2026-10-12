@@ -3,6 +3,7 @@
 // can become a job; a write asks for `--yes`.
 
 import {
+  isPluginName,
   type PluginId,
   parsePluginId,
   parseSha256,
@@ -13,11 +14,14 @@ import {
 import { fail, ok, type Result } from './result.ts'
 import { sanitize } from './sanitize.ts'
 
+/** An installed mod as `/mods` names it: its id, or a name /mods resolves to one. */
+export type ModRef = string
+
 export type ModsCommand =
   | { readonly kind: 'open' }
   | { readonly kind: 'help' }
   | { readonly kind: 'list' }
-  | { readonly kind: 'info'; readonly id: PluginId }
+  | { readonly kind: 'info'; readonly id: ModRef }
   | {
       readonly kind: 'install'
       readonly id: PluginId
@@ -27,24 +31,25 @@ export type ModsCommand =
     }
   | {
       readonly kind: 'remove'
-      readonly id: PluginId
+      readonly id: ModRef
       readonly yes: boolean
       readonly wipe: boolean
     }
-  | { readonly kind: 'update'; readonly id?: PluginId; readonly yes: boolean }
-  | { readonly kind: 'enable' | 'disable'; readonly id: PluginId; readonly yes: boolean }
+  | { readonly kind: 'update'; readonly id?: ModRef; readonly yes: boolean }
+  | { readonly kind: 'enable' | 'disable'; readonly id: ModRef; readonly yes: boolean }
   | { readonly kind: 'doctor'; readonly json: boolean }
   | { readonly kind: 'export' }
   | { readonly kind: 'apply'; readonly file: string; readonly yes: boolean }
 
 export const USAGE = [
   'Usage: /mods                       open the dialog',
-  '       /mods list | info <id> | doctor [--json] | export',
+  '       /mods list | info <mod> | doctor [--json] | export',
   '       /mods install <id> [--scope user|project|local] [--accept-command <sha256>] --yes',
-  '       /mods remove <id> [--wipe-data] --yes',
-  '       /mods update [<id>] --yes',
-  '       /mods enable <id> --yes | disable <id> --yes',
+  '       /mods remove <mod> [--wipe-data] --yes',
+  '       /mods update [<mod>] --yes',
+  '       /mods enable <mod> --yes | disable <mod> --yes',
   '       /mods apply <file> --yes',
+  "<mod> is an installed mod's name, or its id (name@marketplace) as /mods list shows it.",
   'Writes run through the claude CLI; run /reload-plugins (or restart) to apply them.',
 ].join('\n')
 
@@ -70,6 +75,16 @@ const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   apply: ['--yes'],
   doctor: ['--json'],
 }
+
+const SUBCOMMANDS = new Set([
+  'help',
+  '--help',
+  'list',
+  'export',
+  'info',
+  'doctor',
+  ...Object.keys(ALLOWED),
+])
 
 /** Splits the words from the flags; an unknown flag or one missing its value is an error. */
 const flagsOf = (sub: string, tokens: readonly string[]): Result<Flags> => {
@@ -115,11 +130,20 @@ const idOf = (word: string | undefined): Result<PluginId> => {
   return id.ok ? id : fail('invalid', `not a plugin id: ${sanitize(word, { max: 80 })}`)
 }
 
+/** An installed mod's id, or its bare name (resolved once the mods are read). */
+const refOf = (word: string | undefined): Result<ModRef> => {
+  if (word === undefined) return fail('invalid', 'which mod? give its name or id, name@marketplace')
+  if (parsePluginId(word).ok || isPluginName(word)) return ok(word)
+  return fail('invalid', `not a mod name or id: ${sanitize(word, { max: 80 })}`)
+}
+
 /** What `/mods <args>` asks for, or why it can't be read. */
 export const parseModsArgs = (args: string): Result<ModsCommand> => {
   const tokens = args.trim() === '' ? [] : args.trim().split(/\s+/)
   const [sub, ...rest] = tokens
   if (sub === undefined) return ok({ kind: 'open' })
+  if (!SUBCOMMANDS.has(sub))
+    return fail('invalid', `unknown subcommand ${sanitize(sub, { max: 40 })}`)
   const flags = flagsOf(sub, rest)
   if (!flags.ok) return flags
   const { words, yes } = flags.value
@@ -138,23 +162,23 @@ export const parseModsArgs = (args: string): Result<ModsCommand> => {
     case 'doctor':
       return extra(0) ?? ok({ kind: 'doctor', json: flags.value.json })
     case 'info': {
-      const id = idOf(words[0])
+      const id = refOf(words[0])
       return extra(1) ?? (id.ok ? ok({ kind: 'info', id: id.value }) : id)
     }
     case 'enable':
     case 'disable': {
-      const id = idOf(words[0])
+      const id = refOf(words[0])
       return extra(1) ?? (id.ok ? ok({ kind: sub, id: id.value, yes }) : id)
     }
     case 'remove': {
-      const id = idOf(words[0])
+      const id = refOf(words[0])
       return (
         extra(1) ?? (id.ok ? ok({ kind: 'remove', id: id.value, yes, wipe: flags.value.wipe }) : id)
       )
     }
     case 'update': {
       if (words[0] === undefined) return ok({ kind: 'update', yes })
-      const id = idOf(words[0])
+      const id = refOf(words[0])
       return extra(1) ?? (id.ok ? ok({ kind: 'update', id: id.value, yes }) : id)
     }
     case 'install': {

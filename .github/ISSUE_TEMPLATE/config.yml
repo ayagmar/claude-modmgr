@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/ayagmar/claude-modmgr/security/advisories/new
+    about: Privately, as a security advisory, not in a public issue.

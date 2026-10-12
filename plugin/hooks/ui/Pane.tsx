@@ -23,16 +23,18 @@ import {
   stagedIds,
 } from '../domain/view.ts'
 import { Share, shareRows } from './Dev.tsx'
-import { GLYPH, HiddenRows, KeyButton, Rule, TONE, type ViewPorts } from './kit.tsx'
 import {
   type DrawnOverlay,
-  Help,
-  Jobs,
-  MarketplaceForm,
-  marketplaceRows,
-  Review,
-  Welcome,
-} from './overlays.tsx'
+  GLYPH,
+  HiddenRows,
+  KeyButton,
+  Lines,
+  Rule,
+  scrolled,
+  TONE,
+  type ViewPorts,
+} from './kit.tsx'
+import { Help, Jobs, MarketplaceForm, marketplaceRows, Review, Welcome } from './overlays.tsx'
 import { type Key, tabView } from './tabs.tsx'
 
 export type PaneFrame = {
@@ -109,7 +111,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   const split = layout === 'split'
   // Help, the job log and the welcome are about the whole dialog: they take the
   // whole body (beside the list, the welcome's key would lose the ring to a row).
-  const wide = top === 'help' || top === 'jobs' || top === 'welcome'
+  // So does a detail opened: in full, it scrolls where beside the list it was cut.
+  const wide = top === 'help' || top === 'jobs' || top === 'welcome' || top === 'detail'
   const showList = (split && !wide) || top === undefined
 
   // Health's items count on its tab's label whichever tab is shown.
@@ -189,9 +192,16 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   // painted before its label: `e: toggle`).
   const rightColumns =
     general.reduce((sum, key) => sum + key.label.length + 3 + 2, 0) + closeLabel.length
+  const footerColumns = Math.max(1, frame.bodyColumns - rightColumns - 2)
+  // A key too wide for what the footer leaves it draws its short label.
+  const footerKeys = keys.map(key =>
+    key.short !== undefined && key.label.length + 3 > footerColumns
+      ? { ...key, label: key.short }
+      : key,
+  )
   const footerRows = footerRowsFor(
-    [...keys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
-    Math.max(1, frame.bodyColumns - rightColumns - 2),
+    [...footerKeys.map(key => key.label.length + 3), ...(hint === undefined ? [] : [hint.length])],
+    footerColumns,
   )
   const boxedField = field !== undefined && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
@@ -259,10 +269,19 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     rows: listRows - card,
     columns: beside ? frame.bodyColumns - listColumns - 3 - card : frame.bodyColumns,
   }
-  // The review, help or welcome in the window it has, beside the list or over
-  // it; the page keys and the wheel scroll it.
+  // The review, help, welcome or an opened detail in the window it has, beside
+  // the list or over it; the page keys and the wheel scroll it.
   const at = scrolledAt(view, top)
   const whole = { rows: listRows, columns: frame.bodyColumns, at }
+  /** The detail opened: its full form however tall, its head kept as the rest scrolls. */
+  const openedDetail = (): DrawnOverlay => {
+    const { lines, head } = tab.detail({
+      readOnly,
+      rows: Number.POSITIVE_INFINITY,
+      columns: frame.bodyColumns,
+    })
+    return scrolled(v, lines, { head, foot: 0 }, whole)
+  }
   const drawn: DrawnOverlay | undefined =
     top === 'review' && review !== null
       ? Review(
@@ -276,7 +295,9 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? Help(v, helpSurfaces, NOT_YET, whole)
         : top === 'welcome'
           ? Welcome(v, whole)
-          : undefined
+          : top === 'detail'
+            ? openedDetail()
+            : undefined
   overlayLast = drawn?.last ?? 0
   if (drawn !== undefined) lastPage = drawn.page
   /** Rows the overlay on top draws, to clip it to the body (Jobs sizes itself). */
@@ -287,9 +308,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
         ? marketplaceRows
         : which === 'share'
           ? shareRows(devState.share, frame.bodyColumns)
-          : which === 'detail'
-            ? tab.detailRows(sized)
-            : 0
+          : 0
   /** A tall overlay, held to the body's rows so the footer stays in view. */
   const clipped = (element: RenderElement, height: number): RenderElement =>
     height <= listRows ? (
@@ -329,14 +348,12 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
           {...(terminal ? {} : { borderStyle: 'round', borderDimColor: true, paddingX: 1 })}
         >
           <Box flexDirection="column" flexShrink={0}>
-            {overlay(top) ?? tab.detail(sized)}
+            {overlay(top) ?? Lines(v, tab.detail(sized).lines)}
           </Box>
         </Box>
       </Box>
     ) : top === undefined ? (
       list
-    ) : top === 'detail' ? (
-      clipped(tab.detail(sized), overlayRows(top))
     ) : (
       clipped(overlay(top) ?? list, overlayRows(top))
     )
@@ -522,7 +539,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
       {Rule(v, frame.bodyColumns)}
       <Box flexDirection="row" justifyContent="space-between" columnGap={2}>
         <Box flexDirection="row" columnGap={2} flexWrap="wrap" flexShrink={1}>
-          {keys.map(button)}
+          {footerKeys.map(button)}
           {hint === undefined ? null : <Text color={TONE.warn}>{hint}</Text>}
         </Box>
         <Box flexDirection="row" columnGap={2} flexShrink={0}>

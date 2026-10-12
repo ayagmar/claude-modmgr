@@ -78,6 +78,24 @@ describe('registry.refresh', () => {
     expect(together).toBe(VALIDATE_CONCURRENCY)
   })
 
+  it('shows each mod on a first load as it is read, not after the slowest', async () => {
+    const { w, registry } = setup()
+    w.process.when(['validate'], argv =>
+      argv.at(-1)?.endsWith('/broken') ? { hang: true } : undefined,
+    )
+    const done = registry.refresh()
+    await settle(20)
+    expect(w.state.values.mods.map(row => row.name)).toEqual(
+      FIXTURE_MODS.filter(name => name !== 'broken'),
+    )
+    expect(w.state.values.detail?.name).toBe('quiet-bash')
+    expect(w.state.values.sync).toMatchObject({ refreshing: true, reading: 1 })
+    // The slow one gives out at its timeout: read as unread, the load over.
+    await w.clock.advance(120_000)
+    await done
+    expect(w.state.values.sync).toEqual({ refreshing: false, at: expect.any(Number), skipped: 1 })
+  })
+
   it('lists every installed mod however full the cache of analyses is', async () => {
     const { w, registry, store } = setup()
     await registry.refresh()

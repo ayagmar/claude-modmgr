@@ -218,8 +218,17 @@ describe('versions', () => {
     expect(compareVersions('2.1.292', '2.1.292')).toBe(0)
     expect(compareVersions('2.1.300', '2.1.292')).toBeGreaterThan(0)
     expect(compareVersions('2.0.999', '2.1.0')).toBeLessThan(0)
-    expect(compareVersions('2.1.292-dev', '2.1.292')).toBe(0)
+    expect(compareVersions('2.1.300 (Claude Code)', '2.1.292')).toBeGreaterThan(0)
     expect(compareVersions('dev', '2.1.292')).toBeUndefined()
+  })
+
+  it('offers a release over its prerelease, and reads a leading v', () => {
+    expect(compareVersions('1.2.0', '1.2.0-beta.1')).toBeGreaterThan(0)
+    expect(compareVersions('1.2.0-beta.2', '1.2.0-beta.10')).toBeLessThan(0)
+    expect(compareVersions('1.2.0-alpha', '1.2.0-alpha.1')).toBeLessThan(0)
+    expect(compareVersions('1.2.0-1', '1.2.0-alpha')).toBeLessThan(0)
+    expect(compareVersions('v1.2.0', '1.1.9')).toBeGreaterThan(0)
+    expect(compareVersions('1.2.0+build.5', '1.2.0')).toBe(0)
   })
 })
 

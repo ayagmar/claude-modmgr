@@ -128,7 +128,7 @@ test('without a claude CLI on PATH, modmgr stays read-only and says why', async 
     network: false,
     acceptCommand: false,
     reason:
-      "modmgr can't run the claude CLI here (spawn claude ENOENT); mods can be viewed, not changed",
+      "modmgr can't run the claude CLI here (spawn claude ENOENT); it can't read or change mods",
   })
   expect(h.argvs).toEqual(['--version'])
 })

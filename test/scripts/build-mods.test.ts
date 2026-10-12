@@ -5,9 +5,11 @@ import { describe, expect, it } from 'vitest'
 import type { CliRun } from '../../plugin/hooks/domain/cli-results.ts'
 import {
   COMMUNITY_URL,
+  COMMUNITY_V1_URL,
   type CommunityMod,
   communityText,
   parseCommunity,
+  V1_MAX_BYTES,
 } from '../../plugin/hooks/domain/community.ts'
 import {
   buildMods,
@@ -369,6 +371,10 @@ describe('metadata', () => {
 })
 
 describe('buildMods', () => {
+  const PUSHED = '2026-10-01T00:00:00Z'
+  const WEDNESDAY = Date.parse('2026-10-14T12:00:00Z')
+  const SUNDAY = Date.parse('2026-10-18T12:00:00Z')
+
   const found = (repo: string, extra: Partial<CommunityMod> = {}): CommunityMod => ({
     repo,
     path: '',
@@ -385,11 +391,18 @@ describe('buildMods', () => {
   })
 
   type World = {
-    previous?: string
+    /** Defaults to a weekday, when unchanged repositories keep their last word. */
+    now?: number
+    /** The version 1 file, read while no version 2 one is published. */
+    previousV1?: string
+    /** The published index; absent is a 404, `failed` any other failure. */
+    previous?: string | 'failed'
     seeds?: string
     catalogued?: string[]
     search?: (kind: string, query: string) => string[]
     meta?: Record<string, Record<string, unknown> | null>
+    /** Metadata queries that fail before they answer. */
+    graphqlFailures?: number
     inspect?: (repo: string) => CommunityMod[] | undefined
   }
 
@@ -402,6 +415,10 @@ describe('buildMods', () => {
         return { page: { total: repos.length, incomplete: false, repos } }
       },
       graphql: async query => {
+        if ((world.graphqlFailures ?? 0) > 0) {
+          world.graphqlFailures = (world.graphqlFailures ?? 0) - 1
+          return undefined
+        }
         const data: Record<string, unknown> = {}
         for (const match of query.matchAll(
           /r(\d+): repository\(owner: "([^"]+)", name: "([^"]+)"\)/g,
@@ -409,18 +426,30 @@ describe('buildMods', () => {
           const repo = `${match[2]}/${match[3]}`
           const meta = world.meta?.[repo]
           data[`r${match[1]}`] =
-            meta === null ? null : { nameWithOwner: repo, stargazerCount: 1, ...meta }
+            meta === null
+              ? null
+              : // A push after the one `found` records, unless the test says otherwise.
+                { nameWithOwner: repo, stargazerCount: 1, pushedAt: PUSHED, ...meta }
         }
         return data
       },
-      fetchText: async url =>
-        url === COMMUNITY_URL ? world.previous : url === SEEDS_URL ? world.seeds : undefined,
+      fetchText: async url => {
+        const text =
+          url === COMMUNITY_URL
+            ? world.previous
+            : url === COMMUNITY_V1_URL
+              ? world.previousV1
+              : url === SEEDS_URL
+                ? world.seeds
+                : undefined
+        return text === undefined ? 'missing' : text === 'failed' ? 'failed' : { text }
+      },
       inspect: async repo => {
         inspected.push(repo)
         return world.inspect === undefined ? [found(repo)] : world.inspect(repo)
       },
       catalogued: world.catalogued ?? [],
-      now: () => 20 * 24 * 60 * 60 * 1000,
+      now: () => world.now ?? WEDNESDAY,
       sleep: async () => {},
       log: line => logs.push(line),
     }
@@ -549,9 +578,94 @@ describe('buildMods', () => {
     expect('text' in result && parseCommunity(result.text).ok).toBe(true)
   })
 
-  it('starts fresh from an unreadable published index', async () => {
-    const { built, logs } = deps({ previous: '{', seeds: 'a/b' })
+  it('starts fresh only when no index is published', async () => {
+    const { built, logs } = deps({ seeds: 'a/b' })
     expect('text' in (await buildMods(built))).toBe(true)
-    expect(logs[0]).toBe('the published index is unreadable')
+    expect(logs[0]).toBe('no published index: starting fresh')
+  })
+
+  it("writes nothing when the published index can't be read, however the searches went", async () => {
+    // Without the last index, failing searches would publish a fraction of it.
+    for (const previous of ['failed', '{']) {
+      const { built, inspected } = deps({
+        previous,
+        seeds: 'a/b',
+        search: () => {
+          throw new Error('503')
+        },
+      })
+      expect(await buildMods(built)).toMatchObject({
+        refused: expect.stringMatching(/published index/),
+      })
+      expect(inspected).toEqual([])
+    }
+  })
+
+  it("keeps the last index's mods of repositories whose metadata couldn't be read", async () => {
+    const { built, logs } = deps({
+      previous: communityText(1, [found('old/mod', { stars: 3 })]),
+      graphqlFailures: 3,
+    })
+    const result = await buildMods(built)
+    expect(logs.join('\n')).toMatch(/metadata for 1 repositories failed/)
+    const parsed = 'text' in result ? parseCommunity(result.text) : undefined
+    expect(parsed?.ok && parsed.value.mods.map(mod => [mod.repo, mod.stars])).toEqual([
+      ['old/mod', 3],
+    ])
+  })
+
+  it('asks a failed metadata batch again before giving up on it', async () => {
+    const { built, inspected } = deps({ seeds: 'a/b', graphqlFailures: 2 })
+    expect('text' in (await buildMods(built))).toBe(true)
+    expect(inspected).toEqual(['a/b'])
+  })
+
+  it('starts from the version 1 file until a version 2 one is published', async () => {
+    const previousV1 = communityText(
+      1,
+      Array.from({ length: 10 }, (_, i) => found(`a/m${i}`)),
+      1,
+    )
+    const some = deps({ previousV1, inspect: repo => (repo === 'a/m0' ? [found(repo)] : []) })
+    expect(await buildMods(some.built)).toEqual({
+      refused: '1 mods against 10 last time: nothing written',
+    })
+  })
+
+  it('keeps an unchanged repository without cloning it, and reads every one on Sundays', async () => {
+    const pushed = Date.parse(PUSHED)
+    const previous = communityText(1, [
+      found('same/mod', { pushed, stars: 2, name: 'kept' }),
+      found('moved/mod', { pushed: pushed - 1 }),
+    ])
+    const weekday = deps({ previous })
+    const result = await buildMods(weekday.built)
+    const parsed = 'text' in result ? parseCommunity(result.text) : undefined
+    expect(weekday.inspected).toEqual(['moved/mod'])
+    // Its stars are today's; what it can do is what the last read found.
+    expect(parsed?.ok && parsed.value.mods.find(mod => mod.repo === 'same/mod')).toMatchObject({
+      name: 'kept',
+      stars: 1,
+    })
+    const sunday = deps({ previous, now: SUNDAY })
+    await buildMods(sunday.built)
+    expect(sunday.inspected.sort()).toEqual(['moved/mod', 'same/mod'])
+  })
+
+  it('publishes every mod however large the index, and a version 1 file older clients read whole', async () => {
+    // Multi-byte text: 10,000 of these pass the 4 MiB modmgr 0.4.0 reads.
+    const description = 'é'.repeat(150)
+    const repos = Array.from({ length: 10_000 }, (_, i) => `o/r${i}`)
+    const { built } = deps({
+      seeds: repos.join('\n'),
+      inspect: repo => [found(repo, { description, events: ['on'], calls: [repo] })],
+    })
+    const result = await buildMods(built)
+    if (!('text' in result)) throw new Error(result.refused)
+    const all = parseCommunity(result.text)
+    expect(all.ok && all.value.mods).toHaveLength(10_000)
+    expect(Buffer.byteLength(result.v1)).toBeLessThanOrEqual(V1_MAX_BYTES)
+    const v1 = parseCommunity(result.v1)
+    expect(v1.ok && v1.value.v).toBe(1)
   })
 })

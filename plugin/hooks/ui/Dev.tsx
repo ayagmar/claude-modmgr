@@ -16,18 +16,21 @@ import {
   testMark,
   validateMark,
 } from '../domain/dev.ts'
+import { hotkeyFor } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
+  type DetailLines,
   GLYPH,
   Heading,
   HiddenRows,
   KeyButton,
   LabelRow,
   ListButton,
+  line,
   Pointer,
   type Section,
-  Sections,
+  sectionLines,
   sectionRows,
   TONE,
   type ViewPorts,
@@ -56,7 +59,7 @@ const marksOf = (row: DevRow, how: DevHow): RunMark[] => {
   return marks
 }
 
-/** A dev row's Button: Enter opens the detail, or moves onto it beside the list. */
+/** A dev row's Button: its name; it opens the detail (`ListButton`). */
 const devButton = (
   v: ViewPorts,
   row: DevRow,
@@ -217,15 +220,16 @@ const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] =>
   const { path } = row
   const keys = [...(runs ? ['v: validate', 't: test'] : []), 'c: copy path', 'p: share'].join('  ')
   const head: Section = {
-    rows: 1 + wrappedRows([keys], how.columns),
-    el: (
-      <Box flexDirection="column">
+    lines: [
+      line(
         <Box flexDirection="row" gap={1}>
           <Text bold>{sanitize(row.name, { max: 64 })}</Text>
           <Text dimColor>
             {row.version === undefined ? '' : sanitize(row.version, { max: 20 })}
           </Text>
-        </Box>
+        </Box>,
+      ),
+      line(
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {runs
             ? KeyButton(v, {
@@ -255,62 +259,61 @@ const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] =>
             label: 'share',
             onPress: () => v.act.share(row.key),
           })}
-        </Box>
-      </Box>
-    ),
+        </Box>,
+        wrappedRows([keys], how.columns),
+      ),
+    ],
   }
   const shownPath = sanitize(path, { max: 300 })
   const said = [appliesOf(row.how), stopLoadingOf(row)].filter(
     (line): line is string => line !== undefined,
   )
   const source: Section = {
-    rows: 1 + wrappedRows([shownPath, ...said], how.columns),
-    el: (
-      <Box flexDirection="column">
-        {Heading(v, SECTION_LABEL[row.how])}
-        <Text>{shownPath}</Text>
-        {said.map((line, index) => (
+    lines: [
+      line(Heading(v, SECTION_LABEL[row.how])),
+      line(<Text>{shownPath}</Text>, wrappedRows([shownPath], how.columns)),
+      ...said.map((text, index) =>
+        line(
           <Text key={`said:${index}`} dimColor>
-            {line}
-          </Text>
-        ))}
-      </Box>
-    ),
+            {text}
+          </Text>,
+          wrappedRows([text], how.columns),
+        ),
+      ),
+    ],
   }
   const validate = lastRun(how.jobs, 'validate', row.path)
   const test = lastRun(how.jobs, 'test', row.path)
+  // The key that runs it, when one is drawn.
+  const notRun = (action: string) => {
+    const key = how.readOnly ? undefined : hotkeyFor(action, 'dev-detail')
+    return key === undefined ? 'not run yet' : `not run yet (${key})`
+  }
   const checks = [
-    runLines(v, 'Validate', validateMark(validate), 'not run yet (v)', validate),
-    runLines(v, 'Tests', testMark(test), 'not run yet (t)', test),
+    runLines(v, 'Validate', validateMark(validate), notRun('validate'), validate),
+    runLines(v, 'Tests', testMark(test), notRun('test'), test),
   ]
   const check: Section = {
-    rows: 1 + checks.reduce((sum, run) => sum + run.rows, 0),
-    el: (
-      <Box flexDirection="column">
-        {Heading(v, 'Checks')}
-        {checks.map(run => run.el)}
-      </Box>
-    ),
+    lines: [line(Heading(v, 'Checks')), ...checks.map(run => line(run.el, run.rows))],
   }
   return [head, source, check]
 }
 
-/** The rows the dev detail takes (Pane clips a taller one to the body). */
-export const devDetailRows = (v: ViewPorts, row: DevRow | undefined, how: DevDetailHow): number => {
-  if (row === undefined) return 1
-  const sections = devSections(v, row, how)
-  return sectionRows(sections, sectionRows(sections, true) <= how.rows)
-}
-
-export const DevDetail = (
+/** The dev detail's lines, blank rows apart where they fit, and its head's. */
+export const devDetailLines = (
   v: ViewPorts,
   row: DevRow | undefined,
   how: DevDetailHow,
-): RenderElement => {
+): DetailLines => {
   const { Text } = v.el
-  if (row === undefined) return <Text dimColor>Select a mod to see more.</Text>
+  if (row === undefined)
+    return { lines: [line(<Text dimColor>Select a mod to see more.</Text>)], head: 0 }
   const sections = devSections(v, row, how)
-  return Sections(v, sections, sectionRows(sections, true) <= how.rows)
+  const [head] = sections
+  return {
+    lines: sectionLines(v, sections, sectionRows(sections, true) <= how.rows),
+    head: head?.lines.length ?? 0,
+  }
 }
 
 /** The share overlay's lines of text. */

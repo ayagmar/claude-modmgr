@@ -34,6 +34,7 @@ import {
   summaryOf,
   titleOf,
   undoReview,
+  undoWords,
   updateReview,
   whyNoRemove,
   whyNoUpdate,
@@ -310,6 +311,23 @@ describe('update and remove', () => {
   })
 })
 
+describe('what undo says it would do', () => {
+  const undoes: Job = { id: 'j', kind: 'remove', state: 'ok', tail: [], target: 'gone@m' }
+  it('names its one step by the mod’s name, or counts its steps', () => {
+    expect(undoWords([{ spec: { kind: 'install', target: 'gone@m' }, undoes }], [])).toBe(
+      'reinstall gone',
+    )
+    expect(undoWords([{ spec: { kind: 'disable', target: 'b@m' }, undoes }], [row('b')])).toBe(
+      'turn b back off',
+    )
+    const two = [
+      { spec: { kind: 'enable', target: 'b@m' }, undoes },
+      { spec: { kind: 'remove', target: 'c@m' }, undoes },
+    ] as const
+    expect(undoWords(two, [])).toBe('undo 2 changes')
+  })
+})
+
 describe('the summary: band, status line and title agree', () => {
   const job = (more: Loose<Job>): Job =>
     ({
@@ -445,7 +463,7 @@ describe('the batch line for updates and removes', () => {
     expect(line([job('1', { kind: 'disable', unchanged: true })])).toBe('nothing needed changing')
     expect(
       line([job('1', { kind: 'disable' }), job('2', { kind: 'enable', unchanged: true })]),
-    ).toBe('1 change applied, 1 already so')
+    ).toBe('1 change applied, 1 unchanged')
   })
 })
 

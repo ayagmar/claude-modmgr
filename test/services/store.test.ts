@@ -72,6 +72,19 @@ describe('store.load', () => {
     expect(store.get('prefs').tab).toBe('health')
   })
 
+  it('adds a change made before the load finished to what was stored, not in place of it', async () => {
+    const old = { id: 'j1', kind: 'enable' as const, state: 'ok' as const, endedAt: 1 }
+    const w = world({ store: { history: { v: 1, data: [old] } } })
+    const store = createStore(w.ports)
+    // An early `/mods … --yes` finishing before the stored history came back.
+    const early = { id: 'j2', kind: 'disable' as const, state: 'ok' as const, endedAt: 2 }
+    store.update('history', history => [...history, early])
+    await store.load()
+    expect(store.get('history')).toEqual([old, early])
+    await store.flush()
+    expect(w.store.data.get('history')).toMatchObject({ data: [old, early] })
+  })
+
   it('keeps a value set while its key is being read, and writes that one', async () => {
     const w = world({
       store: { prefs: { v: 1, data: { tab: 'dev', sort: 'installs', firstRunDone: false } } },

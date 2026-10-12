@@ -14,7 +14,7 @@ import {
 } from '../domain/health.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { wrappedRows } from '../domain/view.ts'
-import { GLYPH, HiddenRows, Pointer, TONE, type ViewPorts } from './kit.tsx'
+import { type DetailLines, GLYPH, HiddenRows, line, Pointer, TONE, type ViewPorts } from './kit.tsx'
 
 const MARK: Readonly<Record<HealthTone, { readonly glyph: string; readonly tone: string }>> = {
   bad: { glyph: GLYPH.problem, tone: TONE.bad },
@@ -124,31 +124,42 @@ export const HealthList = (
   )
 }
 
-/** The rows the item's detail takes at `columns`. */
-export const healthDetailRows = (item: HealthItem | undefined, columns: number): number =>
-  item === undefined
-    ? 1
-    : 2 +
-      wrappedRows([sanitize(healthText(item), { max: 300 })], columns - 2) +
-      (item.fixLabel === undefined ? 0 : 2)
-
 /** The item Enter opened, in full: its words wrapped, its fix a button. */
-export const HealthItemDetail = (v: ViewPorts, item: HealthItem | undefined): RenderElement => {
+export const healthDetailLines = (
+  v: ViewPorts,
+  item: HealthItem | undefined,
+  columns: number,
+): DetailLines => {
   const { Box, Button, Text } = v.el
-  if (item === undefined) return <Text dimColor>{GLYPH.ok} Nothing needs you.</Text>
+  if (item === undefined)
+    return { lines: [line(<Text dimColor>{GLYPH.ok} Nothing needs you.</Text>)], head: 0 }
   const label = item.fixLabel
-  return (
-    <Box flexDirection="column">
-      <Text bold>{item.group}</Text>
-      <Text> </Text>
-      <Box flexDirection="row" gap={1}>
-        <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
-        <Text>{sanitize(healthText(item), { max: 300 })}</Text>
-      </Box>
-      {label === undefined ? null : <Text> </Text>}
-      {label === undefined ? null : (
-        <Button key="act:fix" plain label={`→ ${label}`} onPress={() => v.act.fix(item.key)} />
-      )}
-    </Box>
-  )
+  const said = sanitize(healthText(item), { max: 300 })
+  return {
+    lines: [
+      line(<Text bold>{item.group}</Text>),
+      line(<Text> </Text>),
+      line(
+        <Box flexDirection="row" gap={1}>
+          <Text color={MARK[item.tone].tone}>{MARK[item.tone].glyph}</Text>
+          <Text>{said}</Text>
+        </Box>,
+        wrappedRows([said], columns - 2),
+      ),
+      ...(label === undefined
+        ? []
+        : [
+            line(<Text> </Text>),
+            line(
+              <Button
+                key="act:fix"
+                plain
+                label={`→ ${label}`}
+                onPress={() => v.act.fix(item.key)}
+              />,
+            ),
+          ]),
+    ],
+    head: 0,
+  }
 }

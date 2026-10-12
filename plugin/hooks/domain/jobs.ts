@@ -71,7 +71,7 @@ export const enqueueBatch = (
 }
 
 /**
- * Queues a reload on its own (the band's `[l reload]`, after a refused one).
+ * Queues a reload on its own (the band's reload key, after a refused one).
  * A reload already queued or running is enough: nothing is added.
  */
 export const enqueueReload = (jobs: readonly Job[], id: string, batch: string): Job[] =>
@@ -225,9 +225,18 @@ export type UndoPlan =
   | { readonly kind: 'ready'; readonly batch: string; readonly steps: UndoStep[] }
   | { readonly kind: 'none'; readonly reason: string }
 
+/** Jobs that change no setting: a batch of only these is passed over by undo. */
+const SETTLES_NOTHING: ReadonlySet<Job['kind']> = new Set([
+  'reload',
+  'validate',
+  'test',
+  'marketplace-update',
+])
+
 /**
  * What `z` would do: invert the newest batch that did something, newest job
- * first. A batch of reloads alone is skipped (it changed no setting).
+ * first. A batch that changed no setting (reloads, Dev's validate and test,
+ * the update checker's marketplace refresh) is skipped.
  */
 export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
   const seen = new Set<string>()
@@ -235,7 +244,7 @@ export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
     const batch = jobs[i]?.batch
     if (batch === undefined || seen.has(batch)) continue
     seen.add(batch)
-    const members = jobs.filter(job => job.batch === batch && job.kind !== 'reload')
+    const members = jobs.filter(job => job.batch === batch && !SETTLES_NOTHING.has(job.kind))
     if (members.length === 0) continue
     if (members.some(isActive)) return { kind: 'none', reason: 'The last batch is still running' }
     const steps = members.flatMap(job => {
@@ -243,12 +252,16 @@ export const undoPlan = (jobs: readonly Job[]): UndoPlan => {
       return spec === undefined ? [] : [{ spec, undoes: job }]
     })
     if (steps.length > 0) return { kind: 'ready', batch, steps: steps.reverse() }
-    return members.some(job => job.kind === 'update' && job.state === 'ok' && !job.unchanged)
-      ? {
-          kind: 'none',
-          reason: "An update can't be undone: the CLI can't install an older version",
-        }
-      : { kind: 'none', reason: 'The last batch changed nothing to undo' }
+    const did = (kind: Job['kind']) =>
+      members.some(job => job.kind === kind && job.state === 'ok' && !job.unchanged)
+    if (did('update'))
+      return {
+        kind: 'none',
+        reason: "An update can't be undone: the CLI can't install an older version",
+      }
+    if (did('marketplace-add'))
+      return { kind: 'none', reason: "Adding a marketplace can't be undone here" }
+    return { kind: 'none', reason: 'The last batch changed nothing to undo' }
   }
   return { kind: 'none', reason: 'Nothing to undo' }
 }

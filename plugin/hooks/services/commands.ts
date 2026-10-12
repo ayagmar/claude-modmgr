@@ -7,7 +7,7 @@
 // with how to apply what changed.
 
 import type { Job, ModRow } from '../../types/index.d.ts'
-import { parseModsArgs, USAGE } from '../domain/command-args.ts'
+import { type ModRef, parseModsArgs, USAGE } from '../domain/command-args.ts'
 import {
   type ApplyStep,
   applyPlan,
@@ -28,6 +28,7 @@ import {
   prune,
   start,
 } from '../domain/jobs.ts'
+import { hotkeyFor } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import {
   commandLine,
@@ -41,7 +42,7 @@ import {
   updateReview,
 } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
-import { historyOf, runJob } from './job-runner.ts'
+import { failed, historyOf, type Outcome, runJob } from './job-runner.ts'
 import type { Runtime } from './runtime.ts'
 
 export type CommandAnswer = { text?: string; exitCode?: number }
@@ -101,7 +102,17 @@ export const modsCommand = async (
     exitCode === 0
       ? { text: [...said, text].join('\n') }
       : { text: [...said, text].join('\n'), exitCode }
-  const rowOf = (id: string): ModRow | undefined => mods.find(row => row.id === id)
+  // The installed mod a ref names: its id, or a name exactly one installed mod has.
+  const rowOf = (ref: ModRef): ModRow | string => {
+    const byId = mods.find(row => row.id === ref)
+    if (byId !== undefined) return byId
+    const shown = sanitize(ref, { max: 130 })
+    if (ref.includes('@')) return `${shown} is not an installed mod.`
+    const named = mods.filter(row => row.name === ref)
+    if (named.length === 1 && named[0] !== undefined) return named[0]
+    if (named.length === 0) return `No installed mod is named ${shown}; /mods list shows their ids.`
+    return `${named.length} installed mods are named ${shown}: give one of ${named.map(row => row.id).join(', ')}.`
+  }
   if (!rt.registry.isLoaded()) {
     const why = sync.error?.message ?? 'the claude CLI did not answer'
     return answer(`Couldn't read your plugins: ${sanitize(why, { max: 300 })}`, 1)
@@ -112,11 +123,12 @@ export const modsCommand = async (
     case 'list':
       return answer(listText(mods, { skipped: sync.skipped }))
     case 'info': {
-      const detail = await rt.registry.detail(command.id)
-      if (detail === undefined) return answer(`${command.id} is not an installed mod.`, 1)
       const row = rowOf(command.id)
+      if (typeof row === 'string') return answer(row, 1)
+      const detail = await rt.registry.detail(row.id)
+      if (detail === undefined) return answer(`${row.id} is not an installed mod.`, 1)
       return answer(
-        infoText(row?.updateTo === undefined ? detail : { ...detail, updateTo: row.updateTo }),
+        infoText(row.updateTo === undefined ? detail : { ...detail, updateTo: row.updateTo }),
       )
     }
     case 'doctor': {
@@ -156,7 +168,7 @@ export const modsCommand = async (
     case 'enable':
     case 'disable': {
       const row = rowOf(command.id)
-      if (row === undefined) return answer(`${command.id} is not an installed mod.`, 1)
+      if (typeof row === 'string') return answer(row, 1)
       const why = whyNot(command.kind, row)
       if (why !== undefined) return answer(`${sanitize(row.name, { max: 40 })}: ${why}`, 1)
       if (command.kind === 'remove') {
@@ -175,12 +187,15 @@ export const modsCommand = async (
         command.id === undefined ? mods.filter(row => whyNot('update', row) === undefined) : []
       if (command.id !== undefined) {
         const row = rowOf(command.id)
-        if (row === undefined) return answer(`${command.id} is not an installed mod.`, 1)
+        if (typeof row === 'string') return answer(row, 1)
         const why = whyNot('update', row)
         if (why !== undefined) return answer(`${sanitize(row.name, { max: 40 })}: ${why}`, 1)
         rows.push(row)
       }
-      if (rows.length === 0) return answer('None of these mods updates through the CLI.')
+      if (rows.length === 0)
+        return answer(
+          mods.length === 0 ? 'No mods installed.' : 'None of these mods updates through the CLI.',
+        )
       specs = specsOf(updateReview(rows))
       break
     }
@@ -197,7 +212,10 @@ export const modsCommand = async (
       const plan = applyPlan(text, mods)
       // A file it can't use is a refused run, not a usage error.
       if (plan.errors.length > 0) return answer(plan.errors.join('\n'), 1)
-      if (plan.steps.length === 0) return answer(`Nothing to do: ${plan.already} already so.`)
+      if (plan.steps.length === 0)
+        return answer(
+          `Nothing to do: ${plan.already === 1 ? 'its mod is' : `its ${plan.already} mods are`} already as the file says.`,
+        )
       specs = plan.steps.map(stepSpec)
       break
     }
@@ -209,7 +227,7 @@ export const modsCommand = async (
   const jobs = await runWrites(ports, rt, specs)
   if (jobs === 'busy') {
     return answer(
-      'A job is running (the job log, j in /mods, shows it); try again when it ends.',
+      `A job is running (the job log, ${hotkeyFor('jobs', 'pane')} in /mods, shows it); try again when it ends.`,
       1,
     )
   }
@@ -261,27 +279,40 @@ const runWrites = async (
   if (refused !== undefined) return refused
   rt.chrome.schedule()
   for (const [index, job] of planned.entries()) {
-    const outcome = await runJob(ports, job, async id => rt.registry.entry(id) !== undefined)
-    const endedAt = await ports.clock.now()
     const next = planned[index + 1]
+    // Cancelled from the job log while it waited: skipped, and the next one starts.
+    const cancelled =
+      (await ports.state.read('queue')).jobs.find(queued => queued.id === job.id)?.state ===
+      'cancelled'
+    let outcome: Outcome | undefined
+    if (!cancelled) {
+      try {
+        outcome = await runJob(ports, job, async id => rt.registry.entry(id) !== undefined)
+      } catch (error) {
+        // Never left running: a job stuck there makes every later write answer "busy".
+        outcome = failed({ kind: 'unavailable', message: String(error) })
+      }
+    }
+    const endedAt = await ports.clock.now()
     let owned = false
     await ports.state.update('queue', queue => {
       owned = queue.owner === rt.owner
       // A newer module took the queue over mid-write: it has settled this batch.
       if (!owned) return queue
-      const finished = finish(
-        appendTail(queue.jobs, job.id, outcome.tail),
-        job.id,
-        endedAt,
-        outcome.finish,
-      )
+      const finished =
+        outcome === undefined
+          ? queue.jobs
+          : finish(appendTail(queue.jobs, job.id, outcome.tail), job.id, endedAt, outcome.finish)
       return {
         ...queue,
         jobs: prune(next === undefined ? finished : start(finished, next.id, endedAt)),
       }
     })
     if (!owned) break
-    rt.store.update('history', history => [...history, historyOf(job, endedAt, outcome)])
+    if (outcome !== undefined) {
+      const done = outcome
+      rt.store.update('history', history => [...history, historyOf(job, endedAt, done)])
+    }
   }
   const jobs = (await ports.state.read('queue')).jobs.filter(job => ids.has(job.id))
   if (

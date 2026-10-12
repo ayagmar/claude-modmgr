@@ -4,10 +4,12 @@ import {
   type CommunityMod,
   communityKey,
   communityText,
+  communityV1Text,
   isProjectMod,
   isRepo,
   isRepoPath,
   parseCommunity,
+  V1_MAX_BYTES,
 } from '../../plugin/hooks/domain/community.ts'
 
 const SHA = 'a'.repeat(40)
@@ -28,7 +30,7 @@ const mod = (extra: Partial<CommunityMod> = {}): CommunityMod => ({
 })
 
 const file = (mods: unknown[], more: Record<string, unknown> = {}): string =>
-  JSON.stringify({ v: 1, at: 5, words: ['ui.render', 'ui.status'], mods, ...more })
+  JSON.stringify({ v: 2, at: 5, words: ['ui.render', 'ui.status'], mods, ...more })
 
 const raw = (extra: Record<string, unknown> = {}) => ({
   repo: 'alice/mods',
@@ -63,7 +65,7 @@ describe('the community index', () => {
     expect(text.match(/"ui\.render"/g)).toHaveLength(1)
     expect(parseCommunity(text)).toEqual({
       ok: true,
-      value: { v: 1, at: 7, mods: [mods[1], mods[0]] },
+      value: { v: 2, at: 7, mods: [mods[1], mods[0]] },
     })
   })
 
@@ -84,7 +86,7 @@ describe('the community index', () => {
   it.each([
     ['not JSON', '{'],
     ['not an object', '[]'],
-    ['another version', file([], { v: 2 })],
+    ['another version', file([], { v: 3 })],
     ['no build time', file([], { at: -1 })],
     ['no words', file([], { words: 'x' })],
     ['a word too long', file([], { words: ['w'.repeat(101)] })],
@@ -109,13 +111,38 @@ describe('the community index', () => {
     expect(parseCommunity(text).ok).toBe(false)
   })
 
-  it('refuses a body past its cap before parsing it, and too many mods', () => {
+  it('refuses a body past its cap before parsing it', () => {
     expect(parseCommunity(' '.repeat(COMMUNITY_MAX_BYTES + 1))).toMatchObject({
       ok: false,
       error: { message: 'the community index is too large' },
     })
+  })
+
+  it('reads every mod of a large index, and the version 1 file an older build left', () => {
     const many = Array.from({ length: 20_001 }, (_, i) => raw({ path: `p${i}` }))
-    expect(parseCommunity(file(many)).ok).toBe(false)
+    const parsed = parseCommunity(file(many))
+    expect(parsed.ok && parsed.value.mods).toHaveLength(20_001)
+    expect(parseCommunity(file([raw()], { v: 1 })).ok).toBe(true)
+  })
+
+  it('keeps the most-starred mods that fit what modmgr 0.4.0 reads in the version 1 file', () => {
+    // Multi-byte text: counted in UTF-8 bytes, 10,000 of these pass 4 MiB.
+    const description = 'é'.repeat(150)
+    const mods = Array.from({ length: 10_000 }, (_, i) =>
+      mod({ repo: `o/r${i}`, path: '', stars: i, description }),
+    )
+    const text = communityV1Text(1, mods)
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(V1_MAX_BYTES)
+    expect(JSON.parse(text).v).toBe(1)
+    const parsed = parseCommunity(text)
+    if (!parsed.ok) throw new Error(parsed.error.message)
+    const kept = parsed.value.mods
+    expect(kept.length).toBeGreaterThan(5_000)
+    expect(kept.length).toBeLessThan(10_000)
+    // The ones left out are the least starred.
+    expect(kept.at(-1)?.stars).toBe(10_000 - kept.length)
+    // A small index fits whole.
+    expect(parseCommunity(communityV1Text(1, mods.slice(0, 3))).ok && 3).toBe(3)
   })
 
   it("tells a project's own mod from a published one by its .claude folder", () => {

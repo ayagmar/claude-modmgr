@@ -61,7 +61,7 @@ export const createHealth = (
     const entries = await ports.fs.list(folder).catch(() => [])
     if (!entries.some(entry => entry.name === name)) return none
     const path = joinPath(folder, name)
-    // Past 4 MiB the engine won't read it in one piece: say so, never "nothing failed".
+    // Past 4 MiB (or unreadable) the engine won't read it: say so, never "nothing failed".
     const text = await ports.fs.read(path).catch(() => undefined)
     return text === undefined
       ? { log: { state: 'too-big', path }, failures: {} }

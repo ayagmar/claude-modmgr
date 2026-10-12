@@ -6,7 +6,11 @@
 
 import { readFileSync } from 'node:fs'
 import { capabilitiesOf } from '../../../plugin/hooks/domain/capabilities.ts'
-import { COMMUNITY_URL, parseCommunity } from '../../../plugin/hooks/domain/community.ts'
+import {
+  COMMUNITY_URL,
+  COMMUNITY_V1_URL,
+  parseCommunity,
+} from '../../../plugin/hooks/domain/community.ts'
 import { type Data, NOTABLE_BITS, REACH_BITS, type Row } from './search.ts'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -30,15 +34,17 @@ const CHECK = { passed: 0, warnings: 1, failed: 2 } as const
 
 let loaded: Promise<Data> | undefined
 
+/** The full index; the version 1 file only until the first full one is published. */
+const published = async (): Promise<string> => {
+  let response = await fetch(COMMUNITY_URL)
+  if (response.status === 404) response = await fetch(COMMUNITY_V1_URL)
+  if (!response.ok) throw new Error(`${response.url} answered ${response.status}`)
+  return response.text()
+}
+
 const read = async (): Promise<Data> => {
   const path = process.env.MODS_INDEX
-  const text =
-    path !== undefined && path !== ''
-      ? readFileSync(path, 'utf8')
-      : await fetch(COMMUNITY_URL).then(response => {
-          if (!response.ok) throw new Error(`${COMMUNITY_URL} answered ${response.status}`)
-          return response.text()
-        })
+  const text = path !== undefined && path !== '' ? readFileSync(path, 'utf8') : await published()
   const parsed = parseCommunity(text)
   if (!parsed.ok) throw new Error(`the community index is unusable: ${parsed.error.message}`)
   const rows = parsed.value.mods.map((mod): Row => {

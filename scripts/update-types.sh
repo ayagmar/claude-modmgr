@@ -43,4 +43,5 @@ else
 fi
 echo "vendored $version → ${dest#"$repo/"}/claude-code.d.ts"
 echo "next: diff against the previous version, update tsconfig includes, CI's CLAUDE_CODE_VERSION, and"
-echo "      the version in scripts/gen-explanations.ts; then run node scripts/gen-explanations.ts"
+echo "      the version in scripts/gen-explanations.ts; then run node scripts/gen-explanations.ts, and"
+echo "      git rm the previous version's folder once nothing refers to it"

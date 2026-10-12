@@ -200,72 +200,98 @@ export const createRegistry = (
       const key = analysisKey(entry)
       return key !== undefined && cache[key] === undefined
     })
-    const fresh = await mapLimit(misses, VALIDATE_CONCURRENCY, entry => analyse(cli, entry, now))
-
     // This refresh's analyses decide its rows: the cache keeps a bounded share
     // for the next one, and what storing evicts is still listed now.
     const read = new Map<string, Analysis>()
+    const rowsNow = () => {
+      const rows: ModRow[] = []
+      const sightings: CapsSighting[] = []
+      const current = new Map<string, Analysis>()
+      let unread = 0
+      for (const entry of listed.value.items) {
+        const key = analysisKey(entry)
+        const analysis = key === undefined ? undefined : (read.get(key) ?? cache[key])
+        if (key === undefined || analysis === undefined) {
+          unread += 1
+          continue
+        }
+        current.set(key, analysis)
+        if (!analysis.mod) continue
+        const to = updateTo(store.get('updates'), entry)
+        rows.push(
+          to === undefined ? modRow(entry, analysis) : { ...modRow(entry, analysis), updateTo: to },
+        )
+        const { notable } = capabilitiesOf(analysis)
+        sightings.push({ id: entry.id, version: runningVersion(entry) ?? '?', notable })
+      }
+      return { rows, sightings, current, unread }
+    }
+    /** Writes the rows and the detail of the row shown selected. */
+    const show = async (mods: ModRow[], current: Map<string, Analysis>): Promise<void> => {
+      entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
+      analyses = current
+      await ports.state.update('mods', () => mods)
+      // The detail is the row shown selected: a dialog opened on its first row,
+      // the selection never moved, still has one. Read last, so a move made
+      // while this refresh ran is the one shown.
+      const latest = await ports.state.read('view')
+      await writeDetail(selectedRow(latest, mods)?.id)
+    }
+
+    // A first load shows each mod as its analysis lands, not after the slowest
+    // one: what is read so far, and how many plugins are still being read.
+    const firstLoad = !loaded && misses.length > 0
+    let left = misses.length
+    let shown = Promise.resolve()
+    const progress = () => {
+      shown = shown.then(async () => {
+        const sofar = rowsNow()
+        await show(sortRows(sofar.rows).map(withNews), sofar.current)
+        await ports.state.update('sync', sync => ({ ...sync, reading: left }))
+      })
+      return shown
+    }
+    if (firstLoad) await progress()
+    await mapLimit(misses, VALIDATE_CONCURRENCY, async entry => {
+      const analysis = await analyse(cli, entry, now)
+      const key = analysisKey(entry)
+      if (analysis !== undefined && key !== undefined) read.set(key, analysis)
+      left -= 1
+      if (firstLoad) await progress()
+    })
+    await shown
+
     let validate = store.get('validate')
-    for (const [index, entry] of misses.entries()) {
-      const analysis = fresh[index]
-      const key = analysisKey(entry)
-      if (analysis !== undefined && key !== undefined) {
-        read.set(key, analysis)
-        validate = lruSet(validate, key, analysis, CAPS.validate)
-      }
-    }
-    const rows: ModRow[] = []
-    const sightings: CapsSighting[] = []
-    const current = new Map<string, Analysis>()
-    let unread = 0
-    for (const entry of listed.value.items) {
-      const key = analysisKey(entry)
-      const analysis = key === undefined ? undefined : (read.get(key) ?? cache[key])
-      if (key === undefined || analysis === undefined) {
-        unread += 1
-        continue
-      }
-      current.set(key, analysis)
-      validate = lruTouch(validate, key)
-      if (!analysis.mod) continue
-      const to = updateTo(store.get('updates'), entry)
-      rows.push(
-        to === undefined ? modRow(entry, analysis) : { ...modRow(entry, analysis), updateTo: to },
-      )
-      const { notable } = capabilitiesOf(analysis)
-      sightings.push({ id: entry.id, version: runningVersion(entry) ?? '?', notable })
-    }
+    for (const [key, analysis] of read) validate = lruSet(validate, key, analysis, CAPS.validate)
+    const { rows, sightings, current, unread } = rowsNow()
+    for (const key of current.keys()) validate = lruTouch(validate, key)
     // Written only when something was analysed: each `$.store.set` rewrites the file.
     // Installed entries are touched in that write, so a cache hit can't be evicted before them.
-    if (fresh.some(Boolean)) store.set('validate', validate)
+    if (read.size > 0) store.set('validate', validate)
     const history = recordCaps(store.get('capsHistory'), sightings)
     if (history.changed) store.set('capsHistory', history.history)
-    entries = new Map(listed.value.items.map(entry => [entry.id, entry]))
-    analyses = current
-    loaded = true
 
     const mods = sortRows(rows).map(withNews)
     const skipped = listed.value.skipped + unread
     const [before, view] = await Promise.all([ports.state.read('mods'), ports.state.read('view')])
     // The row shown selected stays so when a new one sorts above it (found live in Dev);
     // written only when it moves, since a view write redraws the pane.
-    // Not under a filter: the first row it shows isn't what the person picked.
-    const shown =
-      view.selected === undefined && view.query === '' ? selectedRow(view, before)?.id : undefined
-    if (shown !== undefined) {
+    // Not under a filter: the first row it shows isn't what the person picked,
+    // nor while a first load fills the list.
+    const pinned =
+      view.selected === undefined && view.query === '' && !firstLoad
+        ? selectedRow(view, before)?.id
+        : undefined
+    if (pinned !== undefined) {
       await ports.state.update('view', current =>
-        current.selected === undefined ? { ...current, selected: shown } : current,
+        current.selected === undefined ? { ...current, selected: pinned } : current,
       )
     }
-    await ports.state.update('mods', () => mods)
-    // The detail is the row shown selected: a dialog opened on its first row,
-    // the selection never moved, still has one. Read last, so a move made
-    // while this refresh ran is the one shown.
-    const latest = await ports.state.read('view')
-    await writeDetail(selectedRow(latest, mods)?.id)
+    loaded = true
+    await show(mods, current)
     await writeNews(mods)
     await ports.state.update('sync', () => ({ refreshing: false, at: now, skipped }))
-    return ok({ mods: mods.length, analysed: fresh.filter(Boolean).length, skipped })
+    return ok({ mods: mods.length, analysed: read.size, skipped })
   }
 
   const attempt = async (cli: CliPorts): Promise<Result<RefreshSummary>> => {

@@ -4,6 +4,7 @@ import {
   COMMUNITY_MAX_BYTES,
   COMMUNITY_URL,
   type CommunityMod,
+  communityNote,
   communityText,
 } from '../../plugin/hooks/domain/community.ts'
 import { INITIAL_VIEW } from '../../plugin/hooks/domain/state.ts'
@@ -92,17 +93,17 @@ describe('the community index service', () => {
   })
 
   it('reads the file beside an index being tried out, every time', async () => {
-    expect(trialUrl('http://127.0.0.1:8765/v1.json')).toBe('http://127.0.0.1:8765/mods-v1.json')
+    expect(trialUrl('http://127.0.0.1:8765/v1.json')).toBe('http://127.0.0.1:8765/mods-v2.json')
     expect(trialUrl('file:///v1.json')).toBeUndefined()
     expect(trialUrl(undefined)).toBeUndefined()
     const w = world({ env: { MODMGR_INDEX_URL: 'http://127.0.0.1:8765/v1.json' } })
-    publish(w, [mod('alice/band')], 'http://127.0.0.1:8765/mods-v1.json')
+    publish(w, [mod('alice/band')], 'http://127.0.0.1:8765/mods-v2.json')
     const community = createCommunity(w.ports, { allowed: async () => true })
     await community.read()
     await community.read()
     expect(w.http.gets).toEqual([
-      'http://127.0.0.1:8765/mods-v1.json',
-      'http://127.0.0.1:8765/mods-v1.json',
+      'http://127.0.0.1:8765/mods-v2.json',
+      'http://127.0.0.1:8765/mods-v2.json',
     ])
   })
 })
@@ -177,6 +178,38 @@ describe('Discover with community mods', () => {
     await w.state.update('view', view => ({ ...view, mine: false }))
     await catalog.show()
     expect(await ids()).toContain('github.com/alice/band')
+  })
+
+  it("says when GitHub's mods couldn't be read, and reads them again at once when asked", async () => {
+    const w = world()
+    fixtureCli(w.process)
+      .when(['list', '--json', '--available'], out(runs['list-available'].stdout))
+      .when(['marketplace', 'list'], out(runs['marketplace-list'].stdout))
+    w.http.answers.set(COMMUNITY_URL, { throws: 'offline' })
+    const store = createStore(w.ports)
+    await store.load()
+    const community = createCommunity(w.ports, { allowed: async () => true })
+    const catalog = createCatalog(w.ports, store, undefined, undefined, community)
+    await w.state.update('view', () => ({ ...INITIAL_VIEW, tab: 'discover' }))
+    await catalog.load()
+    const page = () => w.state.read('catalogPage')
+    expect((await page()).communityNote).toBe("GitHub's mods couldn't be read · r tries again")
+    publish(w, [mod('alice/band')])
+    // A forced read on its own (a marketplace added) waits out the hour.
+    await catalog.load({ force: true })
+    expect((await page()).community).toBe(0)
+    await catalog.load({ force: true, retry: true })
+    expect(await page()).toMatchObject({ community: 1 })
+    expect((await page()).communityNote).toBeUndefined()
+  })
+
+  it('says how old the index is once its daily builds have stopped', async () => {
+    const day = 24 * 60 * 60 * 1000
+    expect(communityNote({ file: { at: 0 }, failing: false }, 3 * day)).toBeUndefined()
+    expect(communityNote({ file: { at: 0 }, failing: true }, 5 * day)).toBe(
+      "GitHub's mods as of 5 days ago",
+    )
+    expect(communityNote({ failing: false }, 0)).toBeUndefined()
   })
 
   it('searches community mods by name, description and repository', async () => {

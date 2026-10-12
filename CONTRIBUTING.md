@@ -9,10 +9,12 @@
   - `hooks/domain/`: pure TypeScript, no `$`, no I/O. Tested with vitest under Node.
   - `hooks/services/`: `$`-free logic over ports. Tested with vitest and fake ports.
   - `hooks/ui/`: render functions over `ViewPorts` (elements, state reads, actions).
-  - `tests/`: `claude plugin test` files for wiring, dispatch rules and UI on surfaces.
 - `test/`: vitest tests (domain, services, layering, keymap, benchmarks), fixtures as `.ts` modules
   (`scripts/capture-fixtures.sh` regenerates them from the real CLI), and `fixture-mods/`, a small marketplace of mods.
-- `vendor/claude-code-types/<version>/`: the Claude Code API declarations modmgr is built against.
+  `test/plugin/tests/` holds the `claude plugin test` files (wiring, dispatch rules, UI on surfaces), kept out of
+  `plugin/` so they don't ship; `pnpm test:plugin` runs them from a copy of `plugin/`.
+- `vendor/claude-code-types/<version>/`: the Claude Code API declarations modmgr is built against (Anthropic's,
+  not under this repository's license; see its README).
 - `site/`: the landing page (Astro, static). Its demo frames (`site/src/data/demo.ts`) are drawn by `ui/Pane.tsx`.
 - `docs/`: security and performance notes.
 
@@ -41,7 +43,7 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 - **Domain** (`test/domain/`): pure functions, table-driven, fixtures from the real CLI.
 - **Services** (`test/services/`): vitest over fake ports (`fakes.ts`: a clock that moves only when told, a store with
   the engine's 4 MiB limit, in-memory state, and a scripted CLI; `cli-world.ts` answers from the captured fixtures).
-- **Plugin** (`plugin/tests/`): `claude plugin test` against the real engine. Every `$` call needs an answer beneath the
+- **Plugin** (`test/plugin/tests/`): `claude plugin test` against the real engine. Every `$` call needs an answer beneath the
   plugin; `harness.ts` plays that host (state with versions, a fake CLI, `mock.clock`/`store`/`env`). A test makes a
   call reject with `{ deny }` (a throwing test hook is skipped), and observes store writes through `h.stored(key)`.
 
@@ -49,7 +51,7 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 
 - `plugin/hooks/domain/explanations.ts`: `pnpm explanations` (from the vendored d.ts; a test fails when stale).
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
-- `plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
+- `test/plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
 - `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site and the README; a test fails when stale).
 - The catalogue index (not in the tree): `node scripts/build-index.ts <out.json>` on a throwaway config dir;
   `.github/workflows/index.yml` runs it daily and force-pushes it to the `catalog-index` branch. To try one before
@@ -60,10 +62,13 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
   python3 -m http.server 8765 --directory /tmp/index &
   MODMGR_INDEX_URL=http://127.0.0.1:8765/v1.json claude --plugin-dir ./plugin
   ```
-- The community index (not in the tree): `GITHUB_TOKEN=$(gh auth token) node scripts/build-mods.ts <dir>/mods-v1.json`
+- The community index (not in the tree): `GITHUB_TOKEN=$(gh auth token) node scripts/build-mods.ts <dir>/mods-v2.json`
   (about half an hour; it clones every candidate repository into a temporary folder and validates each mod there).
-  `index.yml` publishes it beside `v1.json`; a client pointed at `MODMGR_INDEX_URL` reads `mods-v1.json` from the same
-  folder.
+  `index.yml` publishes it beside `v1.json`; a client pointed at `MODMGR_INDEX_URL` reads `mods-v2.json` from the same
+  folder. The build writes nothing when the published index can't be read (anything but a 404), when it would drop
+  more than a fifth of the mods. It also writes `mods-v1.json` beside it: the most-starred mods that fit the 4 MiB
+  modmgr 0.4.0 and older read. A repository not pushed since the last index keeps its entries without a clone,
+  except on Sundays (UTC), when every repository is read again.
 - A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
 
 ## Toolchain notes
@@ -80,7 +85,7 @@ pnpm site                    # build site/ and check its links and weight
 pnpm --filter modmgr-site dev
 ```
 
-The page's mod search is built from the published community index (`mods-v1.json`); `MODS_INDEX=<file>` builds it
+The page's mod search is built from the published community index (`mods-v2.json`); `MODS_INDEX=<file>` builds it
 from a local one instead (the output of `scripts/build-mods.ts`). A build that can read neither fails. CI builds the
 page from `test/site/fixtures/mods-v1.json`, 120 made-up mods, so the gate never waits on the published index; only
 the Pages deploy reads the real one.
@@ -90,7 +95,8 @@ the Pages deploy reads the real one.
 1. Move `CHANGELOG.md`'s `[Unreleased]` entries under `## [x.y.z] - <date>`.
 2. Set the `version` in `plugin/.claude-plugin/plugin.json`, and commit.
 3. `claude plugin tag plugin --dry-run`, then `claude plugin tag plugin --push`: the tag is `modmgr--v<version>`.
-4. The tag runs `.github/workflows/release.yml`: the gate again, then a GitHub release with that CHANGELOG section.
+4. The tag runs `.github/workflows/release.yml`: it refuses a tag that doesn't match `plugin.json`'s version, runs
+   the gate again, then makes a GitHub release with that CHANGELOG section.
 5. In the marketplace, [ayagmar/claude-mods](https://github.com/ayagmar/claude-mods), set modmgr's `ref` to the new
    tag: installs and updates follow it, never `main`.
 

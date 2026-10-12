@@ -11,7 +11,7 @@
       "!vendor",
       "!test/fixture-mods",
       "!plugin/hooks/domain/explanations.ts",
-      "!plugin/tests/fixtures.ts",
+      "!test/plugin/tests/fixtures.ts",
       "!site/dist",
       "!site/src/data/demo.ts",
       "!coverage",

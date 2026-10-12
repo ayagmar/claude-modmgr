@@ -20,17 +20,7 @@ import {
   strings,
 } from '../../plugin/hooks/domain/json.ts'
 import { lruSet, lruSetMany, lruTouch, lruTrim } from '../../plugin/hooks/domain/lru.ts'
-import {
-  all,
-  andThen,
-  type ErrorKind,
-  err,
-  explain,
-  fail,
-  map,
-  ok,
-  unwrapOr,
-} from '../../plugin/hooks/domain/result.ts'
+import { all, andThen, err, fail, map, ok, unwrapOr } from '../../plugin/hooks/domain/result.ts'
 import {
   hasHiddenCharacters,
   sanitize,
@@ -53,26 +43,6 @@ describe('result', () => {
   it('keeps a code only when given', () => {
     expect(fail('timeout', 'slow')).toEqual(err({ kind: 'timeout', message: 'slow' }))
     expect(fail('cli-failed', 'no', 'plugin_not_found').error.code).toBe('plugin_not_found')
-  })
-
-  it('explains every kind with a sentence and a next step', () => {
-    const kinds: ErrorKind[] = [
-      'cli-failed',
-      'timeout',
-      'parse',
-      'network',
-      'rate-limited',
-      'rejected',
-      'unavailable',
-      'conflict',
-      'store-full',
-      'invalid',
-    ]
-    for (const kind of kinds) {
-      const { sentence, next } = explain({ kind, message: '' })
-      expect(sentence).toMatch(/\.$/)
-      expect(next).toMatch(/\.$/)
-    }
   })
 })
 
@@ -149,6 +119,21 @@ describe('sanitize', () => {
     expect(sanitize('a\u0000b\u0007c\u0085d')).toBe('abcd')
     expect(sanitize('safe\u202egnp.exe')).toBe('safegnp.exe')
     expect(sanitize('zero\u200bwidth\ufeff')).toBe('zerowidth')
+    // Characters that draw as nothing, so can make one name look like another.
+    for (const hidden of [
+      '\u00ad',
+      '\u115f',
+      '\u180e',
+      '\u3164',
+      '\ufe0f',
+      '\uffa0',
+      '\u{e0041}',
+    ]) {
+      expect(sanitize(`turn${hidden}band`)).toBe('turnband')
+      expect(hasHiddenCharacters(`echo ${hidden}hi`)).toBe(true)
+    }
+    expect(sanitize('a\u2028b', { multiline: true })).toBe('a\nb')
+    expect(hasHiddenCharacters('a\u2029b')).toBe(true)
     expect(sanitize('\u001bPq')).toBe('q')
     expect(sanitize('\u009d0;title\u009cafter')).toBe('after')
   })

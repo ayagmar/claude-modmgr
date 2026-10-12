@@ -1,0 +1,28 @@
+name: A mod is missing or listed wrong
+description: Discover or the site leaves out a mod, or says the wrong thing about one.
+labels: [index]
+body:
+  - type: input
+    id: repo
+    attributes:
+      label: Repository
+      description: The mod's GitHub repository, and its folder when it isn't at the root.
+      placeholder: owner/repo or owner/repo/plugins/my-mod
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What's wrong
+      options:
+        - It isn't listed
+        - What it can reach is wrong
+        - Its install line doesn't work
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What you expected to see. The index is rebuilt daily, so a mod pushed today may show up tomorrow.

@@ -75,7 +75,7 @@ for (const surface of SURFACES) {
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: 'Undo the last batch' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'quiet-bash: its data was kept.' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /declared install command/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /declares an install command/ })).toBeDefined()
     await ui.press({ key: 'act:confirm' })
     await h.clock.advance(1)
     await h.clock.advance(1500)

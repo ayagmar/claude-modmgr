@@ -255,6 +255,8 @@ export type Sync = {
   error?: { kind: string; message: string }
   /** `list --json` entries modmgr could not read. */
   skipped: number
+  /** On a first load, the plugins still being read: the rows so far aren't all of them. */
+  reading?: number
 }
 
 /**
@@ -266,6 +268,8 @@ export type CatalogPage = {
   total: number
   /** Of `total`, the community index's mods (all of them mods). */
   community: number
+  /** What to say of the community index: it couldn't be read, or it is days old. */
+  communityNote?: string
   matched: number
   offset: number
   loading: boolean
@@ -341,7 +345,7 @@ export type HealthFacts = {
   logged: Record<string, string>
   /**
    * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`):
-   * none, read, or too large to read here (over 4 MiB), with its path.
+   * none, read, or not readable here (over 4 MiB, or no permission), with its path.
    */
   debugLog: { state: 'none' | 'read' | 'too-big'; path?: string }
   detector: { spent: number; budget: number; remote: boolean; why?: string }

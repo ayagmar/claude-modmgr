@@ -178,6 +178,23 @@ describe('a detail too short for every explanation', () => {
     expect(frame).not.toMatch('Reads environment variables that look like secrets (')
     expect(frame).toMatch('/mods info redactor@fixtures explains each one.')
   })
+
+  it('opened, takes the body in full and scrolls to its last line, its keys kept', async () => {
+    const { act, draw } = await setup()
+    await act.focusRow('redactor@fixtures')
+    await act.open('redactor@fixtures')
+    const frames = [await draw(96, 20)]
+    for (let step = 0; step < 40; step += 1) {
+      await act.scroll(1, overlayEnd())
+      frames.push(await draw(96, 20))
+    }
+    expect(frames.every(frame => frame.some(line => line.includes('e: disable')))).toBe(true)
+    // No list beside it: the body is the detail's.
+    expect(frames.every(frame => frame.every(line => !line.includes('│')))).toBe(true)
+    const seen = frames.flat().join('\n')
+    expect(seen).toMatch('Reads environment variables that look like secrets')
+    expect(seen).toMatch('✓ validates')
+  })
 })
 
 describe('what a mod is', () => {

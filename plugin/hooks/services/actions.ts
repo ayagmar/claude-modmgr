@@ -53,6 +53,7 @@ import {
   toggleReview,
   topOverlay,
   undoReview,
+  undoWords,
   updateReview,
   whyLocked,
   whyNoRemove,
@@ -92,13 +93,8 @@ export type Actions = {
   tab(tab: Tab): Promise<void>
   /** The focus ring landed on a row: it becomes the selection (the split's detail follows). */
   focusRow(id: string): Promise<void>
-  /** Enter on a row: its detail. */
+  /** Enter on a row: its detail, in full (beside the list, over it). */
   open(id: string): Promise<void>
-  /**
-   * Enter on a row whose detail is already beside the list: the ring moves onto
-   * the detail's first key. Nothing is pushed, so Esc has nothing hidden to pop.
-   */
-  toDetail(): Promise<void>
   /** Pops the top overlay (a review popped is a review cancelled). */
   back(): Promise<void>
   /** Stages a toggle of the selected mod, or of `id`. */
@@ -120,7 +116,7 @@ export type Actions = {
   /** Queues the inverse of the last batch; one that reinstalls is reviewed first. */
   undo(): Promise<void>
   refresh(): Promise<void>
-  /** Queues a reload on its own (the band's `[l reload]`). */
+  /** Queues a reload on its own (the band's reload key). */
   reload(): Promise<void>
   overlay(which: 'help' | 'jobs'): Promise<void>
   filter(text: string): Promise<void>
@@ -450,13 +446,6 @@ export const createActions = (
       await select(id)
     }),
 
-    toDetail: safely('to detail', async () => {
-      const { tab } = await state.read('view')
-      if (tab === 'discover') return ringTo('act:install', 'act:copy')
-      if (tab === 'dev') return ringTo('act:validate', 'act:copy')
-      return ringTo('act:toggle', 'act:copy')
-    }),
-
     open: safely('open', async id => {
       await setView(view => pushOverlay({ ...quiet(view), selected: id }, 'detail'))
       await select(id)
@@ -499,7 +488,9 @@ export const createActions = (
       const mods = await state.read('mods')
       const rows = mods.filter(row => whyNoUpdate(row) === undefined)
       if (rows.length === 0) {
-        await notice('None of these mods updates through the CLI')
+        await notice(
+          mods.length === 0 ? 'No mods installed' : 'None of these mods updates through the CLI',
+        )
         return
       }
       await openReview(updateReview(rows))
@@ -605,7 +596,7 @@ export const createActions = (
         plan.steps.map(step => step.spec),
         current => stillUndoes(current.jobs, plan.batch),
       )
-      if (queued === 'queued') await notice(`Undoing the last batch (${plan.steps.length})`)
+      if (queued === 'queued') await notice(`Undo: ${undoWords(plan.steps, mods)}`)
     }),
 
     refresh: safely('refresh', async () => {
@@ -617,7 +608,7 @@ export const createActions = (
         return
       }
       if (tab === 'discover') {
-        await rt.catalog.load({ force: true })
+        await rt.catalog.load({ force: true, retry: true })
         rt.detector.start()
         return
       }

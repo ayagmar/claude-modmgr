@@ -15,10 +15,10 @@ test('/mods is registered at session start and lists the mods found in the backg
   const lines = (ran.text ?? '').split('\n')
   expect(lines[0]).toBe('5 mods (5 on)')
   expect(lines.slice(1).map(line => line.split('  ')[1])).toEqual([
-    'broken',
-    'quiet-bash',
-    'redactor',
-    'spawner',
-    'turn-band',
+    'broken@fixtures',
+    'quiet-bash@fixtures',
+    'redactor@fixtures',
+    'spawner@fixtures',
+    'turn-band@fixtures',
   ])
 })

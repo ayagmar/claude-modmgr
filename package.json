@@ -11,11 +11,11 @@
   "scripts": {
     "lint": "biome ci .",
     "format": "biome format --write .",
-    "typecheck": "tsc -p plugin --noEmit && tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p plugin --noEmit && tsc -p test/plugin --noEmit && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "validate": "node scripts/validate-plugin.ts",
-    "test:plugin": "CLAUDE_CONFIG_DIR=$(mktemp -d) claude plugin test plugin",
+    "test:plugin": "node scripts/test-plugin.ts",
     "explanations": "node scripts/gen-explanations.ts",
     "gate": "pnpm lint && pnpm typecheck && pnpm coverage && pnpm validate && pnpm test:plugin",
     "fixtures:plugin-tests": "node scripts/fixtures-to-plugin-tests.ts",

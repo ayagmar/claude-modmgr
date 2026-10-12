@@ -31,14 +31,16 @@ export const onSessionStart = async (rt: Runtime): Promise<void> => {
     })
   }
   await Promise.all([ports.command.registerMods(), takeQueue()])
-  // A module started again in the same session was reloaded with the session's
-  // plugins (a reload modmgr ran, or the person's /reload-plugins): what was
-  // owed is applied.
+  // A module started again in the same session by modmgr's own reload, or by the
+  // person's /reload-plugins where only they can reload, came with the session's
+  // plugins: what was owed is applied. Any other restart (a worker respawn, an
+  // options change, its folder's hot reload) was modmgr's alone: it is still owed.
   if (!fresh) {
-    await ports.state.update('attention', ({ reloadByHand: _, ...attention }) => ({
-      ...attention,
-      reloadPending: false,
-    }))
+    await ports.state.update('attention', attention => {
+      if (!reloaded && attention.reloadByHand !== true) return attention
+      const { reloadByHand: _, ...rest } = attention
+      return { ...rest, reloadPending: false }
+    })
   }
   if (reloaded) {
     // Said for a while, as the runner's own echo is.
@@ -87,6 +89,12 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
       )
       if (!how.fresh || shown) await rt.showTab((await ports.state.read('view')).tab)
       await rt.chrome.retakeKeys()
+    } else {
+      // Without a CLI it can run, the list is never read: say so rather than "Reading…".
+      await ports.state.update('sync', sync => ({
+        ...sync,
+        error: { kind: 'unavailable', message: "modmgr can't run the claude CLI it needs" },
+      }))
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

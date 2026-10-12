@@ -8,6 +8,7 @@ import type { InstalledEntry } from './cli-results.ts'
 import { safeSegments } from './detector.ts'
 import { isPluginName, splitPluginId } from './ids.ts'
 import { isRecord, parseJson, str } from './json.ts'
+import { hotkeyFor } from './keymap.ts'
 import { originOf, rootOf, runningVersion } from './mods.ts'
 
 /** A Dev row's Button key: what `ui.focus` and `ui.press` name. */
@@ -46,7 +47,7 @@ export const SECTION_LABEL: Readonly<Record<DevHow, string>> = {
 /** How an edit to its files reaches this session (every action says when it applies). */
 export const appliesOf = (how: DevHow): string =>
   how === 'folder-marketplace'
-    ? 'Its folder is read again at the next plugin reload (l).'
+    ? `Its folder is read again at the next plugin reload (${hotkeyFor('reload', 'dev')}).`
     : 'Saving a file there reloads it in this session.'
 
 /** How to stop loading it, where the CLI can't; undefined when Installed toggles it. */

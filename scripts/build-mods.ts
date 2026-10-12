@@ -17,14 +17,17 @@
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import {
   COMMUNITY_MAX_BYTES,
   COMMUNITY_URL,
+  COMMUNITY_V1_URL,
+  type CommunityFile,
   type CommunityMod,
   communityKey,
   communityText,
+  communityV1Text,
   isRepo,
   parseCommunity,
 } from '../plugin/hooks/domain/community.ts'
@@ -52,6 +55,8 @@ const CONCURRENCY = 6
 const RETRY_CONCURRENCY = 2
 const RETRY_PAUSE_MS = 60_000
 const METADATA_BATCH = 50
+/** Pauses before a failed metadata batch is asked again. */
+const METADATA_RETRY_MS = [10_000, 60_000]
 /** Recent repositories of the broad queries checked in one build (most are not mods: a fresh clone tells). */
 const RECENT_MAX = 1000
 const DAY = 24 * 60 * 60 * 1000
@@ -59,6 +64,12 @@ const DAY = 24 * 60 * 60 * 1000
 export const MAX_DROP = 0.2
 /** About 2% of mods fail validate; past this share the build's own reading broke. */
 export const MAX_FAILED = 0.25
+/**
+ * A repository not pushed since the last index keeps what it said, without a
+ * clone, except on this day of the week (UTC Sunday), when every repository is
+ * read again so a newer validate's verdicts reach them all.
+ */
+const FULL_READ_DAY = 0
 
 /** What GitHub's GraphQL API says of a repository; undefined when it is gone or private. */
 export type RepoMeta = RepoFacts & {
@@ -73,8 +84,8 @@ export type ModsDeps = {
   readonly search: (kind: SearchKind, query: string, page: number) => Promise<SearchAnswer>
   /** A GraphQL query's `data`, or undefined when it failed. */
   readonly graphql: (query: string) => Promise<unknown>
-  /** A public file's text, or undefined. */
-  readonly fetchText: (url: string) => Promise<string | undefined>
+  /** A public file's text; `missing` only when the server said 404. */
+  readonly fetchText: (url: string) => Promise<Fetched>
   /** The mods a repository holds, or undefined when it couldn't be read this time. */
   readonly inspect: (repo: string, facts: RepoFacts) => Promise<CommunityMod[] | undefined>
   /**
@@ -87,7 +98,10 @@ export type ModsDeps = {
   readonly log: (line: string) => void
 }
 
-export type Built = { readonly text: string } | { readonly refused: string }
+/** The full index, and the version 1 file older clients read. */
+export type Built = { readonly text: string; readonly v1: string } | { readonly refused: string }
+
+export type Fetched = { readonly text: string } | 'missing' | 'failed'
 
 const key = (repo: string): string => repo.toLowerCase()
 
@@ -160,11 +174,26 @@ export const withoutCopies = (mods: readonly CommunityMod[]): CommunityMod[] => 
 
 export const buildMods = async (deps: ModsDeps): Promise<Built> => {
   const started = deps.now()
-  const previousText = await deps.fetchText(COMMUNITY_URL)
-  const previousParsed = previousText === undefined ? undefined : parseCommunity(previousText)
-  const previous = previousParsed?.ok ? previousParsed.value : undefined
-  if (previousText !== undefined && !previous) deps.log('the published index is unreadable')
-  const seeds = parseRepoList((await deps.fetchText(SEEDS_URL)) ?? '')
+  // Only a published index known to be gone starts a fresh one: built without
+  // the last one, a run with failing searches would publish a fraction of it.
+  // Until the first version 2 file is out, the version 1 one is the last index.
+  let published = await deps.fetchText(COMMUNITY_URL)
+  if (published === 'missing') published = await deps.fetchText(COMMUNITY_V1_URL)
+  if (published === 'failed')
+    return { refused: "the published index couldn't be read: nothing written" }
+  let previous: CommunityFile | undefined
+  if (published === 'missing') deps.log('no published index: starting fresh')
+  else {
+    const parsed = parseCommunity(published.text)
+    if (!parsed.ok) {
+      return {
+        refused: `the published index is unreadable (${parsed.error.message}): nothing written`,
+      }
+    }
+    previous = parsed.value
+  }
+  const seedsText = await deps.fetchText(SEEDS_URL)
+  const seeds = parseRepoList(typeof seedsText === 'object' ? seedsText.text : '')
 
   // Search: a query that fails is logged and the build goes on with what it has.
   const searcher = createSearcher({ search: deps.search, sleep: deps.sleep, log: deps.log })
@@ -201,12 +230,25 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
   add(found.filter(repo => !recent.includes(repo)))
   add([...new Set(recent)].slice(0, RECENT_MAX))
 
-  // Metadata in batches; a repository GitHub no longer serves publicly is dropped.
+  // Metadata in batches; a repository GitHub no longer serves publicly is
+  // dropped. A batch that fails is asked again, then its repositories keep what
+  // the last index said of them (below).
   const metas = new Map<string, RepoMeta>()
+  const unanswered: string[] = []
   const names = [...candidates.values()]
   for (let i = 0; i < names.length; i += METADATA_BATCH) {
     const chunk = names.slice(i, i + METADATA_BATCH)
-    const data = await deps.graphql(metadataQuery(chunk))
+    let data = await deps.graphql(metadataQuery(chunk))
+    for (const pause of METADATA_RETRY_MS) {
+      if (data !== undefined) break
+      await deps.sleep(pause)
+      data = await deps.graphql(metadataQuery(chunk))
+    }
+    if (data === undefined) {
+      deps.log(`metadata for ${chunk.length} repositories failed`)
+      unanswered.push(...chunk)
+      continue
+    }
     chunk.forEach((repo, j) => {
       const meta = toMeta(isRecord(data) ? data[`r${j}`] : undefined)
       if (meta !== undefined) metas.set(key(repo), meta)
@@ -220,17 +262,28 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
     repos.set(key(meta.repo), meta)
   }
 
-  deps.log(`reading ${repos.size} of ${candidates.size} candidates`)
   const kept = new Map<string, CommunityMod[]>()
   for (const mod of previous?.mods ?? [])
     kept.set(key(mod.repo), [...(kept.get(key(mod.repo)) ?? []), mod])
   const mods: CommunityMod[] = []
+  // A repository pushed to since the last index (or never in it) is cloned and read.
+  const full = new Date(deps.now()).getUTCDay() === FULL_READ_DAY
+  const toRead: RepoMeta[] = []
+  for (const meta of repos.values()) {
+    const last = full ? undefined : kept.get(key(meta.repo))
+    if (last?.every(mod => mod.pushed === meta.pushed)) {
+      mods.push(...last.map(mod => ({ ...mod, repo: meta.repo, stars: meta.stars })))
+    } else toRead.push(meta)
+  }
+  deps.log(
+    `reading ${toRead.length} of ${candidates.size} candidates; ${repos.size - toRead.length} unchanged since the last index${full ? '' : ' (every one is read on Sundays)'}`,
+  )
   const missed: RepoMeta[] = []
   let done = 0
-  await pool([...repos.values()], CONCURRENCY, async meta => {
+  await pool(toRead, CONCURRENCY, async meta => {
     const read = await deps.inspect(meta.repo, meta)
     done += 1
-    if (done % 200 === 0) deps.log(`read ${done} of ${repos.size}, ${mods.length} mods so far`)
+    if (done % 200 === 0) deps.log(`read ${done} of ${toRead.length}, ${mods.length} mods so far`)
     if (read === undefined) missed.push(meta)
     else mods.push(...read)
   })
@@ -247,27 +300,35 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
       return
     }
     unread += 1
-    // The last index's word for it, with today's stars.
+    // The last index's word for it, with today's stars. Its push time stays the
+    // one that word was read at, so the next build reads it rather than keep it.
     const last = kept.get(key(meta.repo)) ?? []
-    mods.push(
-      ...last.map(mod => ({ ...mod, repo: meta.repo, stars: meta.stars, pushed: meta.pushed })),
-    )
+    mods.push(...last.map(mod => ({ ...mod, repo: meta.repo, stars: meta.stars })))
   })
+
+  for (const repo of unanswered) {
+    const last = kept.get(key(repo))
+    if (last === undefined) continue
+    unread += 1
+    mods.push(...last)
+  }
 
   const checks: Record<string, number> = {}
   for (const mod of mods) checks[mod.check] = (checks[mod.check] ?? 0) + 1
   // What a client can use: a mod validate refuses won't load, and a copy adds nothing.
   const working = mods.filter(mod => mod.check !== 'failed')
-  const published = withoutCopies(working)
-  const text = communityText(deps.now(), published)
+  const listed = withoutCopies(working)
+  const at = deps.now()
+  const text = communityText(at, listed)
+  const bytes = Buffer.byteLength(text)
   deps.log(
     [
       `candidates ${candidates.size} (catalogued ${deps.catalogued.length}, seeds ${seeds.length}, last index ${new Set((previous?.mods ?? []).map(m => key(m.repo))).size}), public ${repos.size}`,
       `mods ${mods.length} in ${new Set(mods.map(mod => key(mod.repo))).size} repositories; ${mods.filter(mod => mod.market).length} installable by marketplace; unread ${unread}`,
       `checks ${JSON.stringify(checks)}`,
-      `published ${published.length}: ${mods.length - working.length} failing validate and ${working.length - published.length} copies left out`,
+      `published ${listed.length}: ${mods.length - working.length} failing validate and ${working.length - listed.length} copies left out`,
       `search requests ${searcher.requests()}, ${((deps.now() - started) / 1000).toFixed(0)} s`,
-      `size ${text.length} B (${gzipSync(text).length} B gzipped)`,
+      `size ${bytes} B (${gzipSync(text).length} B gzipped)`,
     ].join('\n'),
   )
   if (mods.length === 0) return { refused: 'no mods found: nothing written' }
@@ -275,13 +336,18 @@ export const buildMods = async (deps: ModsDeps): Promise<Built> => {
     return { refused: `${checks.failed} of ${mods.length} mods fail validate: nothing written` }
   }
   const before = previous?.mods.length ?? 0
-  if (published.length < before * (1 - MAX_DROP)) {
-    return { refused: `${published.length} mods against ${before} last time: nothing written` }
+  if (listed.length < before * (1 - MAX_DROP)) {
+    return { refused: `${listed.length} mods against ${before} last time: nothing written` }
   }
   // What clients would refuse is never published.
   const check = parseCommunity(text)
   if (!check.ok) return { refused: `the index would be refused: ${check.error.message}` }
-  return { text }
+  const v1 = communityV1Text(at, listed)
+  const v1Mods = parseCommunity(v1)
+  deps.log(
+    `mods-v1.json for modmgr 0.4.0 and older: ${v1Mods.ok ? v1Mods.value.mods.length : 0} of ${listed.length} mods, ${Buffer.byteLength(v1)} B`,
+  )
+  return { text, v1 }
 }
 
 // The real network, git and CLI.
@@ -360,14 +426,15 @@ const githubGraphql =
     }
   }
 
-const fetchText = async (url: string): Promise<string | undefined> => {
+const fetchText = async (url: string): Promise<Fetched> => {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-    if (!response.ok) return undefined
+    if (response.status === 404) return 'missing'
+    if (!response.ok) return 'failed'
     const text = await response.text()
-    return text.length > COMMUNITY_MAX_BYTES ? undefined : text
+    return Buffer.byteLength(text) > COMMUNITY_MAX_BYTES ? 'failed' : { text }
   } catch {
-    return undefined
+    return 'failed'
   }
 }
 
@@ -465,7 +532,9 @@ if (import.meta.main) {
   const [out, catalogued] = process.argv.slice(2)
   const token = process.env.GITHUB_TOKEN
   if (out === undefined || token === undefined || token === '') {
-    console.error('usage: GITHUB_TOKEN=… node scripts/build-mods.ts <out.json> [<mod-repos.txt>]')
+    console.error(
+      'usage: GITHUB_TOKEN=… node scripts/build-mods.ts <mods-v2.json> [<mod-repos.txt>]   (mods-v1.json is written beside it)',
+    )
     process.exit(2)
   }
   const work = mkdtempSync(join(tmpdir(), 'modmgr-mods-'))
@@ -497,6 +566,7 @@ if (import.meta.main) {
       process.exitCode = 1
     } else {
       writeFileSync(out, built.text)
+      writeFileSync(join(dirname(out), 'mods-v1.json'), built.v1)
     }
   } finally {
     rmSync(work, { recursive: true, force: true })

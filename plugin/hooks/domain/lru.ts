@@ -21,8 +21,13 @@ export const lruSetMany = <V>(
   entries: Iterable<readonly [string, V]>,
   cap: number,
 ): Lru<V> => {
-  let next = map
-  for (const [key, value] of entries) next = lruSet(next, key, value, Number.POSITIVE_INFINITY)
+  // One copy for the whole batch: a copy per entry made a catalogue-sized
+  // batch quadratic, seconds on the module's event loop.
+  const next: Record<string, V> = { ...map }
+  for (const [key, value] of entries) {
+    delete next[key]
+    next[key] = value
+  }
   return lruTrim(next, cap)
 }
 

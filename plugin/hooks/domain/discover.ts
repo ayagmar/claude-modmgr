@@ -202,7 +202,7 @@ export const nextSort = (sort: View['sort']): View['sort'] =>
   SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length] ?? 'installs'
 
 /**
- * `74 mods`, `74 mods among 1,804 of 3,544 checked`, or while it runs
+ * `74 mods`, `74 mods · 1,804 of 3,544 entries checked`, or while it runs
  * `12 mods so far · checking 1,804 of 3,544`; undefined before it ran.
  */
 export const detectLine = (detect: {
@@ -219,5 +219,5 @@ export const detectLine = (detect: {
       ? `checking ${n(detect.total)} entries…`
       : `${mods} so far · checking ${n(detect.checked)} of ${n(detect.total)}`
   if (detect.checked >= detect.total) return mods
-  return `${mods} among ${n(detect.checked)} of ${n(detect.total)} checked`
+  return `${mods} · ${n(detect.checked)} of ${n(detect.total)} entries checked`
 }

@@ -97,7 +97,8 @@ const description = `Search ${total} mods for Claude Code found across public Gi
         <div class="wrap">
           <h1 id="title"><span>Search {total} mods</span> <span>for Claude&nbsp;Code</span></h1>
           <p class="sub">
-            Indexed daily from public GitHub, each with what it can reach before you install it.
+            Found on public GitHub and indexed daily. Each one shows what it can reach (your
+            machine, the network, your conversation) before you install it.
           </p>
           <div class="plug">
             <p>
@@ -266,9 +267,10 @@ const description = `Search ${total} mods for Claude Code found across public Gi
             <li>
               <h3>It sends no telemetry</h3>
               <p>
-                It runs only the <code>claude</code> CLI and never writes a settings file itself.
-                Its own reads, from <code>raw.githubusercontent.com</code>,
-                stop when <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code> is set.
+                Its own reads from <code>raw.githubusercontent.com</code> (the daily indexes and catalogue
+                entries' manifests) stop
+                when <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code> is set. It changes your
+                setup only through the <code>claude</code> CLI and never writes a settings file.
               </p>
             </li>
           </ul>
@@ -278,13 +280,22 @@ const description = `Search ${total} mods for Claude Code found across public Gi
       <section class="get" id="install" aria-labelledby="install-title">
         <div class="wrap">
           <h2 id="install-title">Install modmgr</h2>
-          <p class="get-sub">Type this at the Claude Code prompt, then <code>/mods</code>.</p>
+          <p class="get-sub">
+            Type this at the Claude Code prompt, then <code>/mods</code> to search {total} mods
+            without leaving your session.
+          </p>
           <Install id="install-line" label="The install line, for the Claude Code prompt" />
           <p class="needs">
             Needs a Claude Code session at {MIN_SESSION_VERSION} or newer, and the
             <code>claude</code> CLI on your path at {MIN_CLAUDE_VERSION} or newer: modmgr runs it
             to make changes. The desktop app runs its own Claude Code, so modmgr loads there once
             the app's reaches {MIN_SESSION_VERSION}.
+          </p>
+          <p class="needs">
+            On a session older than {MIN_CLAUDE_VERSION}, add the marketplace first:
+            <code>/plugin marketplace add ayagmar/claude-mods</code>, then
+            <code>/plugin install modmgr@ayagmar</code>. Runs on Linux and macOS; Windows isn't
+            supported yet.
           </p>
         </div>
       </section>

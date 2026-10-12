@@ -64,7 +64,7 @@ jobs:
         run: node scripts/validate-plugin.ts
 
       - name: Plugin tests (wiring, dispatch rules and UI)
-        run: claude plugin test plugin
+        run: node scripts/test-plugin.ts
 
       # From a fixture: the gate checks the page, not whether today's index is published.
       - name: Build the site

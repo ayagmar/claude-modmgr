@@ -42,7 +42,7 @@ describe('onSessionStart', () => {
     expect(w.command.registered).toBe(2)
   })
 
-  it('counts a reload owed as applied when the module starts again in the same session', async () => {
+  it("counts a reload owed by hand as applied when the person's /reload-plugins restarted it", async () => {
     const w = world()
     fixtureCli(w.process)
     await onSessionStart(runtimeFor(w))
@@ -56,6 +56,28 @@ describe('onSessionStart', () => {
     await onSessionStart(runtimeFor(w, 'own2'))
     expect(w.state.values.attention.reloadPending).toBe(false)
     expect(w.state.values.attention.reloadByHand).toBeUndefined()
+  })
+
+  it('keeps a reload owed when modmgr alone started again', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    await onSessionStart(runtimeFor(w))
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    // Its folder's hot reload: no reload of modmgr's was running.
+    await onSessionStart(runtimeFor(w, 'own2'))
+    expect(w.state.values.attention.reloadPending).toBe(true)
+  })
+
+  it('counts a reload owed as applied when the reload modmgr ran restarted it', async () => {
+    const w = world()
+    fixtureCli(w.process)
+    w.state.values.attention = { ...w.state.values.attention, reloadPending: true }
+    w.state.values.queue = {
+      owner: 'old',
+      jobs: [{ id: 'old-1', kind: 'reload', state: 'running', tail: [] }],
+    }
+    await onSessionStart(runtimeFor(w))
+    expect(w.state.values.attention.reloadPending).toBe(false)
   })
 
   it('applies stored preferences on a fresh session only', async () => {
@@ -150,11 +172,25 @@ describe('capability probe', () => {
     })
   })
 
-  it('names an older CLI on PATH', async () => {
+  it('keeps an older CLI on PATH from changing mods, and says how to update it', async () => {
     const w = world()
     w.process.when(['--version'], out('2.1.200 (Claude Code)'))
-    const probe = await probeCapabilities(w.ports)
-    expect(probe.reason).toBe('the claude CLI on PATH is 2.1.200; modmgr needs 2.1.292 or newer')
+    await onSessionStart(runtimeFor(w))
+    await w.clock.advance(0)
+    expect(w.state.values.degraded.process).toBe(true)
+    expect(w.state.values.degraded.reason).toContain(
+      '2.1.200; modmgr needs 2.1.292 or newer: run claude update',
+    )
+    expect(w.process.calls.map(call => call.argv.join(' '))).toEqual(['claude --version'])
+    // Installed says the list can't be read instead of waiting on a read that never runs.
+    expect(w.state.values.sync.error?.message).toBe("modmgr can't run the claude CLI it needs")
+  })
+
+  it('lets a dev build of the minimum CLI change mods', async () => {
+    const w = world()
+    w.process.when(['--version'], out('2.1.292-dev (Claude Code)'))
+    const probe = await probeAndRecord(w.ports)
+    expect(probe.process).toBe(false)
   })
 
   it('turns network use off under CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', async () => {

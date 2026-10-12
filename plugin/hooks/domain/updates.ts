@@ -45,7 +45,7 @@ export const marketplaceEntriesOf = (text: string): Map<string, ListedEntry> => 
 }
 
 /** A whole version string (`1.2.0`, `1.2.0-beta.1`), not one that merely starts like one. */
-const VERSION = /^\d+\.\d+\.\d+(?:[-+][\w.-]{0,40})?$/
+const VERSION = /^v?\d+\.\d+\.\d+(?:[-+][\w.-]{0,40})?$/
 
 /** A commit-named version: the 12-hex prefix the CLI gives a plugin with no version of its own. */
 const COMMIT_VERSION = /^[0-9a-f]{12}$/
