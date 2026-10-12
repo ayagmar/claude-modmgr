@@ -1,0 +1,48 @@
+name: Bug report
+description: modmgr did something wrong, showed something wrong, or failed.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what modmgr did instead. A screenshot of /mods helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. /mods
+        2. 2 (Discover), search "…"
+        3. i to install
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: modmgr's (under its name in `claude plugin list`) and Claude Code's (`claude --version`).
+      placeholder: modmgr 0.4.0, Claude Code 2.1.296
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it ran
+      options:
+        - Terminal, docked (fullscreen)
+        - Terminal, inline
+        - Desktop app
+        - "`claude -p` or /mods text"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and terminal
+      placeholder: macOS 15, Ghostty
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `/mods doctor`
+      render: text

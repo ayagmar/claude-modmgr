@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": [],
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    // The tests run from a copy of plugin/ with them in its tests/ folder
+    // (scripts/test-plugin.ts): `../hooks/…` resolves into plugin/ here too.
+    "rootDirs": ["../../plugin", "."]
+  },
+  "include": [
+    "../../vendor/claude-code-types/2.1.293/claude-code.d.ts",
+    "../../plugin/hooks",
+    "../../plugin/types",
+    "tests"
+  ]
+}
