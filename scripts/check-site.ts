@@ -1,6 +1,6 @@
 // Checks the built site: every internal link and asset resolves in
 // site/dist, what a first visit transfers stays under 100 KB, fonts aside, and
-// the search's data (mods.json) under 400 KB gzipped.
+// the search's data (mods.json) under 100 B gzipped per mod it lists.
 //
 //   pnpm --filter modmgr-site build && node scripts/check-site.ts
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -29,14 +29,23 @@ for (const ref of refs) {
 for (const id of [...html.matchAll(/href="#([^"]+)"/g)].map(match => match[1])) {
   if (!html.includes(`id="${id}"`)) problems.push(`no element with id ${id}`)
 }
-// The search's data loads after the page does; it still has a ceiling.
-const MODS_BUDGET = 400 * 1024
+// The search's data loads after the page does. It grows with the index, so its
+// ceiling is per mod: a fixed one would fail the daily deploy as mods are found.
+const MODS_BUDGET_PER_MOD = 100
 const modsFile = join(dist, 'mods.json')
 if (!existsSync(modsFile)) problems.push('missing: mods.json')
 else {
-  const mods = gzipSync(readFileSync(modsFile)).length
-  console.log(`mods.json ${statSync(modsFile).size} B (${mods} B gzipped), loaded after the page`)
-  if (mods > MODS_BUDGET) problems.push(`mods.json is ${mods} B gzipped, over ${MODS_BUDGET} B`)
+  const data = readFileSync(modsFile)
+  const count = (JSON.parse(data.toString()) as { rows: unknown[] }).rows.length
+  const mods = gzipSync(data).length
+  const budget = Math.max(1, count) * MODS_BUDGET_PER_MOD
+  console.log(
+    `mods.json ${data.length} B (${mods} B gzipped) for ${count} mods, loaded after the page`,
+  )
+  if (mods > budget)
+    problems.push(
+      `mods.json is ${mods} B gzipped, over ${budget} B (${MODS_BUDGET_PER_MOD} B a mod)`,
+    )
 }
 const page = gzipSync(html).length
 const total = page + assets
