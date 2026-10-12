@@ -2,8 +2,9 @@ name: index
 
 # The hosted indexes, read from raw.githubusercontent.com: v1.json classifies
 # every remote entry of the official catalogues (mod, command hooks, plain) at
-# its pinned commit; mods-v1.json lists the mods found across public GitHub
-# with what `claude plugin validate` reports for each. Discover knows them after
+# its pinned commit; mods-v2.json lists every mod found across public GitHub
+# with what `claude plugin validate` reports for each, and mods-v1.json the
+# most-starred of them that modmgr 0.4.0 and older read whole. Discover knows them after
 # a request each. Built daily and force-pushed as the single commit of the
 # `catalog-index` branch. Run it by hand once a new repository has it, so the
 # indexes exist before anyone installs.
@@ -49,12 +50,14 @@ jobs:
       - run: |
           mkdir "$RUNNER_TEMP/out"
           node scripts/build-index.ts "$RUNNER_TEMP/out/v1.json" "$RUNNER_TEMP/mod-repos.txt"
-      # A refused or failed community build keeps the published file (see publish).
+      # A refused, failed or timed-out community build keeps the published file
+      # (see publish); its own timeout leaves the job time to upload v1.json.
       - id: mods
         continue-on-error: true
+        timeout-minutes: 70
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/build-mods.ts "$RUNNER_TEMP/out/mods-v1.json" "$RUNNER_TEMP/mod-repos.txt"
+        run: node scripts/build-mods.ts "$RUNNER_TEMP/out/mods-v2.json" "$RUNNER_TEMP/mod-repos.txt"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: catalog-index
@@ -79,15 +82,27 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/publish"
           test -s v1.json
-          # No fresh community index: the published one stays.
-          if [ ! -s mods-v1.json ]; then
-            curl -fsSL --max-filesize 4194304 -o mods-v1.json \
-              "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/catalog-index/mods-v1.json" ||
-              rm -f mods-v1.json
-          fi
           git init -q -b catalog-index
+          # No fresh community index: the published files stay, taken from the
+          # branch itself. A failed fetch stops here rather than publish without them.
+          if [ ! -s mods-v2.json ]; then
+            remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            if git ls-remote --exit-code --heads "$remote" catalog-index >/dev/null; then
+              git fetch -q --depth 1 "$remote" catalog-index
+              for file in mods-v1.json mods-v2.json; do
+                if git cat-file -e "FETCH_HEAD:$file" 2>/dev/null; then
+                  git show "FETCH_HEAD:$file" > "$file"
+                fi
+              done
+            elif [ $? -ne 2 ]; then
+              echo "::error::couldn't read the catalog-index branch"
+              exit 1
+            fi
+          fi
           git add v1.json
-          if [ -s mods-v1.json ]; then git add mods-v1.json; fi
+          for file in mods-v1.json mods-v2.json; do
+            if [ -s "$file" ]; then git add "$file"; fi
+          done
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -q -m "chore: catalogue index $(date -u +%F)"

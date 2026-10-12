@@ -30,7 +30,7 @@ export type Community = {
 /** Beside an index being tried out (`MODMGR_INDEX_URL`), its community file. */
 export const trialUrl = (indexUrl: string | undefined): string | undefined =>
   indexUrl !== undefined && /^https?:\/\/[^?#]+\/[^/?#]+$/.test(indexUrl)
-    ? indexUrl.replace(/\/[^/]+$/, '/mods-v1.json')
+    ? indexUrl.replace(/\/[^/]+$/, '/mods-v2.json')
     : undefined
 
 export const createCommunity = (

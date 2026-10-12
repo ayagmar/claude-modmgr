@@ -93,17 +93,17 @@ describe('the community index service', () => {
   })
 
   it('reads the file beside an index being tried out, every time', async () => {
-    expect(trialUrl('http://127.0.0.1:8765/v1.json')).toBe('http://127.0.0.1:8765/mods-v1.json')
+    expect(trialUrl('http://127.0.0.1:8765/v1.json')).toBe('http://127.0.0.1:8765/mods-v2.json')
     expect(trialUrl('file:///v1.json')).toBeUndefined()
     expect(trialUrl(undefined)).toBeUndefined()
     const w = world({ env: { MODMGR_INDEX_URL: 'http://127.0.0.1:8765/v1.json' } })
-    publish(w, [mod('alice/band')], 'http://127.0.0.1:8765/mods-v1.json')
+    publish(w, [mod('alice/band')], 'http://127.0.0.1:8765/mods-v2.json')
     const community = createCommunity(w.ports, { allowed: async () => true })
     await community.read()
     await community.read()
     expect(w.http.gets).toEqual([
-      'http://127.0.0.1:8765/mods-v1.json',
-      'http://127.0.0.1:8765/mods-v1.json',
+      'http://127.0.0.1:8765/mods-v2.json',
+      'http://127.0.0.1:8765/mods-v2.json',
     ])
   })
 })

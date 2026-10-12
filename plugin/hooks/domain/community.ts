@@ -10,13 +10,28 @@ import { isPluginName } from './ids.ts'
 import { isRecord, parseJson } from './json.ts'
 import { fail, ok, type Result } from './result.ts'
 
-/** Where clients read it: beside the catalogue index, on the branch CI force-pushes. */
+/**
+ * Where clients read it: beside the catalogue index, on the branch CI
+ * force-pushes. It lists every mod found, whatever its size.
+ */
 export const COMMUNITY_URL =
+  'https://raw.githubusercontent.com/ayagmar/claude-modmgr/catalog-index/mods-v2.json'
+/**
+ * The file modmgr 0.4.0 and older read, in the same shape: as many of the
+ * most-starred mods as fit what they accept (V1_MAX_BYTES, V1_MAX_MODS).
+ */
+export const COMMUNITY_V1_URL =
   'https://raw.githubusercontent.com/ayagmar/claude-modmgr/catalog-index/mods-v1.json'
-export const COMMUNITY_VERSION = 1
-/** A body past this is not parsed (about 3,000 mods make 1.4 MB). */
-export const COMMUNITY_MAX_BYTES = 4 * 1024 * 1024
-export const COMMUNITY_MAX_MODS = 20_000
+export const COMMUNITY_VERSION = 2
+/**
+ * A body past this is not parsed: a bound on what a broken or hostile answer
+ * can make modmgr hold, far above the index's size (5,240 mods made 2.5 MB in
+ * October 2026).
+ */
+export const COMMUNITY_MAX_BYTES = 64 * 1024 * 1024
+/** What modmgr 0.4.0 and older read whole: UTF-8 bytes, then mods. */
+export const V1_MAX_BYTES = 4 * 1024 * 1024
+export const V1_MAX_MODS = 20_000
 
 const DAY_MS = 24 * 60 * 60 * 1000
 /** CI rebuilds the index daily: older than this, its builds have stopped. */
@@ -173,7 +188,8 @@ export const parseCommunity = (text: string): Result<CommunityFile> => {
   if (text.length > COMMUNITY_MAX_BYTES) return fail('parse', 'the community index is too large')
   const value = parseJson(text)
   if (!isRecord(value)) return fail('parse', 'the community index is not an object')
-  if (value.v !== COMMUNITY_VERSION) {
+  // Version 1 has the same shape; it is read while a build starts from it.
+  if (value.v !== COMMUNITY_VERSION && value.v !== 1) {
     return fail('parse', `community index version ${String(value.v)}`)
   }
   if (!isCount(value.at)) return fail('parse', 'the community index has no build time')
@@ -186,9 +202,6 @@ export const parseCommunity = (text: string): Result<CommunityFile> => {
     return fail('parse', 'the community index has malformed words')
   }
   if (!Array.isArray(value.mods)) return fail('parse', 'the community index has no mods')
-  if (value.mods.length > COMMUNITY_MAX_MODS) {
-    return fail('parse', 'the community index lists too many mods')
-  }
   const mods: CommunityMod[] = []
   const keys = new Set<string>()
   for (const entry of value.mods) {
@@ -199,11 +212,15 @@ export const parseCommunity = (text: string): Result<CommunityFile> => {
     keys.add(key)
     mods.push(mod)
   }
-  return ok({ v: COMMUNITY_VERSION, at: value.at, mods })
+  return ok({ v: value.v, at: value.at, mods })
 }
 
 /** The file CI writes: mods most starred first, each word stored once. */
-export const communityText = (at: number, mods: readonly CommunityMod[]): string => {
+export const communityText = (
+  at: number,
+  mods: readonly CommunityMod[],
+  v: number = COMMUNITY_VERSION,
+): string => {
   const words: string[] = []
   const places = new Map<string, number>()
   const place = (word: string): number => {
@@ -230,5 +247,27 @@ export const communityText = (at: number, mods: readonly CommunityMod[]): string
     calls: mod.calls.map(place),
     envReads: mod.envReads.map(place),
   }))
-  return `${JSON.stringify({ v: COMMUNITY_VERSION, at, words, mods: out })}\n`
+  return `${JSON.stringify({ v, at, words, mods: out })}\n`
+}
+
+/**
+ * The version 1 file for older clients: the most-starred mods that fit what
+ * they read, found by halving, since the words table grows with the mods kept.
+ */
+export const communityV1Text = (at: number, mods: readonly CommunityMod[]): string => {
+  const sorted = [...mods].sort(
+    (a, b) => b.stars - a.stars || communityKey(a).localeCompare(communityKey(b)),
+  )
+  const fits = (count: number) =>
+    count <= V1_MAX_MODS &&
+    new TextEncoder().encode(communityText(at, sorted.slice(0, count), 1)).length <= V1_MAX_BYTES
+  if (fits(sorted.length)) return communityText(at, sorted, 1)
+  let low = 0
+  let high = sorted.length
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2)
+    if (fits(mid)) low = mid
+    else high = mid
+  }
+  return communityText(at, sorted.slice(0, low), 1)
 }
