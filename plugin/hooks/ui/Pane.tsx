@@ -147,12 +147,20 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   ]
   // The tab row's width: a shown tab is its label, another `n: label`. When it
   // and `r: refresh` don't fit, the tabs close up and refresh joins the footer.
-  const tabsWidth = tabs.reduce(
-    (sum, { tab, label }) => sum + label.length + (view.tab === tab ? 0 : 3),
-    0,
-  )
+  const tabWidths = tabs.map(({ tab, label }) => label.length + (view.tab === tab ? 0 : 3))
+  const tabsWidth = tabWidths.reduce((sum, width) => sum + width, 0)
   const narrowHeader =
     tabsWidth + 3 * (tabs.length - 1) + 2 + 'r: refresh'.length > frame.bodyColumns
+  // What the header draws right of the tabs (refresh aside, which a narrow header moves).
+  const headerNote = tab.stale
+    ? GLYPH.stale
+    : installed && sync.error !== undefined
+      ? `${GLYPH.problem} couldn't refresh`
+      : ''
+  // Closed up and still too wide, the tabs wrap rather than cut Health's count off.
+  const tabRows = narrowHeader
+    ? footerRowsFor(tabWidths, frame.bodyColumns - headerNote.length - 1)
+    : 1
   // The footer's keys: the actions of the moment. Every key is drawn where it
   // belongs (tabs, refresh, search, pager, footer): a hotkey needs a Button,
   // and every Button is a stop of the Tab ring, so none is hidden.
@@ -205,7 +213,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   )
   const boxedField = field !== undefined && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
-    2 +
+    1 +
+    tabRows +
     (warning === undefined ? 0 : 1) +
     (field === undefined ? 0 : boxedField ? 3 : 1) +
     (view.notice === undefined ? 0 : 1) +
@@ -395,7 +404,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             placeholder={field.placeholder}
             value={field.value}
             onInput={value => v.act.filter(value)}
-            onSubmit={value => v.act.filter(value)}
+            onSubmit={value => v.act.submitFilter(value)}
           />
         </Box>
         {KeyButton(v, {
@@ -410,16 +419,18 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
 
   return (
     <Box flexDirection="column" height={frame.bodyRows}>
-      <Box flexDirection="row" justifyContent="space-between" {...oneRow}>
-        <Box flexDirection="row" columnGap={narrowHeader ? 2 : 3} flexShrink={1}>
+      <Box
+        flexDirection="row"
+        justifyContent="space-between"
+        {...(terminal ? { height: tabRows, overflow: 'hidden' as const } : {})}
+      >
+        <Box flexDirection="row" flexWrap="wrap" columnGap={narrowHeader ? 2 : 3} flexShrink={1}>
           {tabRow}
         </Box>
         <Box flexDirection="row" columnGap={1} flexShrink={0}>
-          {tab.stale ? (
-            <Text dimColor>{GLYPH.stale}</Text>
-          ) : installed && sync.error !== undefined ? (
-            <Text color={TONE.warn}>{GLYPH.problem} couldn't refresh</Text>
-          ) : null}
+          {headerNote === '' ? null : (
+            <Text {...(tab.stale ? { dimColor: true } : { color: TONE.warn })}>{headerNote}</Text>
+          )}
           {top === undefined && !narrowHeader
             ? KeyButton(v, {
                 action: 'refresh',

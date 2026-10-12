@@ -6,7 +6,7 @@ import type { ModDetail, ModRow, Origin } from '../../types/index.d.ts'
 import { capabilitiesOf } from './capabilities.ts'
 import type { Details, InstalledEntry } from './cli-results.ts'
 import { type AbsolutePath, splitPluginId } from './ids.ts'
-import type { ValidateReport } from './validate-report.ts'
+import { issueText, type ValidateReport } from './validate-report.ts'
 
 /** What modmgr keeps per `root@version` (the `validate` store key). */
 export type Analysis = {
@@ -16,11 +16,16 @@ export type Analysis = {
   readonly envReads: readonly string[]
   readonly errors: number
   readonly warnings: number
+  /** The first errors validate found, a line each (ISSUES_KEPT at most); absent when there were none. */
+  readonly issues?: readonly string[]
   /** From `claude plugin details`, for mods only; absent when it failed. */
   readonly parts?: { readonly skills: number; readonly agents: number; readonly mcp: number }
   readonly tokens?: number
   readonly at: number
 }
+
+/** Errors kept per analysis: what a broken mod's detail says is wrong with it. */
+export const ISSUES_KEPT = 3
 
 export const analysisOf = (
   report: ValidateReport,
@@ -34,6 +39,9 @@ export const analysisOf = (
     envReads: report.envReads,
     errors: report.errors.length,
     warnings: report.warnings.length,
+    ...(report.errors.length === 0
+      ? {}
+      : { issues: report.errors.slice(0, ISSUES_KEPT).map(issueText) }),
     at,
   }
   if (details === undefined) return base
@@ -106,7 +114,12 @@ export const modDetail = (entry: InstalledEntry, analysis: Analysis): ModDetail 
   return {
     ...modRow(entry, analysis),
     caps: capabilitiesOf(analysis),
-    validate: { errors: analysis.errors, warnings: analysis.warnings, at: analysis.at },
+    validate: {
+      errors: analysis.errors,
+      warnings: analysis.warnings,
+      at: analysis.at,
+      ...(analysis.issues === undefined ? {} : { issues: [...analysis.issues] }),
+    },
     ...(root === undefined ? {} : { root }),
     ...(analysis.parts === undefined ? {} : { mixedCounts: { ...analysis.parts } }),
     ...(analysis.tokens === undefined ? {} : { tokens: analysis.tokens }),

@@ -69,13 +69,31 @@ const callName = (call: string): string =>
 
 const uniqueSorted = (values: Iterable<string>): string[] => [...new Set(values)].sort()
 
-const issues = (section: JsonRecord, key: 'errors' | 'warnings'): ValidateIssue[] =>
-  (arr(section, key) ?? []).filter(isRecord).map(issue => ({
-    path: sanitize(str(issue, 'path') ?? '', { max: 120 }),
-    message: sanitize(str(issue, 'message') ?? '', { max: ISSUE_MAX }),
-  }))
+/** `1 error, 2 warnings`. */
+export const issueCounts = (errors: number, warnings: number): string =>
+  `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`
 
-export const parseValidateReport = (run: CliRun): Result<ValidateReport> => {
+/** One issue as a line: where in the plugin, then what. */
+export const issueText = (issue: ValidateIssue): string => `${issue.path}: ${issue.message}`
+
+const issues = (
+  section: JsonRecord,
+  key: 'errors' | 'warnings',
+  root: string | undefined,
+): ValidateIssue[] =>
+  (arr(section, key) ?? []).filter(isRecord).map(issue => {
+    const message = str(issue, 'message') ?? ''
+    // A file of the plugin is named from its folder, not by the whole path before it.
+    const relative =
+      root === undefined ? message : message.replaceAll(`${root.replace(/\/+$/, '')}/`, '')
+    return {
+      path: sanitize(str(issue, 'path') ?? '', { max: 120 }),
+      message: sanitize(relative, { max: ISSUE_MAX }),
+    }
+  })
+
+/** `validate --json`'s report; `root`, the folder validated, is left out of its messages. */
+export const parseValidateReport = (run: CliRun, root?: string): Result<ValidateReport> => {
   const value = parseJson(run.stdout)
   if (!isRecord(value) || typeof value.success !== 'boolean') {
     return fail('parse', 'validate --json did not print a report')
@@ -102,8 +120,8 @@ export const parseValidateReport = (run: CliRun): Result<ValidateReport> => {
   }
   return ok({
     success: value.success,
-    errors: sections.flatMap(section => issues(section, 'errors')),
-    warnings: sections.flatMap(section => issues(section, 'warnings')),
+    errors: sections.flatMap(section => issues(section, 'errors', root)),
+    warnings: sections.flatMap(section => issues(section, 'warnings', root)),
     hasModule,
     events: uniqueSorted(found.hooks.map(eventName)),
     calls: uniqueSorted(found.calls.map(callName)),

@@ -177,18 +177,19 @@ export type DevDetailHow = DevHow & {
   readonly columns: number
 }
 
-/** A run's mark beside its name, its output under it, cut at the frame. */
+/** A run's mark beside its name, its output under it, wrapped at `columns`. */
 const runLines = (
   v: ViewPorts,
   label: string,
   mark: RunMark | undefined,
   idle: string,
   job: Job | undefined,
+  columns: number,
 ): { readonly rows: number; readonly el: RenderElement } => {
   const { Box, Text } = v.el
   const tail = tailOf(job)
   return {
-    rows: 1 + tail.length,
+    rows: 1 + wrappedRows(tail, columns - 2),
     el: (
       <Box flexDirection="column">
         {LabelRow(
@@ -203,9 +204,7 @@ const runLines = (
         )}
         {tail.map((line, index) => (
           <Box key={`tail:${index}`} paddingLeft={2}>
-            <Text dimColor wrap="truncate-end">
-              {line}
-            </Text>
+            <Text dimColor>{line}</Text>
           </Box>
         ))}
       </Box>
@@ -290,8 +289,8 @@ const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] =>
     return key === undefined ? 'not run yet' : `not run yet (${key})`
   }
   const checks = [
-    runLines(v, 'Validate', validateMark(validate), notRun('validate'), validate),
-    runLines(v, 'Tests', testMark(test), notRun('test'), test),
+    runLines(v, 'Validate', validateMark(validate), notRun('validate'), validate, how.columns),
+    runLines(v, 'Tests', testMark(test), notRun('test'), test, how.columns),
   ]
   const check: Section = {
     lines: [line(Heading(v, 'Checks')), ...checks.map(run => line(run.el, run.rows))],

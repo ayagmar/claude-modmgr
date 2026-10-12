@@ -89,7 +89,7 @@ export const validateRoot = (
   ports: CliPorts,
   path: AbsolutePath,
 ): Promise<Result<ValidateReport>> =>
-  then(runCli(ports, { op: 'validate', path }), parseValidateReport)
+  then(runCli(ports, { op: 'validate', path }), run => parseValidateReport(run, path))
 
 export const detailsOf = (ports: CliPorts, id: PluginId): Promise<Result<Details>> =>
   then(runCli(ports, { op: 'details', id }), parseDetails)

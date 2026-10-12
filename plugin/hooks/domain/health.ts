@@ -264,8 +264,8 @@ const ownItems = (input: HealthInput): HealthItem[] => {
       detect.total === 0
         ? 'finds mods when Discover first opens'
         : facts.detector.remote
-          ? `${plural(detect.found, 'mod', 'mods')} found${index}${checking}`
-          : `${plural(detect.found, 'mod', 'mods')} found in local catalogues (${facts.detector.why ?? 'remote checks are off'})`,
+          ? `${plural(detect.found, 'mod', 'mods')} found in your marketplaces${index}${checking}`
+          : `${plural(detect.found, 'mod', 'mods')} found in your marketplaces' local catalogues (${facts.detector.why ?? 'remote checks are off'})`,
   })
   if (!facts.cache.full) {
     own({

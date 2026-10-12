@@ -7,7 +7,7 @@ import type { CatalogKind, JobKind, JobState, Tab, View } from '../../types/inde
 import { SORTS } from './catalog.ts'
 import { isRecord, type JsonRecord } from './json.ts'
 import { type Lru, lruTrim } from './lru.ts'
-import type { Analysis } from './mods.ts'
+import { type Analysis, ISSUES_KEPT } from './mods.ts'
 
 export type Prefs = {
   readonly tab: Tab
@@ -88,7 +88,8 @@ export const STORE_KEYS: readonly StoreKey[] = [
 export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
   prefs: 1,
   detect: 1,
-  validate: 1,
+  // 2: an analysis keeps its first errors (`issues`).
+  validate: 2,
   // 2: records gained `added` and `since` (the capability diff).
   capsHistory: 2,
   history: 1,
@@ -205,6 +206,8 @@ export const readAnalysis = (entry: unknown): Analysis | undefined => {
   }
   const parts = readParts(entry.parts)
   const tokens = isCount(entry.tokens) ? entry.tokens : undefined
+  const issues =
+    isStringArray(entry.issues) && entry.issues.length <= ISSUES_KEPT ? entry.issues : undefined
   return {
     mod,
     events,
@@ -212,6 +215,7 @@ export const readAnalysis = (entry: unknown): Analysis | undefined => {
     envReads,
     errors,
     warnings,
+    ...(issues === undefined ? {} : { issues }),
     at,
     ...(parts === undefined ? {} : { parts }),
     ...(tokens === undefined ? {} : { tokens }),
@@ -299,6 +303,19 @@ export const MIGRATIONS: Migrations = {
   // 1 → 2: a version-1 record (`{ version, notable }`) is a version-2 record
   // with nothing added since; the reader checks each field either way.
   capsHistory: [data => data],
+  // 1 → 2: an analysis that found errors didn't keep them: it is dropped, so
+  // the next refresh reads the mod again and keeps what is wrong with it.
+  validate: [
+    data =>
+      isRecord(data)
+        ? Object.fromEntries(
+            Object.entries(data).filter(
+              ([, analysis]) =>
+                !(isRecord(analysis) && isCount(analysis.errors) && analysis.errors > 0),
+            ),
+          )
+        : data,
+  ],
 }
 
 export type Opened<K extends StoreKey> = {

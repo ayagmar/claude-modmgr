@@ -434,7 +434,7 @@ export const undoWords = (steps: readonly UndoStep[], rows: readonly ModRow[]): 
   const [only] = steps
   const words = only?.spec.target === undefined ? undefined : UNDO_WORDS[only.spec.kind]
   if (steps.length !== 1 || only?.spec.target === undefined || words === undefined)
-    return `undo ${steps.length} changes`
+    return `undo ${plural(steps.length, 'change', 'changes')}`
   const { target } = only.spec
   // A queue job's target is checked only when it runs: drawn, it is sanitised.
   return words(sanitize(rows.find(row => row.id === target)?.name ?? nameOf(target), { max: 24 }))

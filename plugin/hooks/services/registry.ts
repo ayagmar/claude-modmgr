@@ -300,6 +300,10 @@ export const createRegistry = (
     } catch (error) {
       // A state write refused (or another host error): report it, never throw.
       debug(`modmgr: refresh failed: ${String(error)}`)
+      // The ↻ marker goes with the refresh that put it up.
+      await ports.state
+        .update('sync', sync => ({ ...sync, refreshing: false }))
+        .catch(() => undefined)
       return fail('unavailable', 'the installed list could not be refreshed')
     }
   }

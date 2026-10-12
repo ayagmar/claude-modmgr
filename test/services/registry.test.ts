@@ -173,6 +173,19 @@ describe('registry.refresh', () => {
       error: { kind: 'unavailable', message: 'the installed list could not be refreshed' },
     })
   })
+
+  it('takes the ↻ marker down when a refresh fails partway', async () => {
+    const { w, registry } = setup()
+    // The host refuses the rows' write, after the marker went up.
+    const update = w.state.update
+    w.state.update = (async (key, change) => {
+      if (key === 'mods') throw new Error('state.set refused')
+      return update(key, change)
+    }) as typeof w.state.update
+    const result = await registry.refresh()
+    expect(result.ok).toBe(false)
+    expect(w.state.values.sync.refreshing).toBe(false)
+  })
 })
 
 describe('registry.select', () => {
@@ -201,6 +214,16 @@ describe('registry.select', () => {
     await registry.select('nosuch@x')
     expect(w.state.values.detail).toBeNull()
     expect(registry.entry('turn-band@fixtures')?.version).toBe('0.3.1')
+  })
+
+  it('says what is wrong with a mod that fails validation, relative to its folder', async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    await registry.select('broken@fixtures')
+    const issues = w.state.values.detail?.validate?.issues ?? []
+    expect(issues).toHaveLength(w.state.values.detail?.validate?.errors ?? -1)
+    expect(issues.length).toBeGreaterThan(0)
+    expect(issues.join('\n')).not.toMatch('/tmp/modmgr-fixtures/mkt/broken/')
   })
 
   it('says what the mod is and links its page, as its plugin.json gives them', async () => {

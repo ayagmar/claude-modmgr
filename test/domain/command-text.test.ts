@@ -66,7 +66,12 @@ describe('list and info', () => {
         reach: [],
         notable: [],
       },
-      validate: { errors: 1, warnings: 0, at: 1 },
+      validate: {
+        errors: 1,
+        warnings: 0,
+        at: 1,
+        issues: ['modules../register.ts: hooks/register.ts, line 3: $.process is used as a value'],
+      },
       mixedCounts: { skills: 2, agents: 0, mcp: 0 },
       dataBytes: 2048,
       root: '/mkt/tb',
@@ -75,7 +80,10 @@ describe('list and info', () => {
     expect(text.split('\n').slice(0, 3)).toEqual(['tb 1.0.0', 'tb@m · user · on', 'Shows a band'])
     expect(text).toContain('↑ 2.0.0 is available')
     expect(text).toContain('◆ Can run programs or change files on your machine (process.run)')
-    expect(text).toContain('validate: 1 errors, 0 warnings')
+    // What is wrong, not only how much.
+    expect(text).toContain(
+      'validate: 1 error, 0 warnings\n  modules../register.ts: hooks/register.ts, line 3: $.process is used as a value',
+    )
     expect(text).toContain('Also contains: 2 skills')
     expect(text).toContain('Data: 2 KB')
     expect(text).toContain('Folder: /mkt/tb')

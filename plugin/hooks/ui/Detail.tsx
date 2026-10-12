@@ -15,6 +15,7 @@ import {
   type ReachGroup,
 } from '../domain/capabilities.ts'
 import { sanitize } from '../domain/sanitize.ts'
+import { issueCounts } from '../domain/validate-report.ts'
 import {
   bytesLabel,
   partsLabel,
@@ -29,6 +30,7 @@ import {
   Heading,
   KeyButton,
   LabelRow,
+  type Line,
   line,
   type Section,
   sectionLines,
@@ -270,7 +272,7 @@ const bodySections = (
   full: boolean,
   columns: number,
 ): Section[] => {
-  const { Text } = v.el
+  const { Box, Text } = v.el
   if (detail === null) {
     return [{ lines: [line(<Text dimColor>Reading what it can do…</Text>)] }]
   }
@@ -323,29 +325,46 @@ const bodySections = (
     extras.push(`~${detail.tokens} tokens per session`)
   if (detail.dataBytes !== undefined) extras.push(`data ${bytesLabel(detail.dataBytes)}`)
   const { validate } = detail
-  const facts: RenderElement[] = []
+  const facts: Line[] = []
   if (extras.length > 0)
     facts.push(
-      <Text dimColor wrap="truncate-end">
-        {extras.join(' · ')}
-      </Text>,
+      line(
+        <Text dimColor wrap="truncate-end">
+          {extras.join(' · ')}
+        </Text>,
+      ),
     )
-  if (validate !== undefined) {
+  if (validate !== undefined && validate.errors > 0) {
     facts.push(
-      validate.errors > 0 ? (
+      line(
         <Text color={TONE.bad}>
-          {GLYPH.problem} validate: {plural(validate.errors, 'error', 'errors')},{' '}
-          {plural(validate.warnings, 'warning', 'warnings')}
-        </Text>
-      ) : (
+          {GLYPH.problem} validate: {issueCounts(validate.errors, validate.warnings)}
+        </Text>,
+      ),
+    )
+    // What is wrong, as validate says it: the fix starts there.
+    for (const [index, issue] of (validate.issues ?? []).entries()) {
+      const text = sanitize(issue, { max: 400 })
+      facts.push(
+        line(
+          <Box key={`issue:${index}`} paddingLeft={2}>
+            <Text dimColor>{text}</Text>
+          </Box>,
+          wrappedRows([text], columns - 2),
+        ),
+      )
+    }
+  } else if (validate !== undefined) {
+    facts.push(
+      line(
         <Text dimColor>
           {GLYPH.ok} validates
           {validate.warnings > 0 ? ` (${plural(validate.warnings, 'warning', 'warnings')})` : ''}
-        </Text>
+        </Text>,
       ),
     )
   }
-  if (facts.length > 0) sections.push({ lines: facts.map(fact => line(fact)) })
+  if (facts.length > 0) sections.push({ lines: facts })
   return sections
 }
 

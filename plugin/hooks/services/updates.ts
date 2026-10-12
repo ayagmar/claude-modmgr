@@ -77,7 +77,7 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     if (disposed) return
     timer = ports.clock.after(delay, () => {
       timer = undefined
-      void tick()
+      void tick().catch(error => debug(`modmgr: update check failed: ${String(error)}`))
     })
   }
 

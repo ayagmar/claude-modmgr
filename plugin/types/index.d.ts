@@ -50,7 +50,8 @@ export type ModDetail = ModRow & {
   mixedCounts?: { skills: number; agents: number; mcp: number }
   tokens?: number
   dataBytes?: number
-  validate?: { errors: number; warnings: number; at: number }
+  /** `issues`: the first errors, a line each. */
+  validate?: { errors: number; warnings: number; at: number; issues?: string[] }
 }
 
 export type CatalogKind = 'mod' | 'hooks' | 'plain' | 'unknown'

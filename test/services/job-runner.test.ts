@@ -383,7 +383,7 @@ describe('job outcomes', () => {
     await runAll(s.w, s.runner)
     const job = jobs(s.w)[0]
     expect(job?.state).toBe('failed')
-    expect(job?.tail[0]).toMatch(/^\d+ errors, \d+ warnings$/)
+    expect(job?.tail[0]).toMatch(/^\d+ errors?, \d+ warnings?$/)
     expect(s.w.process.calls[0]?.argv).toEqual([
       'claude',
       'plugin',

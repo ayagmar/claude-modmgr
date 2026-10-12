@@ -120,6 +120,8 @@ export type Actions = {
   reload(): Promise<void>
   overlay(which: 'help' | 'jobs'): Promise<void>
   filter(text: string): Promise<void>
+  /** Enter in the field: the filter, then the ring onto the row it leaves selected. */
+  submitFilter(text: string): Promise<void>
   /** `f`: the ring onto the filter field. */
   focusFilter(): Promise<void>
   /** Moves the selection to the first or last row the filter shows, and the ring with it. */
@@ -596,7 +598,7 @@ export const createActions = (
         plan.steps.map(step => step.spec),
         current => stillUndoes(current.jobs, plan.batch),
       )
-      if (queued === 'queued') await notice(`Undo: ${undoWords(plan.steps, mods)}`)
+      if (queued === 'queued') await notice(`Queued: ${undoWords(plan.steps, mods)}`)
     }),
 
     refresh: safely('refresh', async () => {
@@ -646,6 +648,11 @@ export const createActions = (
       await select(selectedRow(view, await state.read('mods'))?.id)
     }),
 
+    submitFilter: safely('submit filter', async text => {
+      await actions.filter(text)
+      await ringToSelection()
+    }),
+
     focusFilter: safely('focus filter', async () => {
       await ui.focus(PANE_ID, FILTER_KEY).catch(() => undefined)
     }),
@@ -675,7 +682,9 @@ export const createActions = (
     openPane: safely('open pane', async () => {
       await openDialog({ focus: true })
       // A restored tab is read when the dialog shows it.
-      void rt?.showTab((await state.read('view')).tab)
+      void rt
+        ?.showTab((await state.read('view')).tab)
+        .catch(error => debug(`modmgr: reading the tab failed: ${String(error)}`))
     }),
 
     focusFound: safely('focus found', async id => {
@@ -692,7 +701,9 @@ export const createActions = (
       }
       // A local entry beside the list (the split) says what it can do too: read in
       // the background, never on the ring's path; the redraw follows.
-      void rt?.catalog.inspect(id)
+      void rt?.catalog
+        .inspect(id)
+        .catch(error => debug(`modmgr: reading ${id} failed: ${String(error)}`))
     }),
 
     openFound: safely('open found', async id => {
@@ -700,7 +711,9 @@ export const createActions = (
       await showCatalog()
       await ringToOverlay()
       // A local entry is read now: the detail redraws when it lands.
-      void rt?.catalog.inspect(id)
+      void rt?.catalog
+        .inspect(id)
+        .catch(error => debug(`modmgr: reading ${id} failed: ${String(error)}`))
     }),
 
     install: safely('install', async id => {

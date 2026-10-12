@@ -55,6 +55,20 @@ All notable changes to this project are documented here. The format follows
 - A reload modmgr owed is no longer forgotten when modmgr alone starts again (an options change, a worker
   restart, a hot reload of its folder): only its own reload, or your `/reload-plugins` where only you can reload,
   counts as applied.
+- When Claude Code won't accept a GitHub mod's declared command from the session, the terminal command the review
+  copies adds the mod's marketplace (`--marketplace owner/repo`), so it works before you have added it.
+- In a pane too narrow for the tabs, they wrap onto a second line instead of cutting off Health's problem count.
+- A refresh that fails partway no longer leaves the `↻` marker up.
+- A mod that fails validation shows its first errors in its detail and in `/mods info`, not only how many there are.
+  modmgr reads such mods again once to keep them.
+- Validate errors in Dev and the job log name files from the mod's folder and wrap instead of being cut off, and
+  counts read "1 error", not "1 errors".
+- Discover's default sort no longer puts a catalogue's mods with no install counts above every GitHub mod, in name
+  order: those mods sort by stars among the rest.
+- Enter in the search field moves to the selected result instead of staying in the field.
+- The undo notice reads "Queued: undo 2 changes" instead of "Undo: undo 2 changes".
+- Health's Discover line says its count is of your marketplaces' mods, so it doesn't read as the whole catalogue.
+- In an install review a long name stays whole, and a blank line follows the list of what the mod can do.
 
 ## [0.4.0] - 2026-10-09
 

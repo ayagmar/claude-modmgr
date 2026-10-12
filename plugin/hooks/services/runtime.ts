@@ -103,7 +103,10 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
   /** A marketplace or an install changes what the catalogue lists. */
   const recatalog = (): void => {
     if (!catalog.isLoaded()) return
-    void catalog.load({ force: true }).then(() => detector.start())
+    void catalog
+      .load({ force: true })
+      .then(() => detector.start())
+      .catch(error => debug(`modmgr: catalogue read after a job failed: ${String(error)}`))
   }
   /** After a job ends, the runner's or a text write's: what it changed is read again. */
   const jobFinished = (job: Job): void => {

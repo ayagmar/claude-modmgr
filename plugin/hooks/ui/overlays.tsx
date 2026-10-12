@@ -69,7 +69,11 @@ const terminalCommand = (review: ReviewRequest): string | undefined => {
   if (target === undefined) return undefined
   const scope =
     target.scope === undefined || target.scope === 'user' ? '' : ` --scope ${target.scope}`
-  return `claude plugin ${target.op === 'update' ? 'update' : 'install'} ${target.id}${scope}`
+  if (target.op === 'update') return `claude plugin update ${target.id}${scope}`
+  // An install from a marketplace not added yet names its source, as the job does (domain/argv.ts).
+  const what =
+    review.source === undefined ? target.id : `${nameOf(target.id)} --marketplace ${review.source}`
+  return `claude plugin install ${what}${scope}`
 }
 
 /**
@@ -186,8 +190,13 @@ const reviewLines = (
         <Box width={9} flexShrink={0}>
           <Text>{verb}</Text>
         </Box>
-        <Text bold>{name(target.id)}</Text>
-        <Text dimColor>{meta}</Text>
+        {/* The name whole; what follows it is cut first. */}
+        <Box flexShrink={0}>
+          <Text bold>{name(target.id)}</Text>
+        </Box>
+        <Text dimColor wrap="truncate-end">
+          {meta}
+        </Text>
       </Box>,
       `x ${verb.padEnd(9)} ${name(target.id)} ${meta}`,
     )
@@ -212,6 +221,7 @@ const reviewLines = (
         `  x ${line}`,
       )
     }
+    gap()
   }
   if (review.parts !== undefined) {
     say(

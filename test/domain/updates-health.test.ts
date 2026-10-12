@@ -264,7 +264,7 @@ describe('Health’s items', () => {
       "Status: Commands: Claude Code won't accept a declared install command from this session; accept it in a terminal",
       'Status: Mods: 1 enabled · 1 disabled · 1 managed',
       'Status: Updates: checked 3 h ago · every 6 h → check now',
-      'Status: Discover: 3 mods found in local catalogues (detectRemote is off in its options)',
+      "Status: Discover: 3 mods found in your marketplaces' local catalogues (detectRemote is off in its options)",
       'Status: Hook errors: seen only in a session started with --debug → copy command',
     ])
   })
@@ -284,14 +284,18 @@ describe('Health’s items', () => {
     expect(texts({ updates: { every: 0, off: 'updateCheckHours is 0' } })).toContain(
       'checks are off: updateCheckHours is 0',
     )
-    expect(texts({})).toContain('3 mods found · 120 of 3,545 checked, 560 lookups left')
+    expect(texts({})).toContain(
+      '3 mods found in your marketplaces · 120 of 3,545 checked, 560 lookups left',
+    )
     const indexed = healthItemsOf(
       input({
         facts: facts({ at: 10 * 3_600_000 }),
         detect: { checked: 3545, total: 3545, found: 53, running: false, indexAt: 7 * 3_600_000 },
       }),
     )
-    expect(indexed.map(item => item.text)).toContain('53 mods found · index 3 h old')
+    expect(indexed.map(item => item.text)).toContain(
+      '53 mods found in your marketplaces · index 3 h old',
+    )
     expect(texts({})).toContain('2 KB')
     const fresh = healthItemsOf(
       input({ detect: { checked: 0, total: 0, found: 0, running: false } }),
