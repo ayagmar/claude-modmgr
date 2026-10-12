@@ -278,7 +278,7 @@ test('a name two marketplaces share is drawn with each marketplace', async ($, o
 })
 
 for (const mine of [false, true]) {
-  test(`the header counts GitHub's mods${mine ? ' only while k shows them' : ''}`, async ($, on) => {
+  test(`the header counts GitHub's mods${mine ? ' only while u shows them' : ''}`, async ($, on) => {
     host(on, {
       state: {
         view: {

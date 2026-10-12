@@ -111,6 +111,9 @@ test('toggle → review → confirm → disable → reload, on terminal and desk
     })
     await focusRow($, TURN_BAND)
     await ui.redraw()
+    // Before any change there is nothing to undo, so no key; the toggle says what it does.
+    if (surface === SURFACES[0]) expect(await ui.find({ key: 'act:undo' })).toBeUndefined()
+    expect((await ui.find({ key: 'act:toggle' }))?.props.label).toBe('disable')
     await ui.press({ key: 'act:toggle' })
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: /→ off/ })).toBeDefined()

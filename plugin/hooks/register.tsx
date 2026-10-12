@@ -134,7 +134,6 @@ function clockPorts($: EngineInterface): ClockPort {
 
 function envPorts($: EngineInterface): EnvPort {
   return {
-    pluginDirs: () => $.env.get('CLAUDE_CODE_PLUGIN_DIRS'),
     nonessentialTraffic: () => $.env.get('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC'),
     configDir: () => $.env.get('CLAUDE_CONFIG_DIR'),
     home: () => $.env.get('HOME'),

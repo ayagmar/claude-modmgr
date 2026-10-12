@@ -326,7 +326,7 @@ export const parseOpResult = (run: CliRun): Result<OpOutcome> => {
   // CLI refuses it when its environment carries CLAUDECODE).
   if (IGNORED_IN_SESSION.test(run.stdout) || IGNORED_IN_SESSION.test(run.stderr)) {
     const code = line === undefined ? undefined : str(line, 'failureCode')
-    return fail('rejected', 'Claude Code ignored the acceptance from here', code)
+    return fail('rejected', "Claude Code won't accept the command from this session", code)
   }
   if (line === undefined) return noJson(run)
   const message = sanitize(str(line, 'message') ?? '', { max: MESSAGE_MAX })

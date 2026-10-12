@@ -47,13 +47,18 @@ const flagsOf = (row: ModRow): { text: string; color?: string }[] => {
 const rowButton = (
   v: ViewPorts,
   row: ModRow,
-  how: { readonly max: number; readonly focus: boolean; readonly beside: boolean },
+  how: {
+    readonly label: string
+    readonly max: number
+    readonly focus: boolean
+    readonly beside: boolean
+  },
 ): RenderElement =>
   ListButton(
     v,
     {
       key: rowKey(row.id),
-      label: row.name,
+      label: how.label,
       open: () => v.act.open(row.id),
       select: () => v.act.focusRow(row.id),
     },
@@ -70,9 +75,12 @@ export const Row = (
     readonly focus: boolean
     /** The detail is beside the list: a press on another row selects it first. */
     readonly beside: boolean
+    /** Another mod has its name: its marketplace tells them apart, as in Discover. */
+    readonly twin: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
+  const label = how.twin ? `${row.name} · ${row.id.slice(row.id.indexOf('@') + 1)}` : row.name
   // Only an entry that still changes the row is drawn.
   const staged = how.staged.has(row.id) ? how.view.staged[row.id] : undefined
   const cols = rowColumns(how.columns)
@@ -81,7 +89,7 @@ export const Row = (
       {Pointer(v, how.focus)}
       <Text color={row.enabled ? TONE.ok : TONE.muted}>{row.enabled ? GLYPH.on : GLYPH.off}</Text>
       <Box width={cols.name} flexShrink={0}>
-        {rowButton(v, row, { max: cols.name, focus: how.focus, beside: how.beside })}
+        {rowButton(v, row, { label, max: cols.name, focus: how.focus, beside: how.beside })}
       </Box>
       {cols.meta ? (
         <Box width={10} flexShrink={0}>
@@ -124,6 +132,8 @@ export const List = (
     /** The row the ring starts on when the pane takes the keys. */
     readonly focusId: string | undefined
     readonly loading: boolean
+    /** Why the list couldn't be read, when it couldn't. */
+    readonly error: string | undefined
     readonly total: number
     /** Installed plugins the last refresh couldn't read: maybe mods, not listed. */
     readonly unread: number
@@ -134,11 +144,13 @@ export const List = (
   if (rows.length === 0) {
     const line = how.loading
       ? 'Reading your plugins…'
-      : how.total === 0 && how.unread > 0
-        ? `Couldn't read ${unreadCount(how.unread)}, so modmgr can't tell which are mods. r reads them again.`
-        : how.total === 0
-          ? 'No mods installed yet. Mods are plugins that hook into Claude Code; Discover (2) finds them.'
-          : `No mod matches "${sanitize(how.view.query, { max: 40 })}". Esc clears the filter.`
+      : how.total === 0 && how.error !== undefined
+        ? `Couldn't read your plugins: ${sanitize(how.error, { max: 160 })}.`
+        : how.total === 0 && how.unread > 0
+          ? `Couldn't read ${unreadCount(how.unread)}, so modmgr can't tell which are mods. r reads them again.`
+          : how.total === 0
+            ? 'No mods installed yet. Mods are plugins that hook into Claude Code; Discover (2) finds them.'
+            : `No mod matches "${sanitize(how.view.query, { max: 40 })}". Esc clears the filter.`
     return (
       <Box flexDirection="column">
         <Text dimColor>{line}</Text>
@@ -148,8 +160,13 @@ export const List = (
   const hidden = (shown: readonly ModRow[]) =>
     HiddenRows(
       v,
-      shown.map(row => rowButton(v, row, { max: 64, focus: false, beside: how.beside })),
+      shown.map(row =>
+        rowButton(v, row, { label: row.name, max: 64, focus: false, beside: how.beside }),
+      ),
     )
+  // Names the rows share, counted once.
+  const named = new Map<string, number>()
+  for (const row of rows) named.set(row.name, (named.get(row.name) ?? 0) + 1)
   return (
     <Box flexDirection="column">
       {hidden(rows.slice(0, how.window.start))}
@@ -160,6 +177,7 @@ export const List = (
           columns: how.columns,
           focus: row.id === how.focusId,
           beside: how.beside,
+          twin: (named.get(row.name) ?? 0) > 1,
         }),
       )}
       {hidden(rows.slice(how.window.end))}

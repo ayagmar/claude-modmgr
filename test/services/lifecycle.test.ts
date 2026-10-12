@@ -172,11 +172,25 @@ describe('capability probe', () => {
     })
   })
 
-  it('names an older CLI on PATH', async () => {
+  it('keeps an older CLI on PATH from changing mods, and says how to update it', async () => {
     const w = world()
     w.process.when(['--version'], out('2.1.200 (Claude Code)'))
-    const probe = await probeCapabilities(w.ports)
-    expect(probe.reason).toBe('the claude CLI on PATH is 2.1.200; modmgr needs 2.1.292 or newer')
+    await onSessionStart(runtimeFor(w))
+    await w.clock.advance(0)
+    expect(w.state.values.degraded.process).toBe(true)
+    expect(w.state.values.degraded.reason).toContain(
+      '2.1.200; modmgr needs 2.1.292 or newer: run claude update',
+    )
+    expect(w.process.calls.map(call => call.argv.join(' '))).toEqual(['claude --version'])
+    // Installed says the list can't be read instead of waiting on a read that never runs.
+    expect(w.state.values.sync.error?.message).toBe("modmgr can't run the claude CLI it needs")
+  })
+
+  it('lets a dev build of the minimum CLI change mods', async () => {
+    const w = world()
+    w.process.when(['--version'], out('2.1.292-dev (Claude Code)'))
+    const probe = await probeAndRecord(w.ports)
+    expect(probe.process).toBe(false)
   })
 
   it('turns network use off under CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', async () => {

@@ -236,7 +236,7 @@ describe('what Discover draws', () => {
   it('counts what the detector found', () => {
     expect(detectLine({ checked: 0, total: 0, found: 0, running: false })).toBeUndefined()
     expect(detectLine({ checked: 1804, total: 3544, found: 12, running: false })).toBe(
-      '12 mods among 1,804 of 3,544 checked',
+      '12 mods · 1,804 of 3,544 entries checked',
     )
     expect(detectLine({ checked: 3544, total: 3544, found: 1, running: false })).toBe('1 mod')
     expect(detectLine({ checked: 1, total: 2, found: 0, running: true })).toBe(

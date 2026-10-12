@@ -20,7 +20,7 @@ export const COLUMNS = 96
 export const FRAMES: readonly Frame[] = [
   {
     "title": "Installed",
-    "caption": "Every mod, what it can do at a glance, and what changed.",
+    "caption": "Every mod you have, with what each one can do.",
     "lines": [
       [
         {
@@ -241,7 +241,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "↑ runs from its marketplace folder: no updates"
+          "text": "runs from its marketplace folder: no updates"
         }
       ],
       [
@@ -515,7 +515,7 @@ export const FRAMES: readonly Frame[] = [
       ],
       [
         {
-          "text": "z: undo                                                              "
+          "text": "                                                                     "
         },
         {
           "dim": true,
@@ -540,7 +540,7 @@ export const FRAMES: readonly Frame[] = [
   },
   {
     "title": "Detail",
-    "caption": "An update gave turn-band a new power: said before it surprises you.",
+    "caption": "turn-band 0.4.0 can run programs; 0.3.1 couldn't.",
     "lines": [
       [
         {
@@ -611,7 +611,7 @@ export const FRAMES: readonly Frame[] = [
       [
         {
           "dim": true,
-          "text": "↑ runs from its marketplace folder: no updates"
+          "text": "runs from its marketplace folder: no updates"
         }
       ],
       [],
@@ -756,7 +756,7 @@ export const FRAMES: readonly Frame[] = [
   },
   {
     "title": "Discover",
-    "caption": "The mods in every marketplace you have, found at once.",
+    "caption": "Your marketplaces' mods and GitHub's, listed at once.",
     "lines": [
       [
         {

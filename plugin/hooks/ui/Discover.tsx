@@ -8,6 +8,7 @@ import type { CatalogPage, CatalogRow, View } from '../../types/index.d.ts'
 import { formatCount } from '../domain/catalog.ts'
 import { isProjectMod } from '../domain/community.ts'
 import { foundKey, inspectionLines } from '../domain/discover.ts'
+import { hotkeyFor } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
@@ -107,6 +108,8 @@ export const FoundList = (
     readonly checking: boolean
     /** The detail is beside the list: a press on another row selects it first. */
     readonly beside: boolean
+    /** Changes are off: no key that adds a marketplace is drawn. */
+    readonly readOnly: boolean
   },
 ): RenderElement => {
   const { Box, Text } = v.el
@@ -115,9 +118,10 @@ export const FoundList = (
     if (page.loading) lines.push('Reading your marketplaces’ catalogues…')
     else if (page.error !== undefined)
       lines.push(`Couldn't read the catalogue: ${sanitize(page.error, { max: 200 })} (r retries)`)
-    else if (page.total === 0) lines.push('Your marketplaces list nothing you haven’t installed.')
     else {
-      if (how.view.search === '') lines.push('No mods found in your marketplaces yet.')
+      // Nothing in any catalogue, community mods included: there may be no marketplace yet.
+      if (page.total === 0) lines.push('No mods to list yet.')
+      else if (how.view.search === '') lines.push('No mods found in your marketplaces yet.')
       else
         lines.push(
           `No mod matches "${sanitize(how.view.search, { max: 40 })}".`,
@@ -125,8 +129,10 @@ export const FoundList = (
         )
       if (how.networkOff) lines.push('Network use is off, so only local catalogues are checked.')
       else if (how.checking) lines.push('modmgr is still checking the catalogue: more may appear.')
-      // The footer draws `m`: a key is drawn once (two Buttons with one key clash).
-      if (how.view.search === '') lines.push('m adds a marketplace.')
+      // The footer draws the key: a key is drawn once (two Buttons with one key clash).
+      const add = hotkeyFor('marketplace-add', 'discover')
+      if (how.view.search === '' && !how.readOnly && add !== undefined)
+        lines.push(`${add} adds a marketplace.`)
     }
     return (
       <Box flexDirection="column">
@@ -236,10 +242,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       : []),
     ...(installable
       ? []
-      : [
-          'No marketplace lists it, so it installs from a clone:',
-          'claude --plugin-dir <its folder>',
-        ]),
+      : ['No marketplace lists it. Clone it and run:', 'claude --plugin-dir <its folder>']),
   ]
   const about: Section = {
     lines: [

@@ -74,6 +74,8 @@ describe('what can update', () => {
     expect(updateOf(installed('declared@m'), declared)).toBe('1.2.0')
     expect(updateOf(installed('declared@m', { version: '1.2.0' }), declared)).toBeUndefined()
     expect(updateOf(installed('declared@m', { version: '2.0.0' }), declared)).toBeUndefined()
+    // A beta moves on to its release.
+    expect(updateOf(installed('declared@m', { version: '1.2.0-beta.1' }), declared)).toBe('1.2.0')
     expect(updateOf(installed('declared@m', { version: 'weird' }), declared)).toBeUndefined()
     // A commit-named version against the pinned commit.
     expect(updateOf(installed('pinned@m', { version: 'bbbbbbbbbbbb' }), pinned)).toBe(
@@ -203,6 +205,23 @@ describe('Health’s items', () => {
     expect(problemCount(items)).toBe(2)
   })
 
+  it('keeps two mods of one name from two marketplaces apart', () => {
+    const items = healthItemsOf(
+      input({
+        mods: [
+          row('twin', { id: 'twin@one' as never, problems: 1 }),
+          row('twin', { id: 'twin@two' as never, updateTo: '2.0.0' }),
+        ],
+      }),
+    )
+    expect(
+      items.filter(item => item.group !== OWN_GROUP).map(item => [item.group, item.fixLabel]),
+    ).toEqual([
+      ['twin · one', 'see it'],
+      ['twin · two', 'update'],
+    ])
+  })
+
   it('says modmgr’s own state', () => {
     const queue: JobQueue = { owner: 'o', jobs: [] }
     const items = healthItemsOf(
@@ -242,7 +261,7 @@ describe('Health’s items', () => {
       "Status: Installed: couldn't read the list: list ran past 30 s → try again",
       'Status: Reload: changes wait for a plugin reload → reload',
       "Status: Cache: full: what modmgr learns isn't saved → clear cache",
-      'Status: Commands: Claude Code refuses declared-command acceptances from this session; accept them in a terminal',
+      "Status: Commands: Claude Code won't accept a declared install command from this session; accept it in a terminal",
       'Status: Mods: 1 enabled · 1 disabled · 1 managed',
       'Status: Updates: checked 3 h ago · every 6 h → check now',
       'Status: Discover: 3 mods found in local catalogues (detectRemote is off in its options)',

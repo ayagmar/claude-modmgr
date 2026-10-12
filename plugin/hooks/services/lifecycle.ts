@@ -89,6 +89,12 @@ export const background = async (rt: Runtime, how: { fresh: boolean }): Promise<
       )
       if (!how.fresh || shown) await rt.showTab((await ports.state.read('view')).tab)
       await rt.chrome.retakeKeys()
+    } else {
+      // Without a CLI it can run, the list is never read: say so rather than "Reading…".
+      await ports.state.update('sync', sync => ({
+        ...sync,
+        error: { kind: 'unavailable', message: "modmgr can't run the claude CLI it needs" },
+      }))
     }
   } catch (error) {
     ports.ui.debug(`modmgr: start-up failed: ${String(error)}`)

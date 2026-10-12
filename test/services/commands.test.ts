@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseModsArgs, USAGE } from '../../plugin/hooks/domain/command-args.ts'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
+import { cancelQueued } from '../../plugin/hooks/domain/jobs.ts'
 import { modsCommand } from '../../plugin/hooks/services/commands.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
 import { runs } from '../domain/fixtures/cli-runs.ts'
@@ -66,9 +67,11 @@ describe('the arguments', () => {
       return parsed.ok ? 'parsed' : parsed.error.message
     }
     expect(error('frobnicate')).toBe('unknown subcommand frobnicate')
+    expect(error('frobnicate --yes')).toBe('unknown subcommand frobnicate')
     expect(error('list extra')).toBe('unexpected extra')
     expect(error('info')).toMatch(/which mod/)
-    expect(error('info Not-An-Id')).toBe('not a plugin id: Not-An-Id')
+    expect(error('info Not-An-Id')).toBe('not a mod name or id: Not-An-Id')
+    expect(error('install turn-band')).toBe('not a plugin id: turn-band')
     expect(error('install tb@m --scope managed')).toMatch(/user, project or local/)
     expect(error('install tb@m --accept-command abc')).toMatch(/sha256/)
     expect(error('install tb@m --scope')).toBe('--scope needs a value')
@@ -119,8 +122,14 @@ describe('/mods as text', () => {
 
   it('lists, details, exports and doctors', async () => {
     const { run } = await setup()
-    expect((await run('list')).text).toContain('●  turn-band  0.3.1  user')
+    // The list prints ids, so each line's first word is what info and the writes take.
+    expect((await run('list')).text).toContain('●  turn-band@fixtures  0.3.1  user')
     const info = (await run('info turn-band@fixtures')).text ?? ''
+    expect((await run('info turn-band')).text).toBe(info)
+    expect(await run('info nosuch')).toEqual({
+      text: 'No installed mod is named nosuch; /mods list shows their ids.',
+      exitCode: 1,
+    })
     expect(info.split('\n').slice(0, 2)).toEqual([
       'turn-band 0.3.1',
       'turn-band@fixtures · user · on',
@@ -216,6 +225,31 @@ describe('/mods as text', () => {
     expect(w.state.values.queue.jobs.at(-1)?.shown?.sha256).toBe(SHA)
   })
 
+  it('skips a job of the batch cancelled from the job log while it waited', async () => {
+    const { w, run } = await setup(w =>
+      w.fs.files.set(
+        '/repo/two.json',
+        JSON.stringify({ mods: [{ id: 'aws@official' }, { id: 'gcp@official' }] }),
+      ),
+    )
+    w.process.when(['install', 'aws@official'], () => {
+      const waiting = w.state.values.queue.jobs.find(job => job.target === 'gcp@official')
+      if (waiting !== undefined) {
+        w.state.values.queue = {
+          ...w.state.values.queue,
+          jobs: cancelQueued(w.state.values.queue.jobs, waiting.id, w.clock.time),
+        }
+      }
+      return undefined
+    })
+    await run('apply /repo/two.json --yes')
+    const installs = w.process.calls.filter(call => call.argv.includes('install'))
+    expect(installs.map(call => call.argv[3])).toEqual(['aws@official'])
+    expect(w.state.values.queue.jobs.find(job => job.target === 'gcp@official')?.state).toBe(
+      'cancelled',
+    )
+  })
+
   it('applies a file: installs what is missing, enables what is off', async () => {
     const { w, run } = await setup(w => {
       w.fs.files.set(
@@ -282,7 +316,7 @@ describe('/mods as text', () => {
     expect((await run('update nosuch@x --yes')).exitCode).toBe(1)
     expect((await run('update qb@inline --yes')).exitCode).toBe(1)
     expect(await run('apply /repo/same.json --yes')).toEqual({
-      text: 'Nothing to do: 1 already so.',
+      text: 'Nothing to do: its mod is already as the file says.',
     })
     // Already off: said, nothing queued.
     w.state.values.mods = w.state.values.mods.map(item =>

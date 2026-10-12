@@ -16,6 +16,7 @@ import {
   testMark,
   validateMark,
 } from '../domain/dev.ts'
+import { hotkeyFor } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
@@ -283,9 +284,14 @@ const devSections = (v: ViewPorts, row: DevRow, how: DevDetailHow): Section[] =>
   }
   const validate = lastRun(how.jobs, 'validate', row.path)
   const test = lastRun(how.jobs, 'test', row.path)
+  // The key that runs it, when one is drawn.
+  const notRun = (action: string) => {
+    const key = how.readOnly ? undefined : hotkeyFor(action, 'dev-detail')
+    return key === undefined ? 'not run yet' : `not run yet (${key})`
+  }
   const checks = [
-    runLines(v, 'Validate', validateMark(validate), 'not run yet (v)', validate),
-    runLines(v, 'Tests', testMark(test), 'not run yet (t)', test),
+    runLines(v, 'Validate', validateMark(validate), notRun('validate'), validate),
+    runLines(v, 'Tests', testMark(test), notRun('test'), test),
   ]
   const check: Section = {
     lines: [line(Heading(v, 'Checks')), ...checks.map(run => line(run.el, run.rows))],

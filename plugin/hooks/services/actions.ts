@@ -116,7 +116,7 @@ export type Actions = {
   /** Queues the inverse of the last batch; one that reinstalls is reviewed first. */
   undo(): Promise<void>
   refresh(): Promise<void>
-  /** Queues a reload on its own (the band's `[l reload]`). */
+  /** Queues a reload on its own (the band's reload key). */
   reload(): Promise<void>
   overlay(which: 'help' | 'jobs'): Promise<void>
   filter(text: string): Promise<void>
@@ -488,7 +488,9 @@ export const createActions = (
       const mods = await state.read('mods')
       const rows = mods.filter(row => whyNoUpdate(row) === undefined)
       if (rows.length === 0) {
-        await notice('None of these mods updates through the CLI')
+        await notice(
+          mods.length === 0 ? 'No mods installed' : 'None of these mods updates through the CLI',
+        )
         return
       }
       await openReview(updateReview(rows))

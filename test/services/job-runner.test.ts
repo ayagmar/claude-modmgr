@@ -271,8 +271,8 @@ describe('job outcomes', () => {
       s.ids,
     )
     await runAll(s.w, s.runner)
-    expect(jobs(s.w)[0]?.state).toBe('ok')
-    expect(jobs(s.w)[0]?.tail[0]).toMatch(/^already so: /)
+    expect(jobs(s.w)[0]).toMatchObject({ state: 'ok', unchanged: true })
+    expect(jobs(s.w)[0]?.tail[0]).toMatch(/already/)
   })
 
   it('turns a declared command into a conflict that needs review', async () => {

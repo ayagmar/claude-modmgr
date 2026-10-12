@@ -69,10 +69,15 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
   let timer: { cancel(): void } | undefined
   let full = false
   let writing: Promise<Result<void>> = Promise.resolve(ok(undefined))
+  // Before the load ends, a `set` replaces what is stored, while an `update`
+  // (a history entry from an early `/mods … --yes`) is replayed on top of it.
+  let loaded = false
+  const replaced = new Set<StoreKey>()
+  const early = new Map<StoreKey, ((value: unknown) => unknown)[]>()
 
   const readAll = async (): Promise<void> => {
     for (const key of STORE_KEYS) {
-      if (dirty.has(key)) continue // set before the load finished: the newer value wins
+      if (replaced.has(key)) continue // set before the load finished: the newer value wins
       let stored: unknown
       try {
         stored = await ports.store.get(key)
@@ -80,14 +85,19 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
         debug(`modmgr: store read ${key} failed: ${String(error)}`)
         continue
       }
-      if (dirty.has(key)) continue // set while it was read: the newer value wins
+      if (replaced.has(key)) continue // set while it was read: the newer value wins
       const opened = openKey(key, stored)
-      data = { ...data, [key]: opened.data }
-      sizes[key] = bytesOf(opened.data)
-      if (opened.note === 'migrated') dirty.add(key)
+      const changes = early.get(key) ?? []
+      const value = changes.reduce<unknown>((value, change) => change(value), opened.data)
+      data = { ...data, [key]: capped(key, value as StoreData[typeof key]) }
+      sizes[key] = bytesOf(data[key])
+      if (opened.note === 'migrated' || changes.length > 0) dirty.add(key)
       if (opened.note === 'malformed')
         debug(`modmgr: store ${key} was unreadable; starting it empty`)
     }
+    loaded = true
+    replaced.clear()
+    early.clear()
   }
 
   const schedule = (): void => {
@@ -141,6 +151,10 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
   const set = <K extends StoreKey>(key: K, value: StoreData[K]): void => {
     data = { ...data, [key]: capped(key, value) }
     dirty.add(key)
+    if (!loaded) {
+      replaced.add(key)
+      early.delete(key)
+    }
     schedule()
   }
 
@@ -154,7 +168,15 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
     // A change that returns what it was given writes nothing (each write rewrites the file).
     update: (key, change) => {
       const next = change(data[key])
-      if (next !== data[key]) set(key, next)
+      if (next === data[key]) return
+      if (loaded || replaced.has(key)) {
+        set(key, next)
+        return
+      }
+      data = { ...data, [key]: capped(key, next) }
+      dirty.add(key)
+      early.set(key, [...(early.get(key) ?? []), change as (value: unknown) => unknown])
+      schedule()
     },
     flush,
     clearCaches() {

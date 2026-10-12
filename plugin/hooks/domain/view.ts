@@ -620,7 +620,7 @@ export const pushOverlay = ({ overlayAt: _scrolled, ...view }: View, overlay: Ov
 export const popOverlay = (view: View): View =>
   view.stack.length === 0 ? view : { ...view, stack: view.stack.slice(0, -1) }
 
-/** Opens an overlay, or closes it when it is already on top (the `h` and `j` keys). */
+/** Opens an overlay, or closes it when it is already on top (the help and jobs keys). */
 export const toggleOverlay = (view: View, overlay: Overlay): View =>
   topOverlay(view) === overlay ? popOverlay(view) : pushOverlay(view, overlay)
 
@@ -680,7 +680,7 @@ export type Status = {
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
 
-/** How a finished batch's work reads: what changed, and what was already so. */
+/** How a finished batch's work reads: what changed, and what was unchanged. */
 export const doneText = (work: readonly Job[]): string => {
   const changed = work.filter(job => job.state === 'ok' && job.unchanged !== true)
   const same = work.length - changed.length
@@ -699,7 +699,7 @@ export const doneText = (work: readonly Job[]): string => {
     if (only.kind === 'install') return `${name} installed`
   }
   const applied = plural(changed.length, 'change', 'changes')
-  return same === 0 ? `${applied} applied` : `${applied} applied, ${same} already so`
+  return same === 0 ? `${applied} applied` : `${applied} applied, ${same} unchanged`
 }
 
 /**
@@ -762,7 +762,7 @@ export type Summary = {
   readonly pending: number
   /** The batch's reload is running (or waiting for the turn to end). */
   readonly reloading: boolean
-  /** A reload is owed and none is queued: `[l reload]`. */
+  /** A reload is owed and none is queued: the band offers its reload key. */
   readonly reloadOwed: boolean
   /** The session lets only the person reload: they run /reload-plugins. */
   readonly reloadByHand: boolean
@@ -818,7 +818,7 @@ export type Band = {
   /** What was said: a dismissal hides the band until this changes. */
   readonly key: string
   readonly text: string
-  /** Offer `[l reload]`: a reload is owed and none is queued. */
+  /** Offer the reload key: a reload is owed and none is queued. */
   readonly reload: boolean
 }
 

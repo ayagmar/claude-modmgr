@@ -463,7 +463,7 @@ describe('the batch line for updates and removes', () => {
     expect(line([job('1', { kind: 'disable', unchanged: true })])).toBe('nothing needed changing')
     expect(
       line([job('1', { kind: 'disable' }), job('2', { kind: 'enable', unchanged: true })]),
-    ).toBe('1 change applied, 1 already so')
+    ).toBe('1 change applied, 1 unchanged')
   })
 })
 

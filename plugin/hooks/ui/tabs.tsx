@@ -140,6 +140,15 @@ const follow = (v: ViewPorts, list: string, count: number, index: number, size: 
 const count = (n: number, one: string, many: string) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
 
+/** The jobs that change a mod: after one, `z` undoes it or says why it can't. */
+const CHANGES_A_MOD: ReadonlySet<string> = new Set([
+  'enable',
+  'disable',
+  'install',
+  'remove',
+  'update',
+])
+
 const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   const { view, mods, sync } = d
   const rows = filterRows(mods, view.query)
@@ -149,7 +158,9 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   if (!f.readOnly) {
     const add = (key: Omit<Key, 'on'>) => keys.push({ on: 'installed', ...key })
     if (f.itemKeys && selected !== undefined) {
-      add({ action: 'toggle', label: 'toggle', onPress: () => v.act.toggle() })
+      // Named as the detail names it: what pressing it does to this mod.
+      const toggle = staged.has(selected.id) ? 'unstage' : selected.enabled ? 'disable' : 'enable'
+      add({ action: 'toggle', label: toggle, onPress: () => v.act.toggle() })
       if (whyNoUpdate(selected) === undefined)
         add({ action: 'update', label: 'update', onPress: () => v.act.update() })
       if (whyNoRemove(selected) === undefined)
@@ -157,14 +168,16 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     }
     if (mods.filter(row => whyNoUpdate(row) === undefined).length > 1)
       add({ action: 'update-all', label: 'update all', onPress: () => v.act.updateAll() })
-    // Says what it would reverse; with nothing to undo, pressing it says why.
+    // Says what it would reverse; when the last batch can't be undone, pressing it says why.
+    // Before any change to a mod there is nothing to explain, so no key.
     const undo = undoPlan(d.queue.jobs)
-    add({
-      action: 'undo',
-      label: undo.kind === 'ready' ? undoWords(undo.steps, mods) : 'undo',
-      short: 'undo',
-      onPress: () => v.act.undo(),
-    })
+    if (d.queue.jobs.some(job => CHANGES_A_MOD.has(job.kind)))
+      add({
+        action: 'undo',
+        label: undo.kind === 'ready' ? undoWords(undo.steps, mods) : 'undo',
+        short: 'undo',
+        onPress: () => v.act.undo(),
+      })
   }
   const on = mods.filter(row => row.enabled).length
   const updates = mods.filter(row => row.updateTo !== undefined).length
@@ -183,7 +196,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           }
         : undefined,
     meta: [
-      `${on} of ${count(mods.length, 'mod', 'mods')} on`,
+      mods.length === 0 ? '' : `${on} of ${count(mods.length, 'mod', 'mods')} on`,
       updates === 0 ? '' : count(updates, 'update', 'updates'),
       sync.skipped === 0 ? '' : `${sync.skipped.toLocaleString('en-US')} unread`,
       sync.reading === undefined || sync.reading === 0
@@ -213,6 +226,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           window,
           focusId: selected?.id,
           loading: sync.at === undefined && sync.error === undefined,
+          error: sync.error?.message,
           total: mods.length,
           unread: sync.skipped,
           beside: frame.beside,
@@ -239,12 +253,12 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
   })
   add({
     action: 'mine',
-    label: view.mine === true ? 'all of GitHub' : 'yours only',
+    label: view.mine === true ? 'all mods' : 'yours only',
     onPress: () => v.act.toggleMine(),
   })
   if (!f.readOnly)
     add({ action: 'marketplace-add', label: 'marketplace', onPress: () => v.act.addMarketplace() })
-  // The mods Discover can list: with `k`, only your marketplaces' (what the detector found).
+  // The mods Discover can list: with `u`, only your marketplaces' (what the detector found).
   const listed = detect.found + (view.mine === true ? 0 : page.community)
   return {
     surface: 'discover',
@@ -293,6 +307,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
           networkOff: degraded.network,
           checking: detect.running,
           beside: frame.beside,
+          readOnly: f.readOnly,
         }),
         pager:
           page.matched > window.end - window.start

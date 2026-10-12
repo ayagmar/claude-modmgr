@@ -83,7 +83,10 @@ export type Outcome = { finish: Finish; tail: string[] }
 /** A job whose module lost the queue mid-run: nothing about it is written. */
 const ABANDONED: Outcome = { finish: { cancelled: true }, tail: [] }
 
-const failed = (error: Pick<ModmgrError, 'kind' | 'message'>, tail: string[] = []): Outcome => ({
+export const failed = (
+  error: Pick<ModmgrError, 'kind' | 'message'>,
+  tail: string[] = [],
+): Outcome => ({
   finish: {
     ok: false,
     error: { kind: error.kind, message: sanitize(error.message, { max: 300 }) },
@@ -188,7 +191,7 @@ export const runJob = async (
     (done.update.outcome === 'up_to_date' ||
       (done.update.from !== undefined && done.update.from === done.update.to))
   if (done.unchanged || current) {
-    return { finish: { ok: true, unchanged: true }, tail: [`already so: ${done.message}`] }
+    return { finish: { ok: true, unchanged: true }, tail: [done.message] }
   }
   const kept = done.keptData === undefined ? {} : { keptData: done.keptData }
   return { finish: { ok: true, ...kept }, tail: [done.message] }

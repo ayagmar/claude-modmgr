@@ -101,7 +101,7 @@ const reviewLines = (
     removing && !keepData
       ? 'remove and wipe its data'
       : declared !== undefined
-        ? 'run it and install'
+        ? `run it and ${review.targets.some(target => target.op === 'update') ? 'update' : 'install'}`
         : 'confirm'
   const dataLabel = keepData ? 'wipe its data too' : 'keep its data'
   const offersData = removing && review.dataBytes !== undefined
@@ -291,8 +291,8 @@ const reviewLines = (
       say('accept it in /plugin, its details, or run this', TONE.bad)
       say(`in a terminal: ${terminal ?? ''}`, TONE.bad)
     } else {
-      say('It runs once, and only while it is still this', TONE.warn)
-      say('very command; a changed one is shown again.', TONE.warn)
+      say('It runs this once. A changed command is', TONE.warn)
+      say('shown here again before anything runs.', TONE.warn)
     }
   }
   if (review.action === 'marketplace' && review.source !== undefined) {
@@ -310,8 +310,8 @@ const reviewLines = (
       if (target.keptData === true) say(`${name(target.id)}: its data was kept.`)
       if (target.keptData === false) say(`${name(target.id)}: its data went with it.`)
     }
-    say('A declared install command stops it,', TONE.warn)
-    say('shown first; nothing runs unaccepted.', TONE.warn)
+    say('If it declares an install command, that', TONE.warn)
+    say('command is shown first and waits for you.', TONE.warn)
   }
   if (review.changesRepoFile) {
     say('Changes .claude/settings.json in this repository.', TONE.warn)
@@ -358,7 +358,7 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
       <Text dimColor>A GitHub owner/repo, an https URL, or a folder's</Text>
       <Text dimColor>absolute path. Enter reviews it before anything runs.</Text>
       {Input === undefined ? (
-        <Text dimColor>This surface can't take typing.</Text>
+        <Text dimColor>Typing isn't supported here.</Text>
       ) : (
         <Input
           key={MARKETPLACE_KEY}
@@ -372,10 +372,10 @@ export const MarketplaceForm = (v: ViewPorts): RenderElement => {
 
 /** What the first session's dialog says first: what modmgr is, then each tab. */
 const WELCOME_INTRO =
-  'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, and changes them safely, with undo.'
+  'Mods are plugins that hook into Claude Code. modmgr shows what each one can do before it runs, reviews every change first, and can undo your last batch of toggles, installs or removals.'
 const WELCOME_TABS = [
   ['1', 'Installed', 'what you have: toggle, update and remove'],
-  ['2', 'Discover', 'mods from your marketplaces and all of GitHub'],
+  ['2', 'Discover', 'mods from your marketplaces and public GitHub'],
   ['3', 'Dev', 'the mods you are writing: validate, test, share'],
   ['4', 'Health', 'what needs you, each with a fix'],
 ] as const

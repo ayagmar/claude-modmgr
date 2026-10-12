@@ -7,7 +7,6 @@ export const SURFACES = [
   'pane',
   'installed',
   'discover',
-  'discover-empty',
   'dev',
   'health',
   'detail',
@@ -74,7 +73,7 @@ export const BINDINGS: readonly Binding[] = [
     action: 'marketplace-add',
     hotkey: 'm',
     label: 'add a marketplace',
-    on: ['discover', 'discover-empty'],
+    on: ['discover'],
   },
   { action: 'validate', hotkey: 'v', label: 'validate', on: ['dev', 'dev-detail'] },
   { action: 'test', hotkey: 't', label: 'test', on: ['dev', 'dev-detail'] },
@@ -106,7 +105,6 @@ export const MOUNT_SETS: readonly (readonly KeySurface[])[] = (() => {
   const own: Readonly<Record<string, readonly KeySurface[]>> = {
     installed: ['detail'],
     discover: ['discover-detail'],
-    'discover-empty': ['discover-detail'],
     dev: ['dev-detail', 'share'],
     health: [],
   }

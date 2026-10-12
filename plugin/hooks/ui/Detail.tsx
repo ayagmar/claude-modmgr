@@ -155,7 +155,7 @@ const reachSection = (
   const { Box, Text } = v.el
   const heading = Heading(v, 'What it can do')
   if (groups.length === 0) {
-    return { lines: [line(heading), line(<Text dimColor>Nothing beyond loading.</Text>)] }
+    return { lines: [line(heading), line(<Text dimColor>No hooks or calls.</Text>)] }
   }
   const names = (group: ReachGroup) => group.items.map(itemName).join('  ')
   if (!full) {
@@ -424,12 +424,22 @@ const headSection = (v: ViewPorts, row: ModRow, how: DetailHow): Section => {
               wrappedRows([lockedLine], how.columns),
             ),
           ]),
+      ...(row.updateTo === undefined
+        ? []
+        : [
+            line(
+              <Text color={TONE.accent} wrap="truncate-end">
+                {GLYPH.update} {sanitize(row.updateTo, { max: 20 })} available
+              </Text>,
+            ),
+          ]),
+      // Why it can't update: `↑` means an update is waiting, so this line has no glyph.
       ...(note === undefined
         ? []
         : [
             line(
               <Text dimColor wrap="truncate-end">
-                {GLYPH.update} {note}
+                {note}
               </Text>,
             ),
           ]),

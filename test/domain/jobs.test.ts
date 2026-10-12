@@ -223,7 +223,7 @@ describe('undo', () => {
     ])
     expect(undoNeedsReview(plan)).toBe(false)
     expect(undoPlan([])).toEqual({ kind: 'none', reason: 'Nothing to undo' })
-    expect(undoPlan([{ id: 'v', kind: 'validate', state: 'ok', tail: [], batch: 'b' }])).toEqual({
+    expect(undoPlan([{ ...done({ kind: 'enable' }), batch: 'b', unchanged: true }])).toEqual({
       kind: 'none',
       reason: 'The last batch changed nothing to undo',
     })
@@ -237,6 +237,27 @@ describe('undo', () => {
     expect(undoPlan([toggled, updated])).toEqual({
       kind: 'none',
       reason: "An update can't be undone: the CLI can't install an older version",
+    })
+  })
+
+  it("keeps an install undoable after the update checker's refresh or a Dev validate", () => {
+    const installed: Job = { ...done({ kind: 'install' }), batch: 'b1' }
+    const refresh: Job = { id: 'm', kind: 'marketplace-update', state: 'ok', tail: [], batch: 'b2' }
+    const checked: Job = { id: 'v', kind: 'validate', state: 'ok', tail: [], batch: 'b3' }
+    const tested: Job = { id: 't', kind: 'test', state: 'ok', tail: [], batch: 'b4' }
+    expect(undoPlan([installed, refresh, checked, tested])).toMatchObject({
+      kind: 'ready',
+      batch: 'b1',
+      steps: [{ spec: { kind: 'remove', target: 'a@m' } }],
+    })
+  })
+
+  it('says a marketplace add, which changed your settings, is what undo would reverse and cannot', () => {
+    const installed: Job = { ...done({ kind: 'install' }), batch: 'b1' }
+    const added: Job = { id: 'k', kind: 'marketplace-add', state: 'ok', tail: [], batch: 'b2' }
+    expect(undoPlan([installed, added])).toEqual({
+      kind: 'none',
+      reason: "Adding a marketplace can't be undone here",
     })
   })
 

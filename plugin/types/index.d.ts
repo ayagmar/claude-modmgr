@@ -345,7 +345,7 @@ export type HealthFacts = {
   logged: Record<string, string>
   /**
    * This session's debug log (`--debug`, `<config>/debug/<session id>.txt`):
-   * none, read, or too large to read here (over 4 MiB), with its path.
+   * none, read, or not readable here (over 4 MiB, or no permission), with its path.
    */
   debugLog: { state: 'none' | 'read' | 'too-big'; path?: string }
   detector: { spent: number; budget: number; remote: boolean; why?: string }
