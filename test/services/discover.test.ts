@@ -317,7 +317,7 @@ describe('installing', () => {
     // The catalogue is read again: what is installed leaves it.
     expect(w.process.calls.filter(call => call.argv.includes('--available'))).toHaveLength(2)
     await act.undo()
-    expect(w.state.values.view.notice).toBe('Undo: remove aws-serverless')
+    expect(w.state.values.view.notice).toBe('Queued: remove aws-serverless')
   })
 
   it('installs a community mod from the marketplace in its repository, adding it first', async () => {

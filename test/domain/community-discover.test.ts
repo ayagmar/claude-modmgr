@@ -48,16 +48,16 @@ const entry = (id: string, installs?: number): CatalogEntry => ({
 })
 
 describe('community mods in the catalogue index', () => {
-  it('orders the catalogue first by installs, then community mods by stars', () => {
+  it('orders counted installs first, then by stars, an uncounted entry not above starred mods', () => {
     const index = buildIndex(
       [entry('a@m', 5), entry('b@m')],
       [mod('o/low', { stars: 1 }), mod('o/high', { stars: 9 })],
     )
     expect(index.order.installs.map(item => item.id)).toEqual([
       'a@m',
-      'b@m',
       'github.com/o/high',
       'github.com/o/low',
+      'b@m',
     ])
     expect(index.order.marketplace.map(item => item.id)).toEqual([
       'a@m',

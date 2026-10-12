@@ -256,7 +256,7 @@ describe('remove and its undo', () => {
     await drain()
     await act.undo()
     expect(w.state.values.review).toBeNull()
-    expect(w.state.values.view.notice).toBe('Undo: turn turn-band back on')
+    expect(w.state.values.view.notice).toBe('Queued: turn turn-band back on')
   })
 })
 

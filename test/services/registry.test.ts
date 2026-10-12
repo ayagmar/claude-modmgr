@@ -216,6 +216,16 @@ describe('registry.select', () => {
     expect(registry.entry('turn-band@fixtures')?.version).toBe('0.3.1')
   })
 
+  it('says what is wrong with a mod that fails validation, relative to its folder', async () => {
+    const { w, registry } = setup()
+    await registry.refresh()
+    await registry.select('broken@fixtures')
+    const issues = w.state.values.detail?.validate?.issues ?? []
+    expect(issues).toHaveLength(w.state.values.detail?.validate?.errors ?? -1)
+    expect(issues.length).toBeGreaterThan(0)
+    expect(issues.join('\n')).not.toMatch('/tmp/modmgr-fixtures/mkt/broken/')
+  })
+
   it('says what the mod is and links its page, as its plugin.json gives them', async () => {
     const { w, registry } = setup()
     const manifest = (folder: string) =>

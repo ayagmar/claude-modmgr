@@ -219,12 +219,12 @@ describe('store writes', () => {
   })
 
   it('clears the caches', async () => {
-    const w = world({ store: { validate: { v: 1, data: { '/r@1': analysis() } } } })
+    const w = world({ store: { validate: { v: 2, data: { '/r@1': analysis() } } } })
     const store = createStore(w.ports)
     await store.load()
     expect(Object.keys(store.get('validate'))).toHaveLength(1)
     expect((await store.clearCaches()).ok).toBe(true)
     expect(store.get('validate')).toEqual({})
-    expect(w.store.data.get('validate')).toEqual({ v: 1, data: {} })
+    expect(w.store.data.get('validate')).toEqual({ v: 2, data: {} })
   })
 })

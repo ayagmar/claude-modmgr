@@ -120,6 +120,8 @@ export type Actions = {
   reload(): Promise<void>
   overlay(which: 'help' | 'jobs'): Promise<void>
   filter(text: string): Promise<void>
+  /** Enter in the field: the filter, then the ring onto the row it leaves selected. */
+  submitFilter(text: string): Promise<void>
   /** `f`: the ring onto the filter field. */
   focusFilter(): Promise<void>
   /** Moves the selection to the first or last row the filter shows, and the ring with it. */
@@ -596,7 +598,7 @@ export const createActions = (
         plan.steps.map(step => step.spec),
         current => stillUndoes(current.jobs, plan.batch),
       )
-      if (queued === 'queued') await notice(`Undo: ${undoWords(plan.steps, mods)}`)
+      if (queued === 'queued') await notice(`Queued: ${undoWords(plan.steps, mods)}`)
     }),
 
     refresh: safely('refresh', async () => {
@@ -644,6 +646,11 @@ export const createActions = (
       const view = await setView(current => ({ ...quiet(current), query: text.slice(0, 100) }))
       // The split's detail follows the row the filter leaves selected.
       await select(selectedRow(view, await state.read('mods'))?.id)
+    }),
+
+    submitFilter: safely('submit filter', async text => {
+      await actions.filter(text)
+      await ringToSelection()
     }),
 
     focusFilter: safely('focus filter', async () => {

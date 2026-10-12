@@ -10,6 +10,7 @@ import { NEEDS_RELOAD } from './jobs.ts'
 import { isRecord, parseJson } from './json.ts'
 import { hotkeyFor } from './keymap.ts'
 import { hasHiddenCharacters, sanitize } from './sanitize.ts'
+import { issueCounts } from './validate-report.ts'
 import { bytesLabel, partsLabel, whyLocked, whyNoRemove, whyNoUpdate } from './view.ts'
 
 const GLYPH = { on: '●', off: '○', problem: '▲', notable: '◆', ok: '✓', failed: '✗', update: '↑' }
@@ -72,12 +73,13 @@ export const infoText = (detail: ModDetail): string => {
     }
   }
   if (detail.validate !== undefined) {
-    const { errors, warnings } = detail.validate
+    const { errors, warnings, issues = [] } = detail.validate
     lines.push(
       errors === 0 && warnings === 0
         ? `${GLYPH.ok} validate finds nothing wrong`
-        : `validate: ${errors} errors, ${warnings} warnings`,
+        : `validate: ${issueCounts(errors, warnings)}`,
     )
+    for (const issue of issues) lines.push(`  ${sanitize(issue, { max: 400 })}`)
   }
   const parts = detail.mixedCounts === undefined ? '' : partsLabel(detail.mixedCounts)
   if (parts !== '') lines.push(`Also contains: ${parts}`)

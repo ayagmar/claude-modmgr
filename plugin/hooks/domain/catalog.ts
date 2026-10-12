@@ -216,19 +216,22 @@ const turnsOf = (byName: readonly Indexed[]): ReadonlyMap<string, number> => {
 }
 
 /**
- * The person's marketplaces first, by installs; then the community's mods by
- * stars, one from each repository before any repository's second.
+ * Entries whose installs a marketplace counts first, most installed first; then
+ * the rest as stars order them, a marketplace's uncounted entries among the
+ * community's mods (a catalogue with no counts would otherwise sit above them
+ * all, in name order).
  */
-const byPopularity =
-  (turns: ReadonlyMap<string, number>) =>
-  (a: Indexed, b: Indexed): number => {
-    if (a.entry !== undefined && b.entry !== undefined) {
-      return (b.entry.installs ?? -1) - (a.entry.installs ?? -1)
-    }
-    if (a.entry !== undefined) return -1
-    if (b.entry !== undefined) return 1
-    return (turns.get(a.id) ?? 0) - (turns.get(b.id) ?? 0) || b.mod.stars - a.mod.stars
+const byPopularity = (turns: ReadonlyMap<string, number>) => {
+  const stars = byStars(turns)
+  return (a: Indexed, b: Indexed): number => {
+    const installsA = a.entry?.installs
+    const installsB = b.entry?.installs
+    if (installsA !== undefined && installsB !== undefined) return installsB - installsA
+    if (installsA !== undefined) return -1
+    if (installsB !== undefined) return 1
+    return stars(a, b)
   }
+}
 
 /** A community mod's stars, or those of a catalogue entry's repository when the index counted them. */
 const starsOf = (item: Indexed): number | undefined =>

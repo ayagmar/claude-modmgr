@@ -34,7 +34,7 @@ import {
 import type { ModmgrError } from '../domain/result.ts'
 import { sanitize, tailLines } from '../domain/sanitize.ts'
 import type { HistoryEntry } from '../domain/store-schema.ts'
-import { parseValidateReport } from '../domain/validate-report.ts'
+import { issueCounts, issueText, parseValidateReport } from '../domain/validate-report.ts'
 import { doneText, isWork, PANE_ID } from '../domain/view.ts'
 import type { Ports } from '../ports.ts'
 import { type CliPorts, runCli, runOp } from './cli.ts'
@@ -131,14 +131,11 @@ export const runJob = async (
   if (command.value.op === 'validate') {
     const run = await runCli(ports, command.value)
     if (!run.ok) return failed(run.error)
-    const report = parseValidateReport(run.value)
+    const report = parseValidateReport(run.value, command.value.path)
     if (!report.ok) return failed(report.error)
     const { errors, warnings } = report.value
     const tail = tailLines(
-      [
-        `${errors.length} errors, ${warnings.length} warnings`,
-        ...[...errors, ...warnings].map(issue => `${issue.path}: ${issue.message}`),
-      ],
+      [issueCounts(errors.length, warnings.length), ...[...errors, ...warnings].map(issueText)],
       20,
     )
     const counts = { errors: errors.length, warnings: warnings.length }

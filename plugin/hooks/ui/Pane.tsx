@@ -404,7 +404,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             placeholder={field.placeholder}
             value={field.value}
             onInput={value => v.act.filter(value)}
-            onSubmit={value => v.act.filter(value)}
+            onSubmit={value => v.act.submitFilter(value)}
           />
         </Box>
         {KeyButton(v, {

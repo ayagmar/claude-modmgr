@@ -1739,7 +1739,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "Discover"
         },
         {
-          "text": "     5 mods found"
+          "text": "     5 mods found in your marketplaces"
         }
       ],
       [

@@ -371,6 +371,14 @@ describe('store schema', () => {
     expect(openKey('prefs', { v: 0, data: {} }).note).toBe('malformed')
   })
 
+  it('reads again an analysis kept before it said what was wrong', () => {
+    const clean = { ...analysis, errors: 0 }
+    const opened = openKey('validate', envelope({ broken: analysis, clean }, 1))
+    expect(opened).toEqual({ data: { clean }, note: 'migrated' })
+    const told = { ...analysis, issues: ['hooks/hooks.json: bad event'] }
+    expect(readAnalysis(told)).toEqual(told)
+  })
+
   it('reads values field by field', () => {
     expect(readPrefs(null).tab).toBe('installed')
     expect(readPrefs({ tab: 'nope', firstRunDone: 'yes' })).toMatchObject({
