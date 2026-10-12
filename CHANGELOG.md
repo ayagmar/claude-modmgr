@@ -19,8 +19,39 @@ All notable changes to this project are documented here. The format follows
   the notice says it again once queued.
 - The first load of Installed shows each mod as soon as it is read, instead of after the slowest one, and its
   header says how many plugins are still being read.
+- Plainer wording across the dialog and `/mods` text: "unchanged" and "nothing to change" replace "already so",
+  and a refused command acceptance says Claude Code won't accept it from this session. The plugin's description no
+  longer says "function-hook".
+- A `claude` CLI on your path older than 2.1.292 is treated like a missing one: modmgr makes no changes, and the
+  dialog, Health and `/mods` text say to run `claude update`.
+- `/mods list` prints each mod's id (`name@marketplace`), and `info`, `enable`, `disable`, `remove` and `update`
+  take a bare name when only one installed mod has it.
+- A mod's detail says when an update is available (`↑ 2.2.0 available`); the line for a mod that can't update no
+  longer uses the update arrow.
+- Discover with no marketplaces says there is nothing to list yet and offers `m` to add one.
+- The welcome says what undo covers: your last batch of toggles, installs or removals. `z` appears once you have changed a mod, and the review of an update says "run it and update".
+- Two installed mods with the same name show their marketplace in their rows and get separate Health groups.
+- Discover reads every community mod from a new file, `mods-v2.json`, which has no size limit. `mods-v1.json`
+  stays for modmgr 0.4.0 and older, holding the most-starred mods that fit the 4 MiB they read.
+- The daily index build reuses what it read in a repository nobody has pushed to since, so it clones only what
+  changed; every repository is read again on Sundays.
 
 ### Fixed
+- The landing page's daily rebuild no longer fails as the community index grows: its data budget is per mod.
+- Undo survives the periodic update check and Dev's validate and test runs, which used to take its place.
+- Prerelease versions get updates (`1.2.0-beta.1` to `1.2.0`), and a version written `v1.2.0` is read.
+- Saving many catalogue entries at once (the first index sync) no longer blocks modmgr for seconds.
+- Key hints name the right keys: `q` for the job log, `s` for reload.
+- A job cancelled while a `/mods … --yes` batch waits no longer runs, and a batch that fails midway no longer leaves
+  a job running until the next session.
+- Changes made while modmgr's store was still loading are no longer lost.
+- More invisible characters are stripped from names and descriptions, and `/mods` text no longer offers
+  `--accept-command` for a declared command that holds hidden characters.
+- The community index build refuses to publish when the last index can't be read, retries GitHub metadata
+  requests, and keeps the previous entries of repositories it couldn't read. A failed download no longer drops the
+  community index from the published branch, and a slow mods build no longer stops the catalogue index from
+  publishing.
+- The release workflow runs the gate without write access and refuses a tag that doesn't match `plugin.json`.
 - A reload modmgr owed is no longer forgotten when modmgr alone starts again (an options change, a worker
   restart, a hot reload of its folder): only its own reload, or your `/reload-plugins` where only you can reload,
   counts as applied.

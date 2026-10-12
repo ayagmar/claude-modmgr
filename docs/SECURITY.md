@@ -80,11 +80,11 @@ isolates, and zero-width characters are removed, and lengths are capped. The tex
 and zero-width characters (`test/layering.test.ts`).
 
 **Network and files.** modmgr makes no network requests of its own except Discover's reads of
-`https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/claude-modmgr`, branch `catalog-index`, `v1.json`, at
-most every 12 hours), the community index (same branch, `mods-v1.json`, once a session and then at most every 12
-hours), and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned commit (at
+`https://raw.githubusercontent.com/`: the catalogue index (`ayagmar/claude-modmgr`, branch `catalog-index`, `v1.json`, when a
+session or reload starts if the last read is over an hour old, then at most every 12 hours), the community index (same
+branch, `mods-v2.json`, once a session and then at most every 12 hours), and a catalogue entry's `hooks/hooks.json` and `.claude-plugin/plugin.json` at the entry's pinned commit (at
 most 600 a session, only while no turn runs), without credentials, each asked for by byte range (64 KiB a file, 2 MiB
-the catalogue index, 4 MiB the community index, so a server that honours it sends no more) and its JSON
+the catalogue index, 64 MiB the community index, so a server that honours it sends no more) and its JSON
 shape-checked. Asking for the index tells GitHub, as any of these reads does, that this address runs modmgr; it
 carries nothing about the person's catalogues or mods. The index only classifies remote entries: a kind is taken
 only when the index's key is the entry's own pinned commit, never `unknown` (the detector checks again), never for a
@@ -97,7 +97,7 @@ a malformed file is refused whole. A wrong or hostile community index can at wor
 or misstate what a mod can do before it is installed (the review says the facts are the index's, at a commit);
 installing still asks first, and modmgr reads the installed version itself. `MODMGR_INDEX_URL` (an http(s) address,
 for trying an index before it is published) reads the catalogue index from there instead, and the community index
-from `mods-v1.json` beside it, at every catalogue read. Both are built by a scheduled workflow. Its job that fetches
+from `mods-v2.json` beside it, at every catalogue read. Both are built by a scheduled workflow. Its job that fetches
 catalogue files and clones candidate repositories holds a token that can only read (it searches GitHub with it);
 git and the CLI never see the token, symbolic links are checked out as plain files, and no mod code runs (validate
 reads source). A second job, running no third-party code, publishes the files. These reads are off when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (to anything but
@@ -105,8 +105,8 @@ empty, `0` or `false`) or `detectRemote` is off. For an entry whose files are on
 files with `$.fs.read`, at paths inside that marketplace's folder (checked segment by segment: no `..`, no absolute
 part); a symbolic link there is read where it leads, and what is read only decides the entry's kind. Dev reads
 plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`) and lists folders (`$.fs.list`) where mods under
-development live: this session's mods folder (under `CLAUDE_CONFIG_DIR`, or `~/.claude` from `HOME`, the only reason
-modmgr reads those two variables), and where the session runs. It never writes a
+development live: this session's mods folder (under `CLAUDE_CONFIG_DIR`, or `~/.claude` from `HOME`), and where the
+session runs. Dev and Health (for the debug log) are the only reasons modmgr reads those two variables. It never writes a
 file: `p` (share) shows the marketplace file to write and copies the install line. `v` and `t` run `claude plugin
 validate` and `claude plugin test` on a dev mod's folder, which runs that mod's own tests: the person's code, on
 their key press. The CLI's own fetches (`marketplace add/update`, installs) are the CLI's. Because modmgr both reads

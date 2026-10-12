@@ -1,22 +1,17 @@
-# modmgr
+# modmgr: find and manage Claude Code mods from inside your session
 
-A mod manager for [Claude Code](https://claude.com/claude-code). Mods are plugins that hook into a Claude Code
-session: they can run programs, read the conversation, change what the model sees. modmgr shows which ones you have
-and what each one can do, and lets you find, install, switch off, update or remove them without leaving the session.
+Mods are Claude Code plugins that run code in your session: they can run programs, read the conversation and change
+what the model sees. Thousands of them are published across GitHub, with no store to search them and no quick way to
+tell what one does before it runs. modmgr adds `/mods`, a dialog that searches them, says what each one can reach
+before you install it, and installs, switches off, updates or removes them without leaving the session.
 
 ```
 /plugin install modmgr --marketplace ayagmar/claude-mods
 ```
 
-Then type `/mods`. Needs a session on Claude Code 2.1.284 or newer, and the `claude` CLI on your path at 2.1.292 or
-newer (modmgr runs it to install, update and switch mods). The desktop app runs its own pinned Claude Code for its
-sessions, separate from the CLI on your path: when it is older than 2.1.284, modmgr doesn't load there until the app
-moves on to a newer one.
+Type that at the Claude Code prompt, then `/mods`. [Search the same index in a browser](https://ayagmar.github.io/claude-modmgr/).
 
-## What you get
-
-**Installed** lists every mod with its state, version, scope and what it can do. Changes are staged and applied
-together, with one plugin reload after, and the last batch can be undone.
+The Installed tab, with a mod's detail beside the list:
 
 ```
 Installed   2: Discover   3: Dev   4: Health ▲1                                       r: refresh
@@ -27,135 +22,71 @@ Installed   2: Discover   3: Dev   4: Health ▲1                               
   ● broken             ▲1              │ redactor 2.1.0
   ● quiet-bash         ◆1              │ ● on · project · fixtures
 ❯ ● redactor           ◆3              │ e: disable  x: remove  c: copy id
-  ● spawner            ◆2              │ ↑ runs from its marketplace folder: no updates
-  ● turn-band          ◆2 new          │
+  ● spawner            ◆2              │ runs from its marketplace folder: no updates
+  ● turn-band          ◆2 new          │ Redacts secrets from what the model reads and posts a …
                                        │ Notable
                                        │ ◆ Can read your conversation or files and send data out
                                        │ ◆ Reads environment variables that look like secrets
                                        │ ◆ Can change what the model reads
-                                       │
                                        │ What it can do
+                                       │ /mods info redactor@fixtures explains each one.
                                        │ Network             http.fetch
                                        │ Session content     env.get  session.messages
-                                       │ What the model sees on session.append
-                                       │ Display only        on session.end
-                                       │
+                                       │ What the model sees on session.append
+                                       │ Display only        1 hook or call
                                        │ ✓ validates
-                                       │
-                                       │
 ────────────────────────────────────────────────────────────────────────────────────────────────
-z: undo                                                              q: jobs  0: keys  esc close
+                                                                     q: jobs  0: keys  esc close
 ```
 
-**A mod's detail** says what it hooks and calls, grouped by what that reaches (your machine, the network, the
-conversation, the model's input, other plugins), and calls out what's worth a second look. When an update adds
-something notable, it says so until you have seen it:
+## What it does
 
-```
-Installed   2: Discover   3: Dev   4: Health ▲1
-5 of 5 mods on
-╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ⌕ Filter 5 mods                                                                    f: filter │
-╰──────────────────────────────────────────────────────────────────────────────────────────────╯
-  ● broken             ▲1              │ turn-band 0.4.0
-  ● quiet-bash         ◆1              │ ● on · user · fixtures
-  ● redactor           ◆3              │ e: disable  x: remove  c: copy id
-  ● spawner            ◆2              │ ↑ runs from its marketplace folder: no updates
-❯ ● turn-band          ◆2              │
-                                       │ New since 0.3.1
-                                       │ ◆ Can run programs or change files on your machine
-                                       │
-                                       │ Notable
-                                       │ ◆ Can change what the model reads
-                                       │
-                                       │ What it can do
-                                       │ Your machine        process.run
-                                       │ What the model sees on prompt.submit
-                                       │ Display only        on turn.complete  on ui.render
-                                       │                     clock.now  state.set  ui.toast
-                                       │
-                                       │ ✓ validates
-                                       │
-────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                      q: jobs  0: keys  esc back
-```
+- **Searches the mods published on GitHub.** Discover lists the mods in the marketplaces you have added and the
+  thousands of community mods found on public GitHub. modmgr's CI rebuilds both indexes daily, so the list appears at
+  once. Sort by popularity, stars, name or source with `o`; keep only your own marketplaces with `u`.
+- **Shows what a mod can reach before you install it.** Each mod's detail groups what it hooks and calls by what that
+  touches: your machine, the network, the conversation, the model's input, other plugins. Risky combinations get a
+  line of their own, such as "Can read your conversation or files and send data out". This comes from
+  `claude plugin validate`, which reads the source and runs none of it.
+- **Reviews every install.** The review says what will run and where. A command a marketplace declares is shown in
+  full with its sha256, and runs only when you confirm that exact command.
+- **Says what an update added.** When an update adds something notable, such as running programs, the detail says so
+  until you have seen it. Updates are checked every few hours while no turn is running.
+- **Stages changes and undoes them.** Toggle, update or remove several mods and apply them with one plugin reload.
+  `z` undoes your last batch of toggles, installs or removals; an update can't be undone.
+- **Helps you write mods.** Dev lists the mods you load with `--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`, your skills
+  folder or a folder marketplace: validate them, run their tests, reload, and copy the line someone else needs to
+  install yours.
+- **Lists what needs fixing.** Health lists what needs you, worst first, each with a fix one key away.
 
-**Discover** lists the mods in every marketplace you have added, and the thousands published anywhere else on public
-GitHub. Both come from indexes modmgr's CI rebuilds daily, so they are there at once; anything else is
-checked while you work, search matches first. A community mod shows what it can do before you install it, as
-`claude plugin validate` read it. Installing goes through a review that says what will run and where: a community mod
-installs from the marketplace in its own repository, which the install adds to your user settings first, and one
-whose repository has no marketplace offers its link instead. `o` sorts by popularity, stars, name or source; `u` keeps
-only your own marketplaces' entries. A command a marketplace declares is shown whole, with
-its sha256, and runs only when you confirm that exact command.
+## Requirements
 
-```
-1: Installed   Discover   3: Dev   4: Health ▲1
-5 mods
-╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ⌕ Search 5 mods                                                                    f: search │
-╰──────────────────────────────────────────────────────────────────────────────────────────────╯
-❯ secret-scrub                    4.2k │ Install secret-scrub from fixtures
-  Masks tokens and keys in tool outpu… │ y: confirm  n: cancel
-  commit-guard                    2.8k │
-  Stops a commit while the tests fail… │ scope: user: every project ▾
-  turn-timer                      1.9k │ ● install   secret-scrub 1.0.0 · fixtures · user
-  Shows how long the current turn has… │
-  cost-meter                      1.2k │ modmgr reads what it can do once it is installed,
-  Counts the tokens each turn spends,… │ and shows it in its detail then.
-  quiet-hours                      610 │ Takes effect after the reload modmgr runs.
-  Holds notifications while a turn ru… │
-                                       │ Runs
-                                       │   claude plugin install secret-scrub@fixtures --scope …
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-                                       │
-────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                        esc back
-```
-
-**Dev** lists the mods you are writing (loaded with `--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`, your skills folder or
-a folder marketplace): validate them, run their tests, reload, and get the line someone else needs to install yours.
-
-**Health** lists what needs you, worst first, each with a fix one key away:
-
-```
-1: Installed   2: Discover   3: Dev   Health ▲1                                       r: refresh
-▲ 1 problem to look at
-  broken
-❯ ▲ validate finds 1 error in it                                                        → see it
-  Status
-    Mods         5 enabled
-    Updates      never checked · every 6 h                                           → check now
-    Discover     5 mods found
-    Cache        185 B                                                                   → clear
-    Hook errors  seen only in a session started with --debug                      → copy command
-
-────────────────────────────────────────────────────────────────────────────────────────────────
-s: reload                                                            q: jobs  0: keys  esc close
-```
-
-Updates are checked every few hours while no turn is running (`updateCheckHours`, 0 turns them off).
+- A Claude Code session at 2.1.284 or newer, and the `claude` CLI on your path at 2.1.292 or newer. modmgr runs the
+  CLI to install, update and switch mods.
+- The one-line install needs a session at 2.1.292 or newer. On an older one, add the marketplace first:
+  `/plugin marketplace add ayagmar/claude-mods`, then `/plugin install modmgr@ayagmar`.
+- The desktop app runs its own pinned Claude Code, separate from the CLI on your path. If that is older than 2.1.284,
+  modmgr loads there once the app updates.
+- Linux or macOS. Windows paths aren't supported yet.
 
 ## As text
 
 For scripts and `claude -p`:
 
 ```
-/mods list | info <id> | doctor [--json] | export
+/mods list | info <mod> | doctor [--json] | export
 /mods install <id> [--scope user|project|local] [--accept-command <sha256>] --yes
-/mods remove <id> [--wipe-data] --yes
-/mods update [<id>] --yes
-/mods enable <id> --yes | disable <id> --yes
+/mods remove <mod> [--wipe-data] --yes
+/mods update [<mod>] --yes
+/mods enable <mod> --yes | disable <mod> --yes
 /mods apply <file> --yes
 ```
 
-Writes need `--yes` (without it they print what they would run) and never reload: run `/reload-plugins` after.
-Exit codes: 0 done, 1 refused or failed, 2 usage. Under `-p`, Claude Code prefixes the answer with `modmgr: `.
+`<id>` is `name@marketplace`, as `/mods list` prints it. `<mod>` is an installed mod's id, or its name alone when no
+other installed mod shares it.
+
+Without `--yes`, a write prints what it would run and exits 1. Writes never reload: run `/reload-plugins` after.
+Exit codes: 0 done, 1 refused, failed or not confirmed, 2 usage. Under `-p`, Claude Code prefixes the answer with `modmgr: `.
 
 ## Options
 
@@ -164,15 +95,37 @@ Set them with `claude plugin configure modmgr`:
 | Option | Default | |
 |---|---|---|
 | `updateCheckHours` | 6 | Hours between update checks; 0 turns them off. |
-| `detectRemote` | on | Read the daily catalogue and community indexes, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to find mods. |
+| `detectRemote` | on | Read the daily indexes, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to find mods. |
 | `debugTimings` | off | Write how long each step took to the debug log (`--debug`). |
 
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off everything modmgr fetches. modmgr sends no telemetry.
 
 ## Safety
 
-modmgr is a lens, not a sandbox: once a mod runs, it runs with your session's power. It tells you what a mod can do
-and asks before anything new runs. [docs/SECURITY.md](docs/SECURITY.md) says what it reads, fetches and stores.
+modmgr shows you what a mod can do; it does not sandbox it. Once a mod runs, it runs with your session's power, and
+the way to stop it is to disable or remove it and reload. Capabilities come from static analysis of the version you
+install, and an update is read again. [docs/SECURITY.md](docs/SECURITY.md) has the threat model and lists everything
+modmgr reads, fetches and stores.
+
+## Troubleshooting
+
+- **`/mods` isn't a command.** Run `/reload-plugins`, or start a new session. In the desktop app, check the version
+  note under Requirements.
+- **Installed or Health says the CLI failed or is too old.** Update the `claude` CLI on your path (`claude update`)
+  to 2.1.292 or newer.
+- **Discover lists only your marketplaces.** modmgr couldn't read the community index: you are offline,
+  `detectRemote` is off, or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set. `r` tries again.
+- **A mod's hooks fail without a word.** Start the session with `claude --debug`; Health then lists hook errors from
+  that session's debug log.
+
+## Uninstall
+
+```
+claude plugin uninstall modmgr@ayagmar
+```
+
+Its preferences and cache are in `plugins/store/modmgr_ayagmar-*.json` under your Claude Code config directory
+(`~/.claude` unless `CLAUDE_CONFIG_DIR` says otherwise). Delete that file to remove them too.
 
 ## Development
 
