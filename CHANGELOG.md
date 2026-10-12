@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-12
+
 ### Added
 - Discover says when GitHub's mods couldn't be read, or when their index is days old because its daily builds
   stopped; `r` reads them again at once instead of waiting out the hour between tries.
