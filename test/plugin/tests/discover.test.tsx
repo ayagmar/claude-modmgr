@@ -197,6 +197,21 @@ test('when Claude Code refuses acceptances here, the review offers the terminal 
   expect(h.copies).toEqual([`claude plugin install ${CMD}`])
 })
 
+test('a GitHub mod refused here gets a terminal command that adds its marketplace', async ($, on) => {
+  const state = reviewState({ text: '/tmp/emit.sh', sha256: SHA })
+  const h = host(on, {
+    state: {
+      ...state,
+      review: { ...state.review, source: 'someone/cmd-mods' },
+      degraded: { process: false, network: false, acceptCommand: true },
+    },
+  })
+  await $.session.start(START)
+  const ui = await mountPane($, 'terminal', PANE(64, 40))
+  await ui.press({ key: 'act:copy' })
+  expect(h.copies).toEqual(['claude plugin install cmdmod --marketplace someone/cmd-mods'])
+})
+
 test('on mobile the install review says its scope (no picker there)', async ($, on) => {
   host(on, {
     state: {

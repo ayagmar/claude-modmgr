@@ -80,7 +80,11 @@ export const modsCommand = async (
   if (command.kind === 'open' && (await openDialog(ports, columns))) {
     // A restored tab is read when the dialog shows it; not awaited (waiting on
     // anything but its own `$` calls runs down the hook's 10 s budget).
-    if (rt !== undefined) void rt.showTab((await ports.state.read('view')).tab)
+    if (rt !== undefined) {
+      void rt
+        .showTab((await ports.state.read('view')).tab)
+        .catch(error => ports.ui.debug(`modmgr: reading the tab failed: ${String(error)}`))
+    }
     return {}
   }
   if (rt === undefined)

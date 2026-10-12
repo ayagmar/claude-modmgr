@@ -173,6 +173,19 @@ describe('registry.refresh', () => {
       error: { kind: 'unavailable', message: 'the installed list could not be refreshed' },
     })
   })
+
+  it('takes the ↻ marker down when a refresh fails partway', async () => {
+    const { w, registry } = setup()
+    // The host refuses the rows' write, after the marker went up.
+    const update = w.state.update
+    w.state.update = (async (key, change) => {
+      if (key === 'mods') throw new Error('state.set refused')
+      return update(key, change)
+    }) as typeof w.state.update
+    const result = await registry.refresh()
+    expect(result.ok).toBe(false)
+    expect(w.state.values.sync.refreshing).toBe(false)
+  })
 })
 
 describe('registry.select', () => {

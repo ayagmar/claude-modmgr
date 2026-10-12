@@ -55,6 +55,10 @@ All notable changes to this project are documented here. The format follows
 - A reload modmgr owed is no longer forgotten when modmgr alone starts again (an options change, a worker
   restart, a hot reload of its folder): only its own reload, or your `/reload-plugins` where only you can reload,
   counts as applied.
+- When Claude Code won't accept a GitHub mod's declared command from the session, the terminal command the review
+  copies adds the mod's marketplace (`--marketplace owner/repo`), so it works before you have added it.
+- In a pane too narrow for the tabs, they wrap onto a second line instead of cutting off Health's problem count.
+- A refresh that fails partway no longer leaves the `↻` marker up.
 
 ## [0.4.0] - 2026-10-09
 

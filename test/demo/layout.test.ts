@@ -95,6 +95,17 @@ describe('the line under the list', () => {
   })
 })
 
+describe('the tab row in a narrow pane', () => {
+  it('wraps rather than cut off Health’s count of problems, in the pane’s rows', async () => {
+    const { draw } = await setup()
+    for (const columns of [30, 40]) {
+      const lines = await draw(columns, 12)
+      expect(lines.some(line => /Health ▲\d+/.test(line))).toBe(true)
+      expect(lines).toHaveLength(12)
+    }
+  })
+})
+
 describe('a tab with nothing to select', () => {
   it('gives the body to what it says, with no detail beside it', async () => {
     const { w, act, draw } = await setup()

@@ -675,7 +675,9 @@ export const createActions = (
     openPane: safely('open pane', async () => {
       await openDialog({ focus: true })
       // A restored tab is read when the dialog shows it.
-      void rt?.showTab((await state.read('view')).tab)
+      void rt
+        ?.showTab((await state.read('view')).tab)
+        .catch(error => debug(`modmgr: reading the tab failed: ${String(error)}`))
     }),
 
     focusFound: safely('focus found', async id => {
@@ -692,7 +694,9 @@ export const createActions = (
       }
       // A local entry beside the list (the split) says what it can do too: read in
       // the background, never on the ring's path; the redraw follows.
-      void rt?.catalog.inspect(id)
+      void rt?.catalog
+        .inspect(id)
+        .catch(error => debug(`modmgr: reading ${id} failed: ${String(error)}`))
     }),
 
     openFound: safely('open found', async id => {
@@ -700,7 +704,9 @@ export const createActions = (
       await showCatalog()
       await ringToOverlay()
       // A local entry is read now: the detail redraws when it lands.
-      void rt?.catalog.inspect(id)
+      void rt?.catalog
+        .inspect(id)
+        .catch(error => debug(`modmgr: reading ${id} failed: ${String(error)}`))
     }),
 
     install: safely('install', async id => {
