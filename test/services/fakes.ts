@@ -350,6 +350,15 @@ export class FakeUi implements UiPort {
   /** Whether the person holds the pane's keys (the Esc cascade reads it). */
   focused = true
   copyFails?: 'no-clipboard' | 'no-surface' | 'refused'
+  /** Each notification's text, in order, sent or not. */
+  notified: string[] = []
+  /** Whether a notification is sent (false: no channel, or an engine without notifications). */
+  notifySends = true
+
+  notify = async (text: string): Promise<boolean> => {
+    this.notified.push(text)
+    return this.notifySends
+  }
 
   debug = (text: string): void => {
     this.lines.push(text)

@@ -5,6 +5,7 @@ import {
   type DetectEntry,
   HARD_BUDGET,
   SOFT_BUDGET,
+  STORE_KEYS,
 } from '../../plugin/hooks/domain/store-schema.ts'
 import { createStore, FLUSH_DELAY_MS } from '../../plugin/hooks/services/store.ts'
 import { world } from './fakes.ts'
@@ -108,7 +109,7 @@ describe('store.load', () => {
     const store = createStore(w.ports, { debug: line => debug.push(line) })
     await store.load()
     expect(store.get('history')).toEqual([])
-    expect(debug).toHaveLength(7)
+    expect(debug).toHaveLength(STORE_KEYS.length)
   })
 })
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Vendors the installed Claude Code's API declarations under
 # vendor/claude-code-types/<version>/. The engine lays them beside a
-# --plugin-dir mod at load, so this loads a throwaway mod once, headless, with a
-# throwaway config dir, and copies what was laid.
+# --plugin-dir mod at load, but only in an interactive session (a `-p` run lays
+# nothing since 2.1.296), so this starts one on a pseudo-terminal (util-linux
+# `script`) with a throwaway mod and config dir, onboarded and trusting a
+# throwaway folder, lets it load for a few seconds, and copies what was laid.
 #
 #   scripts/update-types.sh            # vendors `claude --version`
 set -euo pipefail
@@ -19,8 +21,16 @@ echo '{ "name": "types-probe", "version": "0.0.0", "description": "lays types" }
 echo '{ "modules": ["./register.ts"] }' > "$mod/hooks/hooks.json"
 echo 'export const register = on => { on("session.start", ($, e, next) => next(e)) }' > "$mod/hooks/register.ts"
 
-CLAUDE_CONFIG_DIR="$work/config" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-  claude -p --plugin-dir "$mod" "/help" </dev/null >/dev/null 2>&1 || true
+mkdir -p "$work/config" "$work/cwd"
+printf '{"hasCompletedOnboarding":true,"projects":{"%s":{"hasTrustDialogAccepted":true}}}' \
+  "$work/cwd" > "$work/config/.claude.json"
+(
+  cd "$work/cwd"
+  # script runs the command through $SHELL: sh, so no startup file (a ~/.zshenv)
+  # can point CLAUDE_CONFIG_DIR back at the real config.
+  CLAUDE_CONFIG_DIR="$work/config" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 SHELL=/bin/sh \
+    timeout 10 script -qc "claude --plugin-dir '$mod'" /dev/null </dev/null >/dev/null 2>&1 || true
+)
 
 laid="$mod/.claude-plugin/types/claude-code/index.d.ts"
 if [[ ! -f "$laid" ]]; then

@@ -17,6 +17,8 @@ import {
   type ListedEntry,
   marketplaceEntriesOf,
   nextCheckIn,
+  untoldUpdates,
+  updatesNotice,
 } from '../domain/updates.ts'
 import type { Ports } from '../ports.ts'
 import { runCli } from './cli.ts'
@@ -44,7 +46,7 @@ export type Updater = {
 }
 
 export type UpdaterDeps = {
-  readonly store: Pick<StoreService, 'get' | 'update'>
+  readonly store: Pick<StoreService, 'get' | 'set' | 'update' | 'readStored' | 'flush'>
   readonly registry: Pick<Registry, 'listed' | 'refresh' | 'isLoaded'>
   readonly hours: number
   /** The main turns running now (`rt.turns`): checks wait for none. */
@@ -53,6 +55,8 @@ export type UpdaterDeps = {
   readonly trafficOff: () => Promise<boolean>
   readonly newJobId: () => string
   readonly kick: () => void
+  /** Says which updates a check newly found, and whether it was said; absent when notifications are off. */
+  readonly notify?: (text: string) => Promise<boolean>
   readonly debug?: (text: string) => void
 }
 
@@ -177,6 +181,23 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     const found = foundUpdates(installed, entries)
     deps.store.update('updates', updates => ({ ...updates, found }))
     await deps.registry.refresh()
+    if (deps.notify === undefined) return
+    // Each open session holds its own copy, and the file holds what any of them said last:
+    // it wins over this copy, which may be older.
+    const stored = await deps.store.readStored('notified')
+    const told = { ...deps.store.get('notified'), ...stored }
+    const untold = untoldUpdates(found, told)
+    if (Object.keys(untold).length === 0) return
+    // Recorded only once said: a notification that wasn't sent is tried at the next check.
+    if (!(await deps.notify(updatesNotice(untold)))) return
+    // Read again just before writing: a mod another session recorded meanwhile keeps its
+    // record. Without both reads there is no telling, and what was said is recorded.
+    const latest = await deps.store.readStored('notified')
+    const said = Object.entries(untold).filter(
+      ([id]) => stored === undefined || latest === undefined || latest[id] === stored[id],
+    )
+    deps.store.set('notified', { ...told, ...latest, ...Object.fromEntries(said) })
+    await deps.store.flush()
   }
 
   return {

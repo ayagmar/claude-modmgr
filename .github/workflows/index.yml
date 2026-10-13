@@ -33,7 +33,7 @@ jobs:
     outputs:
       mods: ${{ steps.mods.outcome }}
     env:
-      CLAUDE_CODE_VERSION: 2.1.293
+      CLAUDE_CODE_VERSION: 2.1.296
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       DISABLE_AUTOUPDATER: '1'
     steps:

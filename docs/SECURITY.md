@@ -116,7 +116,9 @@ is sent.
 
 **Update checks and Health.** Every `updateCheckHours` (off at `0` and under the traffic switch), while no turn runs,
 modmgr asks the CLI to refresh the marketplaces your installed mods come from (`claude plugin marketplace update
-<name>`, the CLI's fetch), then reads each one's `.claude-plugin/marketplace.json` under its install location. Health
+<name>`, the CLI's fetch), then reads each one's `.claude-plugin/marketplace.json` under its install location. With
+`notifyUpdates` on, a check that finds a new version says so through Claude Code's notification call, which writes
+to your terminal; the text holds only the mods' names and versions. Health
 lists `<config dir>/debug` and, when this session runs with `--debug`, reads its own log (`<session id>.txt`, not
 another session's) for `hook failed closed` lines, keeping only the plugin's name, the event and the error kind (the
 engine logs no error text). modmgr never reads

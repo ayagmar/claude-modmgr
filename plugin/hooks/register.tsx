@@ -182,6 +182,17 @@ function uiPorts($: EngineInterface): UiPort {
     },
     copy: (text, surface) => $.ui.copy(surface === undefined ? { text } : { text, surface }),
     status: text => $.ui.status(text),
+    notify: async text => {
+      try {
+        const sent = await $.ui.notify(text)
+        if (!sent.isSent) $.ui.log(`modmgr: notification not sent: ${sent.reason}`, { to: 'debug' })
+        return sent.isSent
+      } catch (error) {
+        // Claude Code before 2.1.296 has no $.ui.notify.
+        $.ui.log(`modmgr: notification not sent: ${String(error)}`, { to: 'debug' })
+        return false
+      }
+    },
   }
 }
 

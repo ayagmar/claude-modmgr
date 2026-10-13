@@ -6,12 +6,15 @@ export type Config = {
   /** Hours between update checks; 0 turns them off. */
   readonly updateCheckHours: number
   readonly detectRemote: boolean
+  /** A notification when a check finds mod updates. */
+  readonly notifyUpdates: boolean
   readonly debugTimings: boolean
 }
 
 export const DEFAULT_CONFIG: Config = {
   updateCheckHours: 6,
   detectRemote: true,
+  notifyUpdates: false,
   debugTimings: false,
 }
 
@@ -20,6 +23,7 @@ const MAX_HOURS = 168
 export const parseConfig = (options: Readonly<Record<string, unknown>>): Config => {
   const hours = options.updateCheckHours
   const detect = options.detectRemote
+  const notify = options.notifyUpdates
   const timings = options.debugTimings
   return {
     updateCheckHours:
@@ -27,6 +31,7 @@ export const parseConfig = (options: Readonly<Record<string, unknown>>): Config 
         ? Math.min(MAX_HOURS, Math.max(0, hours))
         : DEFAULT_CONFIG.updateCheckHours,
     detectRemote: typeof detect === 'boolean' ? detect : DEFAULT_CONFIG.detectRemote,
+    notifyUpdates: typeof notify === 'boolean' ? notify : DEFAULT_CONFIG.notifyUpdates,
     debugTimings: typeof timings === 'boolean' ? timings : DEFAULT_CONFIG.debugTimings,
   }
 }

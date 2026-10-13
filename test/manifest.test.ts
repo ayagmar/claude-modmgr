@@ -21,6 +21,7 @@ describe('the manifest', () => {
     expect(isRecord(config) && Object.keys(config).sort()).toEqual([
       'debugTimings',
       'detectRemote',
+      'notifyUpdates',
       'updateCheckHours',
     ])
   })

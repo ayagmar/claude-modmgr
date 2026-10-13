@@ -25,6 +25,7 @@ import {
   marketplaceEntriesOf,
   nextCheckIn,
   updateOf,
+  updatesNotice,
   updateTo,
 } from '../../plugin/hooks/domain/updates.ts'
 import { statusLineOf, summaryOf } from '../../plugin/hooks/domain/view.ts'
@@ -142,6 +143,16 @@ describe('what can update', () => {
       data: { at: 1, found: {} },
     })
     expect(openKey('updates', envelope({}, 2)).note).toBe('newer')
+  })
+
+  it('names one update with its version, a few by name, and counts the rest', () => {
+    const notice = (names: string[]) =>
+      updatesNotice(Object.fromEntries(names.map(name => [`${name}@m`, '1.1.0'])))
+    expect(notice(['redactor'])).toBe('redactor can update to 1.1.0. /mods to update.')
+    expect(notice(['a', 'b'])).toBe('2 mods can update: a and b. /mods to update.')
+    expect(notice(['a', 'b', 'c', 'd', 'e'])).toBe(
+      '5 mods can update: a, b, c and 2 more. /mods to update.',
+    )
   })
 })
 

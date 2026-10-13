@@ -96,6 +96,7 @@ Set them with `claude plugin configure modmgr`:
 |---|---|---|
 | `updateCheckHours` | 6 | Hours between update checks; 0 turns them off. |
 | `detectRemote` | on | Read the daily indexes, and catalogue entries' `hooks.json`, from raw.githubusercontent.com to find mods. |
+| `notifyUpdates` | off | Send a notification through your terminal when an update check finds a new mod version, once per version, unless the dialog has your keys. Needs Claude Code 2.1.296 or newer. |
 | `debugTimings` | off | Write how long each step took to the debug log (`--debug`). |
 
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off everything modmgr fetches. modmgr sends no telemetry.
