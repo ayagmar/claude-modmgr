@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { createRuntime } from '../../plugin/hooks/services/runtime.ts'
+import { factsLine } from '../../plugin/hooks/ui/kit.tsx'
 import { drawPane, overlayEnd } from '../../plugin/hooks/ui/Pane.tsx'
 import { runs } from '../domain/fixtures/cli-runs.ts'
 import { fixtureCli, fixtureManifests, markMods } from '../services/cli-world.ts'
@@ -102,6 +103,23 @@ describe('the tab row in a narrow pane', () => {
       const lines = await draw(columns, 12)
       expect(lines.some(line => /Health ▲\d+/.test(line))).toBe(true)
       expect(lines).toHaveLength(12)
+    }
+  })
+})
+
+describe('the line under the tabs in a narrow pane', () => {
+  // Cut at the edge it read `GitHub's mods couldn't be read · r tries ag…`,
+  // hiding the key that reads them again.
+  it('wraps between its parts, the key to try again whole, in the pane’s rows', async () => {
+    const { act, rt, draw } = await setup()
+    await act.tab('discover')
+    await rt.catalog.show()
+    for (const columns of [60, 80]) {
+      const lines = await draw(columns, 16)
+      expect(
+        lines.some(line => line.includes("GitHub's mods couldn't be read · r tries again")),
+      ).toBe(true)
+      expect(lines).toHaveLength(16)
     }
   })
 })
@@ -205,6 +223,24 @@ describe('a detail too short for every explanation', () => {
     const seen = frames.flat().join('\n')
     expect(seen).toMatch('Reads environment variables that look like secrets')
     expect(seen).toMatch('✓ validates')
+  })
+})
+
+describe('a detail’s facts in a narrow pane', () => {
+  // Cut at the edge, `37k stars` read `37k s…`; and a line that wraps to more
+  // rows than counted pushes the detail's last lines out of its window.
+  it('wrap between facts, never inside one, in the rows counted for them', () => {
+    installJsx()
+    const facts = ['claude-plugins-official', '9.4k installs', '37k stars']
+    const v = { el: ELEMENTS as never }
+    for (const columns of [30, 42, 60]) {
+      const drawn = factsLine(v, facts, columns)
+      const lines = render(drawn.el, columns).map(line =>
+        line.map(segment => segment.text).join(''),
+      )
+      for (const fact of facts) expect(lines.some(line => line.includes(fact))).toBe(true)
+      expect(lines).toHaveLength(drawn.rows ?? 0)
+    }
   })
 })
 

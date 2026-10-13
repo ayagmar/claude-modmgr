@@ -25,6 +25,7 @@ import {
 import { Share, shareRows } from './Dev.tsx'
 import {
   type DrawnOverlay,
+  factsLine,
   GLYPH,
   HiddenRows,
   KeyButton,
@@ -157,6 +158,13 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
     : installed && sync.error !== undefined
       ? `${GLYPH.problem} couldn't refresh`
       : ''
+  const metaLine = factsLine(
+    v,
+    tab.meta,
+    frame.bodyColumns,
+    tab.metaTone === undefined ? undefined : TONE[tab.metaTone],
+  )
+  const metaRows = metaLine.rows ?? 1
   // Closed up and still too wide, the tabs wrap rather than cut Health's count off.
   const tabRows = narrowHeader
     ? footerRowsFor(tabWidths, frame.bodyColumns - headerNote.length - 1)
@@ -213,7 +221,7 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
   )
   const boxedField = field !== undefined && frame.bodyRows >= BOXED_FIELD_MIN_ROWS
   const chrome =
-    1 +
+    metaRows +
     tabRows +
     (warning === undefined ? 0 : 1) +
     (field === undefined ? 0 : boxedField ? 3 : 1) +
@@ -442,16 +450,8 @@ export const drawPane = async (v: ViewPorts, frame: PaneFrame): Promise<RenderEl
             : null}
         </Box>
       </Box>
-      <Box {...oneRow}>
-        {tab.metaTone === undefined ? (
-          <Text dimColor wrap="truncate-end">
-            {tab.meta}
-          </Text>
-        ) : (
-          <Text color={TONE[tab.metaTone]} wrap="truncate-end">
-            {tab.meta}
-          </Text>
-        )}
+      <Box {...(terminal ? { height: metaRows, overflow: 'hidden' as const } : {})}>
+        {metaLine.el}
       </Box>
       {warning === undefined ? null : (
         <Text color={TONE.warn} wrap="truncate-end">

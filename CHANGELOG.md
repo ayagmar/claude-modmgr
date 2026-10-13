@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- A mod's GitHub link opened `https://github.com/…`, a 404, in terminals that show links as plain text (inside
+  Herdr or tmux, for example). The detail cut the line at the pane's edge, and the terminal took what was left as
+  the URL. The detail now shows the whole URL, wrapped onto more lines when needed.
+- In a narrow pane, the line under the tabs and a detail's facts line wrap between parts instead of cutting one
+  short: `37k stars` moves to the next line rather than showing as `37k s…`, and Discover keeps `r tries again`
+  whole.
+
 ## [0.4.1] - 2026-10-12
 
 ### Added
