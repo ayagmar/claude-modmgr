@@ -184,14 +184,16 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     if (deps.notify === undefined) return
     // Each open session holds its own copy, and the file holds what any of them said last:
     // it wins over this copy, which may be older.
-    const told = { ...deps.store.get('notified'), ...(await deps.store.readStored('notified')) }
+    const stored = await deps.store.readStored('notified')
+    const told = { ...deps.store.get('notified'), ...stored }
     const untold = untoldUpdates(found, told)
     if (Object.keys(untold).length === 0) return
     // Recorded only once said: a notification that wasn't sent is tried at the next check.
     if (!(await deps.notify(updatesNotice(untold)))) return
-    // Read again just before writing, so what another session wrote meanwhile isn't dropped.
+    // Read again just before writing: a mod another session recorded meanwhile keeps its record.
     const latest = await deps.store.readStored('notified')
-    deps.store.set('notified', { ...told, ...latest, ...untold })
+    const said = Object.entries(untold).filter(([id]) => latest?.[id] === stored?.[id])
+    deps.store.set('notified', { ...told, ...latest, ...Object.fromEntries(said) })
     await deps.store.flush()
   }
 

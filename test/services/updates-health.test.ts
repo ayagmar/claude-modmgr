@@ -248,6 +248,20 @@ describe('the update scheduler', () => {
       v: 1,
       data: { 'other@m': '2.0.0', [SDK]: '1.2.0' },
     })
+    // Another session said a newer version of this mod meanwhile: its record stands.
+    w.fs.files.set(
+      `${OFFICIAL}/.claude-plugin/marketplace.json`,
+      JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version: '1.3.0', source: './sdk' }] }),
+    )
+    w.ui.notify = async text => {
+      w.store.data.set('notified', { v: 1, data: { 'other@m': '2.0.0', [SDK]: '1.4.0' } })
+      return send(text)
+    }
+    await rt.updater.check()
+    expect(w.store.data.get('notified')).toEqual({
+      v: 1,
+      data: { 'other@m': '2.0.0', [SDK]: '1.4.0' },
+    })
   })
 
   it('says nothing when the marketplaces can’t be listed', async () => {
