@@ -13,13 +13,13 @@ Type that at the Claude Code prompt, then `/mods`. [Search the same index in a b
 
 Discover, with a community mod's detail beside the list:
 
-<img src="docs/images/discover.png" width="640" alt="The Discover tab: 5,840 mods sorted by stars, ruview-live selected, its detail saying it can run programs or change files on your machine">
+<a href="docs/images/discover.png"><img src="docs/images/discover.png" width="640" alt="The Discover tab: 5,840 mods sorted by popularity, ruview-live selected, its detail saying it can run programs or change files on your machine"></a>
 
 Your installed mods, and the review shown before an install:
 
 <p>
-<img src="docs/images/installed.png" width="49%" alt="The Installed tab: five mods, redactor selected, its detail listing what it can reach, such as reading the conversation and sending data out">
-<img src="docs/images/review.png" width="49%" alt="The review before installing ruview-live: what installing lets it do, where it comes from, and the exact claude plugin install command it runs">
+<a href="docs/images/installed.png"><img src="docs/images/installed.png" width="49%" alt="The Installed tab: five mods, redactor selected, its detail listing what it can reach, such as reading the conversation and sending data out"></a>
+<a href="docs/images/review.png"><img src="docs/images/review.png" width="49%" alt="The review before installing ruview-live: what installing lets it do, where it comes from, and the exact claude plugin install command it runs"></a>
 </p>
 
 ## What it does

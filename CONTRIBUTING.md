@@ -52,7 +52,9 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
 - `plugin/hooks/domain/explanations.ts`: `pnpm explanations` (from the vendored d.ts; a test fails when stale).
 - `test/domain/fixtures/cli-runs.ts`: `scripts/capture-fixtures.sh --official` (isolated config dir; needs network).
 - `test/plugin/tests/fixtures.ts`: `pnpm fixtures:plugin-tests` (the subset plugin tests use; a test fails when stale).
-- `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site and the README; a test fails when stale).
+- `site/src/data/demo.ts`: `pnpm demo` (the dialog's frames for the site; a test fails when stale).
+- `docs/images/*.png`: the README's screenshots, taken by hand of the docked dialog in a throwaway config with the
+  fixture mods. Nothing flags them as stale: take them again when the dialog changes visibly.
 - The catalogue index (not in the tree): `node scripts/build-index.ts <out.json>` on a throwaway config dir;
   `.github/workflows/index.yml` runs it daily and force-pushes it to the `catalog-index` branch. To try one before
   it is published, serve it and point modmgr at it:
