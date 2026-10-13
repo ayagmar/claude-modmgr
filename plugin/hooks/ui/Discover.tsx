@@ -13,6 +13,7 @@ import { sanitize } from '../domain/sanitize.ts'
 import { type Window, wrappedRows } from '../domain/view.ts'
 import {
   type DetailLines,
+  factsLine,
   GLYPH,
   Heading,
   HiddenRows,
@@ -190,9 +191,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
     row.stars === undefined
       ? ''
       : `${formatCount(row.stars)} ${row.stars === 1 ? 'star' : 'stars'}`,
-  ]
-    .filter(part => part !== '')
-    .join(' · ')
+  ].filter(part => part !== '')
   // A community mod no marketplace lists can't be installed by id: its link is what to take.
   const installable = community === undefined || community.installId !== undefined
   const head: Section = {
@@ -203,11 +202,7 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
           <Text dimColor>{row.version ?? ''}</Text>
         </Box>,
       ),
-      line(
-        <Text dimColor wrap="truncate-end">
-          {origin}
-        </Text>,
-      ),
+      factsLine(v, origin, how.columns),
       line(
         <Box flexDirection="row" columnGap={2} flexWrap="wrap">
           {how.readOnly || !installable
@@ -249,12 +244,20 @@ const foundSections = (v: ViewPorts, row: CatalogRow, how: FoundDetailHow): Sect
       ...(described === ''
         ? []
         : [line(<Text>{described}</Text>, wrappedRows([described], how.columns))]),
-      // Its page on GitHub opens from here: a link on every surface.
-      line(
-        <Text dimColor wrap="truncate-end">
-          from {row.link === undefined ? row.source : <Link href={row.link}>{row.source}</Link>}
-        </Text>,
-      ),
+      // Its page on GitHub opens from here: a link on every surface. The whole
+      // URL, wrapped: a terminal without hyperlinks shows it as text to click.
+      row.link === undefined
+        ? line(
+            <Text dimColor wrap="truncate-end">
+              from {row.source}
+            </Text>,
+          )
+        : line(
+            <Text dimColor>
+              from <Link href={row.link}>{row.link}</Link>
+            </Text>,
+            wrappedRows([`from ${row.link}`], how.columns),
+          ),
       ...howTo.map(text =>
         line(
           <Text dimColor wrap="truncate-end">

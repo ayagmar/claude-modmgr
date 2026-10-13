@@ -97,8 +97,8 @@ export type TabView = {
   /** A command waiting to be accepted is offered from this tab (Dev's `v` is validate). */
   readonly offersAccept: boolean
   readonly field: TabField | undefined
-  /** The line under the tabs. */
-  readonly meta: string
+  /** The line under the tabs, in parts: it wraps between them, never inside one. */
+  readonly meta: readonly string[]
   /** The line says how things stand (Health): drawn in that tone, not dim. */
   readonly metaTone?: 'ok' | 'bad'
 
@@ -202,9 +202,7 @@ const installedTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
       sync.reading === undefined || sync.reading === 0
         ? ''
         : `reading ${count(sync.reading, 'more plugin', 'more plugins')}`,
-    ]
-      .filter(part => part !== '')
-      .join(' · '),
+    ].filter(part => part !== ''),
     stale: sync.refreshing,
     beside: rows.length > 0,
     count: rows.length,
@@ -280,9 +278,7 @@ const discoverTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
         ? ''
         : `${page.community.toLocaleString('en-US')} from GitHub`,
       view.mine === true ? '' : (page.communityNote ?? ''),
-    ]
-      .filter(part => part !== '')
-      .join(' · '),
+    ].filter(part => part !== ''),
     stale: page.loading,
     beside: page.matched > 0,
     count: page.matched,
@@ -344,7 +340,7 @@ const devTab = (v: ViewPorts, d: PaneData, f: TabFrame): TabView => {
     keys,
     offersAccept: false,
     field: undefined,
-    meta: `${count(rows.length, 'mod', 'mods')} under development`,
+    meta: [`${count(rows.length, 'mod', 'mods')} under development`],
     stale: d.dev.loading,
     beside: rows.length > 0,
     count: rows.length,
@@ -381,10 +377,11 @@ const healthTab = (v: ViewPorts, d: PaneData, f: TabFrame, problems: number): Ta
     keys,
     offersAccept: true,
     field: undefined,
-    meta:
+    meta: [
       problems === 0
         ? `${GLYPH.ok} Nothing needs you`
         : `${GLYPH.problem} ${count(problems, 'problem', 'problems')} to look at`,
+    ],
     metaTone: problems === 0 ? 'ok' : 'bad',
     // Its items follow the installed list.
     stale: d.sync.refreshing,

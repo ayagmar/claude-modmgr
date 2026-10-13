@@ -26,6 +26,7 @@ import {
 } from '../domain/view.ts'
 import {
   type DetailLines,
+  factsLine,
   GLYPH,
   Heading,
   KeyButton,
@@ -256,9 +257,10 @@ const aboutSection = (
         ? []
         : [
             line(
-              <Text dimColor wrap="truncate-end">
-                from <Link href={link}>{link.replace(/^https:\/\//, '')}</Link>
+              <Text dimColor>
+                from <Link href={link}>{link}</Link>
               </Text>,
+              wrappedRows([`from ${link}`], columns),
             ),
           ]),
     ],
@@ -326,14 +328,7 @@ const bodySections = (
   if (detail.dataBytes !== undefined) extras.push(`data ${bytesLabel(detail.dataBytes)}`)
   const { validate } = detail
   const facts: Line[] = []
-  if (extras.length > 0)
-    facts.push(
-      line(
-        <Text dimColor wrap="truncate-end">
-          {extras.join(' · ')}
-        </Text>,
-      ),
-    )
+  if (extras.length > 0) facts.push(factsLine(v, extras, columns))
   if (validate !== undefined && validate.errors > 0) {
     facts.push(
       line(

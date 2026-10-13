@@ -6,7 +6,7 @@
 import type { Color, Elements, RenderElement, RenderSurface, UiPressArgument } from 'claude-code'
 import { hotkeyFor, type KeySurface } from '../domain/keymap.ts'
 import { sanitize } from '../domain/sanitize.ts'
-import { lineWindow, wrappedRows } from '../domain/view.ts'
+import { footerRowsFor, lineWindow, wrappedRows } from '../domain/view.ts'
 import type { StatePort } from '../ports.ts'
 import type { Actions } from '../services/actions.ts'
 
@@ -167,6 +167,34 @@ export type Line = { readonly el: RenderElement; readonly text: string; readonly
 
 /** A line of `rows` rows, counted where it was built. */
 export const line = (el: RenderElement, rows = 1): Line => ({ el, text: '', rows })
+
+/**
+ * Facts a ` · ` apart, wrapping between them so none is cut at the edge: dim,
+ * or in `color` where the line says how things stand.
+ */
+export const factsLine = (
+  v: Pick<ViewPorts, 'el'>,
+  facts: readonly string[],
+  columns: number,
+  color?: Color,
+): Line => {
+  const { Box, Text } = v.el
+  const shown = facts.map((fact, at) => (at < facts.length - 1 ? `${fact} ·` : fact))
+  return line(
+    <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+      {shown.map((text, at) => (
+        <Text key={`${at}`} {...(color === undefined ? { dimColor: true } : { color })}>
+          {text}
+        </Text>
+      ))}
+    </Box>,
+    footerRowsFor(
+      shown.map(text => [...text].length),
+      columns,
+      1,
+    ),
+  )
+}
 
 /** A part of a detail: its lines, which a detail too tall for its window scrolls by. */
 export type Section = { readonly lines: readonly Line[] }

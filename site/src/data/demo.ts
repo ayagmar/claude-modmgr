@@ -900,7 +900,14 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "fixtures · 4.2k installs"
+          "text": "fixtures ·"
+        },
+        {
+          "text": " "
+        },
+        {
+          "dim": true,
+          "text": "4.2k installs"
         }
       ],
       [
@@ -996,7 +1003,7 @@ export const FRAMES: readonly Frame[] = [
         },
         {
           "dim": true,
-          "text": "from github.com/modmgr-fixtures/secret-scrub"
+          "text": "from https://github.com/modmgr-fixtures/secret-scrub"
         }
       ],
       [
