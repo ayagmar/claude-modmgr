@@ -3,6 +3,7 @@
 // refresh finds, Health's facts and each item's fix.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../plugin/hooks/domain/config.ts'
+import { PANE_ID } from '../../plugin/hooks/domain/view.ts'
 import { createActions } from '../../plugin/hooks/services/actions.ts'
 import { DETECT_BUDGET } from '../../plugin/hooks/services/detector.ts'
 import { background, onTurnEnd, onTurnStart } from '../../plugin/hooks/services/lifecycle.ts'
@@ -38,7 +39,12 @@ const updateCli = (w: World, version = '1.0.0') =>
     )
 
 const setup = async (
-  options: { env?: Record<string, string>; store?: Record<string, unknown>; hours?: number } = {},
+  options: {
+    env?: Record<string, string>
+    store?: Record<string, unknown>
+    hours?: number
+    notify?: boolean
+  } = {},
 ) => {
   const w = world({
     env: { CLAUDE_CONFIG_DIR: '/cfg', ...options.env },
@@ -49,7 +55,11 @@ const setup = async (
     `${OFFICIAL}/.claude-plugin/marketplace.json`,
     JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version: '1.2.0', source: './sdk' }] }),
   )
-  const config = { ...DEFAULT_CONFIG, updateCheckHours: options.hours ?? 6 }
+  const config = {
+    ...DEFAULT_CONFIG,
+    updateCheckHours: options.hours ?? 6,
+    notifyUpdates: options.notify ?? false,
+  }
   const rt = createRuntime(w.ports, config, 'own')
   w.state.values.queue = { owner: 'own', jobs: [] }
   await rt.store.load()
@@ -83,7 +93,10 @@ describe('the update scheduler', () => {
     expect(rt.store.get('updates')).toEqual({
       at: 1_000_000 + FIRST_CHECK_DELAY_MS,
       found: { [SDK]: { from: '1.0.0', to: '1.2.0' } },
+      told: { [SDK]: '1.2.0' },
     })
+    // Notifications are off unless asked for.
+    expect(w.ui.notified).toEqual([])
     // The next one is due a period later.
     await w.clock.advance(6 * HOUR - 1)
     expect(refreshes()).toHaveLength(1)
@@ -149,6 +162,33 @@ describe('the update scheduler', () => {
     expect(await rt.updater.run()).toBe('queued')
     expect(await rt.updater.run()).toBe('nothing')
     await drain()
+  })
+
+  it('with notifications on, says each new version once, and not while the dialog has the keys', async () => {
+    const { w, rt } = await setup({ notify: true })
+    const listing = (version: string) =>
+      w.fs.files.set(
+        `${OFFICIAL}/.claude-plugin/marketplace.json`,
+        JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version, source: './sdk' }] }),
+      )
+    await rt.updater.check()
+    await rt.updater.check()
+    expect(w.ui.notified).toEqual(['agent-sdk-dev can update to 1.2.0. /mods to update.'])
+    // The CLI found it current after all: the next check finds it again, and says nothing new.
+    rt.updater.forget(SDK)
+    await rt.updater.check()
+    expect(w.ui.notified).toHaveLength(1)
+    listing('1.3.0')
+    await rt.updater.check()
+    expect(w.ui.notified.at(-1)).toBe('agent-sdk-dev can update to 1.3.0. /mods to update.')
+    // Holding the dialog's keys, the person sees the arrow: no notification, then or later.
+    w.ui.shown = [{ id: PANE_ID, title: 'mods', isShown: true, isFocused: true, isPlaced: true }]
+    listing('1.4.0')
+    await rt.updater.check()
+    w.ui.shown = []
+    await rt.updater.check()
+    expect(w.ui.notified).toHaveLength(2)
+    expect(w.state.values.mods.find(row => row.id === SDK)?.updateTo).toBe('1.4.0')
   })
 
   it('says nothing when the marketplaces can’t be listed', async () => {

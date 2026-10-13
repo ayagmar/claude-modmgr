@@ -47,6 +47,8 @@ export type FoundUpdate = { readonly from: string; readonly to: string }
 export type Updates = {
   readonly at?: number
   readonly found: Readonly<Record<string, FoundUpdate>>
+  /** The version each found update was announced at, so a notification says it once. */
+  readonly told?: Readonly<Record<string, string>>
 }
 
 /**
@@ -261,7 +263,12 @@ const readFoundUpdate = (entry: unknown): FoundUpdate | undefined =>
 export const readUpdates = (value: unknown): Updates => {
   if (!isRecord(value)) return { found: {} }
   const found = readMap(value.found, readFoundUpdate)
-  return isCount(value.at) ? { at: value.at, found } : { found }
+  const told = readMap(value.told, entry => (typeof entry === 'string' ? entry : undefined))
+  return {
+    ...(isCount(value.at) ? { at: value.at } : {}),
+    found,
+    ...(Object.keys(told).length > 0 ? { told } : {}),
+  }
 }
 
 export const readIndexCheck = (value: unknown): IndexCheck => {

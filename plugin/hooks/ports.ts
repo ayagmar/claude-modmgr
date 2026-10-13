@@ -107,6 +107,8 @@ export interface UiPort {
   copy(text: string, surface?: RenderSurface): Promise<UiCopyResult>
   /** modmgr's one status line under the prompt; undefined clears it. */
   status(text: string | undefined): void
+  /** A notification through the person's own channel; a debug line when none was sent. */
+  notify(text: string): Promise<void>
 }
 
 /** The network, through the host. Used only for raw.githubusercontent.com: the catalogue index and the detector's probes. */

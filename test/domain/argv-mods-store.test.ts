@@ -190,13 +190,19 @@ describe('marketplace sources', () => {
 describe('config', () => {
   it('reads userConfig with defaults and bounds', () => {
     expect(parseConfig({})).toEqual(DEFAULT_CONFIG)
-    expect(parseConfig({ updateCheckHours: 500, detectRemote: false, debugTimings: true })).toEqual(
-      {
-        updateCheckHours: 168,
+    expect(
+      parseConfig({
+        updateCheckHours: 500,
         detectRemote: false,
+        notifyUpdates: true,
         debugTimings: true,
-      },
-    )
+      }),
+    ).toEqual({
+      updateCheckHours: 168,
+      detectRemote: false,
+      notifyUpdates: true,
+      debugTimings: true,
+    })
     expect(parseConfig({ updateCheckHours: -1 }).updateCheckHours).toBe(0)
     expect(parseConfig({ updateCheckHours: Number.NaN, detectRemote: 'yes' })).toEqual(
       DEFAULT_CONFIG,

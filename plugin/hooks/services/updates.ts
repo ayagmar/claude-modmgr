@@ -17,6 +17,8 @@ import {
   type ListedEntry,
   marketplaceEntriesOf,
   nextCheckIn,
+  untoldUpdates,
+  updatesNotice,
 } from '../domain/updates.ts'
 import type { Ports } from '../ports.ts'
 import { runCli } from './cli.ts'
@@ -53,6 +55,8 @@ export type UpdaterDeps = {
   readonly trafficOff: () => Promise<boolean>
   readonly newJobId: () => string
   readonly kick: () => void
+  /** Says which updates a check newly found; absent when notifications are off. */
+  readonly notify?: (text: string) => Promise<void>
   readonly debug?: (text: string) => void
 }
 
@@ -175,8 +179,14 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
       entries.set(marketplace.name, listed)
     }
     const found = foundUpdates(installed, entries)
-    deps.store.update('updates', updates => ({ ...updates, found }))
+    const untold = untoldUpdates(found, deps.store.get('updates').told)
+    // Told is reset to what was found: an update that drops out and comes back is said again.
+    const told = Object.fromEntries(Object.entries(found).map(([id, { to }]) => [id, to]))
+    deps.store.update('updates', updates => ({ ...updates, found, told }))
     await deps.registry.refresh()
+    if (deps.notify !== undefined && untold.length > 0) {
+      await deps.notify(updatesNotice(untold, found))
+    }
   }
 
   return {

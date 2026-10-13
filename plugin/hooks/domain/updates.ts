@@ -112,6 +112,27 @@ export const updateTo = (updates: Updates, entry: InstalledEntry): string | unde
   return found !== undefined && found.from === entry.version ? found.to : undefined
 }
 
+/** The updates a check found that no notification has named at that version yet. */
+export const untoldUpdates = (
+  found: Readonly<Record<string, FoundUpdate>>,
+  told: Readonly<Record<string, string>> | undefined,
+): string[] => Object.keys(found).filter(id => told?.[id] !== found[id]?.to)
+
+/** What the notification says: `redactor can update to 1.3.0`, or the names of a few. */
+export const updatesNotice = (
+  ids: readonly string[],
+  found: Readonly<Record<string, FoundUpdate>>,
+): string => {
+  const names = ids.map(id => id.slice(0, id.indexOf('@')))
+  const [first] = ids
+  if (ids.length === 1 && first !== undefined) {
+    return `${names[0]} can update to ${found[first]?.to}. /mods to update.`
+  }
+  const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
+  const list = `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}`
+  return `${ids.length} mods can update: ${list}. /mods to update.`
+}
+
 const HOUR = 60 * 60 * 1000
 
 /**

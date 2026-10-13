@@ -23,6 +23,12 @@
       "description": "Read the daily catalogue and community indexes, and catalogue entries' hooks.json, from raw.githubusercontent.com to find mods.",
       "default": true
     },
+    "notifyUpdates": {
+      "type": "boolean",
+      "title": "Notify about mod updates",
+      "description": "Send a notification through your terminal when an update check finds new mod versions, once per version, unless modmgr's dialog has your keys. Needs Claude Code 2.1.296 or newer.",
+      "default": false
+    },
     "debugTimings": {
       "type": "boolean",
       "title": "Log debug timings",
