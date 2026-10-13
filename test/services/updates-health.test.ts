@@ -93,7 +93,6 @@ describe('the update scheduler', () => {
     expect(rt.store.get('updates')).toEqual({
       at: 1_000_000 + FIRST_CHECK_DELAY_MS,
       found: { [SDK]: { from: '1.0.0', to: '1.2.0' } },
-      told: { [SDK]: '1.2.0' },
     })
     // Notifications are off unless asked for.
     expect(w.ui.notified).toEqual([])
@@ -189,6 +188,37 @@ describe('the update scheduler', () => {
     await rt.updater.check()
     expect(w.ui.notified).toHaveLength(2)
     expect(w.state.values.mods.find(row => row.id === SDK)?.updateTo).toBe('1.4.0')
+  })
+
+  it('tries a notification that wasn’t sent again, and keeps what was said through a check that can’t read a marketplace', async () => {
+    const { w, rt } = await setup({ notify: true })
+    const marketplace = `${OFFICIAL}/.claude-plugin/marketplace.json`
+    const listing = w.fs.files.get(marketplace) ?? ''
+    w.ui.notifySends = false
+    await rt.updater.check()
+    w.ui.notifySends = true
+    await rt.updater.check()
+    expect(w.ui.notified).toEqual([
+      'agent-sdk-dev can update to 1.2.0. /mods to update.',
+      'agent-sdk-dev can update to 1.2.0. /mods to update.',
+    ])
+    w.fs.files.delete(marketplace)
+    await rt.updater.check()
+    w.fs.files.set(marketplace, listing)
+    await rt.updater.check()
+    expect(w.ui.notified).toHaveLength(2)
+  })
+
+  it('says nothing another open session has said already', async () => {
+    const { w, rt } = await setup({ notify: true })
+    // Written by another session after this one loaded its copy of the store; this
+    // session's own write of its last check (no notifications in it) follows.
+    w.store.data.set('notified', { v: 1, data: { [SDK]: '1.2.0' } })
+    rt.store.update('updates', updates => ({ ...updates, at: 5 }))
+    await rt.store.flush()
+    await rt.updater.check()
+    expect(w.ui.notified).toEqual([])
+    expect(w.state.values.mods.find(row => row.id === SDK)?.updateTo).toBe('1.2.0')
   })
 
   it('says nothing when the marketplaces can’t be listed', async () => {

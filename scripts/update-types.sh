@@ -26,7 +26,9 @@ printf '{"hasCompletedOnboarding":true,"projects":{"%s":{"hasTrustDialogAccepted
   "$work/cwd" > "$work/config/.claude.json"
 (
   cd "$work/cwd"
-  CLAUDE_CONFIG_DIR="$work/config" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+  # script runs the command through $SHELL: sh, so no startup file (a ~/.zshenv)
+  # can point CLAUDE_CONFIG_DIR back at the real config.
+  CLAUDE_CONFIG_DIR="$work/config" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 SHELL=/bin/sh \
     timeout 10 script -qc "claude --plugin-dir '$mod'" /dev/null </dev/null >/dev/null 2>&1 || true
 )
 

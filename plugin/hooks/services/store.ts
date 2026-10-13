@@ -33,6 +33,12 @@ export type StoreService = {
   update<K extends StoreKey>(key: K, change: (data: StoreData[K]) => StoreData[K]): void
   /** Writes every changed key now. */
   flush(): Promise<Result<void>>
+  /**
+   * What the store file holds for a key now, which another session may have
+   * written since this one loaded its copy; undefined when nothing usable is there.
+   * The copy in memory is left as it is.
+   */
+  readStored<K extends StoreKey>(key: K): Promise<StoreData[K] | undefined>
   /** Empties the caches (`[clear cache]` in Health). */
   clearCaches(): Promise<Result<void>>
   /** Bytes the store holds, as last written or read. */
@@ -57,6 +63,7 @@ const zeroSizes = (): Record<StoreKey, number> => ({
   history: 0,
   updates: 0,
   catalogIndex: 0,
+  notified: 0,
 })
 
 export const createStore = (ports: StorePorts, options: StoreOptions = {}): StoreService => {
@@ -179,6 +186,17 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
       schedule()
     },
     flush,
+    async readStored(key) {
+      let stored: unknown
+      try {
+        stored = await ports.store.get(key)
+      } catch (error) {
+        debug(`modmgr: store read ${key} failed: ${String(error)}`)
+        return undefined
+      }
+      const opened = openKey(key, stored)
+      return opened.note === undefined || opened.note === 'migrated' ? opened.data : undefined
+    },
     clearCaches() {
       const empty = emptyStore()
       set('detect', empty.detect)

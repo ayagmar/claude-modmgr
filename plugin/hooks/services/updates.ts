@@ -46,7 +46,7 @@ export type Updater = {
 }
 
 export type UpdaterDeps = {
-  readonly store: Pick<StoreService, 'get' | 'update'>
+  readonly store: Pick<StoreService, 'get' | 'set' | 'update' | 'readStored' | 'flush'>
   readonly registry: Pick<Registry, 'listed' | 'refresh' | 'isLoaded'>
   readonly hours: number
   /** The main turns running now (`rt.turns`): checks wait for none. */
@@ -55,8 +55,8 @@ export type UpdaterDeps = {
   readonly trafficOff: () => Promise<boolean>
   readonly newJobId: () => string
   readonly kick: () => void
-  /** Says which updates a check newly found; absent when notifications are off. */
-  readonly notify?: (text: string) => Promise<void>
+  /** Says which updates a check newly found, and whether it was said; absent when notifications are off. */
+  readonly notify?: (text: string) => Promise<boolean>
   readonly debug?: (text: string) => void
 }
 
@@ -179,14 +179,17 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
       entries.set(marketplace.name, listed)
     }
     const found = foundUpdates(installed, entries)
-    const untold = untoldUpdates(found, deps.store.get('updates').told)
-    // Told is reset to what was found: an update that drops out and comes back is said again.
-    const told = Object.fromEntries(Object.entries(found).map(([id, { to }]) => [id, to]))
-    deps.store.update('updates', updates => ({ ...updates, found, told }))
+    deps.store.update('updates', updates => ({ ...updates, found }))
     await deps.registry.refresh()
-    if (deps.notify !== undefined && untold.length > 0) {
-      await deps.notify(updatesNotice(untold, found))
-    }
+    if (deps.notify === undefined) return
+    // Each open session holds its own copy: what another one said and wrote counts too,
+    // and is kept here so this session's next write doesn't drop it.
+    const told = { ...(await deps.store.readStored('notified')), ...deps.store.get('notified') }
+    const untold = untoldUpdates(found, told)
+    // Recorded only once said: a notification that wasn't sent is tried at the next check.
+    const said = Object.keys(untold).length > 0 && (await deps.notify(updatesNotice(untold)))
+    deps.store.set('notified', said ? { ...told, ...untold } : told)
+    await deps.store.flush()
   }
 
   return {

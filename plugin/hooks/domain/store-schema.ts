@@ -47,8 +47,6 @@ export type FoundUpdate = { readonly from: string; readonly to: string }
 export type Updates = {
   readonly at?: number
   readonly found: Readonly<Record<string, FoundUpdate>>
-  /** The version each found update was announced at, so a notification says it once. */
-  readonly told?: Readonly<Record<string, string>>
 }
 
 /**
@@ -68,6 +66,11 @@ export type StoreData = {
   history: readonly HistoryEntry[]
   updates: Updates
   catalogIndex: IndexCheck
+  /**
+   * The last version an update notification named, by mod: its own key, so the
+   * update check's writes from another open session never drop it.
+   */
+  notified: Readonly<Record<string, string>>
 }
 
 export type StoreKey = keyof StoreData
@@ -80,6 +83,7 @@ export const STORE_KEYS: readonly StoreKey[] = [
   'history',
   'updates',
   'catalogIndex',
+  'notified',
 ]
 
 /**
@@ -97,6 +101,7 @@ export const KEY_VERSIONS: Readonly<Record<StoreKey, number>> = {
   history: 1,
   updates: 1,
   catalogIndex: 1,
+  notified: 1,
 }
 
 export const CAPS = { detect: 6000, validate: 300, history: 50 } as const
@@ -122,6 +127,7 @@ export const emptyStore = (): StoreData => ({
   history: [],
   updates: { found: {} },
   catalogIndex: {},
+  notified: {},
 })
 
 // ---- shape checks --------------------------------------------------------
@@ -263,12 +269,7 @@ const readFoundUpdate = (entry: unknown): FoundUpdate | undefined =>
 export const readUpdates = (value: unknown): Updates => {
   if (!isRecord(value)) return { found: {} }
   const found = readMap(value.found, readFoundUpdate)
-  const told = readMap(value.told, entry => (typeof entry === 'string' ? entry : undefined))
-  return {
-    ...(isCount(value.at) ? { at: value.at } : {}),
-    found,
-    ...(Object.keys(told).length > 0 ? { told } : {}),
-  }
+  return isCount(value.at) ? { at: value.at, found } : { found }
 }
 
 export const readIndexCheck = (value: unknown): IndexCheck => {
@@ -293,6 +294,7 @@ const READERS: { [K in StoreKey]: (data: unknown) => StoreData[K] } = {
       .slice(-CAPS.history),
   updates: readUpdates,
   catalogIndex: readIndexCheck,
+  notified: value => readMap(value, entry => (typeof entry === 'string' ? entry : undefined)),
 }
 
 // ---- envelopes and migrations ---------------------------------------------
@@ -376,6 +378,7 @@ const CAPPERS: { [K in StoreKey]: (data: StoreData[K]) => StoreData[K] } = {
   history: data => data.slice(-CAPS.history),
   updates: data => data,
   catalogIndex: data => data,
+  notified: data => data,
 }
 
 export const capped = <K extends StoreKey>(key: K, data: StoreData[K]): StoreData[K] =>

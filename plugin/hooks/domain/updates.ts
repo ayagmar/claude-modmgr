@@ -112,25 +112,31 @@ export const updateTo = (updates: Updates, entry: InstalledEntry): string | unde
   return found !== undefined && found.from === entry.version ? found.to : undefined
 }
 
-/** The updates a check found that no notification has named at that version yet. */
+/** The updates a check found that no notification has named at that version yet: id → version. */
 export const untoldUpdates = (
   found: Readonly<Record<string, FoundUpdate>>,
   told: Readonly<Record<string, string>> | undefined,
-): string[] => Object.keys(found).filter(id => told?.[id] !== found[id]?.to)
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(found)
+      .filter(([id, { to }]) => told?.[id] !== to)
+      .map(([id, { to }]) => [id, to]),
+  )
 
 /** What the notification says: `redactor can update to 1.3.0`, or the names of a few. */
-export const updatesNotice = (
-  ids: readonly string[],
-  found: Readonly<Record<string, FoundUpdate>>,
-): string => {
-  const names = ids.map(id => id.slice(0, id.indexOf('@')))
-  const [first] = ids
-  if (ids.length === 1 && first !== undefined) {
-    return `${names[0]} can update to ${found[first]?.to}. /mods to update.`
+export const updatesNotice = (untold: Readonly<Record<string, string>>): string => {
+  const updates = Object.entries(untold).map(([id, to]) => ({
+    name: id.slice(0, id.indexOf('@')),
+    to,
+  }))
+  const [only] = updates
+  if (updates.length === 1 && only !== undefined) {
+    return `${only.name} can update to ${only.to}. /mods to update.`
   }
+  const names = updates.map(update => update.name)
   const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
   const list = `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}`
-  return `${ids.length} mods can update: ${list}. /mods to update.`
+  return `${names.length} mods can update: ${list}. /mods to update.`
 }
 
 const HOUR = 60 * 60 * 1000

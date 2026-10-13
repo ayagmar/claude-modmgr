@@ -156,10 +156,10 @@ export const createRuntime = (base: Ports, config: Config, owner: string): Runti
     ...(config.notifyUpdates
       ? {
           notify: async (text: string) => {
-            // A person holding the dialog's keys sees the arrows already.
+            // A person holding the dialog's keys sees the arrows already: said, in effect.
             const panes = await ports.ui.panes()
-            if (panes.some(pane => pane.id === PANE_ID && pane.isFocused)) return
-            await ports.ui.notify(text)
+            if (panes.some(pane => pane.id === PANE_ID && pane.isFocused)) return true
+            return ports.ui.notify(text)
           },
         }
       : {}),

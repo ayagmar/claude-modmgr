@@ -1765,7 +1765,7 @@ export const FRAMES: readonly Frame[] = [
           "text": "Cache"
         },
         {
-          "text": "        185 B                                                                   "
+          "text": "        202 B                                                                   "
         },
         {
           "tone": "claude",

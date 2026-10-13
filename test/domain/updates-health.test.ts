@@ -132,15 +132,10 @@ describe('what can update', () => {
 
   it('keeps the last check in the store, shape-checked', () => {
     expect(
-      readUpdates({
-        at: 5,
-        found: { 'a@m': { from: '1', to: '2' }, 'b@m': { from: 1 } },
-        told: { 'a@m': '2', 'b@m': 3 },
-      }),
+      readUpdates({ at: 5, found: { 'a@m': { from: '1', to: '2' }, 'b@m': { from: 1 } } }),
     ).toEqual({
       at: 5,
       found: { 'a@m': { from: '1', to: '2' } },
-      told: { 'a@m': '2' },
     })
     expect(readUpdates({ at: -1, found: 'x' })).toEqual({ found: {} })
     expect(readUpdates(null)).toEqual({ found: {} })
@@ -151,13 +146,8 @@ describe('what can update', () => {
   })
 
   it('names one update with its version, a few by name, and counts the rest', () => {
-    const found = (names: string[]) =>
-      Object.fromEntries(names.map(name => [`${name}@m`, { from: '1.0.0', to: '1.1.0' }]))
     const notice = (names: string[]) =>
-      updatesNotice(
-        names.map(name => `${name}@m`),
-        found(names),
-      )
+      updatesNotice(Object.fromEntries(names.map(name => [`${name}@m`, '1.1.0'])))
     expect(notice(['redactor'])).toBe('redactor can update to 1.1.0. /mods to update.')
     expect(notice(['a', 'b'])).toBe('2 mods can update: a and b. /mods to update.')
     expect(notice(['a', 'b', 'c', 'd', 'e'])).toBe(
