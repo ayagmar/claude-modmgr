@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Added
 - `notifyUpdates` (off by default): when an update check finds a new mod version, modmgr sends a notification
   through your terminal, once per version, unless its dialog has your keys. Needs Claude Code 2.1.296 or newer;

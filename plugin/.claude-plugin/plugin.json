@@ -1,6 +1,6 @@
 {
   "name": "modmgr",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Search Claude Code mods, see what each can reach before you install it, and install, toggle, update or remove them with /mods.",
   "author": { "name": "ayagmar", "url": "https://github.com/ayagmar" },
   "homepage": "https://ayagmar.github.io/claude-modmgr",
