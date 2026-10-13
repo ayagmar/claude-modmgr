@@ -69,7 +69,9 @@ pnpm test:plugin             # claude plugin test: wiring, dispatch rules, UI on
   more than a fifth of the mods. It also writes `mods-v1.json` beside it: the most-starred mods that fit the 4 MiB
   modmgr 0.4.0 and older read. A repository not pushed since the last index keeps its entries without a clone,
   except on Sundays (UTC), when every repository is read again.
-- A new Claude Code build: `scripts/update-types.sh`, then follow what it prints.
+- A new Claude Code build: `scripts/update-types.sh` (Linux: it needs util-linux `script`, as it starts an
+  interactive session on a pseudo-terminal), then follow what it prints. `engine.yml` runs the newest build against
+  the plugin every Monday; when it fails, move the pin this way.
 
 ## Toolchain notes
 

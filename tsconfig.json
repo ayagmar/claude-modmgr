@@ -7,7 +7,7 @@
     "jsxFragmentFactory": "Fragment"
   },
   "include": [
-    "vendor/claude-code-types/2.1.293/claude-code.d.ts",
+    "vendor/claude-code-types/2.1.296/claude-code.d.ts",
     "test",
     "scripts",
     "vitest.config.ts"
