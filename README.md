@@ -11,33 +11,16 @@ before you install it, and installs, switches off, updates or removes them witho
 
 Type that at the Claude Code prompt, then `/mods`. [Search the same index in a browser](https://ayagmar.github.io/claude-modmgr/).
 
-The Installed tab, with a mod's detail beside the list:
+Discover, with a community mod's detail beside the list:
 
-```
-Installed   2: Discover   3: Dev   4: Health ▲1                                       r: refresh
-5 of 5 mods on
-╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ⌕ Filter 5 mods                                                                    f: filter │
-╰──────────────────────────────────────────────────────────────────────────────────────────────╯
-  ● broken             ▲1              │ redactor 2.1.0
-  ● quiet-bash         ◆1              │ ● on · project · fixtures
-❯ ● redactor           ◆3              │ e: disable  x: remove  c: copy id
-  ● spawner            ◆2              │ runs from its marketplace folder: no updates
-  ● turn-band          ◆2 new          │ Redacts secrets from what the model reads and posts a …
-                                       │ Notable
-                                       │ ◆ Can read your conversation or files and send data out
-                                       │ ◆ Reads environment variables that look like secrets
-                                       │ ◆ Can change what the model reads
-                                       │ What it can do
-                                       │ /mods info redactor@fixtures explains each one.
-                                       │ Network             http.fetch
-                                       │ Session content     env.get  session.messages
-                                       │ What the model sees on session.append
-                                       │ Display only        1 hook or call
-                                       │ ✓ validates
-────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                     q: jobs  0: keys  esc close
-```
+<a href="docs/images/discover.png"><img src="docs/images/discover.png" width="640" alt="The Discover tab: 5,840 mods sorted by popularity, ruview-live selected, its detail saying it can run programs or change files on your machine"></a>
+
+Your installed mods, and the review shown before an install:
+
+<p>
+<a href="docs/images/installed.png"><img src="docs/images/installed.png" width="49%" alt="The Installed tab: five mods, redactor selected, its detail listing what it can reach, such as reading the conversation and sending data out"></a>
+<a href="docs/images/review.png"><img src="docs/images/review.png" width="49%" alt="The review before installing ruview-live: what installing lets it do, where it comes from, and the exact claude plugin install command it runs"></a>
+</p>
 
 ## What it does
 
