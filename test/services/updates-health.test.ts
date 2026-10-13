@@ -248,6 +248,21 @@ describe('the update scheduler', () => {
       v: 1,
       data: { 'other@m': '2.0.0', [SDK]: '1.2.0' },
     })
+    // A read that fails while it goes out tells nothing: what was said is recorded.
+    w.fs.files.set(
+      `${OFFICIAL}/.claude-plugin/marketplace.json`,
+      JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version: '1.2.5', source: './sdk' }] }),
+    )
+    w.ui.notify = async text => {
+      w.store.failGets = true
+      return send(text)
+    }
+    await rt.updater.check()
+    w.store.failGets = false
+    expect(w.store.data.get('notified')).toEqual({
+      v: 1,
+      data: { 'other@m': '2.0.0', [SDK]: '1.2.5' },
+    })
     // Another session said a newer version of this mod meanwhile: its record stands.
     w.fs.files.set(
       `${OFFICIAL}/.claude-plugin/marketplace.json`,

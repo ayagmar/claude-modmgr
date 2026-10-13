@@ -190,9 +190,12 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     if (Object.keys(untold).length === 0) return
     // Recorded only once said: a notification that wasn't sent is tried at the next check.
     if (!(await deps.notify(updatesNotice(untold)))) return
-    // Read again just before writing: a mod another session recorded meanwhile keeps its record.
+    // Read again just before writing: a mod another session recorded meanwhile keeps its
+    // record. Without both reads there is no telling, and what was said is recorded.
     const latest = await deps.store.readStored('notified')
-    const said = Object.entries(untold).filter(([id]) => latest?.[id] === stored?.[id])
+    const said = Object.entries(untold).filter(
+      ([id]) => stored === undefined || latest === undefined || latest[id] === stored[id],
+    )
     deps.store.set('notified', { ...told, ...latest, ...Object.fromEntries(said) })
     await deps.store.flush()
   }

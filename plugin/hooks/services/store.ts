@@ -35,7 +35,8 @@ export type StoreService = {
   flush(): Promise<Result<void>>
   /**
    * What the store file holds for a key now, which another session may have
-   * written since this one loaded its copy; undefined when nothing usable is there.
+   * written since this one loaded its copy (a missing key reads as empty);
+   * undefined when it couldn't be read or isn't this modmgr's to read.
    * The copy in memory is left as it is.
    */
   readStored<K extends StoreKey>(key: K): Promise<StoreData[K] | undefined>
@@ -195,7 +196,7 @@ export const createStore = (ports: StorePorts, options: StoreOptions = {}): Stor
         return undefined
       }
       const opened = openKey(key, stored)
-      return opened.note === undefined || opened.note === 'migrated' ? opened.data : undefined
+      return opened.note === 'malformed' || opened.note === 'newer' ? undefined : opened.data
     },
     clearCaches() {
       const empty = emptyStore()
