@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-13
+
 ### Fixed
 - A mod's GitHub link opened `https://github.com/…`, a 404, in terminals that show links as plain text (inside
   Herdr or tmux, for example). The detail cut the line at the pane's edge, and the terminal took what was left as
