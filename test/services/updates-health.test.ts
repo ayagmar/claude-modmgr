@@ -219,6 +219,35 @@ describe('the update scheduler', () => {
     await rt.updater.check()
     expect(w.ui.notified).toEqual([])
     expect(w.state.values.mods.find(row => row.id === SDK)?.updateTo).toBe('1.2.0')
+    // This session said 1.3.0; another said 1.4.0 since. Its record is newer than this copy.
+    w.fs.files.set(
+      `${OFFICIAL}/.claude-plugin/marketplace.json`,
+      JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version: '1.3.0', source: './sdk' }] }),
+    )
+    await rt.updater.check()
+    expect(w.ui.notified).toEqual(['agent-sdk-dev can update to 1.3.0. /mods to update.'])
+    w.store.data.set('notified', { v: 1, data: { [SDK]: '1.4.0' } })
+    w.fs.files.set(
+      `${OFFICIAL}/.claude-plugin/marketplace.json`,
+      JSON.stringify({ plugins: [{ name: 'agent-sdk-dev', version: '1.4.0', source: './sdk' }] }),
+    )
+    await rt.updater.check()
+    expect(w.ui.notified).toHaveLength(1)
+    expect(w.store.data.get('notified')).toEqual({ v: 1, data: { [SDK]: '1.4.0' } })
+  })
+
+  it('keeps what another session wrote while this one’s notification was going out', async () => {
+    const { w, rt } = await setup({ notify: true })
+    const send = w.ui.notify
+    w.ui.notify = async text => {
+      w.store.data.set('notified', { v: 1, data: { 'other@m': '2.0.0' } })
+      return send(text)
+    }
+    await rt.updater.check()
+    expect(w.store.data.get('notified')).toEqual({
+      v: 1,
+      data: { 'other@m': '2.0.0', [SDK]: '1.2.0' },
+    })
   })
 
   it('says nothing when the marketplaces can’t be listed', async () => {

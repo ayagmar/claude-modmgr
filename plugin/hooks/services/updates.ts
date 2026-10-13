@@ -182,13 +182,16 @@ export const createUpdater = (ports: UpdatesPorts, deps: UpdaterDeps): Updater =
     deps.store.update('updates', updates => ({ ...updates, found }))
     await deps.registry.refresh()
     if (deps.notify === undefined) return
-    // Each open session holds its own copy: what another one said and wrote counts too,
-    // and is kept here so this session's next write doesn't drop it.
-    const told = { ...(await deps.store.readStored('notified')), ...deps.store.get('notified') }
+    // Each open session holds its own copy, and the file holds what any of them said last:
+    // it wins over this copy, which may be older.
+    const told = { ...deps.store.get('notified'), ...(await deps.store.readStored('notified')) }
     const untold = untoldUpdates(found, told)
+    if (Object.keys(untold).length === 0) return
     // Recorded only once said: a notification that wasn't sent is tried at the next check.
-    const said = Object.keys(untold).length > 0 && (await deps.notify(updatesNotice(untold)))
-    deps.store.set('notified', said ? { ...told, ...untold } : told)
+    if (!(await deps.notify(updatesNotice(untold)))) return
+    // Read again just before writing, so what another session wrote meanwhile isn't dropped.
+    const latest = await deps.store.readStored('notified')
+    deps.store.set('notified', { ...told, ...latest, ...untold })
     await deps.store.flush()
   }
 
